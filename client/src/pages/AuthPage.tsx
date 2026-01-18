@@ -19,7 +19,7 @@ export default function AuthPage() {
         provider: 'kakao',
         options: {
   // 여기에 방금 찾은 주소를 넣습니다. (끝에 /는 빼셔도 됩니다)
-          redirectTo: 'https://b715661a-4621-4cb7-8469-34c409bffd1d-00-19actveeyp6df.janeway.replit.dev'
+          redirectTo: 'https://b715661a-4621-4cb7-8469-34c409bffd1d-00-19actveeyp6df.janeway.https://qt2026.vercel.app'
         }
       });
       if (error) throw error;
