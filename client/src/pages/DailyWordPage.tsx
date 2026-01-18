@@ -175,18 +175,33 @@ if (!error) setSharingList(data || []);
 };
 
 const handleRegisterSharing = async () => {
-if (!isAuthenticated) { setShowLoginModal(true); return; }
-if (!comment.trim()) return;
-const { data: { user } } = await supabase.auth.getUser();
-const meta = user?.user_metadata;
-const newPost = {
-content: comment,
-user_nickname: isAnonymous ? "익명" : (meta?.full_name || meta?.nickname || meta?.name || "신실한 성도"),
-is_anonymous: isAnonymous,
-user_id: user?.id
-};
-const { error } = await supabase.from('sharing_posts').insert([newPost]);
-if (!error) { setComment(""); fetchSharingPosts(); }
+  if (!isAuthenticated || !currentUserId) { setShowLoginModal(true); return; }
+  if (!comment.trim()) return;
+
+  // 1. DB의 profiles 테이블에서 현재 유저의 진짜 닉네임을 가져옵니다.
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('full_name, username')
+    .eq('id', currentUserId)
+    .single();
+
+  // 2. 닉네임 결정 순위: 익명 > DB의 full_name > DB의 username > 기본값
+  const displayName = isAnonymous 
+    ? "익명" 
+    : (profileData?.full_name || profileData?.username || "신실한 성도");
+
+  const newPost = {
+    content: comment,
+    user_nickname: displayName,
+    is_anonymous: isAnonymous,
+    user_id: currentUserId
+  };
+
+  const { error } = await supabase.from('sharing_posts').insert([newPost]);
+  if (!error) { 
+    setComment(""); 
+    fetchSharingPosts(); 
+  }
 };
 
 const handleDeleteSharing = async (id: number) => {
