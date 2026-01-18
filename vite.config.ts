@@ -1,19 +1,23 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
-  base: "", // './' 대신 빈 문자열로 시도해 봅니다.
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(process.cwd(), "client", "src"),
-      "@shared": path.resolve(process.cwd(), "shared"),
+      // 절대 경로를 더 확실하게 잡아줍니다.
+      "@": path.resolve(__dirname, "./client/src"),
+      "@shared": path.resolve(__dirname, "./shared"),
     },
   },
-  root: path.resolve(process.cwd(), "client"),
+  // root와 build 경로를 Vercel 기본값에 맞게 단순화합니다.
   build: {
-    outDir: path.resolve(process.cwd(), "dist/public"),
+    outDir: "../dist/public",
     emptyOutDir: true,
   },
 });
