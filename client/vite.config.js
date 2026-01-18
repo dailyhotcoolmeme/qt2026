@@ -1,26 +1,20 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
-  esbuild: {
-    jsxInject: `import React from 'react'`,
-  },
+  plugins: [
+    react({
+      jsxRuntime: 'automatic', // React is not defined 에러 해결 핵심
+    }),
+  ],
   resolve: {
     alias: {
-      // 절대 경로를 더 확실하게 잡아줍니다.
-      "@": path.resolve(__dirname, "./client/src"),
-      "@shared": path.resolve(__dirname, "./shared"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
-  // root와 build 경로를 Vercel 기본값에 맞게 단순화합니다.
+  // root가 client이므로 빌드 결과물은 dist에 생깁니다.
   build: {
-    outDir: "../dist/public",
-    emptyOutDir: true,
+    outDir: 'dist',
   },
 });
