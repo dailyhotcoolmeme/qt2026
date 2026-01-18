@@ -181,7 +181,7 @@ const { data: { user } } = await supabase.auth.getUser();
 const meta = user?.user_metadata;
 const newPost = {
 content: comment,
-user_nickname: isAnonymous ? "익명" : (meta?.nickname || "신실한 성도"),
+user_nickname: isAnonymous ? "익명" : (meta?.full_name || meta?.nickname || meta?.name || "신실한 성도"),
 is_anonymous: isAnonymous,
 user_id: user?.id
 };
