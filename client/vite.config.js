@@ -5,16 +5,15 @@ import path from 'path';
 export default defineConfig({
   plugins: [
     react({
-      // "React is not defined" 에러를 해결하는 핵심 설정
-      jsxRuntime: 'automatic',
+      jsxRuntime: 'automatic', // React is not defined 에러 해결 핵심
     }),
   ],
   resolve: {
     alias: {
-      // @ 경로를 src 폴더로 인식하게 합니다.
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // root가 client이므로 빌드 결과물은 dist에 생깁니다.
   build: {
     outDir: 'dist',
   },
