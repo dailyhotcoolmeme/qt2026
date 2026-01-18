@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Button } from "@/components/ui/button";
+import { Button } from "./components/ui/button";
 import { Play, Pause, Square, Volume2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../lib/utils";
 
 interface TTSButtonProps {
   content: string;

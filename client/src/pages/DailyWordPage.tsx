@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from "react"; 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "./ui/button";
+import { Card, CardContent } from "./ui/card";
+import { Textarea } from "./ui/textarea";
+import { Checkbox } from "./ui/checkbox";
 import {
 Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock, CheckCircle2,
 Mic, Trash2, Pause, Play, X
 } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import AuthPage from "./AuthPage";
-import { supabase } from "@/lib/supabase"; 
-import { useDisplaySettings } from "@/components/DisplaySettingsProvider";
+import { supabase } from "../lib/supabase"; 
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 interface BibleVerse {
 bible_name: string;

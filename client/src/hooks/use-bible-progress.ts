@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { BIBLE_BOOKS, TOTAL_CHAPTERS } from "@/lib/bibleData";
+import { apiRequest } from "../lib/queryClient";
+import { BIBLE_BOOKS, TOTAL_CHAPTERS } from "../lib/bibleData";
 
 interface BibleProgress {
   id: number;

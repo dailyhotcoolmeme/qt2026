@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "./components/ui/button";
+import { Card, CardContent } from "./components/ui/card";
+import { Textarea } from "./components/ui/textarea";
+import { Checkbox } from "./components/ui/checkbox";
 import { 
   Play, Pause, Square, Volume2, ChevronLeft, ChevronRight, Mic, Lock, MessageCircle, Star, Copy, Share2
 } from "lucide-react";
