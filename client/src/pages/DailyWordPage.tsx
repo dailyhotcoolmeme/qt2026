@@ -174,6 +174,7 @@ const { data, error } = await supabase.from('sharing_posts').select('*')
 if (!error) setSharingList(data || []);
 };
 
+
 const handleRegisterSharing = async () => {
   // 인증 체크
   if (!isAuthenticated) { setShowLoginModal(true); return; }
