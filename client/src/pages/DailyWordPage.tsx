@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react"; 
-import { Button } from "./ui/button";
-import { Card, CardContent } from "./ui/card";
-import { Textarea } from "./ui/textarea";
-import { Checkbox } from "./ui/checkbox";
+import { Button } from "./components/ui/button";
+import { Card, CardContent } from "./components/ui/card";
+import { Textarea } from "./components/ui/textarea";
+import { Checkbox } from "./components/ui/checkbox";
 import {
 Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock, CheckCircle2,
 Mic, Trash2, Pause, Play, X
