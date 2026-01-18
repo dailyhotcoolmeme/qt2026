@@ -175,54 +175,33 @@ if (!error) setSharingList(data || []);
 };
 
 const handleRegisterSharing = async () => {
-  if (!isAuthenticated) { setShowLoginModal(true); return; }
+  if (!isAuthenticated || !currentUserId) { setShowLoginModal(true); return; }
   if (!comment.trim()) return;
 
-  try {
-    // 1. 현재 세션에서 유저 ID를 다시 한번 확실히 가져옵니다.
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  // 1. profiles 테이블에서 현재 사용자의 진짜 이름을 가져옵니다.
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', currentUserId)
+    .single();
 
-    // 2. DB의 profiles 테이블에서 닉네임을 가져옵니다.
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('full_name, username')
-      .eq('id', user.id)
-      .single();
+  // 2. 닉네임 결정: 익명 > DB의 full_name > 기본값
+  const finalNickname = isAnonymous ? "익명" : (profile?.full_name || "신실한 성도");
 
-    // [확인용 로그] 브라우저 콘솔(F12)에서 확인 가능합니다.
-    console.log("가져온 프로필 데이터:", profileData);
+  const newPost = {
+    content: comment,
+    user_id: currentUserId,
+    // 이미지에서 확인된 정확한 컬럼명인 'user_nickname'에 값을 넣습니다.
+    user_nickname: finalNickname, 
+    is_anonymous: isAnonymous
+  };
 
-    // 3. 닉네임 결정 (익명 체크 -> DB 이름 -> 메타데이터 -> 기본값)
-    let displayName = "신실한 성도";
-    
-    if (isAnonymous) {
-      displayName = "익명";
-    } else if (profileData?.full_name) {
-      displayName = profileData.full_name;
-    } else if (profileData?.username) {
-      displayName = profileData.username;
-    } else if (user.user_metadata?.full_name) {
-      displayName = user.user_metadata.full_name;
-    }
-
-    const newPost = {
-      content: comment,
-      user_nickname: displayName,
-      is_anonymous: isAnonymous,
-      user_id: user.id
-    };
-
-    const { error: insertError } = await supabase.from('sharing_posts').insert([newPost]);
-    
-    if (!insertError) {
-      setComment("");
-      fetchSharingPosts();
-    } else {
-      console.error("저장 실패:", insertError);
-    }
-  } catch (err) {
-    console.error("에러 발생:", err);
+  const { error } = await supabase.from('sharing_posts').insert([newPost]);
+  if (!error) { 
+    setComment(""); 
+    fetchSharingPosts(); 
+  } else {
+    console.error("저장 에러:", error);
   }
 };
 
