@@ -175,33 +175,48 @@ if (!error) setSharingList(data || []);
 };
 
 const handleRegisterSharing = async () => {
-  if (!isAuthenticated || !currentUserId) { setShowLoginModal(true); return; }
+  // 인증 체크
+  if (!isAuthenticated) { setShowLoginModal(true); return; }
   if (!comment.trim()) return;
 
-  // 1. profiles 테이블에서 현재 사용자의 진짜 이름을 가져옵니다.
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', currentUserId)
-    .single();
+  try {
+    // 현재 유저 정보와 ID를 다시 한번 명확히 가져옵니다.
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  // 2. 닉네임 결정: 익명 > DB의 full_name > 기본값
-  const finalNickname = isAnonymous ? "익명" : (profile?.full_name || "신실한 성도");
+    // 1. DB의 profiles 테이블에서 이름 조회
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single();
 
-  const newPost = {
-    content: comment,
-    user_id: currentUserId,
-    // 이미지에서 확인된 정확한 컬럼명인 'user_nickname'에 값을 넣습니다.
-    user_nickname: finalNickname, 
-    is_anonymous: isAnonymous
-  };
+    // 2. 닉네임 결정 순위: 
+    // 익명? -> "익명"
+    // DB에 이름이 있는가? -> profile.full_name
+    // 카카오 메타데이터에 이름이 있는가? -> user_metadata.full_name
+    // 그것도 없으면? -> "신실한 성도"
+    const finalNickname = isAnonymous 
+      ? "익명" 
+      : (profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || "신실한 성도");
 
-  const { error } = await supabase.from('sharing_posts').insert([newPost]);
-  if (!error) { 
-    setComment(""); 
-    fetchSharingPosts(); 
-  } else {
-    console.error("저장 에러:", error);
+    const newPost = {
+      content: comment,
+      user_id: user.id,
+      user_nickname: finalNickname, 
+      is_anonymous: isAnonymous
+    };
+
+    const { error } = await supabase.from('sharing_posts').insert([newPost]);
+    
+    if (!error) { 
+      setComment(""); 
+      fetchSharingPosts(); 
+    } else {
+      console.error("저장 에러:", error);
+    }
+  } catch (err) {
+    console.error("처리 중 에러:", err);
   }
 };
 
