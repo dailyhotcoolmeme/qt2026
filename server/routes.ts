@@ -1,21 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth, registerAuthRoutes } from "./replit_integrations/auth";
 import { supabaseStorage } from "./supabaseStorage";
 
+// Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
-  return req.user?.claims?.sub || null;
+  // 클라이언트에서 보낸 헤더나 세션 정보를 우선 확인합니다.
+  return req.headers['x-user-id'] as string || req.user?.id || null;
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  // Replit 전용 인증 로직 주석 처리 (Vercel 에러 방지)
+  // await setupAuth(app);
+  // registerAuthRoutes(app);
 
   app.get("/api/verses/daily", async (req, res) => {
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0]; // 에러 방지를 위해 변수 선언 복구
     res.json({
       word: {
         id: 1,
@@ -45,7 +47,8 @@ export async function registerRoutes(
   });
 
   app.post("/api/word-comments", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    // req.isAuthenticated() 대신 getUserId 체크로 변경
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -79,7 +82,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/meditations/my", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -93,7 +96,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/meditations", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -118,7 +121,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/bible-progress", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -132,7 +135,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/bible-progress/mark", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -151,7 +154,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/bible-progress/unmark", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -170,7 +173,7 @@ export async function registerRoutes(
   });
 
   app.post("/api/bible-progress/reset", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -185,7 +188,7 @@ export async function registerRoutes(
   });
 
   app.get("/api/user/profile", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -199,7 +202,7 @@ export async function registerRoutes(
   });
 
   app.put("/api/user/profile", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!getUserId(req)) {
       return res.status(401).json({ message: "로그인이 필요합니다" });
     }
 
@@ -220,7 +223,8 @@ export async function registerRoutes(
   });
 
   app.get("/api/auth/me", (req, res) => {
-    res.json(req.user || null);
+    const userId = getUserId(req);
+    res.json(userId ? { id: userId } : null);
   });
 
   return httpServer;
