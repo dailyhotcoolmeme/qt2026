@@ -2,17 +2,17 @@ import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
-import { DisplaySettingsProvider } from "@/components/DisplaySettingsProvider";
-import { TopBar } from "@/components/TopBar";
-import { BottomNav } from "@/components/BottomNav";
-import DailyWordPage from "@/pages/DailyWordPage";
-import QTPage from "@/pages/QTPage";
-import ReadingPage from "@/pages/ReadingPage";
-import ArchivePage from "@/pages/ArchivePage";
-import AuthPage from "@/pages/AuthPage"; 
-import RegisterPage from "@/pages/RegisterPage";
+import { DisplaySettingsProvider } from "./components/DisplaySettingsProvider";
+import { TopBar } from "./components/TopBar";
+import { BottomNav } from "./components/BottomNav";
+import DailyWordPage from "./pages/DailyWordPage";
+import QTPage from "./pages/QTPage";
+import ReadingPage from "./pages/ReadingPage";
+import ArchivePage from "./pages/ArchivePage";
+import AuthPage from "./pages/AuthPage"; 
+import RegisterPage from "./pages/RegisterPage";
 // 방금 만든 회원가입 페이지 추가
-import NotFound from "@/pages/not-found";
+import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 
 function Router() {
