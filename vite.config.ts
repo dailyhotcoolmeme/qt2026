@@ -4,6 +4,8 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
+  // base를 상대 경로로 설정하여 빈 화면 문제 해결
+  base: "./", 
   plugins: [
     react(),
     runtimeErrorOverlay(),
@@ -28,6 +30,7 @@ export default defineConfig({
   },
   root: path.resolve(import.meta.dirname, "client"),
   build: {
+    // Vercel이 찾기 쉽도록 출력 경로 명시
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
   },
