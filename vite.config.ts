@@ -1,43 +1,26 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
-import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 
 export default defineConfig({
-  // base를 상대 경로로 설정하여 빈 화면 문제 해결
+  // 모든 자원을 현재 경로 기준으로 찾도록 설정 (빈 화면 해결 핵심)
   base: "./", 
   plugins: [
     react(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== "production" &&
-    process.env.REPL_ID !== undefined
-      ? [
-          await import("@replit/vite-plugin-cartographer").then((m) =>
-            m.cartographer(),
-          ),
-          await import("@replit/vite-plugin-dev-banner").then((m) =>
-            m.devBanner(),
-          ),
-        ]
-      : []),
+    // 배포 시 에러를 유발할 수 있는 리플릿 전용 플러그인들을 제거했습니다.
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(__dirname, "client", "src"),
+      "@shared": path.resolve(__dirname, "shared"),
+      "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
+  // root 설정을 client로 유지하되, Vercel이 index.html을 찾을 수 있게 합니다.
+  root: path.resolve(__dirname, "client"),
   build: {
-    // Vercel이 찾기 쉽도록 출력 경로 명시
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    // 결과물이 배포 서버의 표준 위치에 저장되도록 설정
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
-  },
-  server: {
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
-    },
   },
 });
