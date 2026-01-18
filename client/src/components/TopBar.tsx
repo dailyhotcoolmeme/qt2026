@@ -1,13 +1,13 @@
 import { Link } from "wouter"; // 1. Link 임포트 추가
-import { useDisplaySettings } from "./components/DisplaySettingsProvider";
-import { Button } from "./components/ui/button";
+import { useDisplaySettings } from "./DisplaySettingsProvider";
+import { Button } from "./ui/button";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./components/ui/select";
+} from "./ui/select";
 
 export function TopBar() {
   const { fontSize, increaseFontSize, decreaseFontSize, fontFamily, setFontFamily } = useDisplaySettings();
