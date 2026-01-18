@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Button } from "./components/ui/button";
-import { Card, CardContent } from "./components/ui/card";
+import { Button } from "../components/ui/button";
+import { Card, CardContent } from "../components/ui/card";
 import { 
   Play, Pause, Square, CheckCircle2, BarChart3, X, Trophy, Volume2
 } from "lucide-react";

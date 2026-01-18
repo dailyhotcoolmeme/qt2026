@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"; // 에러 해결을 위한 핵심 선언
 import { supabase } from "../lib/supabase"; // 파일명에 맞춰 경로 수정
-import { Button } from "./components/ui/button";
-import { Input } from "./components/ui/input";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import AuthPage from "./AuthPage"; 
 import { 
   Trophy, BookOpen, MessageCircle, 
