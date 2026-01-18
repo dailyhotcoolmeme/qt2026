@@ -176,48 +176,30 @@ if (!error) setSharingList(data || []);
 
 
 const handleRegisterSharing = async () => {
-  // 인증 체크
   if (!isAuthenticated) { setShowLoginModal(true); return; }
   if (!comment.trim()) return;
 
-  try {
-    // 현재 유저 정보와 ID를 다시 한번 명확히 가져옵니다.
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  // 유저 정보를 더 확실하게 가져옵니다.
+  const { data: { user } } = await supabase.auth.getUser();
+  const meta = user?.user_metadata;
 
-    // 1. DB의 profiles 테이블에서 이름 조회
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('full_name')
-      .eq('id', user.id)
-      .single();
+  // 카카오의 경우 full_name, name, nickname 순서대로 확인합니다.
+  const kakaoName = meta?.full_name || meta?.name || meta?.nickname;
+  const finalNickname = isAnonymous ? "익명" : (kakaoName || "신실한 성도");
 
-    // 2. 닉네임 결정 순위: 
-    // 익명? -> "익명"
-    // DB에 이름이 있는가? -> profile.full_name
-    // 카카오 메타데이터에 이름이 있는가? -> user_metadata.full_name
-    // 그것도 없으면? -> "신실한 성도"
-    const finalNickname = isAnonymous 
-      ? "익명" 
-      : (profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || "신실한 성도");
+  const newPost = {
+    content: comment,
+    user_id: user?.id,
+    user_nickname: finalNickname, 
+    is_anonymous: isAnonymous
+  };
 
-    const newPost = {
-      content: comment,
-      user_id: user.id,
-      user_nickname: finalNickname, 
-      is_anonymous: isAnonymous
-    };
-
-    const { error } = await supabase.from('sharing_posts').insert([newPost]);
-    
-    if (!error) { 
-      setComment(""); 
-      fetchSharingPosts(); 
-    } else {
-      console.error("저장 에러:", error);
-    }
-  } catch (err) {
-    console.error("처리 중 에러:", err);
+  const { error } = await supabase.from('sharing_posts').insert([newPost]);
+  if (!error) { 
+    setComment(""); 
+    fetchSharingPosts(); 
+  } else {
+    console.error("저장 에러:", error);
   }
 };
 
