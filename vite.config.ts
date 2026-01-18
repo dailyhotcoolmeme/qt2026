@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [react()],
+  esbuild: {
+    jsxInject: `import React from 'react'`,
+  },
   resolve: {
     alias: {
       // 절대 경로를 더 확실하게 잡아줍니다.
