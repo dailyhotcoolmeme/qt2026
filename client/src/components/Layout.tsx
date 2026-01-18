@@ -1,6 +1,6 @@
 import { ReactNode } from "react";
 import { cn } from "../lib/utils";
-import { useDisplaySettings } from "./components/DisplaySettingsProvider";
+import { useDisplaySettings } from "./DisplaySettingsProvider";
 
 export function Layout({ children, className }: { children: ReactNode; className?: string }) {
   const { fontFamily, fontSize } = useDisplaySettings();
@@ -14,8 +14,8 @@ export function Layout({ children, className }: { children: ReactNode; className
         )}
         style={{
           fontFamily: fontFamily === 'serif' ? '"Noto Serif KR", serif' : 
-                     fontFamily === 'monospace' ? '"Nanum Gothic", monospace' : 
-                     '"Noto Sans KR", sans-serif',
+                      fontFamily === 'monospace' ? '"Nanum Gothic", monospace' : 
+                      '"Noto Sans KR", sans-serif',
           fontSize: `${fontSize}px`
         }}
       >
