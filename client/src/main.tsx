@@ -1,4 +1,4 @@
-import React from "react"; // 1. 이 줄을 맨 위에 추가했습니다.
+import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
