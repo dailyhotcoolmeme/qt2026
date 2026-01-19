@@ -62,7 +62,6 @@
   }
   body {
     @apply bg-zinc-50 text-foreground antialiased;
-    font-family: 'Noto Sans KR', sans-serif;
   }
   
   /* Custom scrollbar for webkit */
