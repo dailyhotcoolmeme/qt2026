@@ -66,13 +66,16 @@ export default function QTPage() {
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
 
-  // --- TTS 로직 (DailyWord와 동일) ---
+  // --- TTS 로직 수정 (숫자 제거 후 읽기) ---
   const handlePlayTTS = async () => {
     if (!bibleData) return;
     if (audio) { setShowAudioControl(true); return; }
 
+    // 정규표현식으로 "1. ", "12. " 등 숫자와 마침표 조합을 제거합니다.
+    const pureContent = bibleData.content.replace(/\d+\.\s/g, "");
+
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const textToSpeak = `${bibleData.content}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+    const textToSpeak = `${pureContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
     const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
@@ -184,18 +187,25 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
-        {/* 말씀 카드: 라운드 sm 적용 */}
+        {/* 말씀 카드: 좌측 정렬 및 스타일 수정 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-          <CardContent className="pt-6 pb-0 px-4">
-            <div className="text-center py-1">
-              <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
+          <CardContent className="pt-8 pb-4 px-6">
+            <div className="text-left">
+              <div className="text-white font-medium leading-[1.8] break-keep whitespace-pre-wrap">
                 {bibleData ? (
-                  <p style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>{bibleData.content}</p>
+                  <p style={{ fontSize: `${fontSize}px`, lineHeight: '2' }}>
+                    {/* 데이터에 '1. ' 형태가 포함되어 있으면 그대로 보여줌 */}
+                    {bibleData.content}
+                  </p>
                 ) : (
-                  <p className="text-white pb-6">등록된 묵상 말씀이 없습니다.</p>
+                  <p className="text-white text-center pb-6">등록된 묵상 말씀이 없습니다.</p>
                 )}
               </div>
-              {bibleData && <p className="text-base text-white font-bold pb-6 mt-4">• {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •</p>}
+              {bibleData && (
+                <p className="text-sm text-white/80 font-bold mt-8 text-right border-t border-white/20 pt-4">
+                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
