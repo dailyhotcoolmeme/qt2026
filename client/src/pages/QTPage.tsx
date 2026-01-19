@@ -1,188 +1,308 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
-import { 
-  Play, Pause, Square, Volume2, ChevronLeft, ChevronRight, Mic, Lock, MessageCircle, Star, Copy, Share2
+import {
+  ChevronLeft, ChevronRight, MessageCircle, Star, Copy, Lock, 
+  CheckCircle2, Mic, Trash2, Pause, Play, X
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import AuthPage from "./AuthPage";
+import { supabase } from "../lib/supabase";
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function QTPage() {
-  const [currentDate, setCurrentDate] = useState(new Date("2026-01-15"));
-  const today = new Date("2026-01-15"); 
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const today = new Date();
+  const { fontSize } = useDisplaySettings();
+  
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [userNickname, setUserNickname] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [isAuthenticated] = useState(false); 
+  
+  // 입력 필드 상태
+  const [meditation, setMeditation] = useState("");
+  const [prayer, setPrayer] = useState("");
+  const [isAnonMeditation, setIsAnonMeditation] = useState(false);
+  const [isAnonPrayer, setIsAnonPrayer] = useState(false);
+  
+  // 리스트 및 팝업 상태
+  const [qtList, setQtList] = useState<any[]>([]);
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  const [showDeleteToast, setShowDeleteToast] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const sharingList = [
-    {
-      id: 1,
-      type: "묵상 기록",
-      content: "오늘 시편 말씀을 길게 읽으니 주님의 동행하심이 더 깊게 느껴집니다. 오늘도 그 사랑으로 승리합니다!",
-      userName: "",         
-      userNickname: "신실한나그네772", 
-      time: "방금 전"
-    },
-    {
-      id: 2,
-      type: "묵상 기도",
-      content: "하나님의 사랑에서 우리를 끊을 수 있는 것은 아무것도 없습니다. 오늘도 그 사랑으로 승리합니다!",
-      userName: "김은혜",    
-      userTitle: "집사",
-      userNickname: "은혜로운삶",
-      time: "10분 전"
-    }
-  ];
+  // 음성 재생 상태 (DailyWordPage 스타일)
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAudioControl, setShowAudioControl] = useState(false);
 
-  const handleShare = async () => {
-    const container = document.getElementById("bible-content");
-    const text = container ? container.innerText : "오늘의 묵상 말씀";
-    if (navigator.share) {
-      try { await navigator.share({ title: "오늘의 묵상", text: text, url: window.location.href }); } catch (err) { console.log("공유 취소"); }
-    } else {
-      navigator.clipboard.writeText(text);
-      alert("링크가 복사되었습니다.");
+  useEffect(() => {
+    checkUser();
+    fetchQTPosts();
+  }, [currentDate]);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setIsAuthenticated(true);
+      setCurrentUserId(session.user.id);
+      setUserNickname(session.user.user_metadata?.nickname || "성도님");
     }
   };
 
-  const handlePlayAudio = () => {
-    if (!isPlaying) {
-      const container = document.getElementById("bible-content");
-      if (container) {
-        let text = container.innerText;
-        const cleanText = text.replace(/\d+\s/g, "");
-        const utterance = new SpeechSynthesisUtterance(cleanText);
-        utterance.lang = 'ko-KR';
-        utterance.onend = () => setIsPlaying(false);
-        window.speechSynthesis.speak(utterance);
-        setIsPlaying(true);
-      }
-    } else {
-      window.speechSynthesis.cancel();
-      setIsPlaying(false);
+  const fetchQTPosts = async () => {
+    // 한국 시간 기준 날짜 처리
+    const offset = currentDate.getTimezoneOffset() * 60000;
+    const dateStr = new Date(currentDate.getTime() - offset).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from("qt_posts")
+      .select("*")
+      .eq("target_date", dateStr)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) setQtList(data);
+  };
+
+  const handleSaveQT = async () => {
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!meditation.trim() && !prayer.trim()) return;
+
+    const offset = currentDate.getTimezoneOffset() * 60000;
+    const dateStr = new Date(currentDate.getTime() - offset).toISOString().split('T')[0];
+
+    const { error } = await supabase.from("qt_posts").insert({
+      user_id: currentUserId,
+      user_nickname: userNickname,
+      meditation_content: meditation,
+      prayer_content: prayer,
+      is_meditation_anonymous: isAnonMeditation,
+      is_prayer_sharing: isAnonPrayer,
+      target_date: dateStr,
+    });
+
+    if (!error) {
+      setMeditation("");
+      setPrayer("");
+      fetchQTPosts();
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from("qt_posts").delete().eq("id", id);
+    if (!error) {
+      setShowDeleteToast(true);
+      setTimeout(() => setShowDeleteToast(false), 2000);
+      fetchQTPosts();
     }
   };
 
   const changeDate = (days: number) => {
     const newDate = new Date(currentDate);
     newDate.setDate(newDate.getDate() + days);
-    if (newDate > today) return; 
-    setCurrentDate(newDate);
+    if (newDate <= today) setCurrentDate(newDate);
   };
 
-  const handleActionWithAuth = (actionName: string) => {
-    if (!isAuthenticated) { setShowLoginModal(true); }
+  const handlePlayAudio = () => {
+    const text = document.getElementById("qt-verse-content")?.innerText;
+    if (!text) return;
+
+    if (!isPlaying) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ko-KR';
+      utterance.onstart = () => { setIsPlaying(true); setShowAudioControl(true); };
+      utterance.onend = () => { setIsPlaying(false); setShowAudioControl(false); };
+      window.speechSynthesis.speak(utterance);
+    } else {
+      window.speechSynthesis.pause();
+      setIsPlaying(false);
+    }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white font-sans overflow-hidden">
-      <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
+    <div className="flex flex-col h-screen bg-white font-sans overflow-hidden pt-[64px]">
+      {/* 헤더 */}
+      <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-50 z-[100] shadow-sm">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" className="text-gray-400" onClick={() => changeDate(-1)}><ChevronLeft className="w-6 h-6" /></Button>
+          <button onClick={() => changeDate(-1)} className="p-2 hover:bg-gray-100 rounded-full">
+            <ChevronLeft className="w-6 h-6 text-gray-700" />
+          </button>
           <div className="text-center">
-            <p className="text-[10px] text-primary font-bold tracking-widest mb-0.5">{currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' })}</p>
-            <h1 className="text-lg font-black text-gray-900">오늘의 묵상</h1>
+            <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 2}px` }}>오늘의 묵상</h1>
+            <p className="text-[11px] text-gray-400 font-bold uppercase">
+              {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+            </p>
           </div>
-          <Button variant="ghost" size="icon" className={currentDate >= today ? "text-gray-50" : "text-gray-400"} onClick={() => changeDate(1)} disabled={currentDate >= today}><ChevronRight className="w-6 h-6" /></Button>
+          <button onClick={() => changeDate(1)} disabled={currentDate >= today} className={`p-2 ${currentDate >= today ? "opacity-10" : ""}`}>
+            <ChevronRight className="w-6 h-6 text-gray-700" />
+          </button>
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto p-4 pb-32 space-y-8">
-        <Card className="border-none bg-blue-50/50 shadow-none overflow-hidden rounded-[32px]">
-          <CardContent className="pt-6 pb-6 px-6 space-y-6">
-            <div className="flex items-center justify-between bg-white/60 backdrop-blur-md rounded-full px-4 py-2 border border-blue-100">
-              <div className="flex items-center gap-3">
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-primary" onClick={handlePlayAudio}>{isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}</Button>
-                <Button size="sm" variant="ghost" className="h-8 w-8 p-0 text-gray-900" onClick={() => { window.speechSynthesis.cancel(); setIsPlaying(false); }}><Square className="w-3 h-3 fill-current" /></Button>
-                <div className="w-[1px] h-3 bg-blue-200 mx-1" /><span className="text-[10px] font-bold text-blue-400">오디오 성경 듣기</span>
-              </div>
-              <Volume2 className="w-3.5 h-3.5 text-blue-300" />
-            </div>
-            
-            <div className="py-2">
-               <div id="bible-content" className="text-[16px] font-serif text-gray-800 leading-[1.8] break-keep px-2 text-left space-y-8">
-                 <div className="space-y-4"><p className="font-bold text-blue-500 mb-2 underline decoration-blue-200 underline-offset-4">[시편 23편]</p><p>1 여호와는 나의 목자시니 내게 부족함이 없으리로다</p><p>2 그가 나를 푸른 풀밭에 누이시며 쉴 만한 물가로 인도하시는도다</p><p>3 내 영혼을 소생시키시고 자기 이름을 위하여 의의 길로 인도하시는도다</p><p>4 내가 사망의 음침한 골짜기로 다닐지라도 해를 두려워하지 않을 것은 주께서 나와 함께 하심이라 주의 지팡이와 막대기가 나를 안위하시나이다</p><p>5 주께서 내 원수의 목전에서 내게 상을 차려 주시고 기름을 내 머리에 부으셨으니 내 잔이 넘치나이다</p><p>6 내 평생에 선하심과 인자하심이 반드시 나를 따르리니 내가 여호와의 집에 영원히 살리로다</p></div>
-                 <div className="space-y-4"><p className="font-bold text-blue-500 mb-2 underline decoration-blue-200 underline-offset-4">[시편 24편]</p><p>1 땅과 거기에 충만한 것과 세계와 그 가운데에 사는 자들은 다 여호와의 것이로다</p><p>2 여호와께서 그 터를 바다 위에 세우심이여 강들 위에 건설하셨도다</p><p>3 여호와의 산에 오를 자가 누구며 그의 거룩한 곳에 설 자가 누구인가</p><p>4 곧 손이 깨끗하며 마음이 청결하며 뜻을 허탄한 데에 두지 아니하며 거짓 맹세하지 아니하는 자로다</p></div>
-                 <div className="space-y-4"><p className="font-bold text-blue-500 mb-2 underline decoration-blue-200 underline-offset-4">[시편 25편]</p><p>1 여호와여 나의 영혼이 주를 우러러보나이다</p><p>2 나의 하나님이여 내가 주께 의지하였사오니 나를 부끄럽지 않게 하시고 나의 원수들이 나를 이겨 개가를 부르지 못하게 하소서</p><p>3 주를 바라는 자들은 수치를 당하지 아니려니와 까닭 없이 속이는 자들은 수치를 당하리이다</p></div>
-                 <div className="space-y-4"><p className="font-bold text-blue-500 mb-2 underline decoration-blue-200 underline-offset-4">[시편 26편]</p><p>1 내가 나의 완전함에 행하였사오며 흔들리지 아니하고 여호와를 의지하였사오니 여호와여 나를 판단하소서</p><p>2 여호와여 나를 살피시고 시험하사 내 뜻과 내 양심을 단련하소서</p></div>
-                 <div className="space-y-4"><p className="font-bold text-blue-500 mb-2 underline decoration-blue-200 underline-offset-4">[시편 27편]</p><p>1 여호와는 나의 빛이요 나의 구원이시니 내가 누구를 두려워하리요 여호와는 내 생명의 능력이시니 내가 누구를 무서워하리요</p><p>2 악인들이 내 살을 먹으려고 내게로 왔으나 나의 대적들, 나의 원수들인 그들은 실족하여 넘어졌도다</p><p>3 군대가 나를 대적하여 진 칠지라도 내 마음이 두렵지 아니하며 전쟁이 일어나 나를 치려 할지라도 나는 여전히 태연하리로다</p></div>
-               </div>
-               <p className="text-sm font-bold text-blue-400 mt-10 text-center">[시편 23-27편]</p>
-            </div>
-
-            <div className="flex justify-center gap-3 pt-4 border-t border-blue-100/50">
-              <Button variant="ghost" size="sm" className={`gap-1.5 h-8 rounded-full ${isFavorite ? 'text-yellow-500 bg-yellow-50' : 'text-gray-400'}`} onClick={() => setIsFavorite(!isFavorite)}><Star className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} /><span className="text-[11px] font-bold">즐겨찾기</span></Button>
-              <Button variant="ghost" size="sm" className="gap-1.5 h-8 rounded-full text-gray-400" onClick={() => alert("복사되었습니다.")}><Copy className="w-4 h-4" /><span className="text-[11px] font-bold">복사</span></Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-gray-400" onClick={handleShare}><Share2 className="w-4 h-4" /></Button>
-            </div>
+      <main className="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-8 max-w-md mx-auto w-full">
+        {/* 말씀 카드 */}
+        <Card className="border-none bg-[#5D7BAF] rounded-[24px] shadow-none overflow-hidden">
+          <CardContent className="p-8 text-white text-center leading-relaxed font-serif" id="qt-verse-content" style={{ fontSize: `${fontSize}px` }}>
+            <p className="text-xs font-bold opacity-60 mb-3 tracking-widest">[오늘의 본문]</p>
+            <p className="break-keep italic">"여호와는 나의 목자시니 내게 부족함이 없으리로다 그가 나를 푸른 풀밭에 누이시며 쉴 만한 물가로 인도하시는도다"</p>
           </CardContent>
         </Card>
 
-        <div className="space-y-10">
-          <section className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2"><MessageCircle className="w-5 h-5 text-gray-800" /><h3 className="font-bold text-gray-800">나의 묵상 기록</h3></div>
-              <Button variant="ghost" size="sm" className="h-7 text-primary gap-1 font-bold" onClick={() => handleActionWithAuth("음성")}><Mic className="w-3.5 h-3.5" /><span className="text-[11px]">음성으로 등록</span></Button>
+        {/* 오디오/복사 버튼 */}
+        <div className="flex items-center justify-center gap-8 py-2 relative">
+          <button onClick={handlePlayAudio} className="flex flex-col items-center gap-1.5 group">
+            <div className="p-2 bg-blue-50 rounded-full group-hover:bg-blue-100 transition-colors">
+              <Mic className="w-5 h-5 text-[#5D7BAF]" />
             </div>
-            <Card className="border-none bg-gray-50 p-4 shadow-none space-y-4 rounded-3xl">
-              <div className="relative overflow-hidden rounded-2xl cursor-pointer" onClick={() => handleActionWithAuth("기록")}>
-                <Textarea placeholder="오늘의 은혜를 기록하세요..." className="min-h-[100px] bg-white border-none resize-none text-sm opacity-20 blur-[3px]" readOnly />
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10"><Lock className="w-5 h-5 text-gray-400 mb-1" /><span className="text-[10px] font-bold text-gray-500">로그인 후 작성 가능</span></div>
-              </div>
-              <div className="flex items-center gap-4 px-1">
-                <div className="flex items-center gap-2"><Checkbox id="share-r" defaultChecked /><label htmlFor="share-r" className="text-[11px] font-bold text-gray-500">묵상기록 나누기</label></div>
-                <div className="flex items-center gap-2"><Checkbox id="anon-r" /><label htmlFor="anon-r" className="text-[11px] font-bold text-gray-500">익명으로 나누기</label></div>
-              </div>
-              <Button className="w-full bg-primary/20 text-primary font-bold rounded-xl h-11" onClick={() => handleActionWithAuth("기록 저장")}>묵상 기록 저장하기</Button>
-            </Card>
-          </section>
+            <span className="text-[#5D7BAF] text-[11px] font-bold text-center">음성 듣기</span>
+          </button>
+          
+          <button onClick={() => { setShowCopyToast(true); setTimeout(() => setShowCopyToast(false), 2000); }} className="flex flex-col items-center gap-1.5 group">
+            <div className="p-2 bg-gray-50 rounded-full group-hover:bg-gray-100 transition-colors">
+              <Copy className="w-5 h-5 text-gray-400" />
+            </div>
+            <span className="text-gray-400 text-[11px] font-bold text-center">본문 복사</span>
+          </button>
 
-          <section className="space-y-4">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2"><MessageCircle className="w-5 h-5 text-gray-800" /><h3 className="font-bold text-gray-800">나의 묵상 기도</h3></div>
-              <Button variant="ghost" size="sm" className="h-7 text-primary gap-1 font-bold" onClick={() => handleActionWithAuth("음성")}><Mic className="w-3.5 h-3.5" /><span className="text-[11px]">음성으로 등록</span></Button>
-            </div>
-            <Card className="border-none bg-gray-50 p-4 shadow-none space-y-4 rounded-3xl">
-              <div className="relative overflow-hidden rounded-2xl cursor-pointer" onClick={() => handleActionWithAuth("기도")}>
-                <Textarea placeholder="오늘의 기도를 기록하세요..." className="min-h-[100px] bg-white border-none resize-none text-sm opacity-20 blur-[3px]" readOnly />
-                <div className="absolute inset-0 flex flex-col items-center justify-center z-10"><Lock className="w-5 h-5 text-gray-400 mb-1" /><span className="text-[10px] font-bold text-gray-500">로그인 후 작성 가능</span></div>
-              </div>
-              <div className="flex items-center gap-4 px-1">
-                <div className="flex items-center gap-2"><Checkbox id="share-p" defaultChecked /><label htmlFor="share-p" className="text-[11px] font-bold text-gray-500">묵상기도 나누기</label></div>
-                <div className="flex items-center gap-2"><Checkbox id="anon-p" /><label htmlFor="anon-p" className="text-[11px] font-bold text-gray-500">익명으로 나누기</label></div>
-              </div>
-              <Button className="w-full bg-primary/20 text-primary font-bold rounded-xl h-11" onClick={() => handleActionWithAuth("기도 저장")}>묵상 기도 저장하기</Button>
-            </Card>
-          </section>
+          <AnimatePresence>
+            {showAudioControl && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                className="absolute -top-12 bg-gray-800 text-white px-4 py-2 rounded-full flex items-center gap-3 shadow-xl z-[110]">
+                <button onClick={handlePlayAudio}>{isPlaying ? <Pause size={16}/> : <Play size={16}/>}</button>
+                <div className="w-[1px] h-3 bg-gray-600"/>
+                <button onClick={() => { window.speechSynthesis.cancel(); setIsPlaying(false); setShowAudioControl(false); }}><X size={16}/></button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        <section className="space-y-4 pb-10">
-          <h3 className="font-bold text-gray-800 px-1">⛪ 성도님들의 묵상 나눔</h3>
-          {sharingList.map((item) => (
-            <div key={item.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3">
-              <div className="flex justify-start"><span className={`px-2 py-0.5 text-[9px] font-bold rounded-md ${item.type === "묵상 기록" ? "bg-primary/10 text-primary" : "bg-orange-50 text-orange-500"}`}>{item.type}</span></div>
-              <p className="text-sm text-gray-700 leading-relaxed">{item.content}</p>
-              <div className="flex justify-between items-end"><span className="text-xs font-bold text-primary">{item.userName || item.userNickname}</span><span className="text-[10px] text-gray-400 font-medium">{item.time}</span></div>
+        {/* 묵상 기록 입력 */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <MessageCircle className="w-5 h-5 text-[#5D7BAF]" />
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize - 2}px` }}>나의 묵상 기록</h3>
+          </div>
+          <div className="relative bg-gray-50 rounded-[28px] p-6 border border-gray-100 shadow-inner">
+            {!isAuthenticated && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/60 backdrop-blur-[2px] rounded-[28px] space-y-3">
+                <Lock className="w-6 h-6 text-[#5D7BAF] opacity-40" />
+                <Button variant="outline" size="sm" onClick={() => setShowLoginModal(true)} className="rounded-full border-[#5D7BAF] text-[#5D7BAF] font-bold">로그인 후 작성</Button>
+              </div>
+            )}
+            <Textarea 
+              placeholder="오늘 말씀에서 발견한 은혜는 무엇인가요?" 
+              className="bg-transparent border-none focus-visible:ring-0 resize-none min-h-[120px] p-0 text-gray-700"
+              style={{ fontSize: `${fontSize - 1}px` }}
+              value={meditation} onChange={(e) => setMeditation(e.target.value)}
+            />
+            <div className="flex items-center justify-start mt-4 gap-2">
+              <Checkbox id="anon-med" checked={isAnonMeditation} onCheckedChange={(v) => setIsAnonMeditation(!!v)} />
+              <label htmlFor="anon-med" className="text-xs font-bold text-gray-400 cursor-pointer">익명으로 나누기</label>
             </div>
-          ))}
+          </div>
+        </section>
+
+        {/* 묵상 기도 입력 */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <Star className="w-5 h-5 text-[#5D7BAF]" />
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize - 2}px` }}>나의 묵상 기도</h3>
+          </div>
+          <div className="bg-[#5D7BAF]/5 rounded-[28px] p-6 border border-[#5D7BAF]/10">
+            <Textarea 
+              placeholder="주님께 드리고 싶은 오늘의 기도문을 적어보세요." 
+              className="bg-transparent border-none focus-visible:ring-0 resize-none min-h-[120px] p-0 text-gray-700 italic"
+              style={{ fontSize: `${fontSize - 1}px` }}
+              value={prayer} onChange={(e) => setPrayer(e.target.value)}
+            />
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center gap-2">
+                <Checkbox id="share-pray" checked={isAnonPrayer} onCheckedChange={(v) => setIsAnonPrayer(!!v)} />
+                <label htmlFor="share-pray" className="text-xs font-bold text-[#5D7BAF]/60 cursor-pointer">기도 나눔 포함</label>
+              </div>
+              <Button onClick={handleSaveQT} className="bg-[#5D7BAF] text-white rounded-full px-8 font-bold shadow-lg active:scale-95 transition-all">기록 완료</Button>
+            </div>
+          </div>
+        </section>
+
+        {/* 나눔 리스트 */}
+        <section className="space-y-6 pt-4 pb-12">
+          <h3 className="font-bold text-gray-800 px-1" style={{ fontSize: `${fontSize}px` }}>⛪ 성도님들의 나눔</h3>
+          <div className="space-y-4">
+            {qtList.map((item) => (
+              <motion.div layout key={item.id} className="bg-white p-6 rounded-[24px] border border-gray-100 shadow-sm relative group">
+                {item.user_id === currentUserId && (
+                  <button onClick={() => setDeleteId(item.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 size={16} />
+                  </button>
+                )}
+                {item.meditation_content && (
+                  <div className="mb-4">
+                    <span className="text-[9px] font-bold bg-[#5D7BAF]/10 text-[#5D7BAF] px-2 py-0.5 rounded-md mb-2 inline-block">MEDITATION</span>
+                    <p className="text-gray-700 leading-relaxed" style={{ fontSize: `${fontSize - 2}px` }}>{item.meditation_content}</p>
+                  </div>
+                )}
+                {item.is_prayer_sharing && item.prayer_content && (
+                  <div className="mt-4 pt-4 border-t border-dashed border-gray-100">
+                    <span className="text-[9px] font-bold bg-orange-50 text-orange-500 px-2 py-0.5 rounded-md mb-2 inline-block">PRAYER</span>
+                    <p className="text-gray-500 italic font-serif" style={{ fontSize: `${fontSize - 3}px` }}>"{item.prayer_content}"</p>
+                  </div>
+                )}
+                <div className="flex justify-between items-end mt-4">
+                  <span className="text-xs font-bold text-[#5D7BAF]">{item.is_meditation_anonymous ? "익명의 성도" : item.user_nickname}</span>
+                  <span className="text-[10px] text-gray-300">{new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </section>
       </main>
 
-      {/* 로그인 팝업 */}
+      {/* 팝업 모달들 */}
       <AnimatePresence>
-        {showLoginModal && (
-          <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white rounded-t-[40px] w-full max-w-md relative pt-12 pb-8 px-2 max-h-[85vh] overflow-y-auto">
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-8 right-8 text-gray-400 p-4">✕</button>
-              <AuthPage />
+        {deleteId && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white p-8 rounded-[32px] w-full max-w-xs text-center shadow-2xl">
+              <p className="font-bold text-gray-800 mb-6 text-lg">기록을 삭제할까요?</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold">취소</button>
+                <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold">삭제</button>
+              </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
+      <AnimatePresence>
+        {showCopyToast && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-24 left-0 right-0 flex justify-center z-[110]">
+            <div className="bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold flex items-center gap-2">
+              <CheckCircle2 size={18} className="text-green-400" />
+              <span>클립보드에 복사되었습니다</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showLoginModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }}
+              className="bg-white rounded-[32px] p-8 w-full max-w-sm relative shadow-2xl overflow-y-auto max-h-[90vh]">
+              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-gray-400"><X size={24}/></button>
+              <AuthPage />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
