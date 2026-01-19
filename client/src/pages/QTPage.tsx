@@ -4,8 +4,8 @@ import { Card, CardContent } from "../components/ui/card";
 import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
 import {
-  Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock, CheckCircle2,
-  Mic, Trash2, Pause, Play, X, PenLine
+  Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock,
+  Mic, Trash2, PenLine
 } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import AuthPage from "./AuthPage";
@@ -155,7 +155,7 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
-        {/* 말씀 카드 (기존 디자인 유지) */}
+        {/* 말씀 카드 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
@@ -265,7 +265,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 하단 리스트: '오늘의 말씀' 디자인 완벽 적용 */}
+        {/* 하단 리스트: '오늘의 말씀'과 동일한 테두리 박스 적용 */}
         <div className="space-y-4 pb-20 pt-4 px-1">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -279,15 +279,15 @@ export default function QTPage() {
                 initial={{ opacity: 0, y: 15 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white border-b border-gray-100 py-5 group"
+                className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
               >
-                {/* 작성자 및 날짜/시간 영역: 오늘의 말씀 형식 */}
-                <div className="flex justify-between items-center mb-3">
+                {/* 작성자 및 날짜/시간: 글자 크기 변동 적용 */}
+                <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>
                       {post.user_nickname}
                     </span>
-                    <span className="text-gray-300 text-[12px] font-medium pt-0.5">
+                    <span className="text-gray-300 font-medium" style={{ fontSize: `${fontSize - 2}px`, paddingTop: '2px' }}>
                       {new Date(post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '')}
                       {" | "}
                       {new Date(post.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -300,27 +300,31 @@ export default function QTPage() {
                   )}
                 </div>
 
-                {/* 내용 영역 */}
+                {/* 기록 내용 부분 */}
                 <div className="space-y-3">
-                  {/* 둘 다 있는 경우 라운드 박스로 감싸기 (테두리 없음) */}
+                  {/* 기록과 기도가 모두 있는 경우 내부 박스 분리 */}
                   {(post.my_meditation?.trim() && post.my_prayer?.trim()) ? (
-                    <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
-                        📖 묵상 기록: {post.my_meditation}
-                      </p>
-                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
-                        🙏 묵상 기도: {post.my_prayer}
-                      </p>
+                    <div className="space-y-3">
+                      <div className="bg-gray-50/80 rounded-xl p-4">
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                          📖 묵상 기록: {post.my_meditation}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50/80 rounded-xl p-4">
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                          🙏 묵상 기도: {post.my_prayer}
+                        </p>
+                      </div>
                     </div>
                   ) : (
                     <>
                       {post.my_meditation?.trim() && (
-                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap px-1" style={{ fontSize: `${fontSize}px` }}>
                           📖 묵상 기록: {post.my_meditation}
                         </p>
                       )}
                       {post.my_prayer?.trim() && (
-                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap px-1" style={{ fontSize: `${fontSize}px` }}>
                           🙏 묵상 기도: {post.my_prayer}
                         </p>
                       )}
@@ -333,7 +337,7 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 모달 및 토스트 (동일 유지) */}
+      {/* 모달 및 확인창 디자인 유지 */}
       <AnimatePresence>
         {deleteId && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
