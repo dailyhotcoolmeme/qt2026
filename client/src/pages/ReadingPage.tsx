@@ -79,7 +79,7 @@ export default function ReadingPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white font-sans overflow-hidden">
+    <div className="flex flex-col h-screen bg-white overflow-hidden">
       {/* 상단 헤더 */}
       <header className="flex-none p-5 border-b shadow-sm bg-white z-10">
         <div className="flex items-center justify-between mb-3">
