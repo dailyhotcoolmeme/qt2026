@@ -24,12 +24,28 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
     }
     return DEFAULT_FONT_SIZE;
   });
-  const [fontFamily, setFontFamily] = useState<FontFamily>("sans-serif");
 
+  // 폰트 설정도 로컬 스토리지에서 불러오도록 개선
+  const [fontFamily, setFontFamily] = useState<FontFamily>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('bibleapp-fontfamily');
+      return (saved as FontFamily) || "sans-serif";
+    }
+    return "sans-serif";
+  });
+
+  // 1. 폰트 크기 적용
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontSize}px`;
     localStorage.setItem('bibleapp-fontsize', fontSize.toString());
   }, [fontSize]);
+
+  // 2. 폰트 종류 적용 (이 부분이 추가되었습니다!)
+  useEffect(() => {
+    // document.body의 폰트를 직접 변경하여 전체 페이지에 적용합니다.
+    document.body.style.fontFamily = fontFamily;
+    localStorage.setItem('bibleapp-fontfamily', fontFamily);
+  }, [fontFamily]);
 
   const increaseFontSize = () => {
     setFontSize(prev => Math.min(prev + 1, MAX_FONT_SIZE));
