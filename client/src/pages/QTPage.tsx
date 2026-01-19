@@ -28,7 +28,6 @@ export default function QTPage() {
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   
-  // 묵상 기록용 상태 (DailyWord의 comment와 동일 구조)
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -39,11 +38,9 @@ export default function QTPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
-  // 음성 인식 관련
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // 음성 재생 관련 (TTS)
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -66,14 +63,25 @@ export default function QTPage() {
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
 
-  // --- TTS 로직 수정 (숫자 제거 후 읽기) ---
+  // --- 추가된 공유 함수 (에러 해결용) ---
+  const handleShareBibleText = async () => {
+    if (!bibleData) return;
+    const shareText = `[오늘의 묵상]\n${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}\n\n${bibleData.content}`;
+    if (navigator.share) {
+      try { await navigator.share({ title: "오늘의 묵상", text: shareText }); } catch (err) { console.error(err); }
+    } else {
+      await navigator.clipboard.writeText(shareText);
+      setShowCopyToast(true);
+      setTimeout(() => setShowCopyToast(false), 2000);
+    }
+  };
+
+  // --- TTS 로직 (컨트롤바 연동 수정) ---
   const handlePlayTTS = async () => {
     if (!bibleData) return;
-    if (audio) { setShowAudioControl(true); return; }
+    if (audio) { audio.play(); setIsPlaying(true); setShowAudioControl(true); return; }
 
-    // 정규표현식으로 "1. ", "12. " 등 숫자와 마침표 조합을 제거합니다.
     const pureContent = bibleData.content.replace(/\d+\.\s/g, "");
-
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const textToSpeak = `${pureContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
     const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
@@ -98,7 +106,10 @@ export default function QTPage() {
     } catch (error) { console.error(error); }
   };
 
-  // --- 음성 인식 로직 ---
+  const stopAudio = () => {
+    if (audio) { audio.pause(); audio.currentTime = 0; setIsPlaying(false); setShowAudioControl(false); setAudio(null); }
+  };
+
   const toggleSpeechRecognition = (type: 'meditation' | 'prayer') => {
     if (isRecording) {
       if (recognitionRef.current) { recognitionRef.current.shouldStop = true; recognitionRef.current.stop(); }
@@ -126,7 +137,6 @@ export default function QTPage() {
     recognition.start();
   };
 
-  // --- 데이터 페칭 ---
   const fetchQTVerse = async (date: Date) => {
     const offset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() - offset);
@@ -166,7 +176,6 @@ export default function QTPage() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      {/* 헤더: DailyWord와 100% 동일 */}
       <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
           <Button variant="ghost" size="icon" onClick={() => {
@@ -187,42 +196,26 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
-        {/* 말씀 카드 */}
+        {/* 말씀 카드: 내어쓰기 및 스크롤 수정 반영 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
-            {/* 1. 말씀 본문 영역 (높이 고정 및 스크롤) */}
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              <div className="text-white font-medium space-y-4"> {/* space-y-4로 절 사이 간격 확보 */}
+              <div className="text-white font-medium space-y-4">
                 {bibleData ? (
                   bibleData.content.split('\n').map((line, index) => {
                     const trimmedLine = line.trim();
-                    // "1. " 혹은 "12. " 패턴을 찾아 숫자와 본문을 분리
                     const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
-                    
                     if (match) {
                       const [_, verseNum, verseText] = match;
                       return (
-                        <div 
-                          key={index} 
-                          className="flex items-start text-left" // flex로 숫자와 텍스트 분리
-                          style={{ 
-                            fontSize: `${fontSize}px`, 
-                            lineHeight: '1.5', // 절 내부 줄간격
-                          }}
-                        >
-                          {/* 숫자 부분: 고정 폭을 주어 들여쓰기 효과 생성 */}
+                        <div key={index} className="flex items-start text-left" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>
                           <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em]">{verseNum}</span>
-                          {/* 본문 부분: 줄바꿈되어도 숫자 아래로 들어가지 않음 */}
                           <span className="break-keep">{verseText}</span>
                         </div>
                       );
                     }
-                    
-                    // 숫자가 없는 줄일 경우 (혹시 모를 예외 처리)
                     return (
-                      <p key={index} className="pl-[1.5em] break-keep" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>
-                        {trimmedLine}
-                      </p>
+                      <p key={index} className="pl-[1.5em] break-keep" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>{trimmedLine}</p>
                     );
                   })
                 ) : (
@@ -230,8 +223,6 @@ export default function QTPage() {
                 )}
               </div>
             </div>
-            
-            {/* 2. 성경 출처 영역 (가운데 정렬) */}
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
                 <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
@@ -242,7 +233,6 @@ export default function QTPage() {
           </CardContent>
         </Card>
 
-        {/* 스크롤바 스타일 */}
         <style>{`
           .custom-scrollbar::-webkit-scrollbar { width: 4px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
@@ -252,35 +242,33 @@ export default function QTPage() {
         {/* 액션 버튼 그룹 */}
         <div className="pt-0 pb-4 px-6 space-y-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
-            <div className="relative flex flex-col items-center">
-              <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
-                <Mic className="w-5 h-5 text-[#5D7BAF]" />
-                <span className="text-[#5D7BAF] text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
-              </button>
-              {/* TTS 컨트롤 팝업 생략(DailyWord와 동일) */}
-            </div>
+            <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
+              <Mic className="w-5 h-5 text-[#5D7BAF]" />
+              <span className="text-[#5D7BAF] text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+            </button>
             <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5">
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} />
               <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
-            <button onClick={() => {}} className="flex flex-row items-center gap-1.5">
+            <button onClick={() => {
+              if(bibleData) { navigator.clipboard.writeText(bibleData.content); setShowCopyToast(true); setTimeout(()=>setShowCopyToast(false), 2000); }
+            }} className="flex flex-row items-center gap-1.5">
               <Copy className="w-5 h-5 text-gray-400" />
               <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
             </button>
             <button onClick={handleShareBibleText} className="flex flex-row items-center gap-1.5">
-<Share2 className="w-5 h-5 text-gray-400" />
-<span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
-</button>
+              <Share2 className="w-5 h-5 text-gray-400" />
+              <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
+            </button>
           </div>
         </div>
 
-        {/* 입력 섹션: DailyWord 텍스트박스 구조 이식 */}
+        {/* 입력 섹션 */}
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2">
             <PenLine className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>나의 묵상 기록</h3>
           </div>
-          
           <div className="relative bg-gray-200 rounded-sm p-3 border border-gray-150">
             {!isAuthenticated && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-sm space-y-3">
@@ -294,8 +282,6 @@ export default function QTPage() {
               value={meditation}
               onChange={(e) => setMeditation(e.target.value)}
             />
-            
-            {/* 묵상 기도 박스 추가 */}
             <div className="mt-3">
               <p className="text-[12px] font-bold text-gray-400 mb-1 ml-1">나의 묵상 기도</p>
               <Textarea 
@@ -305,7 +291,6 @@ export default function QTPage() {
                 onChange={(e) => setPrayer(e.target.value)}
               />
             </div>
-
             <div className="flex items-center justify-between mt-4">
               <div className="flex items-center gap-6">
                 <label className="flex items-center gap-1.5 cursor-pointer">
@@ -322,7 +307,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 묵상 목록: DailyWord 스타일 이식 */}
+        {/* 묵상 목록 */}
         <div className="space-y-4 pb-20">
           <div className="flex items-center gap-2 px-1 pt-4">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -347,7 +332,38 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 로그인 모달 (DailyWord와 동일) */}
+      {/* --- 음성 재생 컨트롤 바 (요청사항 반영) --- */}
+      <AnimatePresence>
+        {showAudioControl && (
+          <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-0 left-0 right-0 bg-[#5D7BAF] text-white p-4 z-[150] rounded-t-2xl shadow-2xl">
+            <div className="max-w-md mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center animate-pulse"><Mic className="w-5 h-5" /></div>
+                <div><p className="text-xs opacity-70">오늘의 묵상 낭독</p><p className="text-sm font-bold">말씀을 듣고 있습니다...</p></div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" onClick={() => { if(isPlaying){ audio?.pause(); setIsPlaying(false); } else { audio?.play(); setIsPlaying(true); } }}>
+                  {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
+                </Button>
+                <Button variant="ghost" size="icon" onClick={stopAudio}><X className="w-6 h-6" /></Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 복사 토스트 및 로그인 모달 생략 */}
+      <AnimatePresence>
+        {showCopyToast && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="fixed bottom-24 left-0 right-0 flex justify-center z-[110]">
+            <div className="bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold flex items-center gap-2">
+              <CheckCircle2 size={18} className="text-green-400" />
+              <span>클립보드에 복사되었습니다</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showLoginModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60">
