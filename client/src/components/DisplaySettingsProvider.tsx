@@ -25,7 +25,6 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
     return DEFAULT_FONT_SIZE;
   });
 
-  // 폰트 설정도 로컬 스토리지에서 불러오도록 개선
   const [fontFamily, setFontFamily] = useState<FontFamily>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('bibleapp-fontfamily');
@@ -40,17 +39,18 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('bibleapp-fontsize', fontSize.toString());
   }, [fontSize]);
 
-  // 2. 폰트 종류 적용 (이 부분이 추가되었습니다!)
+  // 2. 폰트 종류 적용 (이름 매핑 로직 포함)
   useEffect(() => {
-    // document.body의 폰트를 직접 변경하여 전체 페이지에 적용합니다.
-    let realFont = "";
-    if (fontFamily === "sans-serif") realFont = "'Noto Sans KR', sans-serif";
-    else if (fontFamily === "serif") realFont = "'Nanum Myeongjo', serif";
-    else if (fontFamily === "monospace") realFont = "'Nanum Gothic', monospace";
+    let realFontName = "";
+    if (fontFamily === "sans-serif") {
+      realFontName = "'Noto Sans KR', sans-serif";
+    } else if (fontFamily === "serif") {
+      realFontName = "'Nanum Myeongjo', serif";
+    } else if (fontFamily === "monospace") {
+      realFontName = "'Nanum Gothic', monospace";
+    }
     
-    document.body.style.fontFamily = realFont;
-    localStorage.setItem('bibleapp-fontfamily', fontFamily);
-  }, [fontFamily]);
+    document.body.style.fontFamily = realFontName;
     localStorage.setItem('bibleapp-fontfamily', fontFamily);
   }, [fontFamily]);
 
