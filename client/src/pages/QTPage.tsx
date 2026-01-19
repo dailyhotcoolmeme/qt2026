@@ -39,6 +39,11 @@ export default function QTPage() {
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
+    // 음성 재생 관련 상태
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAudioControl, setShowAudioControl] = useState(false);
+
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -108,6 +113,46 @@ export default function QTPage() {
       setTimeout(() => setShowDeleteToast(false), 2000);
     }
   };
+    const handlePlayAudio = () => {
+    if (!bibleData) return;
+    
+    // 이미 재생 중인 오디오가 있다면 중지
+    if (audio) {
+      audio.pause();
+      setAudio(null);
+      setIsPlaying(false);
+    }
+
+    const utterance = new SpeechSynthesisUtterance(bibleData.content);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 0.9; // 약간 천천히
+
+    window.speechSynthesis.speak(utterance);
+    setIsPlaying(true);
+    setShowAudioControl(true);
+
+    utterance.onend = () => {
+      setIsPlaying(false);
+      setShowAudioControl(false);
+    };
+  };
+
+  const toggleAudio = () => {
+    if (isPlaying) {
+      window.speechSynthesis.pause();
+      setIsPlaying(false);
+    } else {
+      window.speechSynthesis.resume();
+      setIsPlaying(true);
+    }
+  };
+
+  const stopAudio = () => {
+    window.speechSynthesis.cancel();
+    setIsPlaying(false);
+    setShowAudioControl(false);
+  };
+
 
   const toggleSpeechRecognition = (target: 'meditation' | 'prayer') => {
     if (isRecording) {
@@ -195,9 +240,14 @@ export default function QTPage() {
         {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
-            <button className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
-              <Mic className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
-            </button>
+            <button 
+  onClick={handlePlayAudio}
+  className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold"
+>
+  <Mic className="w-5 h-5" />
+  <span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+</button>
+
             <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
@@ -350,6 +400,45 @@ export default function QTPage() {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      {/* 음성 제어 팝업 컨트롤러 */}
+      <AnimatePresence>
+        {showAudioControl && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-4 right-4 z-[250] max-w-md mx-auto"
+          >
+            <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/20 p-2 rounded-full animate-pulse">
+                  <Mic size={20} />
+                </div>
+                <div>
+                  <p className="text-[13px] font-bold opacity-90">말씀을 읽어드리고 있어요</p>
+                  <p className="text-[11px] opacity-70">오늘의 묵상 말씀</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button 
+                  variant="ghost" size="icon" 
+                  className="text-white hover:bg-white/10 rounded-full"
+                  onClick={toggleAudio}
+                >
+                  {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" />}
+                </Button>
+                <Button 
+                  variant="ghost" size="icon" 
+                  className="text-white hover:bg-white/10 rounded-full"
+                  onClick={stopAudio}
+                >
+                  <X size={24} />
+                </Button>
+              </div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
