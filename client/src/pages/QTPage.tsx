@@ -187,47 +187,66 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
-        {/* 말씀 카드: 높이 고정 및 스크롤 적용 */}
+        {/* 말씀 카드 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-          <CardContent className="pt-7 pb-5 px-6">
-            <div className="text-left">
-              {/* max-h-60 또는 h-64 등으로 박스 크기를 제한하고 스크롤 부여 */}
-              <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-                <div className="text-white font-medium break-keep space-y-3">
-                  {bibleData ? (
-                    // 1. 내용을 줄바꿈 기준으로 잘라서 배열로 만듦
-                    bibleData.content.split('\n').map((line, index) => (
-                      <p 
-                        key={index} 
-                        style={{ 
-                          fontSize: `${fontSize}px`, 
-                          lineHeight: '1.4', // 절 내부 줄간격 (좁게)
-                        }}
-                        className="m-0 p-0 text-left" // 들여쓰기 방지
-                      >
-                        {line.trim()}
+          <CardContent className="pt-8 pb-5 px-6">
+            {/* 1. 말씀 본문 영역 (높이 고정 및 스크롤) */}
+            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="text-white font-medium space-y-4"> {/* space-y-4로 절 사이 간격 확보 */}
+                {bibleData ? (
+                  bibleData.content.split('\n').map((line, index) => {
+                    const trimmedLine = line.trim();
+                    // "1. " 혹은 "12. " 패턴을 찾아 숫자와 본문을 분리
+                    const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
+                    
+                    if (match) {
+                      const [_, verseNum, verseText] = match;
+                      return (
+                        <div 
+                          key={index} 
+                          className="flex items-start text-left" // flex로 숫자와 텍스트 분리
+                          style={{ 
+                            fontSize: `${fontSize}px`, 
+                            lineHeight: '1.5', // 절 내부 줄간격
+                          }}
+                        >
+                          {/* 숫자 부분: 고정 폭을 주어 들여쓰기 효과 생성 */}
+                          <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em]">{verseNum}</span>
+                          {/* 본문 부분: 줄바꿈되어도 숫자 아래로 들어가지 않음 */}
+                          <span className="break-keep">{verseText}</span>
+                        </div>
+                      );
+                    }
+                    
+                    // 숫자가 없는 줄일 경우 (혹시 모를 예외 처리)
+                    return (
+                      <p key={index} className="pl-[1.5em] break-keep" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>
+                        {trimmedLine}
                       </p>
-                    ))
-                  ) : (
-                    <p className="text-white text-center py-10">등록된 묵상 말씀이 없습니다.</p>
-                  )}
-                </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-white text-center py-10 opacity-70">등록된 묵상 말씀이 없습니다.</p>
+                )}
               </div>
-              
-              {bibleData && (
-                <p className="text-sm text-white/90 font-bold mt-6 text-right border-t border-white/20 pt-3">
-                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
-                </p>
-              )}
             </div>
+            
+            {/* 2. 성경 출처 영역 (가운데 정렬) */}
+            {bibleData && (
+              <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
+                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
+                  {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* CSS 추가 (스크롤바를 깔끔하게 만들기 위함 - 선택사항) */}
+        {/* 스크롤바 스타일 */}
         <style>{`
           .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 10px; }
         `}</style>
 
         {/* 액션 버튼 그룹 */}
