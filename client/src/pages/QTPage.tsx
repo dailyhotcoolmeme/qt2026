@@ -267,6 +267,10 @@ export default function QTPage() {
               <Copy className="w-5 h-5 text-gray-400" />
               <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
             </button>
+            <button onClick={handleShareBibleText} className="flex flex-row items-center gap-1.5">
+<Share2 className="w-5 h-5 text-gray-400" />
+<span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
+</button>
           </div>
         </div>
 
