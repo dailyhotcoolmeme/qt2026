@@ -24,10 +24,10 @@ export default function QTPage() {
   const today = new Date();
   const [isFavorite, setIsFavorite] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showCopyToast, setShowCopyToast] = useState(false); 
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   
+  // 입력 필드 상태
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -41,10 +41,6 @@ export default function QTPage() {
   
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
   const recognitionRef = useRef<any>(null);
-
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showAudioControl, setShowAudioControl] = useState(false);
 
   useEffect(() => {
     fetchQTVerse(currentDate);
@@ -81,16 +77,18 @@ export default function QTPage() {
     setMeditationList(data || []);
   };
 
+  // 등록 로직 수정: 값이 있는 것만 정확히 매칭하여 저장
   const handleRegister = async () => {
     if (!isAuthenticated) { setShowLoginModal(true); return; }
+    // 둘 다 비어있으면 실행 안 함
     if (!meditation.trim() && !prayer.trim()) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     const finalNickname = isAnonymous ? "익명" : (user?.user_metadata?.full_name || "성도");
 
     const { error } = await supabase.from('meditations').insert([{
-      my_meditation: meditation,
-      my_prayer: prayer,
+      my_meditation: meditation.trim(), // 앞뒤 공백 제거 및 명확한 필드 지정
+      my_prayer: prayer.trim(),         // 앞뒤 공백 제거 및 명확한 필드 지정
       user_id: user?.id,
       user_nickname: finalNickname,
       is_anonymous: isAnonymous,
@@ -160,7 +158,7 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
-        {/* 1. 말씀 카드 섹션: [스크린샷 1, 2번 디자인 완벽 복구] */}
+        {/* 말씀 카드 (디자인 절대 유지) */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
@@ -197,7 +195,7 @@ export default function QTPage() {
           </CardContent>
         </Card>
 
-        {/* 2. 말씀 도구함 디자인 유지 */}
+        {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
@@ -215,7 +213,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 3. 입력 섹션: [한 세트 통합 + DailyWordPage 디자인] */}
+        {/* 입력 섹션: 묵상 기록 / 묵상 기도 분리 보장 */}
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
@@ -270,7 +268,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 4. 하단 리스트: [DailyWordPage와 100% 동일] */}
+        {/* 리스트 섹션: 필드가 있는 경우만 표시하도록 조건 강화 */}
         <div className="space-y-4 pb-20 pt-4">
           <div className="flex items-center gap-2 px-1">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -306,13 +304,15 @@ export default function QTPage() {
                 </div>
 
                 <div className="space-y-4">
-                  {post.my_meditation && (
+                  {/* .trim()된 데이터가 존재할 때만 렌더링 */}
+                  {post.my_meditation && post.my_meditation.trim() !== "" && (
                     <div className="space-y-1">
                       <p className="text-[11px] font-bold text-[#5D7BAF] opacity-60 ml-0.5 uppercase tracking-wider">[묵상 기록]</p>
                       <p className="text-gray-700 leading-relaxed text-[15px] whitespace-pre-wrap">{post.my_meditation}</p>
                     </div>
                   )}
-                  {post.my_prayer && (
+                  {/* .trim()된 데이터가 존재할 때만 렌더링 */}
+                  {post.my_prayer && post.my_prayer.trim() !== "" && (
                     <div className="bg-gray-50/70 p-4 rounded-xl space-y-1 border border-gray-100">
                       <p className="text-[11px] font-bold text-[#5D7BAF] opacity-60 ml-0.5 uppercase tracking-wider">[묵상 기도]</p>
                       <p className="text-gray-600 text-[14px] italic leading-relaxed">🙏 {post.my_prayer}</p>
@@ -325,7 +325,7 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 5. 삭제 확인 팝업 & 삭제 완료 토스트 & 로그인 모달 (DailyWordPage와 100% 동일) */}
+      {/* 삭제 팝업 & 토스트 & 로그인 모달 디자인 그대로 유지 */}
       <AnimatePresence>
         {deleteId && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
