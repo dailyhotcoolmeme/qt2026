@@ -27,7 +27,6 @@ export default function QTPage() {
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   
-  // 입력 필드 상태
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -77,18 +76,16 @@ export default function QTPage() {
     setMeditationList(data || []);
   };
 
-  // 등록 로직 수정: 값이 있는 것만 정확히 매칭하여 저장
   const handleRegister = async () => {
     if (!isAuthenticated) { setShowLoginModal(true); return; }
-    // 둘 다 비어있으면 실행 안 함
     if (!meditation.trim() && !prayer.trim()) return;
 
     const { data: { user } } = await supabase.auth.getUser();
     const finalNickname = isAnonymous ? "익명" : (user?.user_metadata?.full_name || "성도");
 
     const { error } = await supabase.from('meditations').insert([{
-      my_meditation: meditation.trim(), // 앞뒤 공백 제거 및 명확한 필드 지정
-      my_prayer: prayer.trim(),         // 앞뒤 공백 제거 및 명확한 필드 지정
+      my_meditation: meditation.trim(),
+      my_prayer: prayer.trim(),
       user_id: user?.id,
       user_nickname: finalNickname,
       is_anonymous: isAnonymous,
@@ -158,7 +155,7 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
-        {/* 말씀 카드 (디자인 절대 유지) */}
+        {/* 말씀 카드 (기존 디자인 유지) */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
@@ -213,7 +210,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 입력 섹션: 묵상 기록 / 묵상 기도 분리 보장 */}
+        {/* 입력 섹션 */}
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
@@ -268,11 +265,11 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 리스트 섹션: 필드가 있는 경우만 표시하도록 조건 강화 */}
-        <div className="space-y-4 pb-20 pt-4">
-          <div className="flex items-center gap-2 px-1">
+        {/* 하단 리스트: '오늘의 말씀' 디자인 완벽 적용 */}
+        <div className="space-y-4 pb-20 pt-4 px-1">
+          <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-[#5D7BAF]">성도님들의 묵상 나눔</h3>
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>성도님들의 묵상 나눔</h3>
           </div>
           
           <AnimatePresence initial={false}>
@@ -282,41 +279,52 @@ export default function QTPage() {
                 initial={{ opacity: 0, y: 15 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
+                className="bg-white border-b border-gray-100 py-5 group"
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#5D7BAF]/10 rounded-full flex items-center justify-center text-[#5D7BAF] font-bold text-sm">
-                      {post.user_nickname[0]}
-                    </div>
-                    <div>
-                      <p className="font-bold text-gray-800 text-[14px]">{post.user_nickname}</p>
-                      <p className="text-[11px] text-gray-400 font-medium">
-                        {new Date(post.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                    </div>
+                {/* 작성자 및 날짜/시간 영역: 오늘의 말씀 형식 */}
+                <div className="flex justify-between items-center mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>
+                      {post.user_nickname}
+                    </span>
+                    <span className="text-gray-300 text-[12px] font-medium pt-0.5">
+                      {new Date(post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '')}
+                      {" | "}
+                      {new Date(post.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                    </span>
                   </div>
                   {currentUserId === post.user_id && (
-                    <button onClick={() => setDeleteId(post.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
-                      <Trash2 size={18} />
+                    <button onClick={() => setDeleteId(post.id)} className="text-gray-300 hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
                     </button>
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  {/* .trim()된 데이터가 존재할 때만 렌더링 */}
-                  {post.my_meditation && post.my_meditation.trim() !== "" && (
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-bold text-[#5D7BAF] opacity-60 ml-0.5 uppercase tracking-wider">[묵상 기록]</p>
-                      <p className="text-gray-700 leading-relaxed text-[15px] whitespace-pre-wrap">{post.my_meditation}</p>
+                {/* 내용 영역 */}
+                <div className="space-y-3">
+                  {/* 둘 다 있는 경우 라운드 박스로 감싸기 (테두리 없음) */}
+                  {(post.my_meditation?.trim() && post.my_prayer?.trim()) ? (
+                    <div className="bg-gray-50 rounded-2xl p-4 space-y-3">
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                        📖 묵상 기록: {post.my_meditation}
+                      </p>
+                      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                        🙏 묵상 기도: {post.my_prayer}
+                      </p>
                     </div>
-                  )}
-                  {/* .trim()된 데이터가 존재할 때만 렌더링 */}
-                  {post.my_prayer && post.my_prayer.trim() !== "" && (
-                    <div className="bg-gray-50/70 p-4 rounded-xl space-y-1 border border-gray-100">
-                      <p className="text-[11px] font-bold text-[#5D7BAF] opacity-60 ml-0.5 uppercase tracking-wider">[묵상 기도]</p>
-                      <p className="text-gray-600 text-[14px] italic leading-relaxed">🙏 {post.my_prayer}</p>
-                    </div>
+                  ) : (
+                    <>
+                      {post.my_meditation?.trim() && (
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                          📖 묵상 기록: {post.my_meditation}
+                        </p>
+                      )}
+                      {post.my_prayer?.trim() && (
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>
+                          🙏 묵상 기도: {post.my_prayer}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </motion.div>
@@ -325,11 +333,11 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 삭제 팝업 & 토스트 & 로그인 모달 디자인 그대로 유지 */}
+      {/* 모달 및 토스트 (동일 유지) */}
       <AnimatePresence>
         {deleteId && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
               <h4 className="text-center font-bold text-gray-900 mb-2">나눔 삭제</h4>
               <p className="text-center text-sm text-gray-500 mb-6">작성하신 묵상을 삭제하시겠습니까?</p>
               <div className="flex gap-3">
