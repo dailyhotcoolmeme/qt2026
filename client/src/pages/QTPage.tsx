@@ -28,7 +28,6 @@ export default function QTPage() {
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   
-  // 입력 필드 (한 세트)
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -37,7 +36,6 @@ export default function QTPage() {
   const [bibleData, setBibleData] = useState<QTVerse | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   
-  // 삭제 관련 상태 (DailyWordPage와 100% 동일)
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
@@ -70,8 +68,7 @@ export default function QTPage() {
     const offset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() - offset);
     const formattedDate = localDate.toISOString().split('T')[0];
-    const { data } = await supabase.from('meditations_table').select('*').eq('display_date', formattedDate).maybeSingle(); 
-    // 위 테이블명은 환경에 따라 daily_qt_verses 등 기존 명칭으로 수정 가능합니다.
+    const { data } = await supabase.from('daily_qt_verses').select('*').eq('display_date', formattedDate).maybeSingle();
     setBibleData(data);
   };
 
@@ -89,7 +86,7 @@ export default function QTPage() {
     if (!meditation.trim() && !prayer.trim()) return;
 
     const { data: { user } } = await supabase.auth.getUser();
-    const finalNickname = isAnonymous ? "익명" : (user?.user_metadata?.full_name || user?.user_metadata?.nickname || "성도");
+    const finalNickname = isAnonymous ? "익명" : (user?.user_metadata?.full_name || "성도");
 
     const { error } = await supabase.from('meditations').insert([{
       my_meditation: meditation,
@@ -162,33 +159,70 @@ export default function QTPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-6">
-        {/* 말씀 카드 섹션 (기존 디자인 유지) */}
-        {bibleData && (
-          <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-            <CardContent className="pt-8 pb-5 px-6 text-white font-medium">
-              <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar space-y-4">
-                {bibleData.content.split('\n').map((line, idx) => (
-                  <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.6' }} className="break-keep opacity-90">{line}</p>
-                ))}
+      <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
+        {/* 1. 말씀 카드 섹션: [스크린샷 1, 2번 디자인 완벽 복구] */}
+        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
+          <CardContent className="pt-8 pb-5 px-6">
+            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="text-white font-medium space-y-4">
+                {bibleData ? (
+                  bibleData.content.split('\n').map((line, index) => {
+                    const trimmedLine = line.trim();
+                    const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
+                    if (match) {
+                      const [_, verseNum, verseText] = match;
+                      return (
+                        <div key={index} className="flex items-start text-left" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>
+                          <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em]">{verseNum}</span>
+                          <span className="break-keep">{verseText}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <p key={index} className="pl-[1.5em] break-keep" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>{trimmedLine}</p>
+                    );
+                  })
+                ) : (
+                  <p className="text-white text-center py-10 opacity-70">등록된 묵상 말씀이 없습니다.</p>
+                )}
               </div>
-              <div className="mt-8 pt-4 border-t border-white/20 text-center">
-                <span className="text-sm font-bold bg-white/10 px-4 py-1 rounded-full">
-                  {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
-                </span>
+            </div>
+            {bibleData && (
+              <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
+                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
+                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+                </p>
               </div>
-            </CardContent>
-          </Card>
-        )}
-        
-        {/* 입력 섹션: DailyWordPage와 100% 동일한 디자인 */}
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 2. 말씀 도구함 디자인 유지 */}
+        <div className="pt-0 pb-4 px-6">
+          <div className="flex items-center justify-center gap-7 pt-1.5">
+            <button className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
+              <Mic className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+            </button>
+            <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+              <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
+            </button>
+            <button className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+              <Copy className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+            </button>
+            <button className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+              <Share2 className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 3. 입력 섹션: [한 세트 통합 + DailyWordPage 디자인] */}
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>나의 묵상 나눔</h3>
           </div>
           
-          <div className="relative bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-5">
+          <div className="relative bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4">
             {!isAuthenticated && (
               <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-2xl space-y-3">
                 <Lock className="w-7 h-7 text-[#5D7BAF]" />
@@ -196,7 +230,6 @@ export default function QTPage() {
               </div>
             )}
             
-            {/* 묵상 기록 입력창 */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기록</span>
@@ -212,7 +245,6 @@ export default function QTPage() {
               />
             </div>
 
-            {/* 묵상 기도 입력창 */}
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기도</span>
@@ -230,17 +262,17 @@ export default function QTPage() {
 
             <div className="flex items-center justify-between pt-2">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} className="rounded-md border-gray-300 group-hover:border-[#5D7BAF]" />
-                <span className="text-sm font-bold text-gray-500 group-hover:text-[#5D7BAF] transition-colors">익명으로 나눔</span>
+                <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} className="rounded-md border-gray-300" />
+                <span className="text-sm font-bold text-gray-500">익명으로 나눔</span>
               </label>
               <Button onClick={handleRegister} disabled={!meditation.trim() && !prayer.trim()} className="rounded-full px-8 h-10 font-bold bg-[#5D7BAF] hover:bg-[#4A638F] shadow-md transition-all">등록</Button>
             </div>
           </div>
         </div>
 
-        {/* 하단 리스트: DailyWordPage와 디자인 및 기능 100% 동기화 */}
-        <div className="space-y-4 pb-20">
-          <div className="flex items-center gap-2 px-1 pt-4">
+        {/* 4. 하단 리스트: [DailyWordPage와 100% 동일] */}
+        <div className="space-y-4 pb-20 pt-4">
+          <div className="flex items-center gap-2 px-1">
             <MessageCircle className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-[#5D7BAF]">성도님들의 묵상 나눔</h3>
           </div>
@@ -251,7 +283,7 @@ export default function QTPage() {
                 key={post.id} 
                 initial={{ opacity: 0, y: 15 }} 
                 animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
               >
                 <div className="flex justify-between items-start mb-4">
@@ -293,7 +325,7 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 삭제 확인 팝업 (DailyWordPage와 100% 동일) */}
+      {/* 5. 삭제 확인 팝업 & 삭제 완료 토스트 & 로그인 모달 (DailyWordPage와 100% 동일) */}
       <AnimatePresence>
         {deleteId && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
@@ -309,7 +341,6 @@ export default function QTPage() {
         )}
       </AnimatePresence>
 
-      {/* 삭제 완료 토스트 */}
       <AnimatePresence>
         {showDeleteToast && (
           <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed bottom-10 left-0 right-0 flex items-center justify-center z-[310] pointer-events-none">
@@ -320,7 +351,6 @@ export default function QTPage() {
         )}
       </AnimatePresence>
 
-      {/* 로그인 모달 */}
       <AnimatePresence>
         {showLoginModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
