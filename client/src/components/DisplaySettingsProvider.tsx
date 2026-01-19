@@ -43,7 +43,14 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
   // 2. 폰트 종류 적용 (이 부분이 추가되었습니다!)
   useEffect(() => {
     // document.body의 폰트를 직접 변경하여 전체 페이지에 적용합니다.
-    document.body.style.fontFamily = fontFamily;
+    let realFont = "";
+    if (fontFamily === "sans-serif") realFont = "'Noto Sans KR', sans-serif";
+    else if (fontFamily === "serif") realFont = "'Nanum Myeongjo', serif";
+    else if (fontFamily === "monospace") realFont = "'Nanum Gothic', monospace";
+    
+    document.body.style.fontFamily = realFont;
+    localStorage.setItem('bibleapp-fontfamily', fontFamily);
+  }, [fontFamily]);
     localStorage.setItem('bibleapp-fontfamily', fontFamily);
   }, [fontFamily]);
 
