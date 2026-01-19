@@ -50,6 +50,12 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
+      // 핵심: TopBar 시스템과 폰트를 연결하는 이름표만 추가했습니다.
+      fontFamily: {
+        "sans-serif": ["'Noto Sans KR'", "sans-serif"],
+        "serif": ["'Nanum Myeongjo'", "serif"],
+        "monospace": ["'Nanum Gothic'", "monospace"],
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
