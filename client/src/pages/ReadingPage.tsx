@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { 
-  Play, Pause, Square, CheckCircle2, BarChart3, X, Trophy, Volume2
+  Play, Pause, Square, CheckCircle2, BarChart3, X, Trophy, Volume2,
+  ChevronLeft, ChevronRight, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import AuthPage from "./AuthPage"; // 로그인 페이지 컴포넌트 연결
+import AuthPage from "./AuthPage"; 
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
-// --- 성경 데이터 ---
+// --- 성경 데이터 (전체 데이터 복구) ---
 const BIBLE_BOOKS = [
   { name: "창세기", chapters: 50, type: "구약" }, { name: "출애굽기", chapters: 40, type: "구약" },
   { name: "레위기", chapters: 27, type: "구약" }, { name: "민수기", chapters: 36, type: "구약" },
@@ -40,252 +42,140 @@ const BIBLE_BOOKS = [
   { name: "디도서", chapters: 3, type: "신약" }, { name: "빌레몬서", chapters: 1, type: "신약" },
   { name: "히브리서", chapters: 13, type: "신약" }, { name: "야고보서", chapters: 5, type: "신약" },
   { name: "베드로전서", chapters: 5, type: "신약" }, { name: "베드로후서", chapters: 3, type: "신약" },
-  { name: "요한일서", chapters: 5, type: "신약" }, { name: "요한이서", chapters: 1, type: "신약" },
-  { name: "요한삼서", chapters: 1, type: "신약" }, { name: "유다서", chapters: 1, type: "신약" },
+  { name: "요한1서", chapters: 5, type: "신약" }, { name: "요한2서", chapters: 1, type: "신약" },
+  { name: "요한3서", chapters: 1, type: "신약" }, { name: "유다서", chapters: 1, type: "신약" },
   { name: "요한계시록", chapters: 22, type: "신약" }
 ];
 
 export default function ReadingPage() {
-  // --- 상태 관리 ---
-  const [isLoggedIn] = useState(false); // 로그인 상태 (인증 코드와 연동 필요)
-  const [showLoginModal, setShowLoginModal] = useState(false); 
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const today = new Date();
+  const { fontSize } = useDisplaySettings();
   const [showDetail, setShowDetail] = useState(false);
-  const [showSetting, setShowSetting] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [detailTab, setDetailTab] = useState<"구약" | "신약">("구약");
-  const [settingStep, setSettingStep] = useState<"시작" | "종료">("시작");
-
-  const [targetFrom, setTargetFrom] = useState({ bookIdx: 1, chapter: 3 });
-  const [targetTo, setTargetTo] = useState({ bookIdx: 1, chapter: 6 });
-  const [tempStart, setTempStart] = useState({ bookIdx: 1, chapter: 3 });
-  const [tempEnd, setTempEnd] = useState({ bookIdx: 1, chapter: 6 });
-
-  const [currentOrderIdx, setCurrentOrderIdx] = useState(0);
-  const [completedList, setCompletedList] = useState<string[]>([]);
-
-  const currentChapter = targetFrom.chapter + currentOrderIdx;
-  const isLastPage = currentChapter === targetTo.chapter && targetFrom.bookIdx === targetTo.bookIdx;
-  const readCount = 12 + completedList.length;
-
-  // --- 로그인 체크 핸들러 ---
-  const handleOpenSetting = () => {
-    if (!isLoggedIn) {
-      setShowLoginModal(true);
-    } else {
-      setSettingStep("시작");
-      setShowSetting(true);
-    }
-  };
+  const [detailTab, setDetailTab] = useState<'구약' | '신약'>('구약');
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden">
-      {/* 상단 헤더 */}
-      <header className="flex-none p-5 border-b shadow-sm bg-white z-10">
-        <div className="flex items-center justify-between mb-3">
-          <div className="space-y-1">
-            <p className="text-[10px] font-bold text-primary">전체 통독 진척도</p>
-            <div className="flex items-baseline gap-1">
-              <span className="text-2xl font-black text-gray-900">{readCount}</span>
-              <span className="text-gray-300 text-[10px] font-bold">/ 1189 장</span>
-            </div>
+    <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
+      
+      {/* 헤더: DailyWordPage 스타일 일치 */}
+      <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
+        <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
+          <Button variant="ghost" size="icon" onClick={() => {
+            const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
+          }}><ChevronLeft className="w-6 h-6" /></Button>
+          <div className="text-center">
+            <h1 className="text-[#5D7BAF] font-bold text-center" style={{ fontSize: `${fontSize + 3}px` }}>성경 통독</h1>
+            <p className="text-sm text-gray-400 font-bold text-center">
+              {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+              {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
+            </p>
           </div>
-          <Button variant="outline" size="sm" className="rounded-xl h-9 text-[11px] font-bold border-gray-200 px-4" onClick={() => setShowDetail(true)}>
-            <BarChart3 className="w-3.5 h-3.5 mr-1.5 text-primary" /> 상세 확인
-          </Button>
-        </div>
-        <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
-          <motion.div animate={{ width: `${(readCount / 1189) * 100}%` }} className="h-full bg-primary" />
+          <Button variant="ghost" size="icon" onClick={() => {
+            const d = new Date(currentDate); d.setDate(d.getDate() + 1);
+            if (d <= today) setCurrentDate(d);
+          }}><ChevronRight className="w-6 h-6" /></Button>
         </div>
       </header>
 
-      {/* 메인 영역 */}
-      <main className="flex-1 overflow-y-auto p-5 space-y-8 pb-32">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-             <h3 className="text-[13px] font-black text-gray-900 flex items-center gap-1.5">
-               <span className="w-1 h-3.5 bg-primary rounded-full" /> 오늘의 통독 목표
-             </h3>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div onClick={handleOpenSetting} className="bg-gray-50/80 p-5 rounded-2xl border border-gray-100 flex flex-col items-center cursor-pointer active:scale-95 transition-transform">
-              <span className="text-[10px] font-black text-primary mb-2 opacity-60">시작</span>
-              <span className="text-[15px] font-black text-gray-800">{BIBLE_BOOKS[targetFrom.bookIdx].name} {targetFrom.chapter}장</span>
+      <main className="flex-1 overflow-y-auto pt-4 px-4 pb-24 space-y-4">
+        {/* 대시보드: rounded-sm */}
+        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
+          <CardContent className="pt-8 pb-8 px-6 text-white text-center space-y-3">
+            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto">
+              <Trophy className="w-8 h-8 text-white" />
             </div>
-            <div onClick={handleOpenSetting} className="bg-gray-50/80 p-5 rounded-2xl border border-gray-100 flex flex-col items-center cursor-pointer active:scale-95 transition-transform">
-              <span className="text-[10px] font-black text-gray-400 mb-2 opacity-60">종료</span>
-              <span className="text-[15px] font-black text-gray-800">{BIBLE_BOOKS[targetTo.bookIdx].name} {targetTo.chapter}장</span>
+            <div>
+              <h2 className="text-xl font-bold">오늘도 말씀으로 승리!</h2>
+              <p className="text-sm opacity-80 mt-1">전체 성경의 12.5%를 읽으셨습니다.</p>
             </div>
-          </div>
-        </div>
-
-        <Card className="border-none bg-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-[24px] overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-50 flex items-center justify-between bg-blue-50/30">
-            <span className="font-black text-gray-800 text-[13px] tracking-tight">
-              {BIBLE_BOOKS[targetFrom.bookIdx].name} {currentChapter}장
-            </span>
-          </div>
-          <CardContent className="p-6 space-y-7">
-            <div className="flex items-center justify-between bg-white rounded-2xl px-5 py-3 border border-blue-50 shadow-sm">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => setIsPlaying(!isPlaying)} className="text-primary">
-                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-                    </button>
-                    <button onClick={() => setIsPlaying(false)} className="text-gray-300">
-                      <Square className="w-4 h-4 fill-current" />
-                    </button>
-                    <div className="w-px h-3 bg-gray-100" />
-                    <span className="text-[12px] font-black text-blue-500/80">오디오 성경 듣기</span>
-                </div>
-                <Volume2 className="w-4 h-4 text-blue-100" />
-            </div>
-
-            <div className="text-gray-700 leading-relaxed text-[17px] min-h-[200px] font-medium">
-              성경 말씀 본문이 여기에 표시됩니다.
-            </div>
-
-            <div className="flex items-center gap-2 pt-4">
-              {currentOrderIdx > 0 && (
-                <Button variant="outline" className="flex-1 h-14 rounded-2xl font-black border-gray-100 text-gray-400" onClick={() => setCurrentOrderIdx(currentOrderIdx - 1)}>이전</Button>
-              )}
-              <Button 
-                variant={completedList.includes(`${targetFrom.bookIdx}-${currentChapter}`) ? "default" : "outline"}
-                className={`flex-[2.5] h-14 rounded-2xl font-black gap-2 ${completedList.includes(`${targetFrom.bookIdx}-${currentChapter}`) ? "bg-[#7180B9] text-white" : "text-gray-300 border-gray-100"}`}
-                onClick={() => {
-                  if(!isLoggedIn) return setShowLoginModal(true);
-                  const key = `${targetFrom.bookIdx}-${currentChapter}`;
-                  setCompletedList(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]);
-                }}
-              >
-                <CheckCircle2 className="w-5 h-5" />
-                {completedList.includes(`${targetFrom.bookIdx}-${currentChapter}`) ? "읽음 완료" : "읽기 완료"}
-              </Button>
-              {!isLastPage ? (
-                <Button className="flex-1 h-14 rounded-2xl font-black bg-gray-900 text-white" onClick={() => setCurrentOrderIdx(currentOrderIdx + 1)}>다음</Button>
-              ) : (
-                <Button className="flex-1 h-14 rounded-2xl font-black bg-primary text-white" onClick={() => setShowSuccess(true)}>종료</Button>
-              )}
+            <div className="w-full bg-white/20 h-1.5 rounded-full mt-4">
+              <div className="bg-white h-full rounded-full" style={{ width: '12.5%' }} />
             </div>
           </CardContent>
         </Card>
+
+        {/* 메인 버튼: rounded-sm */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowDetail(true)}
+            className="h-28 flex flex-col gap-2 border-gray-100 rounded-sm hover:bg-gray-50 bg-white"
+          >
+            <BarChart3 className="w-7 h-7 text-[#5D7BAF]" />
+            <span className="font-bold text-gray-600">통독 상세 현황</span>
+          </Button>
+          <Button 
+            className="h-28 flex flex-col gap-2 bg-[#5D7BAF] hover:bg-[#4a638c] text-white rounded-sm"
+          >
+            <CheckCircle2 className="w-7 h-7" />
+            <span className="font-bold">오늘 읽기 완료</span>
+          </Button>
+        </div>
+
+        {/* 최근 기록 리스트 */}
+        <div className="space-y-3 pt-4">
+          <div className="flex items-center gap-2 px-1">
+            <Volume2 className="w-5 h-5 text-[#5D7BAF]" />
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>최근 통독 기록</h3>
+          </div>
+          
+          {[1, 2].map((i) => (
+            <div key={i} className="flex items-center justify-between p-5 bg-white rounded-sm border border-gray-100 shadow-sm">
+              <div className="space-y-1">
+                <p className="font-bold text-gray-800" style={{ fontSize: `${fontSize}px` }}>
+                  {i === 1 ? "출애굽기 15장 - 18장" : "출애굽기 11장 - 14장"}
+                </p>
+                <p className="text-[11px] text-gray-400 font-bold">2026.01.{18-i}</p>
+              </div>
+              <Check className="w-5 h-5 text-green-500" />
+            </div>
+          ))}
+        </div>
       </main>
 
-      {/* 팝업: 로그인 (오늘의 말씀과 100% 동일한 효과) */}
-      <AnimatePresence>
-        {showLoginModal && (
-          <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-black/60 backdrop-blur-sm">
-            <motion.div 
-              initial={{ y: "100%" }} 
-              animate={{ y: 0 }} 
-              exit={{ y: "100%" }} 
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white rounded-t-[40px] w-full max-w-md relative pt-12 pb-8 px-2 max-h-[85vh] overflow-y-auto"
-            >
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-8 right-8 text-gray-400 p-4">✕</button>
-              <AuthPage />
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 팝업: 범위 설정 */}
-      <AnimatePresence>
-        {showSetting && (
-          <div className="fixed inset-0 z-[1000] bg-black/60 flex items-end justify-center">
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-w-md rounded-t-[32px] p-8 h-[75vh] flex flex-col shadow-2xl">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h2 className="font-black text-xl text-gray-900">{settingStep === "시작" ? "시작 지점" : "종료 지점"} 선택</h2>
-                  <p className="text-[11px] text-primary font-black uppercase tracking-widest mt-1">범위 설정하기</p>
-                </div>
-                <Button variant="ghost" size="icon" className="rounded-full bg-gray-50" onClick={() => setShowSetting(false)}><X className="w-5 h-5 text-gray-400" /></Button>
-              </div>
-              
-              <div className="flex flex-1 overflow-hidden gap-4 border-y border-gray-50 py-6">
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                  {BIBLE_BOOKS.map((b, idx) => {
-                    const isBlocked = settingStep === "종료" && idx < tempStart.bookIdx;
-                    return (
-                      <button key={idx} disabled={isBlocked}
-                        className={`w-full text-left py-4 px-4 text-[13px] font-black rounded-2xl mb-2 transition-all ${
-                          (settingStep === "시작" ? tempStart.bookIdx : tempEnd.bookIdx) === idx ? "bg-primary text-white" : isBlocked ? "opacity-10 cursor-not-allowed" : "text-gray-400"
-                        }`}
-                        onClick={() => {
-                          if(settingStep === "시작") setTempStart({ bookIdx: idx, chapter: 1 });
-                          else setTempEnd({ bookIdx: idx, chapter: 1 });
-                        }}
-                      >
-                        {b.name}
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="w-24 overflow-y-auto pl-2 custom-scrollbar">
-                  {Array.from({ length: BIBLE_BOOKS[settingStep === "시작" ? tempStart.bookIdx : tempEnd.bookIdx].chapters }).map((_, i) => {
-                    const ch = i + 1;
-                    const isBlocked = settingStep === "종료" && tempEnd.bookIdx === tempStart.bookIdx && ch < tempStart.chapter;
-                    return (
-                      <button key={ch} disabled={isBlocked}
-                        className={`w-full py-4 text-[13px] font-black rounded-2xl mb-2 transition-all ${
-                          (settingStep === "시작" ? tempStart.chapter : tempEnd.chapter) === ch ? "bg-gray-900 text-white" : isBlocked ? "opacity-10" : "text-gray-300"
-                        }`}
-                        onClick={() => {
-                          if(settingStep === "시작") setTempStart({ ...tempStart, chapter: ch });
-                          else setTempEnd({ ...tempEnd, chapter: ch });
-                        }}
-                      >
-                        {ch}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-              <div className="pt-6 flex gap-3">
-                {settingStep === "종료" && (
-                  <Button variant="outline" className="flex-1 h-16 rounded-2xl font-black border-gray-100 text-gray-400" onClick={() => setSettingStep("시작")}>이전</Button>
-                )}
-                <button className="flex-[2] h-16 bg-[#7180B9] text-white font-black rounded-2xl text-lg shadow-lg" onClick={() => {
-                  if(settingStep === "시작") { setSettingStep("종료"); setTempEnd(tempStart); }
-                  else { setTargetFrom(tempStart); setTargetTo(tempEnd); setCurrentOrderIdx(0); setShowSetting(false); }
-                }}>
-                  {settingStep === "시작" ? "다음 단계" : "목표 설정 완료"}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 기타 팝업 (상세 진척도 / 성공) - 기존 한글 유지 */}
+      {/* 상세 진척도 모달 (모든 데이터 포함) */}
       <AnimatePresence>
         {showDetail && (
-           <div className="fixed inset-0 z-[1000] bg-black/50 backdrop-blur-sm flex items-center justify-center p-6">
-             <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-sm rounded-[32px] overflow-hidden flex flex-col h-[70vh] shadow-2xl">
-               <div className="p-6 border-b flex justify-between items-center">
-                 <h2 className="font-black text-lg text-gray-900">상세 진척도</h2>
-                 <Button variant="ghost" size="icon" className="h-10 w-10 rounded-full bg-gray-50" onClick={() => setShowDetail(false)}><X className="w-5 h-5 text-gray-400" /></Button>
-               </div>
-               <div className="flex p-1.5 bg-gray-100/50 m-6 rounded-2xl">
-                 {["구약", "신약"].map(t => (
-                   <button key={t} onClick={() => setDetailTab(t as any)} className={`flex-1 py-3 text-[12px] font-black rounded-xl transition-all ${detailTab === t ? "bg-white text-primary shadow-sm" : "text-gray-400"}`}>{t}</button>
-                 ))}
-               </div>
-               <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-5 custom-scrollbar">
-                 {BIBLE_BOOKS.filter(b => b.type === detailTab).map(book => (
-                   <div key={book.name} className="space-y-2">
-                     <div className="flex justify-between text-[11px] font-black">
-                       <span className="text-gray-600">{book.name}</span>
-                       <span className="text-primary font-black">0 / {book.chapters} 장</span>
-                     </div>
-                     <div className="h-1.5 bg-gray-50 rounded-full overflow-hidden">
-                       <div className="h-full bg-primary/20 w-0" />
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             </motion.div>
-           </div>
+          <motion.div 
+            initial={{ opacity: 0, y: "100%" }} 
+            animate={{ opacity: 1, y: 0 }} 
+            exit={{ opacity: 0, y: "100%" }}
+            className="fixed inset-0 z-[200] bg-white flex flex-col"
+          >
+            <header className="p-4 border-b flex items-center justify-between mt-8">
+              <h2 className="font-bold text-lg text-gray-800 ml-2">통독 상세 현황</h2>
+              <Button variant="ghost" size="icon" className="rounded-full" onClick={() => setShowDetail(false)}>
+                <X className="w-6 h-6 text-gray-400" />
+              </Button>
+            </header>
+
+            <div className="p-4">
+              <div className="flex bg-gray-100 p-1 rounded-sm">
+                <button 
+                  className={`flex-1 py-2.5 text-sm font-bold rounded-sm transition-all ${detailTab === '구약' ? 'bg-white text-[#5D7BAF] shadow-sm' : 'text-gray-400'}`}
+                  onClick={() => setDetailTab('구약')}
+                >구약</button>
+                <button 
+                  className={`flex-1 py-2.5 text-sm font-bold rounded-sm transition-all ${detailTab === '신약' ? 'bg-white text-[#5D7BAF] shadow-sm' : 'text-gray-400'}`}
+                  onClick={() => setDetailTab('신약')}
+                >신약</button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 pb-10 space-y-5">
+              {BIBLE_BOOKS.filter(b => b.type === detailTab).map(book => (
+                <div key={book.name} className="space-y-2">
+                  <div className="flex justify-between items-end">
+                    <span className="font-bold text-gray-700" style={{ fontSize: `${fontSize - 1}px` }}>{book.name}</span>
+                    <span className="text-[11px] font-bold text-[#5D7BAF]">0 / {book.chapters} 장</span>
+                  </div>
+                  <div className="h-2 bg-gray-50 rounded-full overflow-hidden border border-gray-100">
+                    <div className="h-full bg-[#5D7BAF]/30 rounded-full" style={{ width: '0%' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
