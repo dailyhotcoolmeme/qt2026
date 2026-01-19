@@ -126,7 +126,7 @@ export default function QTPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white font-sans overflow-hidden pt-[64px]">
+    <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
       {/* 헤더 */}
       <header className="fixed top-0 left-0 right-0 bg-white border-b border-gray-50 z-[100] shadow-sm">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
@@ -148,7 +148,7 @@ export default function QTPage() {
       <main className="flex-1 overflow-y-auto px-4 pt-4 pb-32 space-y-8 max-w-md mx-auto w-full">
         {/* 말씀 카드 */}
         <Card className="border-none bg-[#5D7BAF] rounded-[24px] shadow-none overflow-hidden">
-          <CardContent className="p-8 text-white text-center leading-relaxed font-serif" id="qt-verse-content" style={{ fontSize: `${fontSize}px` }}>
+          <CardContent className="p-8 text-white text-center leading-relaxed" id="qt-verse-content" style={{ fontSize: `${fontSize}px` }}>
             <p className="text-xs font-bold opacity-60 mb-3 tracking-widest">[오늘의 본문]</p>
             <p className="break-keep italic">"여호와는 나의 목자시니 내게 부족함이 없으리로다 그가 나를 푸른 풀밭에 누이시며 쉴 만한 물가로 인도하시는도다"</p>
           </CardContent>
