@@ -39,22 +39,27 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('bibleapp-fontsize', fontSize.toString());
   }, [fontSize]);
 
-    // 2. 폰트 종류 적용 (강제성 추가 버전)
+      // 2. 폰트 종류 적용 (이름 매핑 수정)
   useEffect(() => {
     let realFontName = "";
     if (fontFamily === "sans-serif") {
       realFontName = "'Noto Sans KR', sans-serif";
     } else if (fontFamily === "serif") {
-      realFontName = "'Nanum Myeongjo', serif";
+      // index.css에서 불러온 정확한 이름인 'Noto Serif KR'로 수정했습니다.
+      realFontName = "'Noto Serif KR', serif";
     } else if (fontFamily === "monospace") {
+      // index.css에서 불러온 정확한 이름인 'Nanum Gothic'으로 수정했습니다.
       realFontName = "'Nanum Gothic', monospace";
     }
     
-    // !important를 사용하여 다른 스타일 설정을 강제로 덮어씁니다.
-    document.body.style.setProperty('font-family', realFontName, 'important');
+    // 강제 적용
+    if (realFontName) {
+      document.body.style.setProperty('font-family', realFontName, 'important');
+    }
     
     localStorage.setItem('bibleapp-fontfamily', fontFamily);
   }, [fontFamily]);
+
 
 
   const increaseFontSize = () => {
