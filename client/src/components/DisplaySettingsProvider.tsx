@@ -39,7 +39,7 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('bibleapp-fontsize', fontSize.toString());
   }, [fontSize]);
 
-  // 2. 폰트 종류 적용 (이름 매핑 로직 포함)
+    // 2. 폰트 종류 적용 (강제성 추가 버전)
   useEffect(() => {
     let realFontName = "";
     if (fontFamily === "sans-serif") {
@@ -50,9 +50,12 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
       realFontName = "'Nanum Gothic', monospace";
     }
     
-    document.body.style.fontFamily = realFontName;
+    // !important를 사용하여 다른 스타일 설정을 강제로 덮어씁니다.
+    document.body.style.setProperty('font-family', realFontName, 'important');
+    
     localStorage.setItem('bibleapp-fontfamily', fontFamily);
   }, [fontFamily]);
+
 
   const increaseFontSize = () => {
     setFontSize(prev => Math.min(prev + 1, MAX_FONT_SIZE));
