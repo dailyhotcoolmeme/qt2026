@@ -187,28 +187,48 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
-        {/* 말씀 카드: 좌측 정렬 및 스타일 수정 */}
+        {/* 말씀 카드: 높이 고정 및 스크롤 적용 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-          <CardContent className="pt-8 pb-4 px-6">
+          <CardContent className="pt-7 pb-5 px-6">
             <div className="text-left">
-              <div className="text-white font-medium leading-[1.8] break-keep whitespace-pre-wrap">
-                {bibleData ? (
-                  <p style={{ fontSize: `${fontSize}px`, lineHeight: '2' }}>
-                    {/* 데이터에 '1. ' 형태가 포함되어 있으면 그대로 보여줌 */}
-                    {bibleData.content}
-                  </p>
-                ) : (
-                  <p className="text-white text-center pb-6">등록된 묵상 말씀이 없습니다.</p>
-                )}
+              {/* max-h-60 또는 h-64 등으로 박스 크기를 제한하고 스크롤 부여 */}
+              <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+                <div className="text-white font-medium break-keep space-y-3">
+                  {bibleData ? (
+                    // 1. 내용을 줄바꿈 기준으로 잘라서 배열로 만듦
+                    bibleData.content.split('\n').map((line, index) => (
+                      <p 
+                        key={index} 
+                        style={{ 
+                          fontSize: `${fontSize}px`, 
+                          lineHeight: '1.4', // 절 내부 줄간격 (좁게)
+                        }}
+                        className="m-0 p-0 text-left" // 들여쓰기 방지
+                      >
+                        {line.trim()}
+                      </p>
+                    ))
+                  ) : (
+                    <p className="text-white text-center py-10">등록된 묵상 말씀이 없습니다.</p>
+                  )}
+                </div>
               </div>
+              
               {bibleData && (
-                <p className="text-sm text-white/80 font-bold mt-8 text-right border-t border-white/20 pt-4">
+                <p className="text-sm text-white/90 font-bold mt-6 text-right border-t border-white/20 pt-3">
                   • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
                 </p>
               )}
             </div>
           </CardContent>
         </Card>
+
+        {/* CSS 추가 (스크롤바를 깔끔하게 만들기 위함 - 선택사항) */}
+        <style>{`
+          .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 10px; }
+        `}</style>
 
         {/* 액션 버튼 그룹 */}
         <div className="pt-0 pb-4 px-6 space-y-6">
