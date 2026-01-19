@@ -243,7 +243,7 @@ return `${date.getMonth() + 1}월 ${date.getDate()}일`;
 
   return (
     /* 전체 컨테이너에 pt-[64px] (TopBar 높이)를 추가하여 내용이 가려지지 않게 합니다. */
-    <div className="flex flex-col h-screen bg-white font-sans overflow-hidden pt-[64px]">
+    <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
 <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
 <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
 <Button variant="ghost" size="icon" className="text-black-700 font-bold" onClick={() => {
