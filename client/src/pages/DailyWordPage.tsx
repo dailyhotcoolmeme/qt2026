@@ -280,7 +280,7 @@ setCurrentDate(d);
 <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
 <CardContent className="pt-6 pb-0 px-4">
 <div className="text-center py-1">
-<div className="font-serif text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
+<div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
 {bibleData ? (
 <p style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>{bibleData.content}</p>
 ) : (
