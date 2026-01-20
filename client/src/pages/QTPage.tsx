@@ -142,22 +142,21 @@ export default function QTPage() {
 
 
 
-      const toggleAudio = () => {
+        const toggleAudio = () => {
     if (isPlaying) {
       window.speechSynthesis.pause();
       setIsPlaying(false);
     } else {
-      // 이어듣기 실행
+      // 브라우저 음성 엔진이 잠들었을 경우를 대비해 resume 호출
       window.speechSynthesis.resume();
-      
-      // 크롬 등 일부 브라우저 버그 대응: resume 후 0.1초 뒤에 상태 강제 확인
-      setTimeout(() => {
-        if (!window.speechSynthesis.paused) {
-          setIsPlaying(true);
-        }
-      }, 100);
-      
       setIsPlaying(true);
+
+      // [핵심] 일부 브라우저에서 resume() 후 소리가 안 나는 버그 해결용
+      // 잠시 일시정지했다가 다시 깨우는 트릭을 사용합니다.
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.pause();
+        window.speechSynthesis.resume();
+      }
     }
   };
 
