@@ -98,7 +98,7 @@ export default function DailyWordsPage() {
   
   // 2. 숫자 없는 텍스트로 음성 생성
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
-    const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
+    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
     try {
