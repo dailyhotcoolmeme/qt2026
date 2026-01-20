@@ -227,35 +227,40 @@ export default function QTPage() {
               <div className="text-white font-medium">
   {bibleData ? (
     <div style={{ fontSize: `${fontSize}px` }}>
-      {bibleData.content
-        .split('\n')
-        .filter((line) => line.trim() !== "") // 빈 줄 제거
-        .map((line, index) => {
-          const trimmedLine = line.trim();
-          // 정규식 수정: '숫자.'과 '내용'을 명확히 분리
-          const verseMatch = trimmedLine.match(/^(\d+\.)\s*(.*)/);
+      {getVerses().map((verse, idx) => {
+        const trimmedVerse = verse.trim();
+        const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
 
-          if (verseMatch) {
-            // verseMatch[1]은 "21.", verseMatch[2]는 실제 본문 내용입니다.
-            return (
-              <div key={index} className="flex flex-row items-start text-left mb-3">
+        return (
+          <motion.div
+            key={idx}
+            // 이 ref가 자동 스크롤을 담당합니다
+            ref={(el) => (sentenceRefs.current[idx] = el)}
+            // 이 animate가 음성 하이라이트 배경색을 담당합니다
+            animate={{
+              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
+            }}
+            transition={{ duration: 0.3 }}
+            // flex-row가 절 숫자를 한 줄로 고정합니다
+            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
+          >
+            {match ? (
+              <>
+                {/* 절 숫자 (21. 등) */}
                 <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
-                  {verseMatch[1]}
+                  {match[1]}
                 </span>
+                {/* 말씀 본문 */}
                 <span className="flex-1 break-keep leading-relaxed">
-                  {verseMatch[2]}
+                  {match[2]}
                 </span>
-              </div>
-            );
-          }
-
-          // 숫자가 없는 줄은 그대로 출력
-          return (
-            <p key={index} className="mb-3 break-keep leading-relaxed pl-[1.8em]">
-              {trimmedLine}
-            </p>
-          );
-        })}
+              </>
+            ) : (
+              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   ) : (
     <div className="text-center py-10 opacity-70">
@@ -263,6 +268,7 @@ export default function QTPage() {
     </div>
   )}
 </div>
+
 
             </div>
             {bibleData && (
