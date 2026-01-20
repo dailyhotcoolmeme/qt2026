@@ -31,8 +31,13 @@ export default function QTPage() {
   // --- 여기를 수정/추가 하세요 ---
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
   const sentenceRefs = useRef<(HTMLSpanElement | null)[]>([]); // Ref 타입을 HTMLSpanElement로 변경
+    // 이 로직이 절 번호와 본문을 가장 완벽하게 분리하고 싱크를 맞춥니다.
   const getVerses = () => {
     if (!bibleData || !bibleData.content) return [];
+    // 숫자. 으로 시작하는 부분을 기준으로 나누는 정규식
+    return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
+  };
+
     // 숫자. 으로 시작하는 부분을 기준으로 나누되, 번호를 유지하는 정규식입니다.
     return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
   };
@@ -164,15 +169,17 @@ export default function QTPage() {
         audioRef.current = audio;
 
         audio.ontimeupdate = () => {
-    if (!audio.duration) return;
-    const adjustedTime = audio.currentTime + 0.4; // 0.4초 정도 앞서게 설정
-    const progress = adjustedTime / audio.duration;
-    
-    // versesList.length를 기준으로 현재 몇 번째 절인지 계산
-    const index = Math.min(
-      Math.floor(progress * versesList.length),
-      versesList.length - 1
-    );
+          if (!audio.duration) return;
+          
+          // 현재 재생 시간보다 0.4초 앞선 지점을 하이라이트 위치로 계산
+          const adjustedTime = audio.currentTime + 0.4; 
+          const progress = adjustedTime / audio.duration;
+          const versesList = getVerses();
+          
+          const index = Math.min(
+            Math.floor(progress * versesList.length),
+            versesList.length - 1
+          );
           
           setCurrentSentenceIndex(index);
           sentenceRefs.current[index]?.scrollIntoView({
@@ -269,44 +276,46 @@ export default function QTPage() {
                     <CardContent className="pt-8 pb-5 px-6">
   <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
     <div className="text-white font-medium">
-      {bibleData ? (
-        <div style={{ fontSize: `${fontSize}px` }}>
-          {getVerses().map((verse, idx) => {
-            const trimmedVerse = verse.trim();
-            // 절 번호(숫자. )와 본문을 분리
-            const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
-            
-            return (
-              <motion.div
-                key={idx}
-                ref={(el) => (sentenceRefs.current[idx] = el)}
-                animate={{
-                  backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
-                }}
-                className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
-              >
-                {match ? (
-                  <>
-                    {/* 절 번호: 한 줄에서 튕겨나가지 않게 고정 너비 부여 */}
-                    <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
-                      {match[1]}
-                    </span>
-                    {/* 본문 내용: 번호를 제외한 나머지 텍스트만 출력 */}
-                    <span className="flex-1 break-keep leading-relaxed">
-                      {match[2]}
-                    </span>
-                  </>
-                ) : (
-                  <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-white text-center py-10 opacity-70">등록된 말씀이 없습니다.</p>
-      )}
+    <div className="text-white font-medium">
+  {bibleData ? (
+    <div style={{ fontSize: `${fontSize}px` }}>
+      {getVerses().map((verse, idx) => {
+        const trimmedVerse = verse.trim();
+        // 절 번호(match[1])와 본문(match[2])을 분리하는 정규식
+        const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
+        
+        return (
+          <motion.div
+            key={idx}
+            ref={(el) => (sentenceRefs.current[idx] = el)}
+            animate={{
+              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
+            }}
+            transition={{ duration: 0.3 }}
+            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
+          >
+            {match ? (
+              <>
+                {/* 절 번호: 고정 너비로 한 줄 유지 */}
+                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
+                  {match[1]}
+                </span>
+                {/* 본문 내용: 번호를 뺀 나머지 텍스트 */}
+                <span className="flex-1 break-keep leading-relaxed">
+                  {match[2]}
+                </span>
+              </>
+            ) : (
+              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
+  ) : (
+    <p className="text-white text-center py-10 opacity-70">등록된 말씀이 없습니다.</p>
+  )}
+</div>
   </div>
 
   {/* 출처 표기 영역 */}
