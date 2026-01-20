@@ -86,14 +86,18 @@ export default function DailyWordsPage() {
   }, [currentDate]);
 
   const handlePlayTTS = async () => {
-    if (!bibleData) return;
-    if (audio) {
-      setShowAudioControl(true);
-      return;
-    }
+  if (!bibleData) return;
+  if (audio) {
+    setShowAudioControl(true);
+    return;
+  }
 
-    const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const textToSpeak = `${bibleData.content}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+  // 1. 숫자(예: 1. 2.)를 제거하여 순수 텍스트만 추출
+  const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
+  const unit = bibleData.bible_name === "시편" ? "편" : "장";
+  
+  // 2. 숫자 없는 텍스트로 음성 생성
+  const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
     const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
@@ -272,7 +276,7 @@ export default function DailyWordsPage() {
           </CardContent>
         </Card>
 
-        <div className="pt-0 pb-24 px-6 space-y-6">
+        <div className="pt-0 pb-24 px-1 space-y-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
               <Mic className="w-5 h-5 text-[#5D7BAF]" />
