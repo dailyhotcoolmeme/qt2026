@@ -291,6 +291,7 @@ setCurrentDate(d);
                 <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
                  {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                 </p>
+  )}
               </div>
 </CardContent>
 </Card>
