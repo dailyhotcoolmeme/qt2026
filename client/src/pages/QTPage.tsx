@@ -255,19 +255,26 @@ export default function QTPage() {
                 {bibleData ? (
                   <div style={{ fontSize: `${fontSize}px` }}>
                     {getVerses().map((verse, idx) => (
-                      <motion.div
-                        key={idx}
-                        ref={(el) => (sentenceRefs.current[idx] = el)}
-                        animate={{
-                          backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
-                        }}
-                        transition={{ duration: 0.2 }}
-                        className="grid grid-cols-[3rem_1fr] items-start mb-3 px-2 py-1 rounded-lg"
-                      >
-                        <span className="font-bold opacity-80 text-left">{verse.num}</span>
-                        <span className="break-keep leading-relaxed pt-[1px]">{verse.text}</span>
-                      </motion.div>
-                    ))}
+  <motion.div
+    key={idx}
+    // 스크롤 기능은 유지하기 위해 ref는 남겨둡니다.
+    ref={(el) => (sentenceRefs.current[idx] = el)}
+    // 하이라이트 배경색(animate) 속성을 제거했습니다.
+    transition={{ duration: 0.2 }}
+    // grid 레이아웃과 간격은 그대로 유지하여 정렬을 보존합니다.
+    className="grid grid-cols-[3rem_1fr] items-start mb-3 px-2 py-1"
+  >
+    {/* 절 숫자 영역 */}
+    <span className="font-bold opacity-80 text-left">
+      {verse.num}
+    </span>
+    {/* 본문 내용 영역 */}
+    <span className="break-keep leading-relaxed pt-[1px]">
+      {verse.text}
+    </span>
+  </motion.div>
+))}
+
                   </div>
                 ) : (
                   <div className="text-center py-10 opacity-70"><p>등록된 말씀이 없습니다.</p></div>
