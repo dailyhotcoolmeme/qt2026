@@ -87,81 +87,60 @@ export default function DailyWordsPage() {
 
   const handlePlayTTS = async () => {
   if (!bibleData) return;
-  
-  if (audio) {
-    setShowAudioControl(true);
-    return;
-  }
+  if (audio) { setShowAudioControl(true); return; }
 
   const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
   const unit = bibleData.bible_name === "시편" ? "편" : "장";
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
-
   const fileName = `audio_${bibleData.bible_name}_${bibleData.chapter}_${bibleData.verse}.mp3`;
-  const { data: publicUrlData } = supabase.storage.from('bible-audio').getPublicUrl(fileName);
-  const audioUrl = publicUrlData.publicUrl;
 
   try {
-    const checkRes = await fetch(audioUrl, { method: 'HEAD' });
-    
-    let audioSource = "";
+    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    if (checkRes.ok) {
-      audioSource = audioUrl;
-      console.log("저장소에서 가져옴");
-    } else {
-      const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
-      const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({
+        input: { text: textToSpeak },
+        voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+        audioConfig: { audioEncoding: "MP3" },
+      }),
+    });
 
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          input: { text: textToSpeak },
-          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
-          audioConfig: { audioEncoding: "MP3" },
-        }),
-      });
-
-      const data = await response.json();
-      if (!data.audioContent) throw new Error("TTS 실패");
-
-      // 1. Blob 변환
-      const binary = atob(data.audioContent);
-      const array = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-      const blob = new Blob([array], { type: 'audio/mp3' });
-
-      // 2. [변경점] .then() 대신 await를 써서 업로드가 끝날 때까지 기다립니다.
-      console.log("업로드 시도 중...");
-      const { error: uploadError } = await supabase.storage
-        .from('bible-audio')
-        .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true });
-
-      if (uploadError) {
-        console.error("업로드 에러 발생:", uploadError.message);
-      } else {
-        console.log("업로드 성공!");
-      }
-
-      audioSource = `data:audio/mp3;base64,${data.audioContent}`;
+    const data = await response.json();
+    if (!data.audioContent) {
+      alert("구글 API 오류: " + JSON.stringify(data));
+      return;
     }
 
-    const audioBlob = new Audio(audioSource);
+    // 파일 변환
+    const binary = atob(data.audioContent);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+    const blob = new Blob([array], { type: 'audio/mp3' });
+
+    // 업로드 시도 및 결과 알림
+    const { error: uploadError } = await supabase.storage
+      .from('bible-audio') // <--- 수파베이스 버킷 이름과 똑같은지 꼭 확인! (대소문자)
+      .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true });
+
+    if (uploadError) {
+      alert("저장 실패 원인: " + uploadError.message);
+    } else {
+      alert("축하합니다! 서버 저장에 성공했습니다.");
+    }
+
+    const audioBlob = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
     setAudio(audioBlob);
     setShowAudioControl(true);
     audioBlob.play();
     setIsPlaying(true);
 
-    audioBlob.onended = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-      setAudio(null);
-    };
-
-  } catch (error) {
-    console.error("TTS 에러:", error);
+  } catch (error: any) {
+    alert("알 수 없는 에러: " + error.message);
   }
 };
+
 
 
   const togglePlayPause = () => {
