@@ -49,12 +49,15 @@ export default function QTPage() {
   const recognitionRef = useRef<any>(null);
 
     const getVerses = () => {
-    if (!bibleData || !bibleData.content) return [];
-    // 1. 먼저 모든 줄바꿈을 공백으로 치환하여 한 줄로 만듭니다 (줄바꿈 때문에 생기는 두 줄 현상 방지)
-    const singleLineContent = bibleData.content.replace(/\r?\n|\r/g, " ");
-    // 2. 그 다음 '숫자.' 패턴으로 절을 나눕니다.
-    return singleLineContent.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
-  };
+  if (!bibleData || !bibleData.content) return [];
+  // 줄바꿈을 모두 공백으로 바꿔서 한 줄로 만든 뒤, 숫자. 패턴으로 정확히 자릅니다.
+  return bibleData.content
+    .replace(/\r?\n|\r/g, " ")
+    .split(/(?=\d+\.\s)/)
+    .map(v => v.trim())
+    .filter(v => v !== "");
+};
+
 
   useEffect(() => {
     fetchQTVerse(currentDate);
@@ -229,8 +232,10 @@ export default function QTPage() {
   {bibleData ? (
     <div style={{ fontSize: `${fontSize}px` }}>
       {getVerses().map((verse, idx) => {
-        const trimmedVerse = verse.trim();
-        const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
+        // 첫 번째 공백을 기준으로 절 번호(21.)와 본문을 분리
+        const firstSpaceIndex = verse.indexOf(' ');
+        const verseNum = firstSpaceIndex !== -1 ? verse.substring(0, firstSpaceIndex) : "";
+        const verseText = firstSpaceIndex !== -1 ? verse.substring(firstSpaceIndex + 1) : verse;
 
         return (
           <motion.div
@@ -240,23 +245,17 @@ export default function QTPage() {
               backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
             }}
             transition={{ duration: 0.3 }}
-            // flex-row와 items-start가 숫자와 본문을 가로로 정렬합니다.
-            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors overflow-hidden"
+            // flex-nowrap을 추가하여 절대로 줄바꿈이 일어나지 않게 고정합니다.
+            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg flex-nowrap"
           >
-            {match ? (
-              <>
-                {/* 절 번호: shrink-0으로 너비 고정 */}
-                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em] inline-block">
-                  {match[1]}
-                </span>
-                {/* 본문 내용: flex-1로 남은 공간 차지 */}
-                <span className="flex-1 break-keep leading-relaxed pt-[1px]">
-                  {match[2]}
-                </span>
-              </>
-            ) : (
-              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
-            )}
+            {/* 절 번호 영역 */}
+            <span className="shrink-0 font-bold opacity-80 mr-3 min-w-[2.2em] inline-block">
+              {verseNum}
+            </span>
+            {/* 말씀 본문 영역 */}
+            <span className="flex-1 break-keep leading-relaxed pt-[1px] block">
+              {verseText}
+            </span>
           </motion.div>
         );
       })}
@@ -267,6 +266,7 @@ export default function QTPage() {
     </div>
   )}
 </div>
+
 
 
 
