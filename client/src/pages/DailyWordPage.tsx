@@ -88,34 +88,28 @@ export default function DailyWordsPage() {
   const handlePlayTTS = async () => {
   if (!bibleData) return;
   
-  // 이미 오디오 객체가 있으면 제어창만 보여주고 종료
   if (audio) {
     setShowAudioControl(true);
     return;
   }
 
-  // 1. 텍스트 가공 (기존 로직 유지)
   const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
   const unit = bibleData.bible_name === "시편" ? "편" : "장";
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
 
-  // 파일명 및 Storage URL 설정
   const fileName = `audio_${bibleData.bible_name}_${bibleData.chapter}_${bibleData.verse}.mp3`;
   const { data: publicUrlData } = supabase.storage.from('bible-audio').getPublicUrl(fileName);
   const audioUrl = publicUrlData.publicUrl;
 
   try {
-    // 2. 먼저 저장소에 파일이 있는지 확인 (캐싱 확인)
     const checkRes = await fetch(audioUrl, { method: 'HEAD' });
     
     let audioSource = "";
 
     if (checkRes.ok) {
-      // 이미 있으면 저장소 URL 사용
       audioSource = audioUrl;
-      console.log("저장소에서 음성을 불러왔습니다.");
+      console.log("저장소에서 가져옴");
     } else {
-      // 없으면 Google API 호출
       const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
       const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
@@ -129,25 +123,29 @@ export default function DailyWordsPage() {
       });
 
       const data = await response.json();
-      if (!data.audioContent) throw new Error("TTS 생성 실패");
+      if (!data.audioContent) throw new Error("TTS 실패");
 
-      // [핵심 추가] 파일 변환 및 Supabase 업로드
+      // 1. Blob 변환
       const binary = atob(data.audioContent);
       const array = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
       const blob = new Blob([array], { type: 'audio/mp3' });
 
-      // 업로드 (로그인 상태여야 성공함)
-      supabase.storage
+      // 2. [변경점] .then() 대신 await를 써서 업로드가 끝날 때까지 기다립니다.
+      console.log("업로드 시도 중...");
+      const { error: uploadError } = await supabase.storage
         .from('bible-audio')
-        .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true })
-        .then(() => console.log("저장소에 음성 파일을 저장했습니다."))
-        .catch(err => console.warn("저장 실패 (비회원 가능성):", err));
+        .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true });
+
+      if (uploadError) {
+        console.error("업로드 에러 발생:", uploadError.message);
+      } else {
+        console.log("업로드 성공!");
+      }
 
       audioSource = `data:audio/mp3;base64,${data.audioContent}`;
     }
 
-    // 3. 오디오 객체 생성 및 재생 (기존 로직 유지)
     const audioBlob = new Audio(audioSource);
     setAudio(audioBlob);
     setShowAudioControl(true);
@@ -164,6 +162,7 @@ export default function DailyWordsPage() {
     console.error("TTS 에러:", error);
   }
 };
+
 
   const togglePlayPause = () => {
     if (!audio) return;
