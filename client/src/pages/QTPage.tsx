@@ -38,10 +38,11 @@ export default function QTPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
-  // 아래 코드로 교체하세요
+  // 수정 포인트 1: 오디오 객체를 useRef로 관리하여 백화 현상 해결
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
+  const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -112,17 +113,15 @@ export default function QTPage() {
     }
   };
 
-  // 음성 재생 함수 (하나로 정리)
-      const handlePlayAudio = async () => {
+  // 수정 포인트 2: 구글 Neural2-B 음성 적용 및 재생 로직
+  const handlePlayAudio = async () => {
     if (!bibleData) return;
     
-    // 이미 재생 중인 게 있다면 중단
     if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+      setShowAudioControl(true);
+      return;
     }
 
-    // 절 숫자 제거 및 텍스트 구성
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
     
@@ -143,7 +142,7 @@ export default function QTPage() {
       
       if (data.audioContent) {
         const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-        audioRef.current = audio; // Ref에 저장하여 리액트 렌더링 간섭 방지
+        audioRef.current = audio;
         
         setShowAudioControl(true);
         setIsPlaying(true);
@@ -161,14 +160,12 @@ export default function QTPage() {
   };
 
   const toggleAudio = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
+    if (!audioRef.current) return;
     if (isPlaying) {
-      audio.pause();
+      audioRef.current.pause();
       setIsPlaying(false);
     } else {
-      audio.play().catch(e => console.error("재생 에러:", e));
+      audioRef.current.play().catch(e => console.error("재생 에러:", e));
       setIsPlaying(true);
     }
   };
@@ -181,9 +178,6 @@ export default function QTPage() {
     setIsPlaying(false);
     setShowAudioControl(false);
   };
-
-
-
 
   const toggleSpeechRecognition = (target: 'meditation' | 'prayer') => {
     if (isRecording) {
@@ -231,7 +225,6 @@ export default function QTPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
-        {/* 말씀 카드 */}
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
@@ -268,7 +261,6 @@ export default function QTPage() {
           </CardContent>
         </Card>
 
-        {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button onClick={handlePlayAudio} className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
@@ -286,7 +278,6 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 입력 섹션 */}
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
@@ -341,7 +332,6 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 하단 리스트 */}
         <div className="space-y-4 pb-20 pt-4 px-1">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -410,7 +400,6 @@ export default function QTPage() {
         </div>
       </main>
 
-                  {/* 음성 제어 팝업 컨트롤러 */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div
@@ -430,32 +419,18 @@ export default function QTPage() {
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                {/* 이 부분이 방금 수정한 toggleAudio와 연결되어야 함 */}
-                <Button 
-  variant="ghost" size="icon" 
-  className="text-white hover:bg-white/10"
-  onClick={toggleAudio} // 일시정지/이어서 재생
->
-  {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
-</Button>
-
-<Button 
-  variant="ghost" size="icon" 
-  className="text-white hover:bg-white/10"
-  onClick={stopAudio} // 그만 듣기
->
-  <X size={22} />
-</Button>
-
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleAudio}>
+                  {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={stopAudio}>
+                  <X size={22} />
+                </Button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-
-
-      {/* 모달 및 확인창 */}
       <AnimatePresence>
         {deleteId && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
