@@ -283,8 +283,8 @@ export default function QTPage() {
             </div>
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
-                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
-                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+                <p className="text-sm text-white/90 font-bold bg-white/10 text-center py-1 rounded-full">
+                 {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                 </p>
               </div>
             )}
@@ -323,7 +323,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        <div className="space-y-4 px-1">
+        <div className="space-y-10 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘의 묵상 나누기</h3>
