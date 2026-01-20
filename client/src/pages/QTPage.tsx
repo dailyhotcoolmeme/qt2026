@@ -27,7 +27,8 @@ export default function QTPage() {
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   const [showCopyToast, setShowCopyToast] = useState(false); // 복사 알림용
-
+// 컴포넌트 내부 상단에 추가
+const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.content || ""];
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -124,49 +125,65 @@ export default function QTPage() {
 
   // 수정 포인트 2: 구글 Neural2-B 음성 적용 및 재생 로직
   const handlePlayAudio = async () => {
-    if (!bibleData) return;
-    
-    if (audioRef.current) {
-      setShowAudioControl(true);
-      return;
-    }
+  if (!bibleData) return;
+  if (audioRef.current) { setShowAudioControl(true); return; }
 
-    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
-    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
-    
-    const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
-    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+  const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+  const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
+  
+  const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
+  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          input: { text: textToSpeak },
-          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
-          audioConfig: { audioEncoding: "MP3" },
-        }),
-      });
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({
+        input: { text: textToSpeak },
+        voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+        audioConfig: { audioEncoding: "MP3" },
+      }),
+    });
 
-      const data = await response.json();
-      
-      if (data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-        audioRef.current = audio;
+    const data = await response.json();
+    if (data.audioContent) {
+      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+      audioRef.current = audio;
+
+      // --- 하이라이트 및 자동 스크롤 로직 추가 ---
+      audio.ontimeupdate = () => {
+        const progress = audio.currentTime / audio.duration;
+        const index = Math.min(
+          Math.floor(progress * sentences.length),
+          sentences.length - 1
+        );
         
-        setShowAudioControl(true);
-        setIsPlaying(true);
-        audio.play().catch(e => console.error("재생 에러:", e));
+        if (currentSentenceIndex !== index) {
+          setCurrentSentenceIndex(index);
+          // 해당 문장으로 부드럽게 스크롤
+          sentenceRefs.current[index]?.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+          });
+        }
+      };
+      // ------------------------------------------
 
-        audio.onended = () => {
-          setIsPlaying(false);
-          setShowAudioControl(false);
-          audioRef.current = null;
-        };
-      }
-    } catch (error) {
-      console.error("TTS 에러:", error);
+      setShowAudioControl(true);
+      setIsPlaying(true);
+      audio.play();
+
+      audio.onended = () => {
+        setIsPlaying(false);
+        setShowAudioControl(false);
+        audioRef.current = null;
+        setCurrentSentenceIndex(null); // 초기화
+      };
     }
-  };
+  } catch (error) {
+    console.error("TTS 에러:", error);
+  }
+};
+
 
   const toggleAudio = () => {
     if (!audioRef.current) return;
@@ -237,28 +254,29 @@ export default function QTPage() {
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              <div className="text-white font-medium space-y-4">
-                {bibleData ? (
-                  bibleData.content.split('\n').map((line, index) => {
-                    const trimmedLine = line.trim();
-                    const match = trimmedLine.match(/^(\d+\.\s)(.*)/);
-                    if (match) {
-                      const [_, verseNum, verseText] = match;
-                      return (
-                        <div key={index} className="flex items-start text-left" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>
-                          <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em]">{verseNum}</span>
-                          <span className="break-keep">{verseText}</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <p key={index} className="pl-[1.5em] break-keep" style={{ fontSize: `${fontSize}px`, lineHeight: '1.5' }}>{trimmedLine}</p>
-                    );
-                  })
-                ) : (
-                  <p className="text-white text-center py-10 opacity-70">등록된 묵상 말씀이 없습니다.</p>
-                )}
-              </div>
+              {/* 말씀 카드 내부 수정 */}
+<div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
+  {bibleData ? (
+    <div style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
+      {sentences.map((sentence, idx) => (
+        <motion.span
+          key={idx}
+          ref={(el) => (sentenceRefs.current[idx] = el)}
+          animate={{
+            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
+            color: currentSentenceIndex === idx ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
+          }}
+          transition={{ duration: 0.3 }}
+          className="inline-block px-1.5 py-0.5 rounded-lg transition-colors"
+        >
+          {sentence}{" "}
+        </motion.span>
+      ))}
+    </div>
+  ) : (
+    <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
+  )}
+</div>
             </div>
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
