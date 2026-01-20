@@ -455,24 +455,34 @@ export default function QTPage() {
         </div>
       </main>
 
+            {/* 음성 제어 팝업 (상하 드래그 가능 버전) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div
+            drag="y" // 상하 드래그 활성화
+            dragConstraints={{ top: -300, bottom: 50 }} // 위로 300px, 아래로 50px까지만 이동 가능
+            dragElastic={0.2} // 경계에서 튕기는 탄성
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-10 left-4 right-4 z-[250] max-w-md mx-auto"
+            className="fixed bottom-10 left-4 right-4 z-[250] max-w-md mx-auto touch-none" // touch-none은 드래그 시 스크롤 방지
+            style={{ cursor: "grab" }} // 마우스 사용 시 손바닥 모양
+            whileDrag={{ scale: 1.02, cursor: "grabbing" }} // 드래그 중 효과
           >
-            <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20">
+            <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20 select-none">
+              {/* 내부에 드래그 핸들 아이콘(가로줄) 하나 추가하면 더 직관적입니다 */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-gray-300/50 rounded-full" />
+              
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-full animate-pulse">
                   <Mic size={20} />
                 </div>
                 <div>
-                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 음성으로 읽고 있습니다..</p>
-                  <p className="opacity-70" style={{ fontSize: `${fontSize - 4}px` }}>오늘의 묵상 말씀</p>
+                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 읽고 있습니다</p>
+                  <p className="opacity-70" style={{ fontSize: `${fontSize - 4}px` }}>드래그하여 위치 조절 가능</p>
                 </div>
               </div>
+              
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleAudio}>
                   {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
@@ -485,6 +495,7 @@ export default function QTPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
 
       <AnimatePresence>
         {deleteId && (
