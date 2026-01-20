@@ -342,7 +342,7 @@ export default function QTPage() {
                   <Mic size={16} />
                 </button>
               </div>
-              <Textarea placeholder="오늘 말씀에 대한 묵상 기록을 남겨보세요 (음성 기록 가능)" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={meditation} onChange={(e) => setMeditation(e.target.value)} />
+              <Textarea placeholder={`오늘 말씀에 대한 기록을 남겨보세요\n(음성 기록 가능)`} className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={meditation} onChange={(e) => setMeditation(e.target.value)} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -351,7 +351,7 @@ export default function QTPage() {
                   <Mic size={16} />
                 </button>
               </div>
-              <Textarea placeholder="오늘 묵상에 대한 묵상 기도를 남겨보세요 (음성 기록 가능)" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={prayer} onChange={(e) => setPrayer(e.target.value)} />
+              <Textarea placeholder={`오늘 묵상에 대한 기도을 남겨보세요\n(음성 기록 가능)`} className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={prayer} onChange={(e) => setPrayer(e.target.value)} />
             </div>
             <div className="flex items-center justify-between pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
