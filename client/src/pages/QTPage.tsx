@@ -389,7 +389,7 @@ export default function QTPage() {
 
       <AnimatePresence>
         {showAudioControl && (
-          <motion.div drag="y" dragConstraints={{ top: -300, bottom: 50 }} initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-4 left-4 right-4 z-[250] max-w-lg mx-auto">
+          <motion.div drag="y" dragConstraints={{ top: -300, bottom: 50 }} initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-1 left-2 right-2 z-[250] max-w-lg mx-auto">
             <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20">
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={20} /></div>
