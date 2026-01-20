@@ -260,7 +260,7 @@ export default function QTPage() {
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-          <CardContent className="pt-8 pb-5 px-6">
+                    <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
               {/* 좌측 정렬 복구 및 절 단위 렌더링 */}
               <div className="text-white leading-[1.8] break-keep px-2">
@@ -268,6 +268,7 @@ export default function QTPage() {
                   <div style={{ fontSize: `${fontSize}px` }}>
                     {getVerses().map((verse, idx) => {
                       const trimmedVerse = verse.trim();
+                      // '숫자. ' 로 시작하는지 확인
                       const match = trimmedVerse.match(/^(\d+\.\s)(.*)/);
                       
                       return (
@@ -277,12 +278,19 @@ export default function QTPage() {
                           animate={{
                             backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
                           }}
+                          transition={{ duration: 0.3 }}
                           className="flex items-start text-left mb-2 px-2 py-1 rounded-lg transition-colors"
                         >
                           {match ? (
                             <>
-                              <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em] font-bold">{match[1]}</span>
-                              <span className="flex-1">{match[2]}</span>
+                              {/* 절 번호 */}
+                              <span className="shrink-0 opacity-80 mr-2 w-[1.5em] font-bold text-[0.9em]">
+                                {match[1]}
+                              </span>
+                              {/* 본문 내용 */}
+                              <span className="flex-1">
+                                {match[2]}
+                              </span>
                             </>
                           ) : (
                             <span className="flex-1">{trimmedVerse}</span>
@@ -291,6 +299,15 @@ export default function QTPage() {
                       );
                     })}
                   </div>
+                ) : (
+                  <div className="text-center py-10 opacity-70">
+                    <p>등록된 말씀이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 말씀 출처 (절 정보) */}
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
                 <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
@@ -299,6 +316,7 @@ export default function QTPage() {
               </div>
             )}
           </CardContent>
+
         </Card>
 
                 {/* 도구함 */}
