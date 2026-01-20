@@ -36,7 +36,23 @@ const [deleteId, setDeleteId] = useState<number | null>(null);
 const [showDeleteToast, setShowDeleteToast] = useState(false);
 const [isRecording, setIsRecording] = useState(false);
 const recognitionRef = useRef<any>(null);
-
+  
+ // 여기에 추가하세요!
+  const formatBibleContent = (content: string) => {
+    if (!content) return null;
+    const parts = content.split(/(\d+\.)/g).filter(Boolean);
+    const verses: { num: string; text: string }[] = [];
+    for (let i = 0; i < parts.length; i += 2) {
+      if (parts[i].match(/\d+\./)) {
+        verses.push({ num: parts[i], text: parts[i + 1] || "" });
+      } else {
+        verses.push({ num: "", text: parts[i] });
+        i--;
+      }
+    }
+    return verses;
+  };
+  
 // 음성 재생 관련 상태
 const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
 const [isPlaying, setIsPlaying] = useState(false);
@@ -277,18 +293,26 @@ setCurrentDate(d);
 </header>
 
 <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
+<main className="flex-1 overflow-y-auto pt-4 px-4 pb-6 space-y-3">
   <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
-    <CardContent className="pt-8 pb-5 px-6">
+    {/* 하단 여백 수정을 위해 pb-6으로 변경 */}
+    <CardContent className="pt-6 pb-6 px-4">
       <div className="text-center py-1">
         <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
           {bibleData ? (
-            <p style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>{bibleData.content}</p>
+            /* 이 부분이 핵심입니다: 함수를 실행해서 리스트로 만든 뒤 뿌려줍니다 */
+            <div className="flex flex-col gap-5"> 
+              {formatBibleContent(bibleData.content)?.map((verse, idx) => (
+                <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
+                  {verse.text.trim()}
+                </p>
+              ))}
+            </div>
           ) : (
             <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
           )}
         </div>
         
-        {/* 수정된 부분: bibleData 조건문과 태그 닫기 정렬 */}
         {bibleData && (
           <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
             <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
@@ -296,9 +320,10 @@ setCurrentDate(d);
             </p>
           </div>
         )}
-      </div> {/* text-center py-1 닫기 */}
+      </div>
     </CardContent>
   </Card>
+
 
 <div className="pt-0 pb-24 px-6 space-y-6">
 <div className="flex items-center justify-center gap-7 pt-1.5">
