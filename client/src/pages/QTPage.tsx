@@ -28,7 +28,10 @@ export default function QTPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   const [showCopyToast, setShowCopyToast] = useState(false); // 복사 알림용
 // 컴포넌트 내부 상단에 추가
-const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.content || ""];
+  // --- 여기를 수정/추가 하세요 ---
+  const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
+  const sentenceRefs = useRef<(HTMLSpanElement | null)[]>([]); // Ref 타입을 HTMLSpanElement로 변경
+//const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.content || ""];
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -124,65 +127,66 @@ const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.cont
   };
 
   // 수정 포인트 2: 구글 Neural2-B 음성 적용 및 재생 로직
-  const handlePlayAudio = async () => {
-  if (!bibleData) return;
-  if (audioRef.current) { setShowAudioControl(true); return; }
+    const handlePlayAudio = async () => {
+    if (!bibleData) return;
+    if (audioRef.current) { setShowAudioControl(true); return; }
 
-  const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
-  const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
-  
-  const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
-  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+    // 문장 미리 쪼개기
+    const sentencesList = bibleData.content.match(/[^.!?]+[.!?]+/g) || [bibleData.content];
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      body: JSON.stringify({
-        input: { text: textToSpeak },
-        voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
-        audioConfig: { audioEncoding: "MP3" },
-      }),
-    });
+    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
+    
+    const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    const data = await response.json();
-    if (data.audioContent) {
-      const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-      audioRef.current = audio;
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          input: { text: textToSpeak },
+          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+          audioConfig: { audioEncoding: "MP3" },
+        }),
+      });
 
-      // --- 하이라이트 및 자동 스크롤 로직 추가 ---
-      audio.ontimeupdate = () => {
-        const progress = audio.currentTime / audio.duration;
-        const index = Math.min(
-          Math.floor(progress * sentences.length),
-          sentences.length - 1
-        );
-        
-        if (currentSentenceIndex !== index) {
+      const data = await response.json();
+      if (data.audioContent) {
+        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+        audioRef.current = audio;
+
+        audio.ontimeupdate = () => {
+          if (!audio.duration) return;
+          const progress = audio.currentTime / audio.duration;
+          const index = Math.min(
+            Math.floor(progress * sentencesList.length),
+            sentencesList.length - 1
+          );
+          
           setCurrentSentenceIndex(index);
-          // 해당 문장으로 부드럽게 스크롤
+          // 해당 문장으로 스크롤
           sentenceRefs.current[index]?.scrollIntoView({
             behavior: "smooth",
             block: "center"
           });
-        }
-      };
-      // ------------------------------------------
+        };
 
-      setShowAudioControl(true);
-      setIsPlaying(true);
-      audio.play();
+        setShowAudioControl(true);
+        setIsPlaying(true);
+        audio.play();
 
-      audio.onended = () => {
-        setIsPlaying(false);
-        setShowAudioControl(false);
-        audioRef.current = null;
-        setCurrentSentenceIndex(null); // 초기화
-      };
+        audio.onended = () => {
+          setIsPlaying(false);
+          setShowAudioControl(false);
+          audioRef.current = null;
+          setCurrentSentenceIndex(null);
+        };
+      }
+    } catch (error) {
+      console.error("TTS 에러:", error);
     }
-  } catch (error) {
-    console.error("TTS 에러:", error);
-  }
-};
+  };
+
 
 
   const toggleAudio = () => {
@@ -258,7 +262,7 @@ const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.cont
 <div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
   {bibleData ? (
     <div style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
-      {sentences.map((sentence, idx) => (
+      {(bibleData.content.match(/[^.!?]+[.!?]+/g) || [bibleData.content]).map((sentence, idx) => (
         <motion.span
           key={idx}
           ref={(el) => (sentenceRefs.current[idx] = el)}
