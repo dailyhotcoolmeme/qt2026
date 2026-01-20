@@ -5,7 +5,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
 import {
   Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock,
-  Mic, Trash2, PenLine
+  Mic, Trash2, PenLine, Pause, Play, X
 } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import AuthPage from "./AuthPage";
@@ -38,13 +38,10 @@ export default function QTPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
+  // 음성 인식/재생 관련 상태 (중복 제거됨)
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
-      // 음성 재생 관련 상태 (오디오 객체 제거 -> 단순 불리언으로 관리)
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showAudioControl, setShowAudioControl] = useState(false);
-
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -114,7 +111,9 @@ export default function QTPage() {
       setTimeout(() => setShowDeleteToast(false), 2000);
     }
   };
-    const handlePlayAudio = () => {
+
+  // 음성 재생 함수 (하나로 정리)
+  const handlePlayAudio = () => {
     if (!bibleData) return;
     window.speechSynthesis.cancel(); 
 
@@ -153,47 +152,6 @@ export default function QTPage() {
     setIsPlaying(false);
     setShowAudioControl(false);
   };
-
-    const handlePlayAudio = () => {
-    if (!bibleData) return;
-    
-    // 이미 재생 중인 오디오가 있다면 중지
-    if (audio) {
-      audio.pause();
-      setAudio(null);
-      setIsPlaying(false);
-    }
-
-    const utterance = new SpeechSynthesisUtterance(bibleData.content);
-    utterance.lang = 'ko-KR';
-    utterance.rate = 0.9; // 약간 천천히
-
-    window.speechSynthesis.speak(utterance);
-    setIsPlaying(true);
-    setShowAudioControl(true);
-
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-    };
-  };
-
-  const toggleAudio = () => {
-    if (isPlaying) {
-      window.speechSynthesis.pause();
-      setIsPlaying(false);
-    } else {
-      window.speechSynthesis.resume();
-      setIsPlaying(true);
-    }
-  };
-
-  const stopAudio = () => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setShowAudioControl(false);
-  };
-
 
   const toggleSpeechRecognition = (target: 'meditation' | 'prayer') => {
     if (isRecording) {
@@ -281,14 +239,9 @@ export default function QTPage() {
         {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
-            <button 
-  onClick={handlePlayAudio}
-  className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold"
->
-  <Mic className="w-5 h-5" />
-  <span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
-</button>
-
+            <button onClick={handlePlayAudio} className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
+              <Mic className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+            </button>
             <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
@@ -356,7 +309,7 @@ export default function QTPage() {
           </div>
         </div>
 
-        {/* 하단 리스트: '오늘의 말씀'과 동일한 테두리 박스 적용 */}
+        {/* 하단 리스트 */}
         <div className="space-y-4 pb-20 pt-4 px-1">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -372,7 +325,6 @@ export default function QTPage() {
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4"
               >
-                {/* 작성자 및 날짜/시간: 글자 크기 변동 적용 */}
                 <div className="flex justify-between items-center mb-4">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>
@@ -391,9 +343,7 @@ export default function QTPage() {
                   )}
                 </div>
 
-                {/* 기록 내용 부분 */}
                 <div className="space-y-3">
-                  {/* 기록과 기도가 모두 있는 경우 내부 박스 분리 */}
                   {(post.my_meditation?.trim() && post.my_prayer?.trim()) ? (
                     <div className="space-y-3">
                       <div className="bg-gray-50/80 rounded-xl p-4">
@@ -428,22 +378,7 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 모달 및 확인창 디자인 유지 */}
-      <AnimatePresence>
-        {deleteId && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
-              <h4 className="text-center font-bold text-gray-900 mb-2">나눔 삭제</h4>
-              <p className="text-center text-sm text-gray-500 mb-6">작성하신 묵상을 삭제하시겠습니까?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
-                <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-            {/* 음성 제어 팝업 컨트롤러 */}
+      {/* 음성 제어 팝업 컨트롤러 */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div
@@ -480,6 +415,22 @@ export default function QTPage() {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 모달 및 확인창 */}
+      <AnimatePresence>
+        {deleteId && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
+              <h4 className="text-center font-bold text-gray-900 mb-2">나눔 삭제</h4>
+              <p className="text-center text-sm text-gray-500 mb-6">작성하신 묵상을 삭제하시겠습니까?</p>
+              <div className="flex gap-3">
+                <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
+                <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
