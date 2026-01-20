@@ -225,41 +225,45 @@ export default function QTPage() {
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
               <div className="text-white font-medium">
-                {bibleData ? (
-                  <div style={{ fontSize: `${fontSize}px` }}>
-                    {getVerses().map((verse, idx) => {
-                      const trimmedVerse = verse.trim();
-                      // 본문에 포함된 '숫자.'를 추출하여 따로 렌더링 (두 줄 방지)
-                      const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
-                      return (
-                        <motion.div
-                          key={idx}
-                          ref={(el) => (sentenceRefs.current[idx] = el)}
-                          animate={{
-                            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
-                          }}
-                          transition={{ duration: 0.3 }}
-                          className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
-                        >
-                          {match ? (
-                            <>
-                              {/* 절 번호와 본문을 한 줄(flex-row)에 배치 */}
-                              <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">{match[1]}</span>
-                              <span className="flex-1 break-keep leading-relaxed">{match[2]}</span>
-                            </>
-                          ) : (
-                            <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div className="text-center py-10 opacity-70">
-                    <p>등록된 말씀이 없습니다.</p>
-                  </div>
-                )}
+  {bibleData ? (
+    <div style={{ fontSize: `${fontSize}px` }}>
+      {bibleData.content
+        .split('\n')
+        .filter((line) => line.trim() !== "") // 빈 줄 제거
+        .map((line, index) => {
+          const trimmedLine = line.trim();
+          // 정규식 수정: '숫자.'과 '내용'을 명확히 분리
+          const verseMatch = trimmedLine.match(/^(\d+\.)\s*(.*)/);
+
+          if (verseMatch) {
+            // verseMatch[1]은 "21.", verseMatch[2]는 실제 본문 내용입니다.
+            return (
+              <div key={index} className="flex flex-row items-start text-left mb-3">
+                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
+                  {verseMatch[1]}
+                </span>
+                <span className="flex-1 break-keep leading-relaxed">
+                  {verseMatch[2]}
+                </span>
               </div>
+            );
+          }
+
+          // 숫자가 없는 줄은 그대로 출력
+          return (
+            <p key={index} className="mb-3 break-keep leading-relaxed pl-[1.8em]">
+              {trimmedLine}
+            </p>
+          );
+        })}
+    </div>
+  ) : (
+    <div className="text-center py-10 opacity-70">
+      <p>등록된 말씀이 없습니다.</p>
+    </div>
+  )}
+</div>
+
             </div>
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
