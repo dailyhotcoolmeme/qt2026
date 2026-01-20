@@ -261,22 +261,50 @@ export default function QTPage() {
           </CardContent>
         </Card>
 
+                {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
+            {/* 음성으로 듣기 */}
             <button onClick={handlePlayAudio} className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
               <Mic className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
             </button>
+            
+            {/* 기록함 (기존 기능 유지) */}
             <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
-            <button className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+            
+            {/* 복사 버튼: 실제 말씀 텍스트 복사 */}
+            <button 
+              onClick={() => {
+                if (!bibleData) return;
+                const text = `[오늘의 묵상]\n\n${bibleData.content}\n\n- ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
+                navigator.clipboard.writeText(text);
+                alert("말씀이 복사되었습니다.");
+              }} 
+              className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
+            >
               <Copy className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
             </button>
-            <button className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+            
+            {/* 공유 버튼: 브라우저 공유 기능 호출 */}
+            <button 
+              onClick={() => {
+                if (!bibleData) return;
+                const text = `[오늘의 묵상]\n${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}\n\n${bibleData.content}`;
+                if (navigator.share) {
+                  navigator.share({ title: '오늘의 묵상', text: text, url: window.location.href });
+                } else {
+                  alert("공유하기를 지원하지 않는 브라우저입니다.");
+                }
+              }} 
+              className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
+            >
               <Share2 className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
             </button>
           </div>
         </div>
+
 
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
