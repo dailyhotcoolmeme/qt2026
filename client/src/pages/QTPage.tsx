@@ -113,11 +113,14 @@ export default function QTPage() {
   };
 
   // 음성 재생 함수 (하나로 정리)
-  const handlePlayAudio = () => {
+    const handlePlayAudio = () => {
     if (!bibleData) return;
     window.speechSynthesis.cancel(); 
 
-    const utterance = new SpeechSynthesisUtterance(bibleData.content);
+    // 숫자와 점(예: "1. ") 부분을 제거하고 텍스트만 추출해서 읽게 함
+    const cleanText = bibleData.content.replace(/^\d+\.\s+/gm, "");
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ko-KR';
     utterance.rate = 1.0;
 
@@ -137,15 +140,19 @@ export default function QTPage() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const toggleAudio = () => {
+
+    const toggleAudio = () => {
     if (isPlaying) {
+      // 재생 중일 때 누르면 일시정지
       window.speechSynthesis.pause();
       setIsPlaying(false);
     } else {
+      // 멈춰있을 때 누르면 다시 이어가기
       window.speechSynthesis.resume();
       setIsPlaying(true);
     }
   };
+
 
   const stopAudio = () => {
     window.speechSynthesis.cancel();
