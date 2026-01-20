@@ -277,24 +277,28 @@ setCurrentDate(d);
 </header>
 
 <main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
-<Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
-<CardContent className="pt-6 pb-0 px-4">
-<div className="text-center py-1">
-<div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
-{bibleData ? (
-<p style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>{bibleData.content}</p>
-) : (
-<p className="text-white pb-6">등록된 말씀이 없습니다.</p>
-)}
-</div>
-{bibleData && <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
-                <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
-                 {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
-                </p>
-  )}
-              </div>
-</CardContent>
-</Card>
+  <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
+    <CardContent className="pt-6 pb-0 px-4">
+      <div className="text-center py-1">
+        <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
+          {bibleData ? (
+            <p style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>{bibleData.content}</p>
+          ) : (
+            <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
+          )}
+        </div>
+        
+        {/* 수정된 부분: bibleData 조건문과 태그 닫기 정렬 */}
+        {bibleData && (
+          <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
+            <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
+              {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
+            </p>
+          </div>
+        )}
+      </div> {/* text-center py-1 닫기 */}
+    </CardContent>
+  </Card>
 
 <div className="pt-0 pb-24 px-6 space-y-6">
 <div className="flex items-center justify-center gap-7 pt-1.5">
