@@ -287,8 +287,12 @@ setCurrentDate(d);
 <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
 )}
 </div>
-{bibleData && <p className="text-base text-white font-bold pb-6 mt-4">•  {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}  •</p>}
-</div>
+{bibleData && <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
+                <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
+                 {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
+                </p>
+              </div>
+  </div>
 </CardContent>
 </Card>
 
