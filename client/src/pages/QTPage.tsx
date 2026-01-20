@@ -234,29 +234,29 @@ export default function QTPage() {
         return (
           <motion.div
             key={idx}
-            // 이 ref가 자동 스크롤을 담당합니다
             ref={(el) => (sentenceRefs.current[idx] = el)}
-            // 이 animate가 음성 하이라이트 배경색을 담당합니다
             animate={{
               backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
             }}
             transition={{ duration: 0.3 }}
-            // flex-row가 절 숫자를 한 줄로 고정합니다
-            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
+            // items-start와 flex-row를 강제하여 숫자가 위로 튀지 않게 고정
+            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg"
           >
             {match ? (
               <>
-                {/* 절 숫자 (21. 등) */}
-                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
+                {/* 절 숫자: 절대 줄바꿈 되지 않도록 shrink-0 부여 */}
+                <span className="shrink-0 font-bold opacity-80 mr-3 min-w-[2.2em] text-right">
                   {match[1]}
                 </span>
-                {/* 말씀 본문 */}
-                <span className="flex-1 break-keep leading-relaxed">
+                {/* 본문: 남은 공간을 꽉 채우며 가로로 배치 */}
+                <span className="flex-1 break-keep leading-relaxed pt-[1px]">
                   {match[2]}
                 </span>
               </>
             ) : (
-              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
+              <span className="flex-1 break-keep leading-relaxed pl-[2.8em]">
+                {trimmedVerse}
+              </span>
             )}
           </motion.div>
         );
@@ -268,6 +268,7 @@ export default function QTPage() {
     </div>
   )}
 </div>
+
 
 
             </div>
