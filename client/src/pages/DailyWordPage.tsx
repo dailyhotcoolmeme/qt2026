@@ -92,11 +92,33 @@ export default function DailyWordsPage() {
   const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
   const unit = bibleData.bible_name === "시편" ? "편" : "장";
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
-  const fileName = `audio_${bibleData.bible_id || 'v1'}_${bibleData.chapter}_${bibleData.verse}.mp3`;
+
+  // [수정 포인트] 파일명에서 한글을 완전히 제거하고 숫자와 언더바(_)만 사용합니다.
+  // bible_id가 있으면 사용하고, 없으면 v1을 기본값으로 사용합니다.
+  const fileName = `audio_${bibleData.bible_id || 'v1'}_${bibleData.chapter}_${bibleData.verse.replace(/:/g, '_')}.mp3`;
+
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
+    // 1. 먼저 Supabase Storage에 이미 파일이 있는지 확인
+    const { data: existingFile } = supabase.storage
+      .from('bible-audio')
+      .getPublicUrl(fileName);
+
+    const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
+
+    if (checkRes.ok) {
+      // 이미 파일이 있다면 저장소 파일을 사용
+      const savedAudio = new Audio(existingFile.publicUrl);
+      setAudio(savedAudio);
+      setShowAudioControl(true);
+      savedAudio.play();
+      setIsPlaying(true);
+      return;
+    }
+
+    // 2. 파일이 없으면 Google TTS API 호출
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify({
@@ -107,38 +129,31 @@ export default function DailyWordsPage() {
     });
 
     const data = await response.json();
-    if (!data.audioContent) {
-      alert("구글 API 오류: " + JSON.stringify(data));
-      return;
-    }
+    if (!data.audioContent) return;
 
-    // 파일 변환
+    // 3. 파일 변환 (Base64 -> Blob)
     const binary = atob(data.audioContent);
     const array = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
     const blob = new Blob([array], { type: 'audio/mp3' });
 
-    // 업로드 시도 및 결과 알림
-    const { error: uploadError } = await supabase.storage
-      .from('bible-audio') // <--- 수파베이스 버킷 이름과 똑같은지 꼭 확인! (대소문자)
+    // 4. Supabase Storage에 업로드 (성공 확인용 alert는 이제 삭제해도 됩니다)
+    await supabase.storage
+      .from('bible-audio')
       .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true });
 
-    if (uploadError) {
-      alert("저장 실패 원인: " + uploadError.message);
-    } else {
-      alert("축하합니다! 서버 저장에 성공했습니다.");
-    }
-
+    // 5. 재생
     const audioBlob = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
     setAudio(audioBlob);
     setShowAudioControl(true);
     audioBlob.play();
     setIsPlaying(true);
 
-  } catch (error: any) {
-    alert("알 수 없는 에러: " + error.message);
+  } catch (error) {
+    console.error("TTS 에러:", error);
   }
 };
+
 
 
 
