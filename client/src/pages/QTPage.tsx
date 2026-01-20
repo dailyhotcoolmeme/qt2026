@@ -128,7 +128,7 @@ export default function QTPage() {
     const versesList = getVerses();
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
-    const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
+    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
     try {
       const response = await fetch(url, {
