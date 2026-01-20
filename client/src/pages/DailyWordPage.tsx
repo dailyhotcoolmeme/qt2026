@@ -218,13 +218,14 @@ setTimeout(() => setShowDeleteToast(false), 2000); // 2초 뒤 사라짐
 }
 };
 
-const handleCopyBibleText = async () => {
-if (!bibleData) return;
-const textToCopy = `"${bibleData.content}" - ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
-await navigator.clipboard.writeText(textToCopy);
-setShowCopyToast(true);
-setTimeout(() => setShowCopyToast(false), 2000); 
-};
+  const handleCopyBibleText = async () => {
+    if (!bibleData) return;
+    const textToCopy = `[오늘의 묵상]\n\n${bibleData.content}\n\n- ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
+    await navigator.clipboard.writeText(textToCopy);
+    
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 2000); 
+  };
 
 const handleShareBibleText = async () => {
 if (!bibleData) return;
@@ -343,26 +344,33 @@ className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-
 <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
 </button>
 
-{/* 복사하기 버튼 + 하단 토스트 */}
-<div className="relative flex flex-col items-center">
-<button onClick={handleCopyBibleText} className="flex flex-row items-center gap-1.5">
-<Copy className="w-5 h-5 text-gray-400" />
-<span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
-</button>
-<AnimatePresence>
-{showCopyToast && (
-<motion.div 
-initial={{ opacity: 0, y: 0 }} 
-animate={{ opacity: 1, y: 10 }} 
-exit={{ opacity: 0, y: 0 }} 
-className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg"
->
-<CheckCircle2 className="w-5 h-5 text-green-400" />
-<span className="text-[14px] font-bold" style={{ fontSize: `${fontSize - 2}px`}}>복사되었습니다</span>
-</motion.div>
-)}
-</AnimatePresence>
-</div>
+            {/* 복사하기 버튼 + 사진 속 바로 아래 팝업 구현 */}
+            <div className="relative flex flex-col items-center">
+              <button 
+                onClick={handleCopyBibleText} 
+                className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
+              >
+                <Copy className="w-5 h-5" />
+                <span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+              </button>
+
+              <AnimatePresence>
+                {showCopyToast && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 0 }} 
+                    animate={{ opacity: 1, y: 10 }} // 버튼 바로 아래 10px 지점으로 등장
+                    exit={{ opacity: 0, y: 0 }} 
+                    className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    <span className="text-[14px] font-bold" style={{ fontSize: `${fontSize - 2}px`}}>
+                      복사되었습니다
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
 
 <button onClick={handleShareBibleText} className="flex flex-row items-center gap-1.5">
 <Share2 className="w-5 h-5 text-gray-400" />
