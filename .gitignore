@@ -1,3 +1,9 @@
+# 보안 관련 (환경 변수 파일)
+client/.env
+client/.env.local
+.env
+.env.local
+
 node_modules
 dist
 .DS_Store
