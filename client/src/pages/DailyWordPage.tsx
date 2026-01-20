@@ -278,7 +278,7 @@ setCurrentDate(d);
 
 <main className="flex-1 overflow-y-auto pt-4 px-4 pb-6 space-y-3">
   <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
-    <CardContent className="pt-6 pb-5 px-4">
+    <CardContent className="pt-8 pb-5 px-6">
       <div className="text-center py-1">
         <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
           {bibleData ? (
