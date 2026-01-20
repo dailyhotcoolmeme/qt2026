@@ -410,14 +410,26 @@ export default function QTPage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {deleteId && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
-              <h4 className="text-center font-bold text-gray-900 mb-2">나눔 삭제</h4>
-              <p className="text-center text-sm text-gray-500 mb-6">작성하신 기록을 삭제하시겠습니까?</p>
+        {deleteId !== null && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteId(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-white rounded-2xl p-6 shadow-xl w-full max-w-[280px] text-center"
+            >
+              <h3 className="text-lg font-bold text-gray-900 mb-2">정말 삭제할까요?</h3>
+              <p className="text-sm text-gray-500 mb-6">삭제된 내용은 복구할 수 없습니다.</p>
               <div className="flex gap-3">
                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
-                <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
+                <button onClick={() => { handleDeleteSharing(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
               </div>
             </motion.div>
           </div>
@@ -426,9 +438,10 @@ export default function QTPage() {
 
       <AnimatePresence>
         {showDeleteToast && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed bottom-10 left-0 right-0 flex items-center justify-center z-[310]">
-            <div className="bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold flex items-center gap-2">
-              <Trash2 size={16} className="text-red-400" /> <span>삭제되었습니다</span>
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="fixed inset-0 flex items-center justify-center z-[110] pointer-events-none">
+            <div className="bg-gray-600/90 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-bold flex items-center gap-2">
+              <Trash2 className="text-white w-5 h-5" />
+              <span>삭제되었습니다</span>
             </div>
           </motion.div>
         )}
@@ -436,14 +449,14 @@ export default function QTPage() {
 
       <AnimatePresence>
         {showLoginModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-3xl w-full max-w-sm p-6 relative">
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-gray-400">✕</button>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
+            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-3xl w-full max-w-sm overflow-hidden relative p-6 max-h-[90vh] overflow-y-auto">
+              <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-gray-400 z-[210]">✕</button>
               <AuthPage />
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </div> // 파일의 가장 마지막 div (전체 컨테이너 닫기)
   );
 }
