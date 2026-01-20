@@ -104,6 +104,14 @@ export default function QTPage() {
       fetchMeditationPosts();
     }
   };
+  const handleCopyBibleText = async () => {
+    if (!bibleData) return;
+    const textToCopy = `[오늘의 묵상]\n\n${bibleData.content}\n\n- ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
+    await navigator.clipboard.writeText(textToCopy);
+    
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 2000); 
+  };
 
   const handleDelete = async (id: number) => {
     const { error } = await supabase.from('meditations').delete().eq('id', id);
@@ -275,21 +283,33 @@ export default function QTPage() {
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
             
-                        {/* 복사 버튼 */}
-            <button 
-              onClick={() => {
-                if (!bibleData) return;
-                const text = `[오늘의 묵상]\n\n${bibleData.content}\n\n- ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
-                navigator.clipboard.writeText(text);
-                
-                // 팝업 띄우기
-                setShowCopyToast(true);
-                setTimeout(() => setShowCopyToast(false), 2000);
-              }} 
-              className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
-            >
-              <Copy className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
-            </button>
+                                    {/* 복사하기 버튼 + 사진 속 바로 아래 팝업 구현 */}
+            <div className="relative flex flex-col items-center">
+              <button 
+                onClick={handleCopyBibleText} 
+                className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
+              >
+                <Copy className="w-5 h-5" />
+                <span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+              </button>
+
+              <AnimatePresence>
+                {showCopyToast && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 0 }} 
+                    animate={{ opacity: 1, y: 10 }} // 버튼 바로 아래 10px 지점으로 등장
+                    exit={{ opacity: 0, y: 0 }} 
+                    className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg"
+                  >
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    <span className="text-[14px] font-bold" style={{ fontSize: `${fontSize - 2}px`}}>
+                      복사되었습니다
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
 
             
             {/* 공유 버튼: 브라우저 공유 기능 호출 */}
@@ -459,21 +479,6 @@ export default function QTPage() {
                   <X size={22} />
                 </Button>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* 복사 완료 토스트 팝업 */}
-      <AnimatePresence>
-        {showCopyToast && (
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, y: 20 }} 
-            animate={{ opacity: 1, scale: 1, y: 0 }} 
-            exit={{ opacity: 0 }} 
-            className="fixed bottom-10 left-0 right-0 flex items-center justify-center z-[310] pointer-events-none"
-          >
-            <div className="bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold flex items-center gap-2">
-              <Copy size={16} className="text-[#5D7BAF]" /> <span>클립보드에 복사되었습니다</span>
             </div>
           </motion.div>
         )}
