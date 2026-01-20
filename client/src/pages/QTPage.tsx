@@ -48,27 +48,25 @@ export default function QTPage() {
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // 1. 말씀 데이터를 절 단위로 분할하는 헬퍼 함수 (중복 제거됨)
+  // 절 단위 분할 로직 (중복 에러 해결 및 정규식 최적화)
   const getVerses = () => {
     if (!bibleData || !bibleData.content) return [];
+    // 숫자. 으로 시작하는 부분을 기준으로 나누되 번호를 유지함
     return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
   };
 
   useEffect(() => {
     fetchQTVerse(currentDate);
     fetchMeditationPosts();
-
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
       setCurrentUserId(session?.user?.id || null);
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
       setCurrentUserId(session?.user?.id || null);
       if (session) setShowLoginModal(false);
     });
-
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
 
@@ -130,7 +128,6 @@ export default function QTPage() {
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
     const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-
     try {
       const response = await fetch(url, {
         method: "POST",
@@ -232,6 +229,7 @@ export default function QTPage() {
                   <div style={{ fontSize: `${fontSize}px` }}>
                     {getVerses().map((verse, idx) => {
                       const trimmedVerse = verse.trim();
+                      // 본문에 포함된 '숫자.'를 추출하여 따로 렌더링 (두 줄 방지)
                       const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
                       return (
                         <motion.div
@@ -245,6 +243,7 @@ export default function QTPage() {
                         >
                           {match ? (
                             <>
+                              {/* 절 번호와 본문을 한 줄(flex-row)에 배치 */}
                               <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">{match[1]}</span>
                               <span className="flex-1 break-keep leading-relaxed">{match[2]}</span>
                             </>
@@ -272,6 +271,7 @@ export default function QTPage() {
           </CardContent>
         </Card>
 
+        {/* 도구함 */}
         <div className="pt-0 pb-4 px-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button onClick={handlePlayAudio} className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
