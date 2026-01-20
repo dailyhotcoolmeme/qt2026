@@ -469,7 +469,7 @@ export default function QTPage() {
                   <Mic size={20} />
                 </div>
                 <div>
-                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 음성으로 읽고 있습니다../p>
+                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 음성으로 읽고 있습니다..</p>
                   <p className="opacity-70" style={{ fontSize: `${fontSize - 4}px` }}>오늘의 묵상 말씀</p>
                 </div>
               </div>
