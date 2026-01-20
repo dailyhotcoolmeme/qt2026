@@ -326,7 +326,7 @@ export default function QTPage() {
         <div className="space-y-4 px-1">
           <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>나의 묵상 나눔</h3>
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘의 묵상 나누기</h3>
           </div>
           <div className="relative bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4">
             {!isAuthenticated && (
@@ -342,7 +342,7 @@ export default function QTPage() {
                   <Mic size={16} />
                 </button>
               </div>
-              <Textarea placeholder="오늘 묵상을 통해 느낀 점을 남겨보세요" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={meditation} onChange={(e) => setMeditation(e.target.value)} />
+              <Textarea placeholder="오늘 말씀에 대한 묵상 기록을 남겨보세요 (음성 기록 가능)" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={meditation} onChange={(e) => setMeditation(e.target.value)} />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -351,12 +351,12 @@ export default function QTPage() {
                   <Mic size={16} />
                 </button>
               </div>
-              <Textarea placeholder="오늘 묵상에 대한 기도를 남겨보세요" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={prayer} onChange={(e) => setPrayer(e.target.value)} />
+              <Textarea placeholder="오늘 묵상에 대한 묵상 기도를 남겨보세요 (음성 기록 가능)" className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" value={prayer} onChange={(e) => setPrayer(e.target.value)} />
             </div>
             <div className="flex items-center justify-between pt-2">
               <label className="flex items-center gap-2 cursor-pointer">
                 <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} />
-                <span className="text-sm font-bold text-gray-500">익명으로 나눔</span>
+                <span className="text-sm font-bold text-gray-500">익명으로 나누기</span>
               </label>
               <Button onClick={handleRegister} disabled={!meditation.trim() && !prayer.trim()} className="rounded-full px-8 bg-[#5D7BAF] font-bold">등록</Button>
             </div>
@@ -366,7 +366,7 @@ export default function QTPage() {
         <div className="space-y-4 pb-20 pt-4 px-1">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
-            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>성도님들의 묵상 나눔</h3>
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>묵상 나눔 리스트</h3>
           </div>
           <AnimatePresence initial={false}>
             {meditationList.map((post) => (
@@ -378,8 +378,8 @@ export default function QTPage() {
                   )}
                 </div>
                 <div className="space-y-3 text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {post.my_meditation && <p>📖 묵상 기록: {post.my_meditation}</p>}
-                  {post.my_prayer && <p>🙏 묵상 기도: {post.my_prayer}</p>}
+                  {post.my_meditation && <p>📖 {post.my_meditation}</p>}
+                  {post.my_prayer && <p> {post.my_prayer}</p>}
                 </div>
               </motion.div>
             ))}
@@ -394,8 +394,8 @@ export default function QTPage() {
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={20} /></div>
                 <div>
-                  <p className="font-bold text-sm">말씀을 읽고 있습니다</p>
-                  <p className="opacity-70 text-[10px]">드래그하여 위치 조절 가능</p>
+                  <p className="font-bold text-sm">말씀을 음성으로 읽고 있습니다..</p>
+                  <p className="opacity-70 text-xs">드래그하여 위치 조절 가능</p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
