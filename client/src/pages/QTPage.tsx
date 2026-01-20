@@ -31,7 +31,12 @@ export default function QTPage() {
   // --- 여기를 수정/추가 하세요 ---
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
   const sentenceRefs = useRef<(HTMLSpanElement | null)[]>([]); // Ref 타입을 HTMLSpanElement로 변경
-//const sentences = bibleData?.content.match(/[^.!?]+[.!?]+/g) || [bibleData?.content || ""];
+  // 1. 말씀 데이터를 절 단위로 분할하는 헬퍼 함수
+  const getVerses = () => {
+    if (!bibleData) return [];
+    // 절 번호(숫자. )를 기준으로 텍스트 분할
+    return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
+  };
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -131,9 +136,7 @@ export default function QTPage() {
     if (!bibleData) return;
     if (audioRef.current) { setShowAudioControl(true); return; }
 
-    // 문장 미리 쪼개기
-    const sentencesList = bibleData.content.match(/[^.!?]+[.!?]+/g) || [bibleData.content];
-
+    const versesList = getVerses();
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
     
@@ -157,14 +160,15 @@ export default function QTPage() {
 
         audio.ontimeupdate = () => {
           if (!audio.duration) return;
-          const progress = audio.currentTime / audio.duration;
+          // 싱크 조정을 위해 현재 시간에 미세한 가중치(0.2초 등)를 더할 수 있음
+          const adjustedTime = audio.currentTime + 0.1; 
+          const progress = adjustedTime / audio.duration;
           const index = Math.min(
-            Math.floor(progress * sentencesList.length),
-            sentencesList.length - 1
+            Math.floor(progress * versesList.length),
+            versesList.length - 1
           );
           
           setCurrentSentenceIndex(index);
-          // 해당 문장으로 스크롤
           sentenceRefs.current[index]?.scrollIntoView({
             behavior: "smooth",
             block: "center"
@@ -258,30 +262,35 @@ export default function QTPage() {
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              {/* 말씀 카드 내부 수정 */}
-<div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
-  {bibleData ? (
-    <div style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
-      {(bibleData.content.match(/[^.!?]+[.!?]+/g) || [bibleData.content]).map((sentence, idx) => (
-        <motion.span
-          key={idx}
-          ref={(el) => (sentenceRefs.current[idx] = el)}
-          animate={{
-            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
-            color: currentSentenceIndex === idx ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
-          }}
-          transition={{ duration: 0.3 }}
-          className="inline-block px-1.5 py-0.5 rounded-lg transition-colors"
-        >
-          {sentence}{" "}
-        </motion.span>
-      ))}
-    </div>
-  ) : (
-    <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
-  )}
-</div>
-            </div>
+              {/* 좌측 정렬 복구 및 절 단위 렌더링 */}
+              <div className="text-white leading-[1.8] break-keep px-2">
+                {bibleData ? (
+                  <div style={{ fontSize: `${fontSize}px` }}>
+                    {getVerses().map((verse, idx) => {
+                      const trimmedVerse = verse.trim();
+                      const match = trimmedVerse.match(/^(\d+\.\s)(.*)/);
+                      
+                      return (
+                        <motion.div
+                          key={idx}
+                          ref={(el) => (sentenceRefs.current[idx] = el)}
+                          animate={{
+                            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
+                          }}
+                          className="flex items-start text-left mb-2 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          {match ? (
+                            <>
+                              <span className="shrink-0 opacity-80 mr-1.5 w-[1.5em] font-bold">{match[1]}</span>
+                              <span className="flex-1">{match[2]}</span>
+                            </>
+                          ) : (
+                            <span className="flex-1">{trimmedVerse}</span>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
                 <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
