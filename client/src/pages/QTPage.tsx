@@ -5,7 +5,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Checkbox } from "../components/ui/checkbox";
 import {
   Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock,
-  Mic, Trash2, PenLine, Pause, Play, X
+  Mic, Trash2, CheckCircle2, PenLine, Pause, Play, X
 } from "lucide-react"; 
 import { motion, AnimatePresence } from "framer-motion";
 import AuthPage from "./AuthPage";
@@ -283,32 +283,34 @@ export default function QTPage() {
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
             
-                                    {/* 복사하기 버튼 + 사진 속 바로 아래 팝업 구현 */}
-            <div className="relative flex flex-col items-center">
-              <button 
-                onClick={handleCopyBibleText} 
-                className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
-              >
-                <Copy className="w-5 h-5" />
-                <span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
-              </button>
+                                    {/* 복사하기 버튼 + 버튼 바로 아래 팝업 */}
+<div className="relative flex flex-col items-center">
+  <button 
+    onClick={handleCopyBibleText} 
+    className="flex flex-row items-center gap-1.5 text-gray-400 font-bold"
+  >
+    <Copy className="w-5 h-5" />
+    <span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+  </button>
 
-              <AnimatePresence>
-                {showCopyToast && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 0 }} 
-                    animate={{ opacity: 1, y: 10 }} // 버튼 바로 아래 10px 지점으로 등장
-                    exit={{ opacity: 0, y: 0 }} 
-                    className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg"
-                  >
-                    <CheckCircle2 className="w-5 h-5 text-green-400" />
-                    <span className="text-[14px] font-bold" style={{ fontSize: `${fontSize - 2}px`}}>
-                      복사되었습니다
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+  <AnimatePresence>
+    {showCopyToast && (
+      <motion.div 
+        initial={{ opacity: 0, y: 0 }} 
+        animate={{ opacity: 1, y: 10 }} // 버튼에서 10px 아래로 등장
+        exit={{ opacity: 0, y: 0 }} 
+        className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg"
+      >
+        {/* Lucide의 CheckCircle2 아이콘이 import 되어 있어야 합니다 */}
+        <CheckCircle2 className="w-5 h-5 text-green-400" />
+        <span className="text-[14px] font-bold" style={{ fontSize: `${fontSize - 2}px`}}>
+          복사되었습니다
+        </span>
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
+
 
 
             
