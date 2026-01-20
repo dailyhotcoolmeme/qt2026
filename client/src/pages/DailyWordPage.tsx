@@ -86,9 +86,10 @@ export default function DailyWordsPage() {
   }, [currentDate]);
 
   const handlePlayTTS = async () => {
+  const handlePlayTTS = async () => {
   if (!bibleData) return;
   
-  // 기존 로직: 이미 오디오 객체가 있으면 제어창만 보여주고 리턴
+  // 이미 오디오 객체가 있으면 제어창만 보여주고 종료
   if (audio) {
     setShowAudioControl(true);
     return;
@@ -105,7 +106,7 @@ export default function DailyWordsPage() {
   const audioUrl = publicUrlData.publicUrl;
 
   try {
-    // 2. [추가] 먼저 저장소에 파일이 있는지 확인
+    // 2. 먼저 저장소에 파일이 있는지 확인 (캐싱 확인)
     const checkRes = await fetch(audioUrl, { method: 'HEAD' });
     
     let audioSource = "";
@@ -113,8 +114,9 @@ export default function DailyWordsPage() {
     if (checkRes.ok) {
       // 이미 있으면 저장소 URL 사용
       audioSource = audioUrl;
+      console.log("저장소에서 음성을 불러왔습니다.");
     } else {
-      // 없으면 Google API 호출 (기존 로직)
+      // 없으면 Google API 호출
       const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
       const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
@@ -130,17 +132,18 @@ export default function DailyWordsPage() {
       const data = await response.json();
       if (!data.audioContent) throw new Error("TTS 생성 실패");
 
-      // [추가] 파일 변환 및 Supabase 업로드 (비동기로 실행하여 사용자 체감 속도 향상)
+      // [핵심 추가] 파일 변환 및 Supabase 업로드
       const binary = atob(data.audioContent);
       const array = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
       const blob = new Blob([array], { type: 'audio/mp3' });
 
-      // 업로드는 성공 여부와 상관없이 진행 (비회원일 경우 실패하겠지만 에러로 멈추지 않음)
+      // 업로드 (로그인 상태여야 성공함)
       supabase.storage
         .from('bible-audio')
         .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true })
-        .catch(err => console.warn("Upload failed:", err));
+        .then(() => console.log("저장소에 음성 파일을 저장했습니다."))
+        .catch(err => console.warn("저장 실패 (비회원 가능성):", err));
 
       audioSource = `data:audio/mp3;base64,${data.audioContent}`;
     }
