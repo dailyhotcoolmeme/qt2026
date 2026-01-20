@@ -86,7 +86,6 @@ export default function DailyWordsPage() {
   }, [currentDate]);
 
   const handlePlayTTS = async () => {
-  const handlePlayTTS = async () => {
   if (!bibleData) return;
   
   // 이미 오디오 객체가 있으면 제어창만 보여주고 종료
