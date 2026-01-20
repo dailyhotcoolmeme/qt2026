@@ -470,8 +470,7 @@ export default function QTPage() {
             whileDrag={{ scale: 1.02, cursor: "grabbing" }} // 드래그 중 효과
           >
             <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20 select-none">
-              {/* 내부에 드래그 핸들 아이콘(가로줄) 하나 추가하면 더 직관적입니다 */}
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-gray-300/50 rounded-full" />
+              
               
               <div className="flex items-center gap-3">
                 <div className="bg-white/20 p-2 rounded-full animate-pulse">
