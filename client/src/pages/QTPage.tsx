@@ -378,8 +378,8 @@ export default function QTPage() {
                   )}
                 </div>
                 <div className="space-y-3 text-gray-700 leading-relaxed whitespace-pre-wrap">
-                  {post.my_meditation && <p>📖 {post.my_meditation}</p>}
-                  {post.my_prayer && <p> {post.my_prayer}</p>}
+                  {post.my_meditation && <p>📖  {post.my_meditation}</p>}
+                  {post.my_prayer && <p>🙏  {post.my_prayer}</p>}
                 </div>
               </motion.div>
             ))}
