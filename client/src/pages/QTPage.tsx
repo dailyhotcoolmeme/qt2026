@@ -48,11 +48,12 @@ export default function QTPage() {
   const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // 절 단위 분할 로직 (중복 에러 해결 및 정규식 최적화)
-  const getVerses = () => {
+    const getVerses = () => {
     if (!bibleData || !bibleData.content) return [];
-    // 숫자. 으로 시작하는 부분을 기준으로 나누되 번호를 유지함
-    return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
+    // 1. 먼저 모든 줄바꿈을 공백으로 치환하여 한 줄로 만듭니다 (줄바꿈 때문에 생기는 두 줄 현상 방지)
+    const singleLineContent = bibleData.content.replace(/\r?\n|\r/g, " ");
+    // 2. 그 다음 '숫자.' 패턴으로 절을 나눕니다.
+    return singleLineContent.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
   };
 
   useEffect(() => {
@@ -236,27 +237,25 @@ export default function QTPage() {
             key={idx}
             ref={(el) => (sentenceRefs.current[idx] = el)}
             animate={{
-              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
+              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
             }}
             transition={{ duration: 0.3 }}
-            // items-start와 flex-row를 강제하여 숫자가 위로 튀지 않게 고정
-            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg"
+            // flex-row와 items-start가 숫자와 본문을 가로로 정렬합니다.
+            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors overflow-hidden"
           >
             {match ? (
               <>
-                {/* 절 숫자: 절대 줄바꿈 되지 않도록 shrink-0 부여 */}
-                <span className="shrink-0 font-bold opacity-80 mr-3 min-w-[2.2em] text-right">
+                {/* 절 번호: shrink-0으로 너비 고정 */}
+                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em] inline-block">
                   {match[1]}
                 </span>
-                {/* 본문: 남은 공간을 꽉 채우며 가로로 배치 */}
+                {/* 본문 내용: flex-1로 남은 공간 차지 */}
                 <span className="flex-1 break-keep leading-relaxed pt-[1px]">
                   {match[2]}
                 </span>
               </>
             ) : (
-              <span className="flex-1 break-keep leading-relaxed pl-[2.8em]">
-                {trimmedVerse}
-              </span>
+              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
             )}
           </motion.div>
         );
@@ -268,6 +267,7 @@ export default function QTPage() {
     </div>
   )}
 </div>
+
 
 
 
