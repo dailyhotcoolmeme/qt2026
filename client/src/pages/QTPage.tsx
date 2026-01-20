@@ -39,9 +39,11 @@ export default function QTPage() {
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   
   // 음성 인식/재생 관련 상태 (중복 제거됨)
-  const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
+    // 음성 재생 관련 상태 (Google TTS용)
+  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
+
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -113,60 +115,70 @@ export default function QTPage() {
   };
 
   // 음성 재생 함수 (하나로 정리)
-      const handlePlayAudio = () => {
+  const handlePlayAudio = async () => {
     if (!bibleData) return;
-    window.speechSynthesis.cancel(); // 초기화
-
-    // 모든 줄의 숫자와 점(예: "1. ", "10. ")을 빈 칸으로 바꿈
-    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = 'ko-KR';
-    utterance.rate = 1.0;
-
-    utterance.onstart = () => {
-      setIsPlaying(true);
+    
+    // 이미 생성된 오디오가 있다면 팝업만 다시 보여줌
+    if (audio) {
       setShowAudioControl(true);
-    };
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-    };
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-    };
+      return;
+    }
 
-    window.speechSynthesis.speak(utterance);
-  };
+    // 모든 줄의 숫자와 점(예: "1. ") 제거
+    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
+    
+    const apiKey = "AIzaSyA3hMflCVeq84eovVNuB55jHCUDoQVVGnw";
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          input: { text: textToSpeak },
+          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+          audioConfig: { audioEncoding: "MP3" },
+        }),
+      });
 
+      const data = await response.json();
+      const audioBlob = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
 
-        const toggleAudio = () => {
-    if (isPlaying) {
-      window.speechSynthesis.pause();
-      setIsPlaying(false);
-    } else {
-      // 브라우저 음성 엔진이 잠들었을 경우를 대비해 resume 호출
-      window.speechSynthesis.resume();
+      setAudio(audioBlob);
+      setShowAudioControl(true);
+      audioBlob.play();
       setIsPlaying(true);
 
-      // [핵심] 일부 브라우저에서 resume() 후 소리가 안 나는 버그 해결용
-      // 잠시 일시정지했다가 다시 깨우는 트릭을 사용합니다.
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
+      audioBlob.onended = () => {
+        setIsPlaying(false);
+        setShowAudioControl(false);
+        setAudio(null);
+      };
+    } catch (error) {
+      console.error("TTS 에러:", error);
     }
   };
 
-
+  const toggleAudio = () => {
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
 
   const stopAudio = () => {
-    window.speechSynthesis.cancel();
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+    setAudio(null);
     setIsPlaying(false);
     setShowAudioControl(false);
   };
+
 
   const toggleSpeechRecognition = (target: 'meditation' | 'prayer') => {
     if (isRecording) {
@@ -393,7 +405,7 @@ export default function QTPage() {
         </div>
       </main>
 
-      {/* 음성 제어 팝업 컨트롤러 */}
+            {/* 음성 제어 팝업 컨트롤러 (디자인 유지) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div
@@ -416,14 +428,14 @@ export default function QTPage() {
                 <Button 
                   variant="ghost" size="icon" 
                   className="text-white hover:bg-white/10"
-                  onClick={toggleAudio}
+                  onClick={toggleAudio} // 일시정지/이어서 재생
                 >
                   {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
                 </Button>
                 <Button 
                   variant="ghost" size="icon" 
                   className="text-white hover:bg-white/10"
-                  onClick={stopAudio}
+                  onClick={stopAudio} // 그만 듣기
                 >
                   <X size={22} />
                 </Button>
@@ -432,6 +444,7 @@ export default function QTPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
 
       {/* 모달 및 확인창 */}
       <AnimatePresence>
