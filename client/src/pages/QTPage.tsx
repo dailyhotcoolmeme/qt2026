@@ -31,6 +31,11 @@ export default function QTPage() {
   // --- 여기를 수정/추가 하세요 ---
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
   const sentenceRefs = useRef<(HTMLSpanElement | null)[]>([]); // Ref 타입을 HTMLSpanElement로 변경
+  const getVerses = () => {
+    if (!bibleData || !bibleData.content) return [];
+    // 숫자. 으로 시작하는 부분을 기준으로 나누되, 번호를 유지하는 정규식입니다.
+    return bibleData.content.split(/(?=\d+\.\s)/).filter(v => v.trim() !== "");
+  };
   // 1. 말씀 데이터를 절 단위로 분할하는 헬퍼 함수
   const getVerses = () => {
     if (!bibleData) return [];
@@ -159,14 +164,15 @@ export default function QTPage() {
         audioRef.current = audio;
 
         audio.ontimeupdate = () => {
-          if (!audio.duration) return;
-          // 싱크 조정을 위해 현재 시간에 미세한 가중치(0.2초 등)를 더할 수 있음
-          const adjustedTime = audio.currentTime + 0.1; 
-          const progress = adjustedTime / audio.duration;
-          const index = Math.min(
-            Math.floor(progress * versesList.length),
-            versesList.length - 1
-          );
+    if (!audio.duration) return;
+    const adjustedTime = audio.currentTime + 0.4; // 0.4초 정도 앞서게 설정
+    const progress = adjustedTime / audio.duration;
+    
+    // versesList.length를 기준으로 현재 몇 번째 절인지 계산
+    const index = Math.min(
+      Math.floor(progress * versesList.length),
+      versesList.length - 1
+    );
           
           setCurrentSentenceIndex(index);
           sentenceRefs.current[index]?.scrollIntoView({
@@ -261,61 +267,57 @@ export default function QTPage() {
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
                     <CardContent className="pt-8 pb-5 px-6">
-            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              {/* 좌측 정렬 복구 및 절 단위 렌더링 */}
-              <div className="text-white leading-[1.8] break-keep px-2">
-                {bibleData ? (
-                  <div style={{ fontSize: `${fontSize}px` }}>
-                    {getVerses().map((verse, idx) => {
-                      const trimmedVerse = verse.trim();
-                      // '숫자. ' 로 시작하는지 확인
-                      const match = trimmedVerse.match(/^(\d+\.\s)(.*)/);
-                      
-                      return (
-                        <motion.div
-                          key={idx}
-                          ref={(el) => (sentenceRefs.current[idx] = el)}
-                          animate={{
-                            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
-                          }}
-                          transition={{ duration: 0.3 }}
-                          className="flex items-start text-left mb-2 px-2 py-1 rounded-lg transition-colors"
-                        >
-                          {match ? (
-                            <>
-                              {/* 절 번호 */}
-                              <span className="shrink-0 opacity-80 mr-2 w-[1.5em] font-bold text-[0.9em]">
-                                {match[1]}
-                              </span>
-                              {/* 본문 내용 */}
-                              <span className="flex-1">
-                                {match[2]}
-                              </span>
-                            </>
-                          ) : (
-                            <span className="flex-1">{trimmedVerse}</span>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
+  <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+    <div className="text-white font-medium">
+      {bibleData ? (
+        <div style={{ fontSize: `${fontSize}px` }}>
+          {getVerses().map((verse, idx) => {
+            const trimmedVerse = verse.trim();
+            // 절 번호(숫자. )와 본문을 분리
+            const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
+            
+            return (
+              <motion.div
+                key={idx}
+                ref={(el) => (sentenceRefs.current[idx] = el)}
+                animate={{
+                  backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
+                }}
+                className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
+              >
+                {match ? (
+                  <>
+                    {/* 절 번호: 한 줄에서 튕겨나가지 않게 고정 너비 부여 */}
+                    <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
+                      {match[1]}
+                    </span>
+                    {/* 본문 내용: 번호를 제외한 나머지 텍스트만 출력 */}
+                    <span className="flex-1 break-keep leading-relaxed">
+                      {match[2]}
+                    </span>
+                  </>
                 ) : (
-                  <div className="text-center py-10 opacity-70">
-                    <p>등록된 말씀이 없습니다.</p>
-                  </div>
+                  <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
                 )}
-              </div>
-            </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      ) : (
+        <p className="text-white text-center py-10 opacity-70">등록된 말씀이 없습니다.</p>
+      )}
+    </div>
+  </div>
 
-            {/* 말씀 출처 (절 정보) */}
-            {bibleData && (
-              <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
-                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
-                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
-                </p>
-              </div>
-            )}
-          </CardContent>
+  {/* 출처 표기 영역 */}
+  {bibleData && (
+    <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
+      <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
+        • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+      </p>
+    </div>
+  )}
+</CardContent>
 
         </Card>
 
