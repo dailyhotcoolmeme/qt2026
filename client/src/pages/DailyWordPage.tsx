@@ -92,7 +92,7 @@ export default function DailyWordsPage() {
   const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
   const unit = bibleData.bible_name === "시편" ? "편" : "장";
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
-  const fileName = encodeURIComponent(`audio_${bibleData.bible_name}_${bibleData.chapter}_${bibleData.verse}.mp3`);
+  const fileName = `audio_${bibleData.bible_id || 'v1'}_${bibleData.chapter}_${bibleData.verse}.mp3`;
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
