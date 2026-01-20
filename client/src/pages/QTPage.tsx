@@ -347,14 +347,136 @@ export default function QTPage() {
             </div>
             <div className="flex items-center justify-between pt-2">
               <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} className="rounded-md border-gray-300" />
+      <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
+        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
+          <CardContent className="pt-8 pb-5 px-6">
+            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="text-white font-medium">
+                {bibleData ? (
+                  <div style={{ fontSize: `${fontSize}px` }}>
+                    {getVerses().map((verse, idx) => (
+                      <motion.div
+                        key={idx}
+                        ref={(el) => (sentenceRefs.current[idx] = el)}
+                        animate={{
+                          backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
+                        }}
+                        transition={{ duration: 0.2 }}
+                        // grid를 사용하여 절 번호 너비를 3rem(약 48px)로 강제 고정
+                        className="grid grid-cols-[3rem_1fr] items-start mb-3 px-2 py-1 rounded-lg"
+                      >
+                        <span className="font-bold opacity-80 text-left">
+                          {verse.num}
+                        </span>
+                        <span className="break-keep leading-relaxed pt-[1px]">
+                          {verse.text}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 opacity-70">
+                    <p>등록된 말씀이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {bibleData && (
+              <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
+                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
+                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 도구함 */}
+        <div className="pt-0 pb-4 px-6">
+          <div className="flex items-center justify-center gap-7 pt-1.5">
+            <button onClick={handlePlayAudio} className="flex flex-row items-center gap-1.5 text-[#5D7BAF] font-bold">
+              <Mic className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+            </button>
+            <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+              <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : ""}`} /><span style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
+            </button>
+            <div className="relative flex flex-col items-center">
+              <button onClick={handleCopyBibleText} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+                <Copy className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+              </button>
+              <AnimatePresence>
+                {showCopyToast && (
+                  <motion.div initial={{ opacity: 0, y: 0 }} animate={{ opacity: 1, y: 10 }} exit={{ opacity: 0, y: 0 }} className="absolute top-full mt-1 whitespace-nowrap z-[300] bg-gray-600/90 text-white px-3 py-3 rounded-lg flex items-center gap-2 shadow-lg">
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    <span className="text-[14px] font-bold">복사되었습니다</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            <button onClick={() => {
+              if (!bibleData) return;
+              const text = `[오늘의 묵상]\n${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}\n\n${bibleData.content}`;
+              if (navigator.share) { navigator.share({ title: '오늘의 묵상', text: text, url: window.location.href }); }
+              else { alert("공유하기를 지원하지 않는 브라우저입니다."); }
+            }} className="flex flex-row items-center gap-1.5 text-gray-400 font-bold">
+              <Share2 className="w-5 h-5" /><span style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
+            </button>
+          </div>
+        </div>
+
+        {/* 묵상 입력 섹션 */}
+        <div className="space-y-4 px-1">
+          <div className="flex items-center gap-2 px-1">
+            <PenLine className="w-5 h-5 text-primary" />
+            <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>나의 묵상 나눔</h3>
+          </div>
+          <div className="relative bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4">
+            {!isAuthenticated && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-2xl space-y-3">
+                <Lock className="w-7 h-7 text-[#5D7BAF]" />
+                <Button size="lg" onClick={() => setShowLoginModal(true)}>로그인 후 작성하기</Button>
+              </div>
+            )}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기록</span>
+                <button onClick={() => toggleSpeechRecognition('meditation')} className={`text-[#5D7BAF] ${isRecording === 'meditation' ? 'animate-pulse' : ''}`}>
+                  <Mic size={16} />
+                </button>
+              </div>
+              <Textarea 
+                placeholder="오늘 묵상을 통해 느낀 점을 남겨보세요" 
+                className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" 
+                value={meditation} 
+                onChange={(e) => setMeditation(e.target.value)} 
+              />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기도</span>
+                <button onClick={() => toggleSpeechRecognition('prayer')} className={`text-[#5D7BAF] ${isRecording === 'prayer' ? 'animate-pulse' : ''}`}>
+                  <Mic size={16} />
+                </button>
+              </div>
+              <Textarea 
+                placeholder="오늘 묵상에 대한 기도를 남겨보세요" 
+                className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm" 
+                value={prayer} 
+                onChange={(e) => setPrayer(e.target.value)} 
+              />
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} />
                 <span className="text-sm font-bold text-gray-500">익명으로 나눔</span>
               </label>
-              <Button onClick={handleRegister} disabled={!meditation.trim() && !prayer.trim()} className="rounded-full px-8 h-10 font-bold bg-[#5D7BAF] hover:bg-[#4A638F] shadow-md transition-all">등록</Button>
+              <Button onClick={handleRegister} disabled={!meditation.trim() && !prayer.trim()} className="rounded-full px-8 bg-[#5D7BAF] font-bold">등록</Button>
             </div>
           </div>
         </div>
 
+        {/* 성도 나눔 섹션 */}
         <div className="space-y-4 pb-20 pt-4 px-1">
           <div className="flex items-center gap-2">
             <MessageCircle className="w-5 h-5 text-primary" />
@@ -362,27 +484,23 @@ export default function QTPage() {
           </div>
           <AnimatePresence initial={false}>
             {meditationList.map((post) => (
-              <motion.div key={post.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4">
+              <motion.div key={post.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm mb-4">
                 <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>{post.user_nickname}</span>
-                    <span className="text-gray-300 font-medium" style={{ fontSize: `${fontSize - 2}px` }}>
-                      {new Date(post.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '-').replace('.', '')} | {new Date(post.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                    </span>
-                  </div>
+                  <span className="font-bold text-[#5D7BAF]">{post.user_nickname}</span>
                   {currentUserId === post.user_id && (
-                    <button onClick={() => setDeleteId(post.id)} className="text-gray-300 hover:text-red-500 transition-colors"><Trash2 size={16} /></button>
+                    <button onClick={() => setDeleteId(post.id)} className="text-gray-300"><Trash2 size={16} /></button>
                   )}
                 </div>
-                <div className="space-y-3">
-                  {post.my_meditation?.trim() && <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>📖 묵상 기록: {post.my_meditation}</p>}
-                  {post.my_prayer?.trim() && <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>🙏 묵상 기도: {post.my_prayer}</p>}
+                <div className="space-y-3 text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  {post.my_meditation && <p>📖 묵상 기록: {post.my_meditation}</p>}
+                  {post.my_prayer && <p>🙏 묵상 기도: {post.my_prayer}</p>}
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
       </main>
+
 
       <AnimatePresence>
         {showAudioControl && (
