@@ -276,7 +276,7 @@ setCurrentDate(d);
 </div>
 </header>
 
-<main className="flex-1 overflow-y-auto pt-4 px-4 pb-0 space-y-3">
+<main className="flex-1 overflow-y-auto pt-4 px-4 pb-6 space-y-3">
   <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-lg">
     <CardContent className="pt-6 pb-0 px-4">
       <div className="text-center py-1">
