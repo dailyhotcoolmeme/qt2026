@@ -337,7 +337,7 @@ export default function QTPage() {
             )}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기록</span>
+                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기록 📖 </span>
                 <button onClick={() => toggleSpeechRecognition('meditation')} className={`text-[#5D7BAF] ${isRecording === 'meditation' ? 'animate-pulse' : ''}`}>
                   <Mic size={16} />
                 </button>
@@ -346,7 +346,7 @@ export default function QTPage() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기도</span>
+                <span className="text-[12px] font-bold text-[#5D7BAF] ml-1">묵상 기도 🙏</span>
                 <button onClick={() => toggleSpeechRecognition('prayer')} className={`text-[#5D7BAF] ${isRecording === 'prayer' ? 'animate-pulse' : ''}`}>
                   <Mic size={16} />
                 </button>
