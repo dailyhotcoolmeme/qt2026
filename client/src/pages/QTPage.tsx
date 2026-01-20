@@ -324,7 +324,7 @@ export default function QTPage() {
         </div>
 
         <div className="space-y-10 px-1">
-          <div className="flex items-center mt-8 gap-2 px-1">
+          <div className="flex items-center gap-2 px-1">
             <PenLine className="w-5 h-5 text-primary" />
             <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘의 묵상 나누기</h3>
           </div>
