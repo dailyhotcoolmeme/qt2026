@@ -355,7 +355,7 @@ export default function QTPage() {
                 </button>
               </div>
               <Textarea 
-                placeholder="오늘 말씀을 통해 느낀 점을 기록해보세요."
+                placeholder="오늘 묵상을 통해 느낀 점을 남겨보세요"
                 className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-[#5D7BAF]"
                 value={meditation}
                 onChange={(e) => setMeditation(e.target.value)}
@@ -370,7 +370,7 @@ export default function QTPage() {
                 </button>
               </div>
               <Textarea 
-                placeholder="주님께 드리는 기도를 적어보세요."
+                placeholder="오늘 묵상에 대한 기도를 남겨보세요"
                 className="bg-white border-none resize-none min-h-[100px] p-4 text-gray-600 rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-[#5D7BAF]"
                 value={prayer}
                 onChange={(e) => setPrayer(e.target.value)}
@@ -469,7 +469,7 @@ export default function QTPage() {
                   <Mic size={20} />
                 </div>
                 <div>
-                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 읽어드리고 있어요</p>
+                  <p className="font-bold" style={{ fontSize: `${fontSize - 2}px` }}>말씀을 음성으로 읽고 있습니다../p>
                   <p className="opacity-70" style={{ fontSize: `${fontSize - 4}px` }}>오늘의 묵상 말씀</p>
                 </div>
               </div>
@@ -491,7 +491,7 @@ export default function QTPage() {
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6 bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white rounded-[24px] w-full max-w-[280px] p-6 shadow-2xl">
               <h4 className="text-center font-bold text-gray-900 mb-2">나눔 삭제</h4>
-              <p className="text-center text-sm text-gray-500 mb-6">작성하신 묵상을 삭제하시겠습니까?</p>
+              <p className="text-center text-sm text-gray-500 mb-6">작성하신 기록을 삭제하시겠습니까?</p>
               <div className="flex gap-3">
                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
                 <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
