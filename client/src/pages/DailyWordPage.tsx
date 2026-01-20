@@ -292,7 +292,6 @@ setCurrentDate(d);
                  {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                 </p>
               </div>
-  </div>
 </CardContent>
 </Card>
 
