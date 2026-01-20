@@ -273,61 +273,58 @@ export default function QTPage() {
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
-                    <CardContent className="pt-8 pb-5 px-6">
-  <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-    <div className="text-white font-medium">
-    <div className="text-white font-medium">
-  {bibleData ? (
-    <div style={{ fontSize: `${fontSize}px` }}>
-      {getVerses().map((verse, idx) => {
-        const trimmedVerse = verse.trim();
-        // 절 번호(match[1])와 본문(match[2])을 분리하는 정규식
-        const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
-        
-        return (
-          <motion.div
-            key={idx}
-            ref={(el) => (sentenceRefs.current[idx] = el)}
-            animate={{
-              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
-            }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
-          >
-            {match ? (
-              <>
-                {/* 절 번호: 고정 너비로 한 줄 유지 */}
-                <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
-                  {match[1]}
-                </span>
-                {/* 본문 내용: 번호를 뺀 나머지 텍스트 */}
-                <span className="flex-1 break-keep leading-relaxed">
-                  {match[2]}
-                </span>
-              </>
-            ) : (
-              <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
+          <CardContent className="pt-8 pb-5 px-6">
+            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
+              <div className="text-white font-medium">
+                {bibleData ? (
+                  <div style={{ fontSize: `${fontSize}px` }}>
+                    {getVerses().map((verse, idx) => {
+                      const trimmedVerse = verse.trim();
+                      const match = trimmedVerse.match(/^(\d+\.)\s*(.*)/);
+                      
+                      return (
+                        <motion.div
+                          key={idx}
+                          ref={(el) => (sentenceRefs.current[idx] = el)}
+                          animate={{
+                            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
+                          }}
+                          transition={{ duration: 0.3 }}
+                          className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg transition-colors"
+                        >
+                          {match ? (
+                            <>
+                              <span className="shrink-0 font-bold opacity-80 mr-2 min-w-[1.8em]">
+                                {match[1]}
+                              </span>
+                              <span className="flex-1 break-keep leading-relaxed">
+                                {match[2]}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="flex-1 break-keep leading-relaxed">{trimmedVerse}</span>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 opacity-70">
+                    <p>등록된 말씀이 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 말씀 출처 (절 정보) */}
+            {bibleData && (
+              <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
+                <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
+                  • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
+                </p>
+              </div>
             )}
-          </motion.div>
-        );
-      })}
-    </div>
-  ) : (
-    <p className="text-white text-center py-10 opacity-70">등록된 말씀이 없습니다.</p>
-  )}
-</div>
-  </div>
-
-  {/* 출처 표기 영역 */}
-  {bibleData && (
-    <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
-      <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
-        • {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse} •
-      </p>
-    </div>
-  )}
-</CardContent>
-
+          </CardContent>
         </Card>
 
                 {/* 도구함 */}
