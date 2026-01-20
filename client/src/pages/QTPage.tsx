@@ -144,12 +144,37 @@ export default function QTPage() {
         const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
         audioRef.current = audio;
         audio.ontimeupdate = () => {
-          if (!audio.duration) return;
-          const progress = audio.currentTime / audio.duration;
-          const index = Math.min(Math.floor(progress * versesList.length), versesList.length - 1);
-          setCurrentSentenceIndex(index);
-          sentenceRefs.current[index]?.scrollIntoView({ behavior: "smooth", block: "center" });
-        };
+  if (!audio.duration) return;
+  const currentTime = audio.currentTime;
+  const duration = audio.duration;
+  const vList = getVerses();
+  
+  // 전체 글자 수 합계 계산
+  const totalChars = vList.reduce((sum, v) => sum + v.text.length, 0);
+  
+  let accumulatedTime = 0;
+  let currentIndex = 0;
+
+  for (let i = 0; i < vList.length; i++) {
+    // 각 절의 글자 수 비중에 따라 할당된 시간 계산
+    const verseDuration = (vList[i].text.length / totalChars) * duration;
+    accumulatedTime += verseDuration;
+
+    if (currentTime <= accumulatedTime) {
+      currentIndex = i;
+      break;
+    }
+  }
+
+  if (currentIndex !== currentSentenceIndex) {
+    setCurrentSentenceIndex(currentIndex);
+    sentenceRefs.current[currentIndex]?.scrollIntoView({ 
+      behavior: "smooth", 
+      block: "center" 
+    });
+  }
+};
+
         setShowAudioControl(true);
         setIsPlaying(true);
         audio.play();
