@@ -50,13 +50,25 @@ export default function QTPage() {
 
     const getVerses = () => {
   if (!bibleData || !bibleData.content) return [];
-  // 줄바꿈을 모두 공백으로 바꿔서 한 줄로 만든 뒤, 숫자. 패턴으로 정확히 자릅니다.
-  return bibleData.content
-    .replace(/\r?\n|\r/g, " ")
-    .split(/(?=\d+\.\s)/)
-    .map(v => v.trim())
-    .filter(v => v !== "");
+  
+  // 1. 모든 줄바꿈을 공백으로 합쳐서 데이터 오염 방지
+  const rawText = bibleData.content.replace(/\r?\n|\r/g, " ").trim();
+  
+  // 2. 숫자로 시작하는 절 단위로 안전하게 분리
+  const parts = rawText.split(/(\d+\.)/g).filter(p => p.trim() !== "");
+  const result = [];
+  
+  // 3. [숫자, 내용] 쌍을 하나로 묶음
+  for (let i = 0; i < parts.length; i += 2) {
+    if (parts[i+1]) {
+      result.push({ num: parts[i].trim(), text: parts[i+1].trim() });
+    } else {
+      result.push({ num: "", text: parts[i].trim() });
+    }
+  }
+  return result;
 };
+
 
 
   useEffect(() => {
@@ -227,38 +239,30 @@ export default function QTPage() {
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-10 space-y-3">
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
           <CardContent className="pt-8 pb-5 px-6">
-            <div className="max-h-[280px] overflow-y-auto pr-2 custom-scrollbar">
-              <div className="text-white font-medium">
+            <div className="text-white font-medium">
   {bibleData ? (
     <div style={{ fontSize: `${fontSize}px` }}>
-      {getVerses().map((verse, idx) => {
-        // 첫 번째 공백을 기준으로 절 번호(21.)와 본문을 분리
-        const firstSpaceIndex = verse.indexOf(' ');
-        const verseNum = firstSpaceIndex !== -1 ? verse.substring(0, firstSpaceIndex) : "";
-        const verseText = firstSpaceIndex !== -1 ? verse.substring(firstSpaceIndex + 1) : verse;
-
-        return (
-          <motion.div
-            key={idx}
-            ref={(el) => (sentenceRefs.current[idx] = el)}
-            animate={{
-              backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.2)" : "transparent",
-            }}
-            transition={{ duration: 0.3 }}
-            // flex-nowrap을 추가하여 절대로 줄바꿈이 일어나지 않게 고정합니다.
-            className="flex flex-row items-start text-left mb-3 px-2 py-1 rounded-lg flex-nowrap"
-          >
-            {/* 절 번호 영역 */}
-            <span className="shrink-0 font-bold opacity-80 mr-3 min-w-[2.2em] inline-block">
-              {verseNum}
-            </span>
-            {/* 말씀 본문 영역 */}
-            <span className="flex-1 break-keep leading-relaxed pt-[1px] block">
-              {verseText}
-            </span>
-          </motion.div>
-        );
-      })}
+      {getVerses().map((verse, idx) => (
+        <motion.div
+          key={idx}
+          ref={(el) => (sentenceRefs.current[idx] = el)}
+          animate={{
+            backgroundColor: currentSentenceIndex === idx ? "rgba(255, 255, 255, 0.25)" : "transparent",
+          }}
+          transition={{ duration: 0.2 }}
+          // grid를 사용하여 숫자와 본문의 위치를 강제로 고정합니다.
+          className="grid grid-cols-[3rem_1fr] items-start mb-3 px-2 py-1 rounded-lg"
+        >
+          {/* 절 숫자 영역: 무조건 왼쪽 3rem(약 48px) 차지 */}
+          <span className="font-bold opacity-80 text-left">
+            {verse.num}
+          </span>
+          {/* 본문 영역: 남은 오른쪽 공간 모두 차지 */}
+          <span className="break-keep leading-relaxed pt-[1px]">
+            {verse.text}
+          </span>
+        </motion.div>
+      ))}
     </div>
   ) : (
     <div className="text-center py-10 opacity-70">
@@ -267,11 +271,7 @@ export default function QTPage() {
   )}
 </div>
 
-
-
-
-
-            </div>
+  </div>
             {bibleData && (
               <div className="mt-8 pt-4 border-t border-white/20 flex justify-end">
                 <p className="text-sm text-white/90 font-bold bg-white/10 px-4 py-1 rounded-full">
