@@ -471,17 +471,17 @@ const stopAudio = () => {
           <div className="flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
             <div>
-              <p className="text-[11px] font-bold opacity-90">말씀 읽기 모드</p>
+              <p className="text-[11px] font-bold opacity-90">말씀을 음성으로 재생중입니다...</p>
               {/* 성별 선택 버튼 추가 */}
               <div className="flex gap-2 mt-1">
                 <button 
                   onClick={() => setVoiceType('F')} 
                   className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                >여성</button>
+                >여성 목소리</button>
                 <button 
                   onClick={() => setVoiceType('M')} 
                   className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                >남성</button>
+                >남성 목소리</button>
               </div>
             </div>
           </div>
