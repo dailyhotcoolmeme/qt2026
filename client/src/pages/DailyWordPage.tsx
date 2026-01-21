@@ -94,7 +94,11 @@ export default function DailyWordsPage() {
   if (audio) { setShowAudioControl(true); return; }
 
   // 1. 파일명 생성 (중복 선언 해결 및 book_order 적용)
-  const bookOrder = bibleData.bible_books?.book_order || '0';
+  // 객체 형태거나 배열 형태인 경우를 모두 체크하여 안전하게 가져옵니다.
+const bookOrder = Array.isArray(bibleData.bible_books) 
+  ? bibleData.bible_books[0]?.book_order 
+  : bibleData.bible_books?.book_order || '0';
+
   const chapter = bibleData.chapter;
   const verse = bibleData.verse.replace(/:/g, '_');
   const fileName = `audio_b${bookOrder}_c${chapter}_v${verse}.mp3`;
