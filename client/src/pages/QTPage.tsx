@@ -73,12 +73,36 @@ export default function QTPage() {
   }, [currentDate]);
 
   const fetchQTVerse = async (date: Date) => {
-    const offset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() - offset);
-    const formattedDate = localDate.toISOString().split('T')[0];
-    const { data } = await supabase.from('daily_qt_verses').select('*').eq('display_date', formattedDate).maybeSingle();
-    setBibleData(data);
-  };
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  const formattedDate = localDate.toISOString().split('T')[0];
+
+  [span_0](start_span)// 1. 오늘의 묵상 말씀 가져오기[span_0](end_span)
+  const { data: verse, error } = await supabase
+    .from('daily_qt_verses')
+    .select('*')
+    .eq('display_date', formattedDate)
+    .maybeSingle();
+
+  if (error) {
+    console.error("QT 말씀 불러오기 에러:", error);
+    return;
+  }
+
+  if (verse) {
+    // 2. 성경 이름으로 번호를 따로 찾아와서 합치기 (수동 조인)
+    const { data: book } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', verse.bible_name)
+      .maybeSingle();
+
+    [span_1](start_span)setBibleData({ ...verse, bible_books: book });[span_1](end_span)
+  } else {
+    setBibleData(null);
+  }
+};
+
 
   const fetchMeditationPosts = async () => {
     const startOfDay = new Date(currentDate); startOfDay.setHours(0, 0, 0, 0);
@@ -123,70 +147,116 @@ export default function QTPage() {
   };
 
   const handlePlayAudio = async () => {
-    if (!bibleData) return;
-    if (audioRef.current) { setShowAudioControl(true); return; }
-    const versesList = getVerses();
-    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
-    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${bibleData.chapter}장 ${bibleData.verse}절 말씀.`;
+  if (!bibleData) return;
+  if (audioRef.current) { setShowAudioControl(true); return; [span_2](start_span)}
+
+  // 1. 성경 번호 추출
+  let bookOrder = '0';
+  if (bibleData.bible_books) {
+    bookOrder = Array.isArray(bibleData.bible_books) 
+      ? bibleData.bible_books[0]?.book_order?.toString() || '0'
+      : bibleData.bible_books.book_order?.toString() || '0';
+  }
+
+  const chapter = bibleData.chapter;
+  const verse = bibleData.verse.replace(/:/g, '_');
+  
+  // 2. 통합 버킷용 경로 설정 (qt 폴더)
+  const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+  const storagePath = `qt/${fileName}`; 
+
+  const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+  const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}장 ${bibleData.verse}절 말씀.`;[span_2](end_span)
+
+  try {
+    // 3. bible-assets 버킷에서 기존 파일 확인
+    const { data: existingFile } = supabase.storage
+      .from('bible-assets')
+      .getPublicUrl(storagePath);
+
+    const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
+
+    if (checkRes.ok) {
+      const savedAudio = new Audio(existingFile.publicUrl);
+      setupAudioEvents(savedAudio); 
+      return;
+    }
+
+    [span_3](start_span)// 4. 파일 없으면 Google TTS 호출[span_3](end_span)
     const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          input: { text: textToSpeak },
-          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
-          audioConfig: { audioEncoding: "MP3" },
-        }),
-      });
-      const data = await response.json();
-      if (data.audioContent) {
-        const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-        audioRef.current = audio;
-        audio.ontimeupdate = () => {
-  if (!audio.duration) return;
-  const currentTime = audio.currentTime;
-  const duration = audio.duration;
-  const vList = getVerses();
-  
-  // 전체 글자 수 합계 계산
-  const totalChars = vList.reduce((sum, v) => sum + v.text.length, 0);
-  
-  let accumulatedTime = 0;
-  let currentIndex = 0;
-
-  for (let i = 0; i < vList.length; i++) {
-    // 각 절의 글자 수 비중에 따라 할당된 시간 계산
-    const verseDuration = (vList[i].text.length / totalChars) * duration;
-    accumulatedTime += verseDuration;
-
-    if (currentTime <= accumulatedTime) {
-      currentIndex = i;
-      break;
-    }
-  }
-
-  if (currentIndex !== currentSentenceIndex) {
-    setCurrentSentenceIndex(currentIndex);
-    sentenceRefs.current[currentIndex]?.scrollIntoView({ 
-      behavior: "smooth", 
-      block: "center" 
+    
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({
+        input: { text: textToSpeak },
+        voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+        audioConfig: { audioEncoding: "MP3" },
+      }),
     });
+
+    [span_4](start_span)const resData = await response.json();[span_4](end_span)
+    if (!resData.audioContent) return;
+
+    // 5. 바이너리 변환 및 업로드
+    const binary = atob(resData.audioContent);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+    const blob = new Blob([array], { type: 'audio/mp3' });
+
+    await supabase.storage
+      .from('bible-assets')
+      .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
+
+    [span_5](start_span)const audio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);[span_5](end_span)
+    setupAudioEvents(audio);
+
+  } catch (error) {
+    console.error("QT TTS 에러:", error);
   }
 };
+const setupAudioEvents = (audio: HTMLAudioElement) => {
+  audioRef.current = audio;
+  audio.ontimeupdate = () => {
+    if (!audio.duration) return;
+    const currentTime = audio.currentTime;
+    const duration = audio.duration;
+    [span_6](start_span)const vList = getVerses();[span_6](end_span)
+    
+    const totalChars = vList.reduce((sum, v) => sum + v.text.length, 0);
+    let accumulatedTime = 0;
+    let currentIndex = 0;
 
-        setShowAudioControl(true);
-        setIsPlaying(true);
-        audio.play();
-        audio.onended = () => {
-          setIsPlaying(false);
-          setShowAudioControl(false);
-          audioRef.current = null;
-          setCurrentSentenceIndex(null);
-        };
+    for (let i = 0; i < vList.length; i++) {
+      [span_7](start_span)const verseDuration = (vList[i].text.length / totalChars) * duration;[span_7](end_span)
+      accumulatedTime += verseDuration;
+      if (currentTime <= accumulatedTime) {
+        currentIndex = i;
+        break;
       }
-    } catch (error) { console.error("TTS 에러:", error); }
+    }
+
+    if (currentIndex !== currentSentenceIndex) {
+      [span_8](start_span)setCurrentSentenceIndex(currentIndex);[span_8](end_span)
+      sentenceRefs.current[currentIndex]?.scrollIntoView({ 
+        behavior: "smooth", 
+        block: "center" 
+      [span_9](start_span)});[span_9](end_span)
+    }
   };
+
+  setShowAudioControl(true);
+  setIsPlaying(true);
+  audio.play();
+
+  audio.onended = () => {
+    setIsPlaying(false);
+    setShowAudioControl(false);
+    [span_10](start_span)audioRef.current = null;[span_10](end_span)
+    setCurrentSentenceIndex(null);
+  };
+};
+
 
   const toggleAudio = () => {
     if (audioRef.current) {
