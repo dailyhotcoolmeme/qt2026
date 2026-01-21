@@ -146,10 +146,10 @@ export default function QTPage() {
     }
   };
 
-      const handlePlayAudio = async () => {
+        const handlePlayAudio = async () => {
     if (!bibleData) return;
     
-    // 오디오가 이미 재생 중이라면 중단 후 새로 시작 (목소리 변경 대응)
+    // 이미 재생 중인 오디오가 있다면 중단 (목소리 교체 시 필요)
     if (audioRef.current) {
        audioRef.current.pause();
        audioRef.current = null;
@@ -165,7 +165,7 @@ export default function QTPage() {
     const chapter = bibleData.chapter;
     const verse = bibleData.verse.replace(/:/g, '_');
     
-    // ✅ 파일명 끝에 성별 구분자(_F 또는 _M)를 붙입니다.
+    // ✅ 파일명 끝에 성별(_F, _M) 추가
     const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
     const storagePath = `qt/${fileName}`; 
 
@@ -192,9 +192,9 @@ export default function QTPage() {
         method: "POST",
         body: JSON.stringify({
           input: { text: textToSpeak },
-          // ✅ 선택된 성별에 따라 구글 TTS 목소리 모델 변경
           voice: { 
             languageCode: "ko-KR", 
+            // ✅ 성별에 따른 구글 TTS 모델 선택
             name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
           },
           audioConfig: { audioEncoding: "MP3" },
@@ -219,6 +219,7 @@ export default function QTPage() {
       console.error("QT TTS 에러:", error);
     }
   };
+
 
 
   const setupAudioEvents = (audio: HTMLAudioElement) => {
@@ -465,29 +466,29 @@ export default function QTPage() {
         </div>
       </main>
 
-            {/* 오디오 컨트롤러 */}
+                  {/* 오디오 컨트롤러 */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div 
-            initial={{ y: 100 }} 
-            animate={{ y: 0 }} 
-            exit={{ y: 100 }} 
+            initial={{ y: 100, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 100, opacity: 0 }} 
             className="fixed bottom-6 left-4 right-4 z-[200]"
           >
-            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3">
+            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3 border border-white/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
                   <div>
-                    <p className="text-xs font-bold">QT 말씀 읽기 모드</p>
+                    <p className="text-[11px] font-bold opacity-90">말씀 읽기 모드</p>
                     <div className="flex gap-2 mt-1">
                       <button 
                         onClick={() => setVoiceType('F')} 
-                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${voiceType === 'F' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
                       >여성</button>
                       <button 
                         onClick={() => setVoiceType('M')} 
-                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${voiceType === 'M' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
                       >남성</button>
                     </div>
                   </div>
@@ -503,6 +504,7 @@ export default function QTPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
 
 
       <AnimatePresence>
