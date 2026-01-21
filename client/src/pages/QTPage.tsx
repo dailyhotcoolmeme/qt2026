@@ -329,13 +329,38 @@ export default function QTPage() {
           <Button variant="ghost" size="icon" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
           }}><ChevronLeft className="w-6 h-6" /></Button>
-          <div className="text-center">
-            <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 묵상</h1>
-            <p className="text-sm text-gray-400 font-bold">
-              {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-              {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-            </p>
-          </div>
+          <div className="text-center relative">
+  <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 묵상</h1>
+  
+  {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
+  <div 
+    className="relative cursor-pointer group" 
+    onClick={() => (document.getElementById('date-picker') as HTMLInputElement).showPicker()}
+  >
+    <p className="text-sm text-gray-400 font-bold group-hover:text-[#5D7BAF] transition-colors">
+      {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+      {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
+    </p>
+    
+    {/* 실제로 달력을 띄워주는 숨겨진 input */}
+    <input
+      id="date-picker"
+      type="date"
+      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      // 오늘(미래 제외)까지만 선택 가능하게 설정
+      max={new Date().toISOString().split("T")[0]}
+      value={currentDate.toISOString().split("T")[0]}
+      onChange={(e) => {
+        if (!e.target.value) return;
+        const selectedDate = new Date(e.target.value);
+        // 혹시 모를 미래 날짜 선택 방지 로직
+        if (selectedDate <= today) {
+          setCurrentDate(selectedDate);
+        }
+      }}
+    />
+  </div>
+</div>
           <Button variant="ghost" size="icon" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate() + 1);
             if (d <= today) setCurrentDate(d);
