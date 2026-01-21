@@ -220,47 +220,49 @@ export default function QTPage() {
     }
   };
 
-const setupAudioEvents = (audio: HTMLAudioElement) => {
-  audioRef.current = audio;
-  audio.ontimeupdate = () => {
-    if (!audio.duration) return;
-    const currentTime = audio.currentTime;
-    const duration = audio.duration;
-    [span_6](start_span)const vList = getVerses();[span_6](end_span)
-    
-    const totalChars = vList.reduce((sum, v) => sum + v.text.length, 0);
-    let accumulatedTime = 0;
-    let currentIndex = 0;
+  const setupAudioEvents = (audio: HTMLAudioElement) => {
+    audioRef.current = audio;
+    audio.ontimeupdate = () => {
+      if (!audio.duration) return; // 이 부분 뒤에 ;이 없거나 문장이 안 끝나서 에러가 났었습니다.
+      
+      const currentTime = audio.currentTime;
+      const duration = audio.duration;
+      const vList = getVerses();
+      
+      const totalChars = vList.reduce((sum, v) => sum + v.text.length, 0);
+      let accumulatedTime = 0;
+      let currentIndex = 0;
 
-    for (let i = 0; i < vList.length; i++) {
-      [span_7](start_span)const verseDuration = (vList[i].text.length / totalChars) * duration;[span_7](end_span)
-      accumulatedTime += verseDuration;
-      if (currentTime <= accumulatedTime) {
-        currentIndex = i;
-        break;
+      for (let i = 0; i < vList.length; i++) {
+        const verseDuration = (vList[i].text.length / totalChars) * duration;
+        accumulatedTime += verseDuration;
+        if (currentTime <= accumulatedTime) {
+          currentIndex = i;
+          break;
+        }
       }
-    }
 
-    if (currentIndex !== currentSentenceIndex) {
-      [span_8](start_span)setCurrentSentenceIndex(currentIndex);[span_8](end_span)
-      sentenceRefs.current[currentIndex]?.scrollIntoView({ 
-        behavior: "smooth", 
-        block: "center" 
-      [span_9](start_span)});[span_9](end_span)
-    }
+      if (currentIndex !== currentSentenceIndex) {
+        setCurrentSentenceIndex(currentIndex);
+        sentenceRefs.current[currentIndex]?.scrollIntoView({ 
+          behavior: "smooth", 
+          block: "center" 
+        });
+      }
+    };
+
+    audio.onended = () => {
+      setIsPlaying(false);
+      setShowAudioControl(false);
+      audioRef.current = null;
+      setCurrentSentenceIndex(null);
+    };
+
+    setShowAudioControl(true);
+    setIsPlaying(true);
+    audio.play();
   };
 
-  setShowAudioControl(true);
-  setIsPlaying(true);
-  audio.play();
-
-  audio.onended = () => {
-    setIsPlaying(false);
-    setShowAudioControl(false);
-    [span_10](start_span)audioRef.current = null;[span_10](end_span)
-    setCurrentSentenceIndex(null);
-  };
-};
 
 
   const toggleAudio = () => {
