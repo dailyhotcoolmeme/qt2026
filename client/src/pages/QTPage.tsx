@@ -482,14 +482,30 @@ export default function QTPage() {
                   <div>
                     <p className="text-[11px] font-bold opacity-90">말씀 읽기 모드</p>
                     <div className="flex gap-2 mt-1">
-                      <button 
-                        onClick={() => setVoiceType('F')} 
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
-                      >여성</button>
-                      <button 
-                        onClick={() => setVoiceType('M')} 
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
-                      >남성</button>
+                      {/* 여성 버튼 수정 */}
+<button 
+  onClick={() => {
+    if (voiceType !== 'F') {
+      setVoiceType('F');
+      // 상태 변경 직후 재생 함수를 실행하여 즉시 전환합니다.
+      setTimeout(() => handlePlayAudio(), 0);
+    }
+  }} 
+  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
+>여성 목소리</button>
+
+{/* 남성 버튼 수정 */}
+<button 
+  onClick={() => {
+    if (voiceType !== 'M') {
+      setVoiceType('M');
+      // 상태 변경 직후 재생 함수를 실행하여 즉시 전환합니다.
+      setTimeout(() => handlePlayAudio(), 0);
+    }
+  }} 
+  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
+>남성 목소리</button>
+
                     </div>
                   </div>
                 </div>
