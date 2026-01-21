@@ -17,6 +17,10 @@ interface BibleVerse {
   chapter: string;
   verse: string;
   content: string;
+  // 아래 내용을 추가하세요
+  bible_books?: {
+    book_order: number;
+  };
 }
 
 export default function DailyWordsPage() {
@@ -89,9 +93,16 @@ export default function DailyWordsPage() {
   if (!bibleData) return;
   if (audio) { setShowAudioControl(true); return; }
 
-  const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
-  const unit = bibleData.bible_name === "시편" ? "편" : "장";
-  const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+  // 1. 파일 이름에 들어갈 변수들 정리
+const bookOrder = bibleData.bible_books?.book_order || '0'; // 조인해서 가져온 번호
+const chapter = bibleData.chapter;
+const verse = bibleData.verse.replace(/:/g, '_'); // 콜론(:)을 언더바(_)로 변경
+const fileName = `audio_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+
+// 2. 구글 TTS가 읽어줄 텍스트 정리
+const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
+const unit = bibleData.bible_name === "시편" ? "편" : "장";
+const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
 
   // [수정 포인트] 파일명에서 한글을 완전히 제거하고 숫자와 언더바(_)만 사용합니다.
   // bible_id가 있으면 사용하고, 없으면 v1을 기본값으로 사용합니다.
@@ -204,7 +215,17 @@ export default function DailyWordsPage() {
     const offset = date.getTimezoneOffset() * 60000;
     const localDate = new Date(date.getTime() - offset);
     const formattedDate = localDate.toISOString().split('T')[0];
-    const { data } = await supabase.from('daily_bible_verses').select('*').eq('display_date', formattedDate).maybeSingle();
+    const { data } = await supabase
+  .from('daily_bible_verses')
+  .select(`
+    *,
+    bible_books (
+      book_order
+    )
+  `) // 여기서 성경 번호를 같이 가져옵니다.
+  .eq('display_date', formattedDate)
+  .maybeSingle();
+
     setBibleData(data);
   };
 
