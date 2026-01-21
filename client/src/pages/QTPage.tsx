@@ -509,46 +509,48 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
         </div>
       </main>
 
-                  {/* 오디오 컨트롤러 */}
-      <AnimatePresence>
-        {showAudioControl && (
-          <motion.div 
-            initial={{ y: 100, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            exit={{ y: 100, opacity: 0 }} 
-            className="fixed bottom-6 left-4 right-4 z-[200]"
-          >
-            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3 border border-white/20">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
-                  <div>
-                    <p className="text-[11px] font-bold opacity-90">말씀을 음성으로 재생중입니다...</p>
-                    <div className="flex gap-2 mt-1">
-  <button 
-    onClick={() => setVoiceType('F')} 
-    className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-  >여성 목소리</button>
-  <button 
-    onClick={() => setVoiceType('M')} 
-    className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-  >남성 목소리</button>
-</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleAudio}>
-                    {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={stopAudio}><X size={20}/></Button>
-                </div>
+                  {/* 오디오 컨트롤러 - 드래그(drag) 기능 복구 버전 */}
+<AnimatePresence>
+  {showAudioControl && (
+    <motion.div 
+      drag="y" // 세로로 드래그 가능
+      dragConstraints={{ top: -400, bottom: 50 }} // 드래그 범위 제한
+      initial={{ y: 100, opacity: 0 }} 
+      animate={{ y: 0, opacity: 1 }} 
+      exit={{ y: 100, opacity: 0 }} 
+      className="fixed bottom-6 left-4 right-4 z-[250] max-w-md mx-auto" // 레이어 순위(z) 상향 및 중앙 정렬 보정
+    >
+      <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-2xl flex flex-col gap-3 border border-white/20 touch-none"> 
+        {/* touch-none을 추가하면 드래그 시 스크롤 간섭을 방지합니다 */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
+            <div>
+              <p className="text-[11px] font-bold opacity-90">말씀을 음성으로 재생중입니다...</p>
+              <p className="text-[9px] opacity-60 mb-1">상하로 드래그하여 위치 조절 가능</p>
+              <div className="flex gap-2 mt-1">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setVoiceType('F'); }} 
+                  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+                >여성 목소리</button>
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setVoiceType('M'); }} 
+                  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+                >남성 목소리</button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-
+          </div>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); toggleAudio(); }}>
+              {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
+            </Button>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); stopAudio(); }}><X size={20}/></Button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       <AnimatePresence>
         {deleteId !== null && (
