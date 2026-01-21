@@ -336,13 +336,43 @@ const stopAudio = () => {
           <Button variant="ghost" size="icon" className="text-black-700 font-bold" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
           }}><ChevronLeft className="w-6 h-6" /></Button>
-          <div className="text-center">
-            <h1 className="text-[#5D7BAF] font-bold text-center" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
-            <p className="text-sm text-gray-400 font-bold text-center">
-              {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-              {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-            </p>
-          </div>
+          <div className="text-center relative">
+  <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
+  
+  {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
+  <div 
+    className="relative cursor-pointer group flex flex-col items-center" 
+    onClick={() => (document.getElementById('date-picker') as any).showPicker()}
+  >
+    <p 
+      className="text-sm text-gray-400 font-bold transition-all duration-200 group-hover:text-[#5D7BAF] group-active:scale-95 flex items-center justify-center gap-1"
+      style={{ fontSize: `${fontSize - 2}px` }}
+    >
+      {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
+      {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
+      <span className="text-[12px] opacity-50">▼</span>
+    </p>
+
+    {/* 실제로 달력을 띄워주는 숨겨진 input */}
+    <input
+      id="date-picker"
+      type="date"
+      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+      // 오늘 날짜까지만 선택 가능하도록 제한
+      max={new Date().toISOString().split("T")[0]}
+      value={currentDate.toISOString().split("T")[0]}
+      onChange={(e) => {
+        if (!e.target.value) return;
+        const selectedDate = new Date(e.target.value);
+        // 오늘(미래 제외)까지만 선택 가능하게 로직 적용
+        if (selectedDate <= today) {
+          setCurrentDate(selectedDate);
+        }
+      }}
+    />
+  </div>
+</div>
+
           <Button variant="ghost" size="icon" className="text-black-700 font-bold" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate() + 1);
             if (d <= today) setCurrentDate(d);
