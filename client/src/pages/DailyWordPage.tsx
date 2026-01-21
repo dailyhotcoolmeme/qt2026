@@ -458,44 +458,58 @@ const stopAudio = () => {
         </div>
       </main>
 
+            {/* DailyWordPage 전용 오디오 컨트롤러 (드래그 기능 포함) */}
       <AnimatePresence>
-  {showAudioControl && (
-    <motion.div 
-      initial={{ y: 100, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      exit={{ y: 100, opacity: 0 }} 
-      className="fixed bottom-6 left-4 right-4 z-[250]"
-    >
-      <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3 border border-white/20">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
-            <div>
-              <p className="text-[11px] font-bold opacity-90">말씀을 음성으로 재생중입니다...</p>
-              {/* 성별 선택 버튼 추가 */}
-              <div className="flex gap-2 mt-1">
-                <button 
-                  onClick={() => setVoiceType('F')} 
-                  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                >여성 목소리</button>
-                <button 
-                  onClick={() => setVoiceType('M')} 
-                  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                >남성 목소리</button>
+        {showAudioControl && (
+          <motion.div 
+            drag="y" // 상하 드래그 활성화
+            dragConstraints={{ top: -400, bottom: 50 }} // 드래그 제한 범위
+            initial={{ y: 100, opacity: 0 }} 
+            animate={{ y: 0, opacity: 1 }} 
+            exit={{ y: 100, opacity: 0 }} 
+            className="fixed bottom-6 left-4 right-4 z-[250] max-w-md mx-auto"
+          >
+            {/* touch-none: 드래그 시 배경 스크롤 방지 */}
+            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-2xl flex flex-col gap-3 border border-white/20 touch-none">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* 재생 상태 아이콘 */}
+                  <div className="bg-white/20 p-2 rounded-full animate-pulse">
+                    <Mic size={18}/>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold opacity-90">오늘의 말씀을 재생중입니다...</p>
+                    <p className="text-[9px] opacity-60 mb-1">상하로 드래그하여 위치 조절 가능</p>
+                    
+                    {/* 성별 선택 버튼 (DailyWordPage의 voiceType 상태와 연동) */}
+                    <div className="flex gap-2 mt-1">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setVoiceType('F'); }} 
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+                      >여성 목소리</button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setVoiceType('M'); }} 
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+                      >남성 목소리</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 조작 버튼 (DailyWordPage의 togglePlayPause, stopAudio 함수와 연동) */}
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); togglePlayPause(); }}>
+                    {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); stopAudio(); }}>
+                    <X size={20}/>
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={togglePlayPause}>
-              {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
-            </Button>
-            <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={stopAudio}><X size={20}/></Button>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
 
 
       <AnimatePresence>
