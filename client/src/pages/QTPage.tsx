@@ -72,36 +72,35 @@ export default function QTPage() {
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
 
-  const fetchQTVerse = async (date: Date) => {
-  const offset = date.getTimezoneOffset() * 60000;
-  const localDate = new Date(date.getTime() - offset);
-  const formattedDate = localDate.toISOString().split('T')[0];
+    const fetchQTVerse = async (date: Date) => {
+    const offset = date.getTimezoneOffset() * 60000;
+    const localDate = new Date(date.getTime() - offset);
+    const formattedDate = localDate.toISOString().split('T')[0];
 
-  [span_0](start_span)// 1. 오늘의 묵상 말씀 가져오기[span_0](end_span)
-  const { data: verse, error } = await supabase
-    .from('daily_qt_verses')
-    .select('*')
-    .eq('display_date', formattedDate)
-    .maybeSingle();
-
-  if (error) {
-    console.error("QT 말씀 불러오기 에러:", error);
-    return;
-  }
-
-  if (verse) {
-    // 2. 성경 이름으로 번호를 따로 찾아와서 합치기 (수동 조인)
-    const { data: book } = await supabase
-      .from('bible_books')
-      .select('book_order')
-      .eq('book_name', verse.bible_name)
+    const { data: verse, error: verseError } = await supabase
+      .from('daily_qt_verses')
+      .select('*')
+      .eq('display_date', formattedDate)
       .maybeSingle();
 
-    [span_1](start_span)setBibleData({ ...verse, bible_books: book });[span_1](end_span)
-  } else {
-    setBibleData(null);
-  }
-};
+    if (verseError) {
+      console.error("QT 말씀 불러오기 에러:", verseError);
+      return;
+    }
+
+    if (verse) {
+      const { data: book } = await supabase
+        .from('bible_books')
+        .select('book_order')
+        .eq('book_name', verse.bible_name)
+        .maybeSingle();
+
+      setBibleData({ ...verse, bible_books: book }); // <- 에러가 났던 지점
+    } else {
+      setBibleData(null);
+    }
+  };
+
 
 
   const fetchMeditationPosts = async () => {
