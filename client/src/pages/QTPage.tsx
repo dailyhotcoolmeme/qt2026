@@ -494,7 +494,7 @@ export default function QTPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={togglePlayPause}>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={toggleAudio}>
                     {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
                   </Button>
                   <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={stopAudio}><X size={20}/></Button>
@@ -527,7 +527,7 @@ export default function QTPage() {
               <p className="text-sm text-gray-500 mb-6">삭제된 내용은 복구할 수 없습니다.</p>
               <div className="flex gap-3">
                 <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
-                <button onClick={() => { handleDeleteSharing(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
+                <button onClick={() => { handleDelete(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
               </div>
             </motion.div>
           </div>
