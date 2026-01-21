@@ -93,26 +93,22 @@ export default function DailyWordsPage() {
   if (!bibleData) return;
   if (audio) { setShowAudioControl(true); return; }
 
-  // 1. 파일 이름에 들어갈 변수들 정리
-const bookOrder = bibleData.bible_books?.book_order || '0'; // 조인해서 가져온 번호
-const chapter = bibleData.chapter;
-const verse = bibleData.verse.replace(/:/g, '_'); // 콜론(:)을 언더바(_)로 변경
-const fileName = `audio_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+  // 1. 파일명 생성 (중복 선언 해결 및 book_order 적용)
+  const bookOrder = bibleData.bible_books?.book_order || '0';
+  const chapter = bibleData.chapter;
+  const verse = bibleData.verse.replace(/:/g, '_');
+  const fileName = `audio_b${bookOrder}_c${chapter}_v${verse}.mp3`;
 
-// 2. 구글 TTS가 읽어줄 텍스트 정리
-const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
-const unit = bibleData.bible_name === "시편" ? "편" : "장";
-const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
-
-  // [수정 포인트] 파일명에서 한글을 완전히 제거하고 숫자와 언더바(_)만 사용합니다.
-  // bible_id가 있으면 사용하고, 없으면 v1을 기본값으로 사용합니다.
-  const fileName = `audio_${bibleData.bible_id || 'v1'}_${bibleData.chapter}_${bibleData.verse.replace(/:/g, '_')}.mp3`;
+  // 2. TTS 읽기용 텍스트 정리
+  const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
+  const unit = bibleData.bible_name === "시편" ? "편" : "장";
+  const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
 
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
     const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    // 1. 먼저 Supabase Storage에 이미 파일이 있는지 확인
+    // 3. 기존 파일 확인
     const { data: existingFile } = supabase.storage
       .from('bible-audio')
       .getPublicUrl(fileName);
@@ -120,7 +116,6 @@ const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} 
     const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
 
     if (checkRes.ok) {
-      // 이미 파일이 있다면 저장소 파일을 사용
       const savedAudio = new Audio(existingFile.publicUrl);
       setAudio(savedAudio);
       setShowAudioControl(true);
@@ -129,7 +124,7 @@ const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} 
       return;
     }
 
-    // 2. 파일이 없으면 Google TTS API 호출
+    // 4. 없으면 신규 생성 (Google TTS)
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify({
@@ -139,22 +134,20 @@ const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} 
       }),
     });
 
-    const data = await response.json();
-    if (!data.audioContent) return;
+    const resData = await response.json();
+    if (!resData.audioContent) return;
 
-    // 3. 파일 변환 (Base64 -> Blob)
-    const binary = atob(data.audioContent);
+    const binary = atob(resData.audioContent);
     const array = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
     const blob = new Blob([array], { type: 'audio/mp3' });
 
-    // 4. Supabase Storage에 업로드 (성공 확인용 alert는 이제 삭제해도 됩니다)
+    // 5. 업로드 및 재생
     await supabase.storage
       .from('bible-audio')
       .upload(fileName, blob, { contentType: 'audio/mp3', upsert: true });
 
-    // 5. 재생
-    const audioBlob = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
+    const audioBlob = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
     setAudio(audioBlob);
     setShowAudioControl(true);
     audioBlob.play();
@@ -164,6 +157,7 @@ const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} 
     console.error("TTS 에러:", error);
   }
 };
+
 
 
 
