@@ -145,75 +145,81 @@ export default function QTPage() {
     }
   };
 
-  const handlePlayAudio = async () => {
-  if (!bibleData) return;
-  if (audioRef.current) { setShowAudioControl(true); return; [span_2](start_span)}
-
-  // 1. 성경 번호 추출
-  let bookOrder = '0';
-  if (bibleData.bible_books) {
-    bookOrder = Array.isArray(bibleData.bible_books) 
-      ? bibleData.bible_books[0]?.book_order?.toString() || '0'
-      : bibleData.bible_books.book_order?.toString() || '0';
-  }
-
-  const chapter = bibleData.chapter;
-  const verse = bibleData.verse.replace(/:/g, '_');
-  
-  // 2. 통합 버킷용 경로 설정 (qt 폴더)
-  const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}.mp3`;
-  const storagePath = `qt/${fileName}`; 
-
-  const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
-  const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}장 ${bibleData.verse}절 말씀.`;[span_2](end_span)
-
-  try {
-    // 3. bible-assets 버킷에서 기존 파일 확인
-    const { data: existingFile } = supabase.storage
-      .from('bible-assets')
-      .getPublicUrl(storagePath);
-
-    const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
-
-    if (checkRes.ok) {
-      const savedAudio = new Audio(existingFile.publicUrl);
-      setupAudioEvents(savedAudio); 
-      return;
+    const handlePlayAudio = async () => {
+    if (!bibleData) return;
+    if (audioRef.current) { 
+      setShowAudioControl(true); 
+      audioRef.current.play();
+      setIsPlaying(true);
+      return; 
     }
 
-    [span_3](start_span)// 4. 파일 없으면 Google TTS 호출[span_3](end_span)
-    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
-    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+    // 1. 성경 번호 추출
+    let bookOrder = '0';
+    if (bibleData.bible_books) {
+      bookOrder = Array.isArray(bibleData.bible_books) 
+        ? bibleData.bible_books[0]?.book_order?.toString() || '0'
+        : (bibleData.bible_books as any).book_order?.toString() || '0';
+    }
+
+    const chapter = bibleData.chapter;
+    const verse = bibleData.verse.replace(/:/g, '_');
     
-    const response = await fetch(url, {
-      method: "POST",
-      body: JSON.stringify({
-        input: { text: textToSpeak },
-        voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
-        audioConfig: { audioEncoding: "MP3" },
-      }),
-    });
+    // 2. 통합 버킷용 경로 설정
+    const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+    const storagePath = `qt/${fileName}`; 
 
-    [span_4](start_span)const resData = await response.json();[span_4](end_span)
-    if (!resData.audioContent) return;
+    const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}장 ${bibleData.verse}절 말씀.`;
 
-    // 5. 바이너리 변환 및 업로드
-    const binary = atob(resData.audioContent);
-    const array = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-    const blob = new Blob([array], { type: 'audio/mp3' });
+    try {
+      // 3. 기존 파일 확인
+      const { data: existingFile } = supabase.storage
+        .from('bible-assets')
+        .getPublicUrl(storagePath);
 
-    await supabase.storage
-      .from('bible-assets')
-      .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
+      const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
 
-    [span_5](start_span)const audio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);[span_5](end_span)
-    setupAudioEvents(audio);
+      if (checkRes.ok) {
+        const savedAudio = new Audio(existingFile.publicUrl);
+        setupAudioEvents(savedAudio); 
+        return;
+      }
 
-  } catch (error) {
-    console.error("QT TTS 에러:", error);
-  }
-};
+      // 4. 없으면 Google TTS 호출
+      const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
+      const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        body: JSON.stringify({
+          input: { text: textToSpeak },
+          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+          audioConfig: { audioEncoding: "MP3" },
+        }),
+      });
+
+      const resData = await response.json();
+      if (!resData.audioContent) return;
+
+      // 5. 업로드 및 재생
+      const binary = atob(resData.audioContent);
+      const array = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+      const blob = new Blob([array], { type: 'audio/mp3' });
+
+      await supabase.storage
+        .from('bible-assets')
+        .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
+
+      const audio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
+      setupAudioEvents(audio);
+
+    } catch (error) {
+      console.error("QT TTS 에러:", error);
+    }
+  };
+
 const setupAudioEvents = (audio: HTMLAudioElement) => {
   audioRef.current = audio;
   audio.ontimeupdate = () => {
