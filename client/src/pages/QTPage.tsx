@@ -465,40 +465,45 @@ export default function QTPage() {
         </div>
       </main>
 
+            {/* 오디오 컨트롤러 */}
       <AnimatePresence>
         {showAudioControl && (
-                {/* 오디오 컨트롤러 부분 (AnimatePresence 내부) */}
-      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-6 left-4 right-4 z-[200]">
-        <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
-              <div>
-                <p className="text-xs font-bold">QT 말씀 읽기 모드</p>
-                <div className="flex gap-2 mt-1">
-                  {/* ✅ 목소리 선택 버튼 */}
-                  <button 
-                    onClick={() => setVoiceType('F')} 
-                    className={`text-[10px] px-2 py-0.5 rounded-full border ${voiceType === 'F' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
-                  >여성</button>
-                  <button 
-                    onClick={() => setVoiceType('M')} 
-                    className={`text-[10px] px-2 py-0.5 rounded-full border ${voiceType === 'M' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
-                  >남성</button>
+          <motion.div 
+            initial={{ y: 100 }} 
+            animate={{ y: 0 }} 
+            exit={{ y: 100 }} 
+            className="fixed bottom-6 left-4 right-4 z-[200]"
+          >
+            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
+                  <div>
+                    <p className="text-xs font-bold">QT 말씀 읽기 모드</p>
+                    <div className="flex gap-2 mt-1">
+                      <button 
+                        onClick={() => setVoiceType('F')} 
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${voiceType === 'F' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                      >여성</button>
+                      <button 
+                        onClick={() => setVoiceType('M')} 
+                        className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${voiceType === 'M' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                      >남성</button>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={togglePlayPause}>
+                    {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
+                  </Button>
+                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={stopAudio}><X size={20}/></Button>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="text-white" onClick={togglePlayPause}>
-                {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
-              </Button>
-              <Button variant="ghost" size="icon" className="text-white" onClick={stopAudio}><X size={20}/></Button>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
+
 
       <AnimatePresence>
         {deleteId !== null && (
