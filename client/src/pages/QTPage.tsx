@@ -386,7 +386,7 @@ export default function QTPage() {
     className="grid grid-cols-[1.8rem_1fr] items-start mb-3 px-1 py-1"
   >
     {/* 절 숫자 영역 */}
-    <span className="font-bold opacity-80 text-left leading-relaxed">
+    <span className="font-base opacity-80 text-right leading-relaxed pt-[0.5px]">
       {verse.num}
     </span>
     {/* 본문 내용 영역 */}
