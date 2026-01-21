@@ -340,7 +340,7 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
   >
     <p 
       className="text-sm text-gray-400 font-bold transition-all duration-200 group-hover:text-[#5D7BAF] group-active:scale-95 flex items-center justify-center gap-1"
-      style={{ fontSize: `${fontSize - 4}px` }}
+      style={{ fontSize: `${fontSize - 2}px` }}
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
       {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
