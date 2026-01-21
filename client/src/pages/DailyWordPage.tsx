@@ -195,40 +195,28 @@ export default function DailyWordsPage() {
     audioObj.play();
   };
 
-  const togglePlayPause = () => {
-    if (audioRef.current) {
-      if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-      else { audioRef.current.play(); setIsPlaying(true); }
+  // ⭕ 이 버전만 남겨두세요 (audioRef 사용)
+const togglePlayPause = () => {
+  if (audioRef.current) {
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      audioRef.current.play();
+      setIsPlaying(true);
     }
-  };
+  }
+};
 
-  const stopAudio = () => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    setIsPlaying(false);
-    setShowAudioControl(false);
-  };
+const stopAudio = () => {
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current = null;
+  }
+  setIsPlaying(false);
+  setShowAudioControl(false);
+};
 
-
-
-
-
-
-  const togglePlayPause = () => {
-    if (!audio) return;
-    if (isPlaying) audio.pause();
-    else audio.play();
-    setIsPlaying(!isPlaying);
-  };
-
-  const stopAudio = () => {
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-    setAudio(null);
-    setIsPlaying(false);
-    setShowAudioControl(false);
-  };
 
   const toggleSpeechRecognition = () => {
     if (isRecording) {
