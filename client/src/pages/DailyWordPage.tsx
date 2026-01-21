@@ -220,24 +220,42 @@ export default function DailyWordsPage() {
   };
 
   const fetchDailyVerse = async (date: Date) => {
-    const offset = date.getTimezoneOffset() * 60000;
-    const localDate = new Date(date.getTime() - offset);
-    const formattedDate = localDate.toISOString().split('T')[0];
-    const { data } = await supabase
-  .from('daily_bible_verses')
-  .select(`
-    *,
-    bible_books (
-      book_order
-    )
-  `) // 여기서 성경 번호를 같이 가져옵니다.
-  .eq('display_date', formattedDate)
-  .maybeSingle();
-    // 이 줄을 추가하세요! (모바일 화면에 강제로 팝업을 띄웁니다)
-  alert("데이터 확인: " + JSON.stringify(data));
-console.log("DB에서 가져온 원본 데이터:", data);
-    setBibleData(data);
-  };
+  const offset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - offset);
+  const formattedDate = localDate.toISOString().split('T')[0];
+
+  // 1. 오늘의 말씀 데이터를 먼저 가져옵니다.
+  const { data: verse, error: verseError } = await supabase
+    .from('daily_bible_verses')
+    .select('*')
+    .eq('display_date', formattedDate)
+    .maybeSingle();
+
+  if (verseError) {
+    console.error("말씀 불러오기 에러:", verseError);
+    return;
+  }
+
+  if (verse) {
+    // 2. 말씀이 있다면, 그 성경 이름(예: 빌립보서)으로 번호를 따로 찾아옵니다.
+    const { data: book } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', verse.bible_name)
+      .maybeSingle();
+
+    // 3. 말씀 데이터에 번호 데이터를 합쳐서 상태에 저장합니다.
+    const combinedData = { ...verse, bible_books: book };
+    
+    // 확인용 alert (성공하면 삭제하세요)
+    // alert("조인 성공 확인: " + (combinedData.bible_books?.book_order || "없음"));
+    
+    setBibleData(combinedData);
+  } else {
+    setBibleData(null);
+  }
+};
+
 
   const fetchSharingPosts = async () => {
     const startOfDay = new Date(currentDate);
