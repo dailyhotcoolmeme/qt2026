@@ -387,7 +387,7 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
     className="grid grid-cols-[1.8rem_1fr] items-start mb-3 px-2 py-1"
   >
     {/* 절 숫자 영역 */}
-    <span className="font-base opacity-80 text-right pr-2 leading-relaxed pt-[0.4px]">
+    <span className="font-base opacity-80 text-right pr-2 leading-relaxed pt-[0.3px]">
       {verse.num}
     </span>
     {/* 본문 내용 영역 */}
