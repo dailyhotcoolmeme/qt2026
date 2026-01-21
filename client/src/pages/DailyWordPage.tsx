@@ -17,10 +17,10 @@ interface BibleVerse {
   chapter: string;
   verse: string;
   content: string;
-  // 아래 내용을 추가하세요
-  bible_books?: {
+  // 구조를 명확히 정의 (객체 형태)
+  bible_books: {
     book_order: number;
-  };
+  } | null; 
 }
 
 export default function DailyWordsPage() {
@@ -93,20 +93,29 @@ export default function DailyWordsPage() {
   if (!bibleData) return;
   if (audio) { setShowAudioControl(true); return; }
 
-  // 1. 파일명 생성 (중복 선언 해결 및 book_order 적용)
-  // 객체 형태거나 배열 형태인 경우를 모두 체크하여 안전하게 가져옵니다.
-const bookOrder = Array.isArray(bibleData.bible_books) 
-  ? bibleData.bible_books[0]?.book_order 
-  : bibleData.bible_books?.book_order || '0';
+  // ✅ 여기서부터 복사해서 붙여넣으세요
+  let bookOrder = '0';
+  // bible_books가 배열이든 객체든 상관없이 숫자를 추출합니다.
+  if (bibleData.bible_books) {
+    if (Array.isArray(bibleData.bible_books)) {
+      bookOrder = bibleData.bible_books[0]?.book_order?.toString() || '0';
+    } else {
+      // @ts-ignore (타입 에러 방지용)
+      bookOrder = bibleData.bible_books.book_order?.toString() || '0';
+    }
+  }
 
   const chapter = bibleData.chapter;
   const verse = bibleData.verse.replace(/:/g, '_');
   const fileName = `audio_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+  
+  // 브라우저 검사창(F12)에서 파일명이 b50으로 나오는지 확인용
+  console.log("생성될 파일명:", fileName);
 
-  // 2. TTS 읽기용 텍스트 정리
   const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
   const unit = bibleData.bible_name === "시편" ? "편" : "장";
   const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
+// ✅ 여기까지 붙여넣으세요
 
   try {
     const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
@@ -224,7 +233,7 @@ const bookOrder = Array.isArray(bibleData.bible_books)
   `) // 여기서 성경 번호를 같이 가져옵니다.
   .eq('display_date', formattedDate)
   .maybeSingle();
-
+console.log("DB에서 가져온 원본 데이터:", data);
     setBibleData(data);
   };
 
