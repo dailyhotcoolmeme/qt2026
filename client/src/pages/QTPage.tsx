@@ -497,7 +497,7 @@ export default function QTPage() {
                 <div className="flex items-center gap-3">
                   <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
                   <div>
-                    <p className="text-[11px] font-bold opacity-90">말씀 읽기 모드</p>
+                    <p className="text-[11px] font-bold opacity-90">말씀을 음성으로 재생중입니다...</p>
                     <div className="flex gap-2 mt-1">
   <button 
     onClick={() => setVoiceType('F')} 
