@@ -20,6 +20,7 @@ export default function QTPage() {
   const { fontSize } = useDisplaySettings();
   const [isAuthenticated, setIsAuthenticated] = useState(false); 
   const [showCopyToast, setShowCopyToast] = useState(false); 
+  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F'); // F: 여성, M: 남성
 
   const [currentSentenceIndex, setCurrentSentenceIndex] = useState<number | null>(null);
   const sentenceRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -145,16 +146,15 @@ export default function QTPage() {
     }
   };
 
-    const handlePlayAudio = async () => {
+      const handlePlayAudio = async () => {
     if (!bibleData) return;
-    if (audioRef.current) { 
-      setShowAudioControl(true); 
-      audioRef.current.play();
-      setIsPlaying(true);
-      return; 
+    
+    // 오디오가 이미 재생 중이라면 중단 후 새로 시작 (목소리 변경 대응)
+    if (audioRef.current) {
+       audioRef.current.pause();
+       audioRef.current = null;
     }
 
-    // 1. 성경 번호 추출
     let bookOrder = '0';
     if (bibleData.bible_books) {
       bookOrder = Array.isArray(bibleData.bible_books) 
@@ -165,15 +165,14 @@ export default function QTPage() {
     const chapter = bibleData.chapter;
     const verse = bibleData.verse.replace(/:/g, '_');
     
-    // 2. 통합 버킷용 경로 설정
-    const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}.mp3`;
+    // ✅ 파일명 끝에 성별 구분자(_F 또는 _M)를 붙입니다.
+    const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
     const storagePath = `qt/${fileName}`; 
 
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}장 ${bibleData.verse}절 말씀.`;
 
     try {
-      // 3. 기존 파일 확인
       const { data: existingFile } = supabase.storage
         .from('bible-assets')
         .getPublicUrl(storagePath);
@@ -186,7 +185,6 @@ export default function QTPage() {
         return;
       }
 
-      // 4. 없으면 Google TTS 호출
       const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
       const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
       
@@ -194,7 +192,11 @@ export default function QTPage() {
         method: "POST",
         body: JSON.stringify({
           input: { text: textToSpeak },
-          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+          // ✅ 선택된 성별에 따라 구글 TTS 목소리 모델 변경
+          voice: { 
+            languageCode: "ko-KR", 
+            name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+          },
           audioConfig: { audioEncoding: "MP3" },
         }),
       });
@@ -202,7 +204,6 @@ export default function QTPage() {
       const resData = await response.json();
       if (!resData.audioContent) return;
 
-      // 5. 업로드 및 재생
       const binary = atob(resData.audioContent);
       const array = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
@@ -214,11 +215,11 @@ export default function QTPage() {
 
       const audio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
       setupAudioEvents(audio);
-
     } catch (error) {
       console.error("QT TTS 에러:", error);
     }
   };
+
 
   const setupAudioEvents = (audio: HTMLAudioElement) => {
     audioRef.current = audio;
@@ -466,23 +467,36 @@ export default function QTPage() {
 
       <AnimatePresence>
         {showAudioControl && (
-          <motion.div drag="y" dragConstraints={{ top: -300, bottom: 50 }} initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 100, opacity: 0 }} className="fixed bottom-1 left-2 right-2 z-[250] max-w-lg mx-auto">
-            <div className="bg-[#5D7BAF] text-white rounded-2xl shadow-2xl p-4 flex items-center justify-between border border-white/20">
-              <div className="flex items-center gap-3">
-                <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={20} /></div>
-                <div>
-                  <p className="font-bold text-sm">말씀을 음성으로 읽고 있습니다..</p>
-                  <p className="opacity-70 text-xs">드래그하여 위치 조절 가능</p>
+                {/* 오디오 컨트롤러 부분 (AnimatePresence 내부) */}
+      <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }} className="fixed bottom-6 left-4 right-4 z-[200]">
+        <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-xl flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="bg-white/20 p-2 rounded-full animate-pulse"><Mic size={18}/></div>
+              <div>
+                <p className="text-xs font-bold">QT 말씀 읽기 모드</p>
+                <div className="flex gap-2 mt-1">
+                  {/* ✅ 목소리 선택 버튼 */}
+                  <button 
+                    onClick={() => setVoiceType('F')} 
+                    className={`text-[10px] px-2 py-0.5 rounded-full border ${voiceType === 'F' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                  >여성</button>
+                  <button 
+                    onClick={() => setVoiceType('M')} 
+                    className={`text-[10px] px-2 py-0.5 rounded-full border ${voiceType === 'M' ? "bg-white text-[#5D7BAF]" : "border-white/40 text-white/70"}`}
+                  >남성</button>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="text-white" onClick={toggleAudio}>
-                  {isPlaying ? <Pause size={22} fill="currentColor" /> : <Play size={22} fill="currentColor" />}
-                </Button>
-                <Button variant="ghost" size="icon" className="text-white" onClick={stopAudio}><X size={22} /></Button>
-              </div>
             </div>
-          </motion.div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="text-white" onClick={togglePlayPause}>
+                {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
+              </Button>
+              <Button variant="ghost" size="icon" className="text-white" onClick={stopAudio}><X size={20}/></Button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
         )}
       </AnimatePresence>
 
