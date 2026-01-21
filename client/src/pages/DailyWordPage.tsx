@@ -41,10 +41,12 @@ export default function DailyWordsPage() {
   const [isRecording, setIsRecording] = useState(false);
   const recognitionRef = useRef<any>(null);
 
-  // 음성 재생 관련 상태
-  const [audio, setAudio] = useState<HTMLAudioElement | null>(null);
+    // ✅ 수정된 상태 및 Ref
+  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F'); // 성별 상태 추가
+  const audioRef = useRef<HTMLAudioElement | null>(null);     // useState 대신 useRef 사용
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
+
 
   // 말씀 포맷팅 함수
   const formatBibleContent = (content: string) => {
@@ -89,61 +91,62 @@ export default function DailyWordsPage() {
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
 
-  const handlePlayTTS = async () => {
+    const handlePlayTTS = async () => {
     if (!bibleData) return;
-    if (audio) { setShowAudioControl(true); return; }
+    
+    // 1. 현재 재생 중인 위치(초)를 기억 (목소리 바꿔도 이어서 듣기 위해)
+    const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
 
-    // 1. 성경 순서(book_order) 추출
+    // 2. 이미 재생 중인 오디오가 있다면 중단하고 비우기
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
     let bookOrder = '0';
     if (bibleData.bible_books) {
-      if (Array.isArray(bibleData.bible_books)) {
-        bookOrder = bibleData.bible_books[0]?.book_order?.toString() || '0';
-      } else {
-        // @ts-ignore
-        bookOrder = bibleData.bible_books.book_order?.toString() || '0';
-      }
+      // @ts-ignore
+      bookOrder = bibleData.bible_books.book_order?.toString() || '0';
     }
 
     const chapter = bibleData.chapter;
     const verse = bibleData.verse.replace(/:/g, '_');
     
-    // 2. 통합 버킷 체제에 맞춘 경로 및 파일명 설정
-    const fileName = `daily_b${bookOrder}_c${chapter}_v${verse}.mp3`;
-    const storagePath = `daily/${fileName}`; // ✅ daily 폴더 지정
-    
-    console.log("요청 경로:", storagePath);
+    // 3. 파일명에 성별(_F, _M) 추가 및 daily 폴더 지정
+    const fileName = `daily_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
+    const storagePath = `daily/${fileName}`; 
 
     const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
 
     try {
-      const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
-      const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-
-      // 3. 통합 버킷 'bible-assets'에서 기존 파일 확인
+      // 4. 서버(Supabase)에 이미 해당 성별의 파일이 있는지 확인
       const { data: existingFile } = supabase.storage
-        .from('bible-assets') // ✅ 버킷명 변경
-        .getPublicUrl(storagePath); // ✅ 폴더 경로 포함
+        .from('bible-assets')
+        .getPublicUrl(storagePath);
 
       const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
 
       if (checkRes.ok) {
-        console.log("기존 파일 발견, 재생합니다.");
         const savedAudio = new Audio(existingFile.publicUrl);
-        setAudio(savedAudio);
-        setShowAudioControl(true);
-        savedAudio.play();
-        setIsPlaying(true);
+        savedAudio.currentTime = lastTime; // 이어듣기 적용
+        setupAudioEvents(savedAudio); 
         return;
       }
 
-      // 4. 없으면 신규 생성 (Google TTS)
+      // 5. 서버에 없으면 구글 TTS로 새로 생성
+      const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
+      const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+      
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
           input: { text: textToSpeak },
-          voice: { languageCode: "ko-KR", name: "ko-KR-Neural2-B" },
+          voice: { 
+            languageCode: "ko-KR", 
+            name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+          },
           audioConfig: { audioEncoding: "MP3" },
         }),
       });
@@ -156,20 +159,53 @@ export default function DailyWordsPage() {
       for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
       const blob = new Blob([array], { type: 'audio/mp3' });
 
-      // 5. 통합 버킷 'bible-assets'의 'daily' 폴더에 업로드
+      // 6. 생성된 파일을 daily 폴더에 업로드
       await supabase.storage
-        .from('bible-assets') // ✅ 버킷명 변경
-        .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true }); // ✅ storagePath 사용
+        .from('bible-assets')
+        .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
 
-      const audioBlob = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
-      setAudio(audioBlob);
-      setShowAudioControl(true);
-      audioBlob.play();
-      setIsPlaying(true);
+      const audioObj = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
+      audioObj.currentTime = lastTime; // 이어듣기 적용
+      setupAudioEvents(audioObj);
 
     } catch (error) {
       console.error("TTS 에러:", error);
     }
+  };
+
+  // 성별 변경 시 즉시 재호출하는 감시자
+  useEffect(() => {
+    if (showAudioControl && isPlaying) {
+      handlePlayTTS();
+    }
+  }, [voiceType]);
+
+  // 오디오 이벤트 설정 (Ref에 등록하고 재생)
+  const setupAudioEvents = (audioObj: HTMLAudioElement) => {
+    audioRef.current = audioObj;
+    
+    audioObj.onended = () => {
+      setIsPlaying(false);
+      setShowAudioControl(false);
+      audioRef.current = null;
+    };
+
+    setShowAudioControl(true);
+    setIsPlaying(true);
+    audioObj.play();
+  };
+
+  const togglePlayPause = () => {
+    if (audioRef.current) {
+      if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+      else { audioRef.current.play(); setIsPlaying(true); }
+    }
+  };
+
+  const stopAudio = () => {
+    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+    setIsPlaying(false);
+    setShowAudioControl(false);
   };
 
 
