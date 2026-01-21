@@ -213,7 +213,7 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
             languageCode: "ko-KR", 
             name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
           },
-          audioConfig: { audioEncoding: "MP3" },
+          audioConfig: { audioEncoding: "MP3",speakingRate: 0.9 },
         }),
       });
 
