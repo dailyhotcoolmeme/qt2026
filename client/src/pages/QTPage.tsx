@@ -58,20 +58,32 @@ export default function QTPage() {
     return result;
   };
 
+    // 성별(voiceType)이 바뀔 때 재생 중이면 즉시 다시 재생하는 감시자
+  useEffect(() => {
+    if (showAudioControl && isPlaying) {
+      handlePlayAudio();
+    }
+  }, [voiceType]);
+
+  // 날짜 변경 시 말씀 데이터 불러오기
   useEffect(() => {
     fetchQTVerse(currentDate);
     fetchMeditationPosts();
+    
     supabase.auth.getSession().then(({ data: { session } }) => {
       setIsAuthenticated(!!session);
       setCurrentUserId(session?.user?.id || null);
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setIsAuthenticated(!!session);
       setCurrentUserId(session?.user?.id || null);
       if (session) setShowLoginModal(false);
     });
+
     return () => { subscription.unsubscribe(); };
   }, [currentDate]);
+
 
     const fetchQTVerse = async (date: Date) => {
     const offset = date.getTimezoneOffset() * 60000;
@@ -146,10 +158,13 @@ export default function QTPage() {
     }
   };
 
-        const handlePlayAudio = async () => {
+          const handlePlayAudio = async () => {
     if (!bibleData) return;
     
-    // 이미 재생 중인 오디오가 있다면 중단 (목소리 교체 시 필요)
+    // 현재 재생 중인 위치(초)를 기억 (이어듣기용)
+    const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
+
+    // 기존 오디오 중단 및 초기화
     if (audioRef.current) {
        audioRef.current.pause();
        audioRef.current = null;
@@ -165,7 +180,7 @@ export default function QTPage() {
     const chapter = bibleData.chapter;
     const verse = bibleData.verse.replace(/:/g, '_');
     
-    // ✅ 파일명 끝에 성별(_F, _M) 추가
+    // 성별 구분자(_F, _M) 포함 파일명
     const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
     const storagePath = `qt/${fileName}`; 
 
@@ -181,6 +196,7 @@ export default function QTPage() {
 
       if (checkRes.ok) {
         const savedAudio = new Audio(existingFile.publicUrl);
+        savedAudio.currentTime = lastTime; // 이어듣기 적용
         setupAudioEvents(savedAudio); 
         return;
       }
@@ -194,7 +210,6 @@ export default function QTPage() {
           input: { text: textToSpeak },
           voice: { 
             languageCode: "ko-KR", 
-            // ✅ 성별에 따른 구글 TTS 모델 선택
             name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
           },
           audioConfig: { audioEncoding: "MP3" },
@@ -214,11 +229,13 @@ export default function QTPage() {
         .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
 
       const audio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
+      audio.currentTime = lastTime; // 이어듣기 적용
       setupAudioEvents(audio);
     } catch (error) {
       console.error("QT TTS 에러:", error);
     }
   };
+
 
 
 
@@ -482,31 +499,15 @@ export default function QTPage() {
                   <div>
                     <p className="text-[11px] font-bold opacity-90">말씀 읽기 모드</p>
                     <div className="flex gap-2 mt-1">
-                      {/* 여성 버튼 수정 */}
-<button 
-  onClick={() => {
-    if (voiceType !== 'F') {
-      setVoiceType('F');
-      // 상태 변경 직후 재생 함수를 실행하여 즉시 전환합니다.
-      setTimeout(() => handlePlayAudio(), 0);
-    }
-  }} 
-  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
->여성 목소리</button>
-
-{/* 남성 버튼 수정 */}
-<button 
-  onClick={() => {
-    if (voiceType !== 'M') {
-      setVoiceType('M');
-      // 상태 변경 직후 재생 함수를 실행하여 즉시 전환합니다.
-      setTimeout(() => handlePlayAudio(), 0);
-    }
-  }} 
-  className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70 hover:border-white"}`}
->남성 목소리</button>
-
-                    </div>
+  <button 
+    onClick={() => setVoiceType('F')} 
+    className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+  >여성 목소리</button>
+  <button 
+    onClick={() => setVoiceType('M')} 
+    className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+  >남성 목소리</button>
+</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1">
