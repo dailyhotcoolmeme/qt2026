@@ -233,6 +233,8 @@ export default function DailyWordsPage() {
   `) // 여기서 성경 번호를 같이 가져옵니다.
   .eq('display_date', formattedDate)
   .maybeSingle();
+    // 이 줄을 추가하세요! (모바일 화면에 강제로 팝업을 띄웁니다)
+  alert("데이터 확인: " + JSON.stringify(data));
 console.log("DB에서 가져온 원본 데이터:", data);
     setBibleData(data);
   };
