@@ -343,7 +343,7 @@ export default function QTPage() {
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
       {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-      <span className="text-[10px] opacity-50">▼</span>
+      <span className="text-[12px] opacity-50">▼</span>
     </p>
 
     {/* 숨겨진 달력 입력창 */}
@@ -383,7 +383,7 @@ export default function QTPage() {
     // 하이라이트 배경색(animate) 속성을 제거했습니다.
     transition={{ duration: 0.2 }}
     // grid 레이아웃과 간격은 그대로 유지하여 정렬을 보존합니다.
-    className="grid grid-cols-[1.8rem_1fr] items-start mb-3 px-2 py-1"
+    className="grid grid-cols-[1.8rem_1fr] items-start mb-3 px-1 py-1"
   >
     {/* 절 숫자 영역 */}
     <span className="font-bold opacity-80 text-left">
