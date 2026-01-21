@@ -22,7 +22,7 @@ return (
           className={cn(
             "flex-1 flex items-center justify-center py-5 transition-all duration-200 relative",
             isActive 
-              ? "text-white bg-[#5D7BAF] font-bold" // 1. 배경 파랑, 글자 흰색
+              ? "text-white bg-[#8FA998] font-bold" // 1. 배경 파랑, 글자 흰색
               : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50"
           )}
           data-testid={`nav-${tab.id}`}
