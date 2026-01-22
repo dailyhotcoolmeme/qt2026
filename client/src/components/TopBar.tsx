@@ -37,7 +37,7 @@ export function TopBar() {
           type="text"
           value={tempKeyword}
           onChange={(e) => setTempKeyword(e.target.value)}
-          placeholder="검색..."
+          placeholder="성경 검색(키워드 입력)"
           className="flex-1 bg-transparent border-none outline-none text-[13px] text-zinc-900 w-full ml-1"
         />
         <button type="submit" className="p-1">
