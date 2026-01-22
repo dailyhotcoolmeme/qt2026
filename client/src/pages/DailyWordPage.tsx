@@ -145,7 +145,7 @@ export default function DailyWordsPage() {
           input: { text: textToSpeak },
           voice: { 
             languageCode: "ko-KR", 
-            name: voiceType === 'M' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+            name: voiceType === 'M' ? "ko-KR-Neural2-C" : "ko-KR-Neural2-B" 
           },
           audioConfig: { audioEncoding: "MP3",speakingRate: 0.9 },
         }),
