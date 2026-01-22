@@ -514,13 +514,14 @@ const stopAudio = () => {
                     {/* 성별 선택 버튼 (DailyWordPage의 voiceType 상태와 연동) */}
                     <div className="flex gap-2 mt-1">
                       <button 
-                        onClick={(e) => { e.stopPropagation(); setVoiceType('F'); }} 
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                      >여성 목소리</button>
-                      <button 
                         onClick={(e) => { e.stopPropagation(); setVoiceType('M'); }} 
                         className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
                       >남성 목소리</button>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); setVoiceType('F'); }} 
+                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
+                      >여성 목소리</button>
+                      
                     </div>
                   </div>
                 </div>
