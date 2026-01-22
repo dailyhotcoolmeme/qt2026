@@ -147,7 +147,7 @@ export default function DailyWordsPage() {
             languageCode: "ko-KR", 
             name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
           },
-          audioConfig: { audioEncoding: "MP3",speakingRate: 0.85 },
+          audioConfig: { audioEncoding: "MP3",speakingRate: 0.9 },
         }),
       });
 
