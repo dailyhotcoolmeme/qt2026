@@ -1,36 +1,46 @@
-import React, { useState } from 'react';
-import { Link } from "wouter";
+import React, { useState, useEffect } from 'react';
+import { Link, useSearch } from "wouter"; // useSearch 추가
 import { supabase } from '../lib/supabase'; 
 import { Search, ChevronLeft } from "lucide-react";
 import { Button } from "../components/ui/button";
 
 export default function SearchPage() {
+  const searchString = useSearch(); // 주소창의 ?q=사랑 부분 읽기
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!keyword.trim()) return;
+  // 페이지가 열릴 때, 상단바에서 넘어온 검색어가 있으면 바로 검색 실행!
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const q = params.get('q');
+    if (q) {
+      setKeyword(q);
+      performSearch(q);
+    }
+  }, [searchString]);
 
+  const performSearch = async (searchWord: string) => {
+    if (!searchWord.trim()) return;
     setLoading(true);
-    
     try {
-      // .like()는 수파베이스 SQL 실행과 가장 비슷한 결과를 보여줍니다.
       const { data, error } = await supabase
         .from('bible_verses')
         .select('*')
-        .filter('content', 'like', `%${keyword}%`) 
+        .filter('content', 'like', `%${searchWord}%`) 
         .limit(50);
-
       if (error) throw error;
       setResults(data || []);
-      
     } catch (err: any) {
-      alert("데이터를 가져오는 중 오류 발생: " + err.message);
+      alert("검색 오류: " + err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    performSearch(keyword);
   };
 
   return (
@@ -46,7 +56,7 @@ export default function SearchPage() {
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="성경 검색 (예: 사랑)"
+            placeholder="성경 검색..."
             className="flex-1 bg-transparent border-none outline-none text-[16px] text-zinc-900" 
             autoFocus
           />
@@ -58,23 +68,14 @@ export default function SearchPage() {
 
       <div className="pt-24 pb-10 px-4">
         {loading && <p className="text-center py-10 text-zinc-500">검색 중...</p>}
-        
         {!loading && results.map((v) => (
           <div key={v.id} className="py-4 border-b border-zinc-100">
-            <p className="text-xs font-bold text-blue-600 mb-1">
-              {v.book_name} {v.chapter}:{v.verse}
-            </p>
-            <p className="text-sm text-zinc-800 leading-relaxed">
-              {v.content}
-            </p>
+            <p className="text-xs font-bold text-blue-600 mb-1">{v.book_name} {v.chapter}:{v.verse}</p>
+            <p className="text-sm text-zinc-800 leading-relaxed">{v.content}</p>
           </div>
         ))}
-
         {!loading && results.length === 0 && keyword && (
-          <div className="text-center py-20">
-            <p className="text-zinc-400 text-sm">"{keyword}" 검색 결과가 없습니다.</p>
-            <p className="text-xs text-zinc-300 mt-2">데이터가 있는지 Supabase 대시보드를 다시 확인해보세요.</p>
-          </div>
+          <p className="text-center py-20 text-zinc-400 text-sm">"{keyword}" 검색 결과가 없습니다.</p>
         )}
       </div>
     </div>
