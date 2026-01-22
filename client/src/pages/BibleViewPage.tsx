@@ -51,7 +51,6 @@ export default function BibleViewPage() {
           <div key={v.id} id={`verse-${v.verse}`}
             className={`leading-relaxed text-lg p-1 transition-colors ${v.verse.toString() === highlightVerse ? 'bg-yellow-100 rounded font-bold' : ''}`}>
             style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }} // 이 줄 추가
->
             <sup className="text-blue-500 mr-2 text-xs">{v.verse}</sup>
             {v.content}
           </div>
