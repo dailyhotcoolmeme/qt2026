@@ -11,54 +11,54 @@ export default function SearchPage() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
-  const [books, setBooks] = useState<any[]>([]); 
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
 
-  // 1. 성경 권 리스트 가져오기 (가장 확실한 방법으로 수정)
-  useEffect(() => {
-    async function fetchBooks() {
-      // 모든 구절을 다 가져오면 무거우므로, 대표 구절들만 빠르게 훑어서 권 목록을 만듭니다.
-      const { data, error } = await supabase
-        .from('bible_verses')
-        .select('book_id, book_name, testament')
-        .eq('verse', 1)
-        .eq('chapter', 1)
-        .order('book_id', { ascending: true });
-      
-      if (data) {
-        setBooks(data);
-      } else if (error) {
-        console.error("목록 로딩 에러:", error);
+  // [중요] 검색 결과(results)에서 실제로 존재하는 권 이름들만 중복 없이 뽑아내기
+  const availableBooks = React.useMemo(() => {
+    const bookMap = new Map();
+    results.forEach(v => {
+      if (!bookMap.has(v.book_id)) {
+        bookMap.set(v.book_id, v.book_name);
       }
-    }
-    fetchBooks();
-  }, []);
+    });
+    // book_id 순서대로 정렬해서 반환
+    return Array.from(bookMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => Number(a.id) - Number(b.id));
+  }, [results]);
 
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const q = params.get('q');
     if (q) {
       setKeyword(q);
-      performSearch(q, testamentFilter, selectedBook);
+      performSearch(q, testamentFilter);
     }
   }, [searchString]);
 
-  const performSearch = async (searchWord: string, testament: string, bookId: string) => {
+  // 권 필터가 바뀌면 화면에 보여줄 결과만 필터링하도록 수정
+  const filteredResults = results.filter(v => {
+    const matchTestament = testamentFilter === 'ALL' || v.testament?.toUpperCase() === testamentFilter;
+    const matchBook = selectedBook === 'ALL' || v.book_id.toString() === selectedBook;
+    return matchTestament && matchBook;
+  });
+
+  const performSearch = async (searchWord: string, testament: string) => {
     if (!searchWord.trim()) return;
     setLoading(true);
     try {
+      // 1. 먼저 키워드에 맞는 전체 결과를 가져옵니다.
       let query = supabase.from('bible_verses').select('*').ilike('content', `%${searchWord}%`);
+      
+      const { data, error } = await query
+        .order('book_id', { ascending: true })
+        .order('chapter', { ascending: true })
+        .order('verse', { ascending: true })
+        .limit(300); // 넉넉히 가져와서 클라이언트에서 필터링
 
-      if (testament !== 'ALL') {
-        query = query.ilike('testament', testament);
-      }
-      if (bookId !== 'ALL') {
-        query = query.eq('book_id', bookId);
-      }
-
-      const { data, error } = await query.order('book_id').order('chapter').order('verse').limit(100);
       if (error) throw error;
       setResults(data || []);
+      setSelectedBook('ALL'); // 새 검색 시 권 선택 초기화
     } catch (err: any) {
       alert("검색 오류: " + err.message);
     } finally {
@@ -68,7 +68,7 @@ export default function SearchPage() {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    performSearch(keyword, testamentFilter, selectedBook);
+    performSearch(keyword, testamentFilter);
   };
 
   return (
@@ -85,29 +85,28 @@ export default function SearchPage() {
         <div className="px-4 pb-3 space-y-2">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {(['ALL', 'OT', 'NT'] as const).map((f) => (
-              <button key={f} onClick={() => { setTestamentFilter(f); setSelectedBook('ALL'); if (keyword) performSearch(keyword, f, 'ALL'); }}
+              <button key={f} onClick={() => { setTestamentFilter(f); setSelectedBook('ALL'); }}
                 className={`px-4 py-1 rounded-full text-xs font-bold whitespace-nowrap ${testamentFilter === f ? 'bg-blue-600 text-white' : 'bg-zinc-100 text-zinc-600'}`}>
                 {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
               </button>
             ))}
           </div>
           
-          {/* 성경 권 선택 드롭다운 */}
+          {/* [수정] 현재 검색 결과에 있는 권만 보여주는 콤보박스 */}
           <select 
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-[15px] outline-none appearance-none"
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-[15px] outline-none appearance-none font-medium"
             value={selectedBook}
-            onChange={(e) => { 
-              const newBook = e.target.value;
-              setSelectedBook(newBook); 
-              if (keyword) performSearch(keyword, testamentFilter, newBook); 
-            }}
+            onChange={(e) => setSelectedBook(e.target.value)}
           >
-            <option value="ALL">모든 권 선택</option>
-            {books
-              .filter(b => testamentFilter === 'ALL' || b.testament?.toUpperCase() === testamentFilter)
+            <option value="ALL">검색된 모든 권 ({availableBooks.length}개)</option>
+            {availableBooks
+              .filter(b => {
+                const bookData = results.find(r => r.book_id === b.id);
+                return testamentFilter === 'ALL' || bookData?.testament?.toUpperCase() === testamentFilter;
+              })
               .map(book => (
-                <option key={book.book_id} value={book.book_id}>
-                  {book.book_name}
+                <option key={book.id} value={book.id}>
+                  {book.name}
                 </option>
               ))
             }
@@ -116,16 +115,18 @@ export default function SearchPage() {
       </div>
 
       <div className="pt-40 pb-10 px-4">
-        {loading && <p className="text-center py-10 text-zinc-500">검색 중...</p>}
-        {!loading && results.map((v) => (
+        {loading && <p className="text-center py-10 text-zinc-500 font-bold">검색 중...</p>}
+        
+        {!loading && filteredResults.map((v) => (
           <div key={v.id} className="py-4 border-b border-zinc-100 active:bg-zinc-50"
             onClick={() => setLocation(`/view/${v.book_id}/${v.chapter}?verse=${v.verse}`)}>
             <p className="text-xs font-bold text-blue-600 mb-1">[{v.book_name}] {v.chapter}:{v.verse}</p>
             <p className="text-sm text-zinc-800 leading-relaxed">{v.content}</p>
           </div>
         ))}
-        {!loading && results.length === 0 && keyword && (
-          <p className="text-center py-20 text-zinc-400">검색 결과가 없습니다.</p>
+
+        {!loading && keyword && filteredResults.length === 0 && (
+          <p className="text-center py-20 text-zinc-400">결과가 없습니다.</p>
         )}
       </div>
     </div>
