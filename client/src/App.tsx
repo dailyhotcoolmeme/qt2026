@@ -15,6 +15,7 @@ import RegisterPage from "./pages/RegisterPage";
 // 방금 만든 회원가입 페이지 추가
 import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
+import SearchPage from "./pages/SearchPage";
 
 function Router() {
   const [location] = useLocation();
@@ -26,6 +27,7 @@ function Router() {
         <Route path="/" component={DailyWordPage} />
         <Route path="/qt" component={QTPage} />
         <Route path="/reading" component={ReadingPage} />
+        <Route path="/search" component={SearchPage} />
         
         {/* '내 기록' 메뉴를 누르면 로그인/회원가입 화면이 보이게 설정 */}
         <Route path="/archive" component={ArchivePage} />
