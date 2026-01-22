@@ -11,21 +11,24 @@ export default function SearchPage() {
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
-  const [books, setBooks] = useState<any[]>([]); // 권 리스트
-  const [selectedBook, setSelectedBook] = useState<string>('ALL'); // 선택된 권
+  const [books, setBooks] = useState<any[]>([]); 
+  const [selectedBook, setSelectedBook] = useState<string>('ALL');
 
-  // 1. 성경 권 리스트 가져오기 (필터용)
+  // 1. 성경 권 리스트 가져오기 (가장 확실한 방법으로 수정)
   useEffect(() => {
     async function fetchBooks() {
-      const { data } = await supabase
+      // 모든 구절을 다 가져오면 무거우므로, 대표 구절들만 빠르게 훑어서 권 목록을 만듭니다.
+      const { data, error } = await supabase
         .from('bible_verses')
         .select('book_id, book_name, testament')
+        .eq('verse', 1)
+        .eq('chapter', 1)
         .order('book_id', { ascending: true });
       
       if (data) {
-        // 중복 제거하여 권 이름만 추출
-        const uniqueBooks = data.filter((v, i, a) => a.findIndex(t => t.book_id === v.book_id) === i);
-        setBooks(uniqueBooks);
+        setBooks(data);
+      } else if (error) {
+        console.error("목록 로딩 에러:", error);
       }
     }
     fetchBooks();
@@ -46,11 +49,9 @@ export default function SearchPage() {
     try {
       let query = supabase.from('bible_verses').select('*').ilike('content', `%${searchWord}%`);
 
-      // 구약/신약 필터 (대소문자 무관하게 처리)
       if (testament !== 'ALL') {
         query = query.ilike('testament', testament);
       }
-      // 권 필터
       if (bookId !== 'ALL') {
         query = query.eq('book_id', bookId);
       }
@@ -81,7 +82,6 @@ export default function SearchPage() {
           </form>
         </div>
 
-        {/* 필터 영역 */}
         <div className="px-4 pb-3 space-y-2">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {(['ALL', 'OT', 'NT'] as const).map((f) => (
@@ -92,15 +92,25 @@ export default function SearchPage() {
             ))}
           </div>
           
+          {/* 성경 권 선택 드롭다운 */}
           <select 
-            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-sm outline-none"
+            className="w-full p-2 bg-zinc-50 border border-zinc-200 rounded text-[15px] outline-none appearance-none"
             value={selectedBook}
-            onChange={(e) => { setSelectedBook(e.target.value); if (keyword) performSearch(keyword, testamentFilter, e.target.value); }}
+            onChange={(e) => { 
+              const newBook = e.target.value;
+              setSelectedBook(newBook); 
+              if (keyword) performSearch(keyword, testamentFilter, newBook); 
+            }}
           >
             <option value="ALL">모든 권 선택</option>
-            {books.filter(b => testamentFilter === 'ALL' || b.testament.toUpperCase() === testamentFilter).map(book => (
-              <option key={book.book_id} value={book.book_id}>{book.book_name}</option>
-            ))}
+            {books
+              .filter(b => testamentFilter === 'ALL' || b.testament?.toUpperCase() === testamentFilter)
+              .map(book => (
+                <option key={book.book_id} value={book.book_id}>
+                  {book.book_name}
+                </option>
+              ))
+            }
           </select>
         </div>
       </div>
@@ -114,6 +124,9 @@ export default function SearchPage() {
             <p className="text-sm text-zinc-800 leading-relaxed">{v.content}</p>
           </div>
         ))}
+        {!loading && results.length === 0 && keyword && (
+          <p className="text-center py-20 text-zinc-400">검색 결과가 없습니다.</p>
+        )}
       </div>
     </div>
   );
