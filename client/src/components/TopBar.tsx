@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { Button } from "./ui/button";
 import { Search } from "lucide-react";
-import { useState } from "react"; // 추가
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -13,57 +13,61 @@ import {
 
 export function TopBar() {
   const { fontSize, increaseFontSize, decreaseFontSize, fontFamily, setFontFamily } = useDisplaySettings();
-  const [, setLocation] = useLocation(); // 페이지 이동을 위해 추가
-  const [tempKeyword, setTempKeyword] = useState(""); // 입력창 글자 저장용
+  const [, setLocation] = useLocation();
+  const [tempKeyword, setTempKeyword] = useState("");
 
-  // 엔터를 치거나 검색 버튼을 누르면 검색 페이지로 이동!
   const handleQuickSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tempKeyword.trim()) return;
-    
-    // 검색어를 주소 뒤에 붙여서 보냅니다 (예: /search?q=사랑)
     setLocation(`/search?q=${encodeURIComponent(tempKeyword)}`);
-    setTempKeyword(""); // 입력창 비우기
+    setTempKeyword("");
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/95 backdrop-blur-lg border-b border-zinc-100 px-4 py-3 flex items-center justify-between shadow-sm">
+    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/95 backdrop-blur-lg border-b border-zinc-100 px-3 py-2 flex items-center justify-between shadow-sm h-14">
 
-      {/* 로고 영역 */}
-      <Link href="/" className="cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <img src="/icon-192.png" alt="로고" className="w-8 h-8 rounded-none" />
-        </div>
+      {/* 1. 로고: 최소 너비만 차지 */}
+      <Link href="/" className="flex-shrink-0 mr-2">
+        <img src="/icon-192.png" alt="로고" className="w-8 h-8" />
       </Link>
 
-      {/* 🔍 검색 입력칸 추가 */}
-      <form onSubmit={handleQuickSearch} className="flex-1 mx-3 flex items-center bg-zinc-100 rounded-full px-3 h-8">
+      {/* 2. 빠른 검색창: 크기를 적절히 제한 (max-w-[120px]) */}
+      <form onSubmit={handleQuickSearch} className="flex-1 max-w-[130px] flex items-center bg-zinc-100 rounded-full px-2 h-8 mr-2">
         <input
           type="text"
           value={tempKeyword}
           onChange={(e) => setTempKeyword(e.target.value)}
-          placeholder="빠른 검색..."
-          className="flex-1 bg-transparent border-none outline-none text-xs text-zinc-900 w-full"
+          placeholder="검색..."
+          className="flex-1 bg-transparent border-none outline-none text-[13px] text-zinc-900 w-full ml-1"
         />
-        <button type="submit">
-          <Search className="w-4 h-4 text-zinc-400" />
+        <button type="submit" className="p-1">
+          <Search className="w-3.5 h-3.5 text-zinc-400" />
         </button>
       </form>
 
-      {/* 설정 영역 (폰트 조절 등) - flex-shrink-0 추가로 밀리지 않게 함 */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <div className="flex items-center bg-zinc-100 overflow-hidden rounded-sm">
-          <Button variant="ghost" size="sm" onClick={decreaseFontSize} className="h-7 px-2 rounded-none hover:bg-zinc-300 text-zinc-600 font-bold text-[10px]">가-</Button>
-          <Button variant="ghost" size="sm" onClick={increaseFontSize} className="h-7 px-2 rounded-none hover:bg-zinc-300 text-zinc-600 font-bold text-[10px]">가+</Button>
+      {/* 3. 설정 영역: 가독성을 위해 크기를 키움 */}
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {/* 글자 크기 조절기 */}
+        <div className="flex items-center bg-zinc-100 rounded-md overflow-hidden border border-zinc-200">
+          <Button variant="ghost" size="sm" onClick={decreaseFontSize} className="h-8 px-2.5 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-xs border-r border-zinc-200">가-</Button>
+          
+          {/* 현재 글자 크기 숫자 표시 (중요!) */}
+          <span className="text-[13px] font-bold text-blue-600 px-2 min-w-[30px] text-center tabular-nums bg-white h-8 flex items-center justify-center">
+            {fontSize}
+          </span>
+          
+          <Button variant="ghost" size="sm" onClick={increaseFontSize} className="h-8 px-2.5 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-xs border-l border-zinc-200">가+</Button>
         </div>
         
+        {/* 글씨체 선택: 나눔체(monospace) 복구 */}
         <Select value={fontFamily} onValueChange={(val: string) => setFontFamily(val)}>
-          <SelectTrigger className="w-[70px] h-7 text-[10px] border-0 bg-zinc-100 rounded-none">
+          <SelectTrigger className="w-[85px] h-8 text-[12px] border border-zinc-200 bg-white font-medium">
             <SelectValue /> 
           </SelectTrigger>
           <SelectContent className="z-[200]"> 
-            <SelectItem value="sans-serif">고딕</SelectItem>
-            <SelectItem value="serif">명조</SelectItem>
+            <SelectItem value="sans-serif">고딕체</SelectItem>
+            <SelectItem value="serif">명조체</SelectItem>
+            <SelectItem value="monospace">나눔체</SelectItem>
           </SelectContent>
         </Select>
       </div>
