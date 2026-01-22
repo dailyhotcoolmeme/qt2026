@@ -10,6 +10,7 @@ import DailyWordPage from "./pages/DailyWordPage";
 import QTPage from "./pages/QTPage";
 import ReadingPage from "./pages/ReadingPage";
 import ArchivePage from "./pages/ArchivePage";
+import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
 import RegisterPage from "./pages/RegisterPage";
 // 방금 만든 회원가입 페이지 추가
@@ -33,7 +34,7 @@ function Router() {
         <Route path="/archive" component={ArchivePage} />
         <Route path="/auth" component={AuthPage} />
         <Route path="/register" component={RegisterPage} />
-        
+        <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
         <Route component={NotFound} />
       </Switch>
     </AnimatePresence>
