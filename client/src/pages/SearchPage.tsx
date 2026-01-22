@@ -1,46 +1,34 @@
 import React, { useState } from 'react';
 import { Link } from "wouter";
 import { supabase } from '../lib/supabase'; 
-import { Search, ChevronLeft, AlertCircle } from "lucide-react";
+import { Search, ChevronLeft } from "lucide-react";
 import { Button } from "../components/ui/button";
 
-const SearchPage = () => {
+export default function SearchPage() {
   const [keyword, setKeyword] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState(''); // 에러 확인용
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!keyword.trim()) return;
 
     setLoading(true);
-    setErrorMessage('');
     
     try {
-      // 1. 가장 단순한 검색 방식으로 시도
+      // 가장 확실하게 데이터를 가져오는 방식입니다.
+      // 'content'라는 컬럼에 키워드가 포함되어 있는지 확인합니다.
       const { data, error } = await supabase
         .from('bible_verses')
         .select('*')
-        .filter('content', 'ilike', `%${keyword}%`) // 'content' 컬럼에서 키워드 포함 찾기
-        .limit(30);
+        .ilike('content', `%${keyword}%`)
+        .limit(50);
 
-      if (error) {
-        // 만약 'content' 컬럼이 없어서 에러가 나면 'text' 컬럼으로 재시도
-        console.log("content 컬럼 검색 실패, text로 재시도...");
-        const { data: secondData, error: secondError } = await supabase
-          .from('bible_verses')
-          .select('*')
-          .filter('text', 'ilike', `%${keyword}%`)
-          .limit(30);
-
-        if (secondError) throw secondError;
-        setResults(secondData || []);
-      } else {
-        setResults(data || []);
-      }
+      if (error) throw error;
+      setResults(data || []);
+      
     } catch (err: any) {
-      setErrorMessage(err.message || '검색 중 오류가 발생했습니다.');
+      alert("에러가 발생했습니다: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -48,6 +36,7 @@ const SearchPage = () => {
 
   return (
     <div className="min-h-screen bg-white relative z-[200]">
+      {/* 상단 검색바 */}
       <div className="fixed top-0 left-0 right-0 z-[210] bg-white border-b px-4 py-3 flex items-center gap-2 shadow-sm">
         <Link href="/">
           <Button variant="ghost" size="icon" className="h-10 w-10">
@@ -59,9 +48,9 @@ const SearchPage = () => {
             type="text"
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            placeholder="성경 구절 검색 (예: 사랑)"
-            className="flex-1 bg-transparent border-none outline-none text-base text-zinc-900" 
-            style={{ fontSize: '16px' }}
+            placeholder="검색어 입력 (예: 사랑)"
+            className="flex-1 bg-transparent border-none outline-none text-[16px] text-zinc-900" 
+            autoFocus
           />
           <button type="submit" className="p-1">
             <Search className="w-5 h-5 text-zinc-500" />
@@ -69,40 +58,27 @@ const SearchPage = () => {
         </form>
       </div>
 
+      {/* 결과 화면 */}
       <div className="pt-24 pb-10 px-4">
-        {/* 에러가 날 경우 화면에 빨간색으로 표시 */}
-        {errorMessage && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg flex items-center gap-2 text-sm">
-            <AlertCircle className="w-4 h-4" />
-            {errorMessage}
-          </div>
-        )}
-
-        {loading && <p className="text-center py-10 text-zinc-500">말씀을 찾는 중...</p>}
+        {loading && <p className="text-center py-10 text-zinc-500 font-bold">말씀을 찾는 중...</p>}
         
-        {!loading && results.length > 0 && (
-          <p className="text-xs text-zinc-400 mb-4">{results.length}개의 구절을 찾았습니다.</p>
-        )}
-
-        {!loading && results.map((verse) => (
-          <div key={verse.id} className="py-4 border-b border-zinc-100 active:bg-zinc-50">
+        {!loading && results.map((v) => (
+          <div key={v.id} className="py-4 border-b border-zinc-100 active:bg-zinc-50">
             <p className="text-xs font-bold text-blue-600 mb-1">
-              {verse.book_name || verse.kor} {verse.chapter}:{verse.verse}
+              {v.book_name} {v.chapter}:{v.verse}
             </p>
             <p className="text-sm text-zinc-800 leading-relaxed">
-              {verse.content || verse.text}
+              {v.content}
             </p>
           </div>
         ))}
 
-        {!loading && results.length === 0 && keyword && !errorMessage && (
+        {!loading && results.length === 0 && keyword && (
           <p className="text-center py-20 text-zinc-400 text-sm">
-            "{keyword}"에 대한 검색 결과가 없습니다.
+            "{keyword}" 검색 결과가 없습니다.
           </p>
         )}
       </div>
     </div>
   );
-};
-
-export default SearchPage;
+}
