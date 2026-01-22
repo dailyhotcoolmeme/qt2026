@@ -186,6 +186,7 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
     const storagePath = `qt/${fileName}`; 
 
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+    const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}장 ${bibleData.verse}절 말씀.`;
 
     try {
