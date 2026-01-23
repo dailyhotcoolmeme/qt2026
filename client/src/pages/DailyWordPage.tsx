@@ -337,7 +337,7 @@ const stopAudio = () => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
           }}><ChevronLeft className="w-8 h-8" /></Button>
           <div className="text-center relative">
-  <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
+  <h1 className="text-[#5D7BAF] font-black" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
   
   {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
   <div 
@@ -428,12 +428,12 @@ const stopAudio = () => {
             </button>
           </div>
 
-          <div className="space-y-3">
+          <div className="pt-10 space-y-2">
             <div className="flex items-center gap-2 px-1">
               <MessageCircle className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-[#5D7BAF]">함께 나누기</h3>
             </div>
-            <div className="relative bg-gray-200 rounded-[10px] p-3 border border-gray-150">
+            <div className="relative bg-gray-100 rounded-lg p-3 border border-gray-150">
               {!isAuthenticated && (
                 <div className="absolute inset-0 z-8 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-[10px] space-y-3">
                   <Lock className="w-7 h-7 text-[#5D7BAF]" />
@@ -441,8 +441,8 @@ const stopAudio = () => {
                 </div>
               )}
               <Textarea 
-                placeholder="오늘 말씀의 느낀점을 나눠주세요."
-                className="bg-white border-none focus-visible:ring-1 ring-blue-200 resize-none min-h-[80px] p-2 text-gray-600"
+                placeholder="오늘 말씀 어떠셨나요"
+                className="bg-white border-none focus-visible:ring-1 ring-blue-150 resize-none min-h-[80px] p-2 text-gray-600"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />
@@ -450,11 +450,11 @@ const stopAudio = () => {
                 <div className="flex items-center gap-10">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} className="border-gray-400 data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500" />
-                    <span className="text-sm font-bold text-gray-500">익명으로 나누기</span>
+                    <span className="text-sm font-bold text-gray-500">익명 나누기</span>
                   </label>
                   <button onClick={(e) => { e.preventDefault(); toggleSpeechRecognition(); }} className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all active:scale-95 ${isRecording ? "bg-[#5D7BAF] animate-pulse text-white shadow-none" : "text-[#5D7BAF] hover:bg-gray-200"}`}>
                     <Mic className="w-4 h-4 pointer-events-none" />
-                    <span className="text-sm font-bold pointer-events-none">{isRecording ? "녹음 중(터치 시 중단)" : "음성으로 입력하기"}</span>
+                    <span className="text-sm font-bold pointer-events-none">{isRecording ? "녹음 중..■중단)" : "음성으로 입력"}</span>
                   </button>
                 </div>
                 <Button size="sm" className="rounded-full px-7 font-bold bg-[#5D7BAF] text-white border-none ring-0 shadow-none outline-none" onClick={handleRegisterSharing} disabled={!comment.trim()} style={{ fontSize: `${fontSize - 2}px` }}>등록</Button>
