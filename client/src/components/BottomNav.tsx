@@ -5,17 +5,21 @@ export function BottomNav() {
   const [location] = useLocation();
 
   const tabs = [
-    { id: "word", label: "오늘의 말씀", path: "/" },
-    { id: "qt", label: "오늘의 묵상", path: "/qt" },
+    { id: "word", label: "오늘 말씀", path: "/" },
+    { id: "qt", label: "오늘 묵상", path: "/qt" },
     { id: "reading", label: "성경 읽기", path: "/reading" },
-    { id: "archive", label: "내 기록함", path: "/archive" },
+    { id: "archive", label: "기록함", path: "/archive" },
   ];
 
 return (
   <nav className="fixed bottom-0 w-full max-w-[450px] bg-white/95 backdrop-blur-lg border-t border-zinc-200 flex justify-between items-stretch px-0 pb-safe-area z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
     {tabs.map((tab) => {
-      const isActive = location === tab.path;
-      return (
+  // [수정] 정확히 일치(===)가 아니라, 현재 주소가 tab.path로 시작하는지 확인
+  // 또는 해시(#)를 제거한 순수 경로만 비교하도록 로직 강화
+  const cleanLocation = location.split('?')[0]; // 쿼리 스트링(?...) 제거
+  const isActive = cleanLocation === tab.path;
+
+  return (
         <Link
           key={tab.id}
           href={tab.path}
