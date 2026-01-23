@@ -19,7 +19,7 @@ export default function AuthPage() {
         provider: 'kakao',
         options: {
   // 여기에 방금 찾은 주소를 넣습니다. (끝에 /는 빼셔도 됩니다)
-          redirectTo: window.location.origin
+          redirectTo: window.location.href
         }
       });
       if (error) throw error;
