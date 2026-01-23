@@ -442,7 +442,7 @@ const stopAudio = () => {
               )}
               <Textarea 
                 placeholder="오늘 말씀 어떠셨나요"
-                className="bg-white border-none focus-visible:ring-1 ring-blue-150 resize-none min-h-[80px] p-2 text-gray-400"
+                className="bg-white border-none focus-visible:ring-1 ring-blue-150 resize-none min-h-[80px] p-2 text-[#5D7BAF]"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />
