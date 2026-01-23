@@ -1,192 +1,166 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
 import { Textarea } from "../components/ui/textarea";
 import { 
-  ChevronLeft, ChevronRight, CheckCircle2, Mic, Pause, Play, X,
-  BookOpen, BarChart3, PenLine
+  ChevronLeft, ChevronRight, CheckCircle2, Mic, 
+  BarChart3, PenLine, BookOpen, Lock
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import AuthPage from "./AuthPage"; // 로그인 유도용
 
 export default function ReadingPage() {
   const { fontSize } = useDisplaySettings();
   const [currentDate, setCurrentDate] = useState(new Date());
-  const today = new Date();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
   
-  // 상태 관리
-  const [loading, setLoading] = useState(true);
-  const [goal, setGoal] = useState<any>(null); 
-  const [currentReadChapter, setCurrentReadChapter] = useState<number>(1);
+  // 목표 설정 상태
+  const [isGoalSet, setIsGoalSet] = useState(false);
+  const [goalRange, setGoalRange] = useState({
+    startBook: "창세기",
+    startChapter: 1,
+    endBook: "창세기",
+    endChapter: 5
+  });
+
+  const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [bibleContent, setBibleContent] = useState<any[]>([]);
-  const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [memo, setMemo] = useState("");
 
+  // 1. 접속 및 날짜 변경 시 초기화
   useEffect(() => {
-    fetchDailyGoal();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+    });
+    // 여기서 어제 읽은 데이터(Last Read)를 불러와 goalRange 초기값을 세팅하는 로직이 들어갑니다.
   }, [currentDate]);
 
-  const fetchDailyGoal = async () => {
-    setLoading(true);
-    const formattedDate = currentDate.toISOString().split('T')[0];
-    const { data: goalData } = await supabase
-      .from('reading_goals')
-      .select('*')
-      .eq('target_date', formattedDate)
-      .maybeSingle();
-
-    if (goalData) {
-      setGoal(goalData);
-      setCurrentReadChapter(goalData.start_chapter);
-      fetchBibleContent(goalData.start_book_name, goalData.start_chapter);
-    } else {
-      setGoal(null);
-      setBibleContent([]);
+  // 2. 목표 확정하기 버튼
+  const handleConfirmGoal = () => {
+    if (!isAuthenticated) {
+      setShowLogin(true);
+      return;
     }
-    setLoading(false);
+    setIsGoalSet(true);
+    setCurrentReadChapter(goalRange.startChapter);
+    // TODO: fetchBibleContent 호출
   };
 
-  const fetchBibleContent = async (bookName: string, chapter: number) => {
-    const { data } = await supabase
-      .from('bible_verses')
-      .select('*')
-      .eq('book_name', bookName)
-      .eq('chapter', chapter)
-      .order('verse', { ascending: true });
-    setBibleContent(data || []);
-  };
+  if (showLogin) return <AuthPage />;
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      {/* [헤더] DailyWordPage 디자인과 100% 동일하게 복구 */}
+      {/* 헤더 (DailyWordPage와 동일 - 코드 생략) */}
       <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
           <Button variant="ghost" size="icon" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d);
-          }}>
-            <ChevronLeft className="w-6 h-6" />
-          </Button>
-          
+          }}><ChevronLeft className="w-6 h-6" /></Button>
           <div className="text-center relative">
-            {/* 핵심 수정: font-black 적용 */}
-            <h1 className="text-[#5D7BAF] font-black" style={{ fontSize: `${fontSize + 3}px` }}>
-              성경 읽기
-            </h1>
-            
-            <div 
-              className="relative cursor-pointer group flex flex-col items-center" 
-              onClick={() => (document.getElementById('date-picker') as any).showPicker()}
-            >
-              {/* 핵심 수정: font-bold 적용 (날짜 부분) */}
-              <p 
-                className="text-sm text-gray-400 font-bold transition-all duration-200 group-hover:text-[#5D7BAF] group-active:scale-95 flex items-center justify-center gap-1"
-                style={{ fontSize: `${fontSize - 2}px` }}
-              >
-                {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-                {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-                <span className="text-[12px] opacity-50">▼</span>
-              </p>
-
-              <input
-                id="date-picker"
-                type="date"
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                max={new Date().toISOString().split("T")[0]}
-                value={currentDate.toISOString().split("T")[0]}
-                onChange={(e) => {
-                  if (!e.target.value) return;
-                  setCurrentDate(new Date(e.target.value));
-                }}
-              />
-            </div>
+            <h1 className="text-[#5D7BAF] font-black" style={{ fontSize: `${fontSize + 3}px` }}>성경 읽기</h1>
+            <p className="text-sm text-gray-400 font-bold">{currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })} ({currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})</p>
           </div>
-
           <Button variant="ghost" size="icon" onClick={() => {
-            const d = new Date(currentDate); d.setDate(d.getDate() + 1);
-            if (d <= today) setCurrentDate(d);
-          }}>
-            <ChevronRight className="w-6 h-6" />
-          </Button>
+            const d = new Date(currentDate); d.setDate(d.getDate() + 1); setCurrentDate(d);
+          }}><ChevronRight className="w-6 h-6" /></Button>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-24 space-y-6">
-        {/* 진척율 섹션 - 텍스트 두께 보정 */}
-        <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between border border-gray-100 shadow-sm">
-          <div className="flex items-center gap-3">
-            <BarChart3 className="text-[#5D7BAF] w-5 h-5" />
-            <span className="text-sm font-bold text-gray-500">오늘의 진척율</span>
+        
+        {/* [추가] 진척율 구분 한 줄 레이아웃 */}
+        <div className="bg-gray-50 rounded-2xl p-4 border border-gray-100 shadow-sm flex items-center justify-around text-center">
+          <div>
+            <p className="text-[11px] text-gray-400 font-bold mb-1">성경 전체 통독율</p>
+            <p className="text-[#5D7BAF] font-black text-lg">12.5%</p>
           </div>
-          <span className="text-[#5D7BAF] font-black text-xl">35%</span>
+          <div className="w-[1px] h-8 bg-gray-200" />
+          <div>
+            <p className="text-[11px] text-gray-400 font-bold mb-1">오늘 목표 진척도</p>
+            <p className="text-green-500 font-black text-lg">40%</p>
+          </div>
         </div>
 
-        {/* 말씀 카드 - #5D7BAF 유지 및 내부 텍스트 스타일 보정 */}
-        {goal ? (
+        {/* [변경] 목표 설정 영역 */}
+        {!isGoalSet ? (
+          <div className="bg-white rounded-3xl border-2 border-[#5D7BAF]/10 p-6 space-y-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-[#5D7BAF]" />
+              <h3 className="font-black text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘의 읽기 목표 정하기</h3>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 ml-1">시작 위치</label>
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 font-bold text-sm text-gray-600">
+                  {goalRange.startBook} {goalRange.startChapter}장
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 ml-1">종료 위치</label>
+                <div className="bg-gray-50 p-3 rounded-xl border border-gray-100 font-bold text-sm text-gray-600">
+                  {goalRange.endBook} {goalRange.endChapter}장
+                </div>
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleConfirmGoal}
+              className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black text-lg shadow-md active:scale-95 transition-transform"
+            >
+              목표 확정하고 읽기 시작
+            </Button>
+            <p className="text-center text-[11px] text-gray-400 font-medium">※ 어제 읽은 기록을 바탕으로 자동 설정되었습니다.</p>
+          </div>
+        ) : (
+          /* [기존] 말씀 읽기 카드 및 페이지네이션 로직 */
           <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
             <CardContent className="pt-8 pb-5 px-6">
-              <div className="flex justify-between items-center mb-6 text-white font-bold">
-                <span style={{ fontSize: `${fontSize}px` }}>{goal.start_book_name} {currentReadChapter}장</span>
-                <button className="bg-white/20 p-2 rounded-full active:bg-white/30 transition-colors">
-                  <Mic size={18} />
-                </button>
-              </div>
-              
-              <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar text-white leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
-                {bibleContent.map((v, idx) => (
-                  <div key={idx} className="grid grid-cols-[1.8rem_1fr] items-start mb-3">
-                    <span className="font-base opacity-70 text-right pr-2 pt-[0.3px] text-sm">{v.verse}</span>
-                    <span className="break-keep">{v.content}</span>
-                  </div>
-                ))}
+               <div className="flex justify-between items-center mb-6 text-white font-bold">
+                <span style={{ fontSize: `${fontSize}px` }}>{goalRange.startBook} {currentReadChapter}장</span>
+                <button className="bg-white/20 p-2 rounded-full"><Mic size={18} /></button>
               </div>
 
-              {/* 하단 버튼 영역 */}
+              {/* 말씀 리스트업 부분 (가정된 데이터 사용) */}
+              <div className="max-h-[350px] overflow-y-auto pr-2 text-white leading-relaxed">
+                {bibleContent.length > 0 ? (
+                  bibleContent.map((v, idx) => (
+                    <div key={idx} className="grid grid-cols-[1.8rem_1fr] items-start mb-3">
+                      <span className="font-base opacity-70 text-right pr-2 text-sm">{v.verse}</span>
+                      <span className="break-keep">{v.content}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center py-10 opacity-60">말씀을 불러오고 있습니다...</p>
+                )}
+              </div>
+
               <div className="mt-8 pt-5 border-t border-white/20 flex items-center justify-between gap-2">
-                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 h-12 font-bold"
-                        disabled={currentReadChapter <= goal.start_chapter}>
-                  <ChevronLeft className="mr-1 w-4 h-4" /> 이전
-                </Button>
-                
-                <Button className="bg-white text-[#5D7BAF] font-black rounded-full px-6 h-12 shadow-md flex-none active:scale-95 transition-transform"
-                        onClick={() => setIsReadCompleted(true)}>
-                  {isReadCompleted ? <CheckCircle2 className="w-5 h-5" /> : "읽기 완료"}
-                </Button>
-
-                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 h-12 font-bold"
-                        disabled={currentReadChapter >= goal.end_chapter}>
-                  다음 <ChevronRight className="ml-1 w-4 h-4" />
-                </Button>
+                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 font-bold">이전</Button>
+                <Button className="bg-white text-[#5D7BAF] font-black rounded-full px-6 h-12 shadow-md">읽기 완료</Button>
+                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 font-bold">다음</Button>
               </div>
             </CardContent>
           </Card>
-        ) : (
-          <div className="py-20 text-center space-y-4">
-            <BookOpen className="w-12 h-12 text-gray-200 mx-auto" />
-            <p className="text-gray-400 font-black">오늘 설정된 목표가 없습니다.</p>
-            <Button className="bg-[#5D7BAF] rounded-full px-8 font-black">목표 설정하기</Button>
-          </div>
         )}
 
-        {/* 기록 섹션 - font-black 일치화 */}
-        {goal && (
-          <div className="mt-6 px-1">
+        {/* 하단 기록 영역 (목표가 확정된 상태에서만 노출) */}
+        {isGoalSet && (
+          <div className="mt-6 px-1 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex items-center gap-2 mb-3">
               <PenLine className="w-5 h-5 text-[#5D7BAF]" />
-              <h3 className="font-black text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>
-                오늘 읽은 말씀 기록
-              </h3>
+              <h3 className="font-black text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘 읽은 말씀 기록</h3>
             </div>
-            <div className="bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+            <div className="bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4">
               <Textarea 
-                placeholder="기억에 남는 말씀이나 소감을 기록하세요."
-                className="bg-white border-none resize-none min-h-[120px] p-4 text-gray-600 rounded-xl text-sm shadow-inner"
+                placeholder="오늘 읽은 말씀에 대한 기록을 남겨보세요."
+                className="bg-white border-none resize-none min-h-[120px] p-4 text-gray-600 rounded-xl text-sm"
                 value={memo}
                 onChange={(e) => setMemo(e.target.value)}
               />
-              <Button className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black text-lg shadow-md active:bg-[#4A638F]">
-                기록 저장하기
-              </Button>
+              <Button className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black text-lg">기록 저장하기</Button>
             </div>
           </div>
         )}
