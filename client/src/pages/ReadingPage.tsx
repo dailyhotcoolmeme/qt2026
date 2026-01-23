@@ -108,16 +108,16 @@ export default function ReadingPage() {
     <div className="min-h-screen bg-zinc-50 pt-16 pb-24 text-zinc-900 font-sans">
       {/* --- 상단 전체 진척도 카드 --- */}
       <div className="px-4 py-2">
-        <Card className="border-none bg-[#5D7BAF] text-white shadow-xl rounded-sm overflow-hidden">
+        <Card className="border-none bg-[#5D7BAF] text-white shadow-lg rounded-sm overflow-hidden">
           <CardContent className="p-6">
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h2 className="text-2xl font-black tracking-tight">성경 통독</h2>
-                <p className="text-[11px] opacity-70 font-bold uppercase tracking-wider">Bible Reading Journey</p>
+                <h2 className="text-2xl font-black tracking-tight">성경 읽기</h2>
+                <p className="text-[11px] opacity-70 font-bold uppercase tracking-wider">성경 완독까지 매일 성경 읽기</p>
               </div>
               <Button 
                 onClick={() => { setProgressStep('TAB'); setShowProgressModal(true); }}
-                className="bg-white/20 hover:bg-white/30 border-none rounded-2xl gap-2 font-bold text-sm h-10 px-4"
+                className="bg-white/20 hover:bg-white/30 border-none rounded-full gap-2 font-bold text-sm h-10 px-4"
               >
                 <BarChart3 size={18} /> 상세 진척도
               </Button>
