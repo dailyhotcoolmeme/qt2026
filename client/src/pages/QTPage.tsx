@@ -66,24 +66,31 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
     }
   }, [voiceType]);
 
-  // 날짜 변경 시 말씀 데이터 불러오기
   useEffect(() => {
-    fetchQTVerse(currentDate);
-    fetchMeditationPosts();
+  fetchQTVerse(currentDate);
+  fetchMeditationPosts();
+  
+  // 세션 체크 시, URL에 토큰이 있는지 확인하고 처리
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setIsAuthenticated(!!session);
+    setCurrentUserId(session?.user?.id || null);
     
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setCurrentUserId(session?.user?.id || null);
-    });
+    // 만약 주소창에 access_token이 붙어있다면, 
+    // 깔끔하게 현재 페이지 주소(#/qt)로 다시 덮어씌워서 404 흔적을 지웁니다.
+    if (window.location.hash.includes("access_token")) {
+      window.location.hash = "/qt"; 
+    }
+  });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      setCurrentUserId(session?.user?.id || null);
-      if (session) setShowLoginModal(false);
-    });
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    setIsAuthenticated(!!session);
+    setCurrentUserId(session?.user?.id || null);
+    if (session) setShowLoginModal(false);
+  });
 
-    return () => { subscription.unsubscribe(); };
-  }, [currentDate]);
+  return () => { subscription.unsubscribe(); };
+}, [currentDate]);
+
 
 
     const fetchQTVerse = async (date: Date) => {
