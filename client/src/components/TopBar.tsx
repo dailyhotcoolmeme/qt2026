@@ -27,7 +27,7 @@ export function TopBar() {
   };
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/95 backdrop-blur-lg border-b border-zinc-100 px-3 py-2 flex items-center justify-between shadow-sm h-14">
+    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/80 backdrop-blur-lg border-b border-zinc-100 px-3 py-3 flex items-center justify-between shadow-sm h-14">
 
       {/* 4. 조건부 로고/뒤로가기: 메인이 아닐 땐 뒤로가기 버튼 표시 */}
       {isInternalPage ? (
@@ -41,38 +41,37 @@ export function TopBar() {
         </Button>
       ) : (
         <Link href="/" className="flex-shrink-0 mr-2">
-          <img src="/icon-192.png" alt="로고" className="w-8 h-8" />
+          <img src="/icon-192.png" alt="로고" className="w-9 h-9" />
         </Link>
       )}
 
       {/* 2. 빠른 검색창 */}
-      <form onSubmit={handleQuickSearch} className="flex-1 max-w-[130px] flex items-center bg-zinc-100 rounded-full px-2 h-8 mr-2">
+      <form onSubmit={handleQuickSearch} className="flex-1 max-w-[130px] flex items-center bg-zinc-100 rounded-none px-2 h-9">
         <input
           type="text"
           value={tempKeyword}
           onChange={(e) => setTempKeyword(e.target.value)}
-          placeholder="성경 검색..."
-          className="flex-1 bg-transparent border-none outline-none text-[13px] text-zinc-900 w-full ml-1"
+          placeholder="검색어 입력"
+          className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 w-full ml-1"
         />
         <button type="submit" className="p-1">
-          <Search className="w-3.5 h-3.5 text-zinc-400" />
+          <Search className="w-4 h-4 text-zinc-400" />
         </button>
       </form>
 
       {/* 3. 설정 영역 */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <div className="flex items-center bg-zinc-100 rounded-md overflow-hidden border border-zinc-200">
-          <Button variant="ghost" size="sm" onClick={decreaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-[10px] border-r border-zinc-200">가-</Button>
-          
-          <span className="text-[12px] font-bold text-blue-600 px-1.5 min-w-[28px] text-center tabular-nums bg-white h-8 flex items-center justify-center">
+        <div className="flex items-center bg-zinc-100 rounded-none overflow-hidden">
+          <Button variant="ghost" size="sm" onClick={decreaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-sm border-r border-zinc-200">작게-</Button>
+          <span className="text-sm font-bold text-gray-800 px-1.5 min-w-[28px] text-center tabular-nums bg-white h-8 flex items-center justify-center">
             {fontSize}
           </span>
           
-          <Button variant="ghost" size="sm" onClick={increaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-[10px] border-l border-zinc-200">가+</Button>
+          <Button variant="ghost" size="sm" onClick={increaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-sm border-l border-zinc-200">크게+</Button>
         </div>
         
         <Select value={fontFamily} onValueChange={(val: string) => setFontFamily(val)}>
-          <SelectTrigger className="w-[75px] h-8 text-[11px] border border-zinc-200 bg-white font-medium">
+          <SelectTrigger className="w-[130px] h-8 text-sm border border-zinc-200 bg-white font-bold focus:ring-0 focus:ring-offset-0 outline-none">
             <SelectValue /> 
           </SelectTrigger>
           <SelectContent className="z-[200]"> 
