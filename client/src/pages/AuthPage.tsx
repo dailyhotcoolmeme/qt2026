@@ -15,15 +15,12 @@ export default function AuthPage() {
   // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
     try {
-      // [핵심 대안] HashRouter 사용 시, 카카오가 '#' 뒤를 버리지 못하도록 
-      // 리다이렉트 주소에 명시적으로 /#/ 를 붙여줍니다. 
-      // 이렇게 해야 돌아올 때 404 깜빡임 없이 리액트 앱으로 바로 진입합니다.
-      const redirectUrl = `${window.location.origin}/#/`;
-
+      // [대안] 404를 방지하기 위해 '#'을 빼고 순수 도메인(origin)만 리다이렉트 주소로 넘깁니다.
+      // 카카오 인증이 끝나면 일단 메인(index.html)으로 돌아옵니다.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-          redirectTo: redirectUrl
+          redirectTo: window.location.origin
         }
       });
       if (error) throw error;
@@ -39,11 +36,10 @@ export default function AuthPage() {
         password: values.password
       });
       if (error) throw error;
-
-      // [중요] 여기에서 setLocation("/")을 절대 사용하지 않습니다.
-      // 로그인이 완료되면 각 페이지(ReadingPage 등)의 onAuthStateChange 리스너가
-      // 세션을 감지하여 모달만 닫거나 화면을 갱신할 것입니다.
-
+      
+      // [중요] 일반 로그인 성공 시에도 강제 이동(setLocation)을 하지 않습니다.
+      // 이 로직은 호출한 부모 페이지(ReadingPage 등)의 리스너에서 처리합니다.
+      
     } catch (error: any) {
       alert("로그인 실패: " + error.message);
     }
@@ -62,7 +58,7 @@ export default function AuthPage() {
             <Label className="text-sm font-bold text-gray-500 ml-1">아이디</Label>
             <Input 
               {...form.register("username")} 
-              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6 focus:ring-2 focus:ring-[#7180B9]" 
+              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" 
               placeholder="아이디 입력" 
             />
           </div>
@@ -71,19 +67,18 @@ export default function AuthPage() {
             <Input 
               {...form.register("password")} 
               type="password" 
-              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6 focus:ring-2 focus:ring-[#7180B9]" 
+              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" 
               placeholder="비밀번호 입력" 
             />
           </div>
           
           <Button 
-            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4 active:scale-[0.98] transition-all" 
+            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4" 
             type="submit"
           >
             로그인하기
           </Button>
 
-          {/* 카카오 로그인 버튼 */}
           <button 
             type="button"
             onClick={handleKakaoLogin}
