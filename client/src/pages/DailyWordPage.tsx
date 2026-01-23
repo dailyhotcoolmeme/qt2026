@@ -345,7 +345,7 @@ const stopAudio = () => {
     onClick={() => (document.getElementById('date-picker') as any).showPicker()}
   >
     <p 
-      className="text-gray-400 font-bold transition-all duration-200 group-hover:text-gray-700 group-active:scale-95 flex items-center justify-center gap-1"
+      className="text-gray-400 font-bold transition-all duration-200 group-hover:text-gray-400 group-active:scale-95 flex items-center justify-center gap-1"
       style={{ fontSize: `${fontSize - 2}px` }}
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -398,7 +398,7 @@ const stopAudio = () => {
                 )}
               </div>
               {bibleData && (
-                <div className="mt-5 pt-5 px-10 border-t border-white/20 flex justify-center">
+                <div className="mt-5 pt-5 border-t border-white/20 flex justify-center">
                   <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
                     {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                   </p>
