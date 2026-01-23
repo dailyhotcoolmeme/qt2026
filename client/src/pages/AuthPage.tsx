@@ -35,7 +35,6 @@ export default function AuthPage() {
         password: values.password
       });
       if (error) throw error;
-      setLocation("/");
     } catch (error: any) {
       alert("로그인 실패: " + error.message);
     }
