@@ -384,22 +384,22 @@ const stopAudio = () => {
         <Card className="border-none bg-[#5D7BAF] shadow-sm overflow-hidden rounded-lg">
           <CardContent className="pt-5 pb-5 px-5">
             <div className="text-center py-1">
-              <div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
+              <div className="text-white leading-[1.8] break-keep px-4 pb-0 font-bold text-center">
                 {bibleData ? (
                   <div className="flex flex-col gap-5"> 
                     {formatBibleContent(bibleData.content)?.map((verse, idx) => (
-                      <p key={idx} font-bold style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
+                      <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
                         {verse.text.trim()}
                       </p>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-white pb-6">등록된 말씀이 없습니다.</p>
+                  <p className="text-white pb-5">등록된 말씀이 없습니다.</p>
                 )}
               </div>
               {bibleData && (
-                <div className="mt-8 pt-4 border-t border-white/20 flex justify-center">
-                  <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
+                <div className="mt-5 pt-5 border-t border-white/20 flex justify-center">
+                  <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-5 rounded-full">
                     {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                   </p>
                 </div>
