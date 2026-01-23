@@ -388,7 +388,7 @@ const stopAudio = () => {
                 {bibleData ? (
                   <div className="flex flex-col gap-5"> 
                     {formatBibleContent(bibleData.content)?.map((verse, idx) => (
-                      <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
+                      <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.7' }}>
                         {verse.text.trim()}
                       </p>
                     ))}
