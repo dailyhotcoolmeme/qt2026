@@ -15,12 +15,15 @@ export default function AuthPage() {
   // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
     try {
+      // [핵심 대안] HashRouter 사용 시, 카카오가 '#' 뒤를 버리지 못하도록 
+      // 리다이렉트 주소에 명시적으로 /#/ 를 붙여줍니다. 
+      // 이렇게 해야 돌아올 때 404 깜빡임 없이 리액트 앱으로 바로 진입합니다.
+      const redirectUrl = `${window.location.origin}/#/`;
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-          // [수정] Hash(#) 방식에서는 href 대신 origin을 사용해야 404를 방지합니다.
-          // 인증 후 메인으로 오면, 각 페이지의 리스너가 모달을 닫고 상태를 유지합니다.
-          redirectTo: window.location.origin
+          redirectTo: redirectUrl
         }
       });
       if (error) throw error;
@@ -37,9 +40,9 @@ export default function AuthPage() {
       });
       if (error) throw error;
 
-      // [확인] 여기에 setLocation("/")이 없는 것이 맞습니다.
-      // 로그인이 성공하면 ReadingPage.tsx 등 호출한 곳의 
-      // onAuthStateChange 리스너가 감지하여 모달을 닫습니다.
+      // [중요] 여기에서 setLocation("/")을 절대 사용하지 않습니다.
+      // 로그인이 완료되면 각 페이지(ReadingPage 등)의 onAuthStateChange 리스너가
+      // 세션을 감지하여 모달만 닫거나 화면을 갱신할 것입니다.
 
     } catch (error: any) {
       alert("로그인 실패: " + error.message);
@@ -74,12 +77,13 @@ export default function AuthPage() {
           </div>
           
           <Button 
-            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4 active:scale-[0.98] transition-transform" 
+            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4 active:scale-[0.98] transition-all" 
             type="submit"
           >
             로그인하기
           </Button>
 
+          {/* 카카오 로그인 버튼 */}
           <button 
             type="button"
             onClick={handleKakaoLogin}
