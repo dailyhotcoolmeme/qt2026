@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Button } from "../components/ui/button";
 import { Card, CardContent } from "../components/ui/card";
+import { Textarea } from "../components/ui/textarea";
 import { 
   ChevronLeft, ChevronRight, CheckCircle2, Mic, Pause, Play, X,
-  BookOpen, BarChart3, PenLine, Settings2
+  BookOpen, BarChart3, PenLine
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -16,27 +17,26 @@ export default function ReadingPage() {
   
   // 상태 관리
   const [loading, setLoading] = useState(true);
-  const [goal, setGoal] = useState<any>(null); // 오늘 설정한 목표
-  const [currentReadChapter, setCurrentReadChapter] = useState<number>(1); // 현재 읽고 있는 장
-  const [bibleContent, setBibleContent] = useState<any[]>([]); // 현재 장의 말씀들
-  const [isReadCompleted, setIsReadCompleted] = useState(false); // 현재 장 읽기 완료 여부
-  const [memo, setMemo] = useState(""); // 오늘 읽은 소감 기록
+  const [goal, setGoal] = useState<any>(null); 
+  const [currentReadChapter, setCurrentReadChapter] = useState<number>(1);
+  const [bibleContent, setBibleContent] = useState<any[]>([]);
+  const [isReadCompleted, setIsReadCompleted] = useState(false);
+  const [memo, setMemo] = useState("");
 
-  // 음성 관련
+  // 음성 재생 관련
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // 초기 로드: 날짜 변경 시 목표 및 데이터 호출
+  // 날짜 변경 시 데이터 로드 (DailyWordPage 로직과 동일)
   useEffect(() => {
     fetchDailyGoal();
   }, [currentDate]);
 
-  // 목표(Goal)를 가져오고, 해당 목표의 첫 장을 로드함
   const fetchDailyGoal = async () => {
     setLoading(true);
     const formattedDate = currentDate.toISOString().split('T')[0];
     
-    // 1. 해당 날짜의 사용자의 읽기 목표를 가져옴 (예시 테이블: reading_goals)
+    // 사용자의 목표를 가져오는 쿼리 (예시 테이블명: reading_goals)
     const { data: goalData } = await supabase
       .from('reading_goals')
       .select('*')
@@ -54,29 +54,24 @@ export default function ReadingPage() {
     setLoading(false);
   };
 
-  // 특정 장의 성경 본문을 가져옴
   const fetchBibleContent = async (bookName: string, chapter: number) => {
     const { data } = await supabase
-      .from('bible_verses') // 실제 성경 데이터가 들어있는 테이블
+      .from('bible_verses')
       .select('*')
       .eq('book_name', bookName)
       .eq('chapter', chapter)
       .order('verse', { ascending: true });
-    
     setBibleContent(data || []);
-    // 해당 장을 이미 읽었는지 체크하는 로직 필요 (reading_progress 테이블 확인)
   };
 
-  // 읽기 완료 체크 함수
-  const handleCompleteChapter = async () => {
-    // DB 업데이트 로직 (진척율 반영)
+  const handleCompleteChapter = () => {
     setIsReadCompleted(true);
-    alert(`${currentReadChapter}장을 완료하셨습니다!`);
+    // 진척율 업데이트 로직 추가 지점
   };
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      {/* 1. 헤더: DailyWordPage 스타일의 날짜 선택 */}
+      {/* [헤더] DailyWordPage 디자인 100% 복사본 */}
       <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
           <Button variant="ghost" size="icon" onClick={() => {
@@ -85,14 +80,15 @@ export default function ReadingPage() {
           
           <div className="text-center relative">
             <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>성경 읽기</h1>
-            <div className="relative cursor-pointer flex flex-col items-center" 
+            <div className="relative cursor-pointer group flex flex-col items-center" 
                  onClick={() => (document.getElementById('date-picker') as any).showPicker()}>
-              <p className="text-sm text-gray-400 font-bold" style={{ fontSize: `${fontSize - 2}px` }}>
+              <p className="text-sm text-gray-400 font-bold transition-all duration-200 group-hover:text-[#5D7BAF] group-active:scale-95 flex items-center justify-center gap-1"
+                 style={{ fontSize: `${fontSize - 2}px` }}>
                 {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
                 {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-                <span className="text-[12px] opacity-50 ml-1">▼</span>
+                <span className="text-[12px] opacity-50">▼</span>
               </p>
-              <input id="date-picker" type="date" className="absolute inset-0 w-full h-full opacity-0"
+              <input id="date-picker" type="date" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                      max={today.toISOString().split("T")[0]}
                      value={currentDate.toISOString().split("T")[0]}
                      onChange={(e) => e.target.value && setCurrentDate(new Date(e.target.value))} />
@@ -107,46 +103,48 @@ export default function ReadingPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-4 px-4 pb-24 space-y-6">
-        {/* 2. 진척율 섹션 */}
-        <div className="bg-blue-50/50 rounded-2xl p-4 flex items-center justify-between border border-blue-100/50">
+        {/* 진척율 섹션 */}
+        <div className="bg-gray-50 rounded-2xl p-5 flex items-center justify-between border border-gray-100 shadow-sm">
           <div className="flex items-center gap-3">
             <BarChart3 className="text-[#5D7BAF] w-5 h-5" />
-            <span className="text-sm font-bold text-gray-600">오늘의 진척율</span>
+            <span className="text-sm font-bold text-gray-500">오늘의 진척율</span>
           </div>
-          <span className="text-[#5D7BAF] font-black text-lg">35%</span>
+          <span className="text-[#5D7BAF] font-black text-xl">35%</span>
         </div>
 
-        {/* 3. 말씀 읽기 카드 */}
+        {/* 말씀 카드: #5D7BAF 색상 및 디자인 복구 */}
         {goal ? (
-          <Card className="border-none bg-[#92A9C9] shadow-none rounded-2xl">
-            <CardContent className="pt-8 pb-6 px-6">
-              <div className="flex justify-between items-center mb-6 text-white/80 font-bold">
-                <span>{goal.start_book_name} {currentReadChapter}장</span>
-                <button className="bg-white/20 p-2 rounded-full"><Mic size={18} /></button>
+          <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-sm">
+            <CardContent className="pt-8 pb-5 px-6">
+              <div className="flex justify-between items-center mb-6 text-white font-bold">
+                <span style={{ fontSize: `${fontSize}px` }}>{goal.start_book_name} {currentReadChapter}장</span>
+                <button className="bg-white/20 p-2 rounded-full active:bg-white/30 transition-colors"><Mic size={18} /></button>
               </div>
               
-              <div className="space-y-4 text-white leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+              <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar text-white leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
                 {bibleContent.map((v, idx) => (
-                  <div key={idx} className="flex gap-3">
-                    <span className="opacity-60 text-sm mt-1">{v.verse}</span>
-                    <p className="break-keep">{v.content}</p>
+                  <div key={idx} className="grid grid-cols-[1.8rem_1fr] items-start mb-3">
+                    <span className="font-base opacity-70 text-right pr-2 pt-[0.3px] text-sm">{v.verse}</span>
+                    <span className="break-keep">{v.content}</span>
                   </div>
                 ))}
               </div>
 
-              {/* 페이지네이션 버튼 */}
-              <div className="mt-10 flex items-center justify-between gap-4">
-                <Button variant="ghost" className="text-white hover:bg-white/10"
+              {/* 페이지네이션 및 완료 버튼 */}
+              <div className="mt-8 pt-5 border-t border-white/20 flex items-center justify-between gap-2">
+                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 h-12"
                         disabled={currentReadChapter <= goal.start_chapter}>
-                  <ChevronLeft className="mr-1" /> 이전 장
+                  <ChevronLeft className="mr-1 w-4 h-4" /> 이전
                 </Button>
-                <Button className="bg-white text-[#92A9C9] font-black rounded-full px-6 shadow-lg"
+                
+                <Button className="bg-white text-[#5D7BAF] font-black rounded-full px-6 h-12 shadow-md flex-none active:scale-95 transition-transform"
                         onClick={handleCompleteChapter}>
-                  {isReadCompleted ? "읽기 완료됨" : "읽기 완료 체크"}
+                  {isReadCompleted ? <CheckCircle2 className="w-5 h-5" /> : "읽기 완료"}
                 </Button>
-                <Button variant="ghost" className="text-white hover:bg-white/10"
+
+                <Button variant="ghost" className="text-white hover:bg-white/10 flex-1 h-12 text-right"
                         disabled={currentReadChapter >= goal.end_chapter}>
-                  다음 장 <ChevronRight className="ml-1" />
+                  다음 <ChevronRight className="ml-1 w-4 h-4" />
                 </Button>
               </div>
             </CardContent>
@@ -154,27 +152,29 @@ export default function ReadingPage() {
         ) : (
           <div className="py-20 text-center space-y-4">
             <BookOpen className="w-12 h-12 text-gray-200 mx-auto" />
-            <p className="text-gray-400 font-medium">오늘 설정된 목표가 없습니다.<br/>새로운 목표를 설정해 보세요!</p>
-            <Button className="bg-[#5D7BAF] rounded-full px-8">목표 설정하기</Button>
+            <p className="text-gray-400 font-bold">오늘 설정된 목표가 없습니다.</p>
+            <Button className="bg-[#5D7BAF] rounded-full px-8 font-bold">목표 설정하기</Button>
           </div>
         )}
 
-        {/* 4. 기록 남기기 (목표가 있을 때만 노출) */}
+        {/* 기록 남기기 */}
         {goal && (
-          <div className="mt-10 space-y-4">
-            <div className="flex items-center gap-2">
+          <div className="mt-6 px-1">
+            <div className="flex items-center gap-2 mb-3">
               <PenLine className="w-5 h-5 text-[#5D7BAF]" />
-              <h3 className="font-bold text-[#5D7BAF]">오늘 읽은 말씀 기록</h3>
+              <h3 className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize + 1}px` }}>오늘 읽은 말씀 기록</h3>
             </div>
-            <Textarea 
-              placeholder="오늘 읽은 말씀 중 기억에 남는 구절이나 소감을 적어보세요."
-              className="bg-gray-50 border-none rounded-2xl min-h-[120px] p-4"
-              value={memo}
-              onChange={(e) => setMemo(e.target.value)}
-            />
-            <Button className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black text-lg shadow-md">
-              기록 저장하기
-            </Button>
+            <div className="bg-gray-100/50 rounded-2xl p-5 border border-gray-100 space-y-4 shadow-sm">
+              <Textarea 
+                placeholder="기억에 남는 말씀이나 소감을 기록하세요."
+                className="bg-white border-none resize-none min-h-[120px] p-4 text-gray-600 rounded-xl text-sm shadow-inner"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+              />
+              <Button className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black text-lg shadow-md active:bg-[#4A638F]">
+                기록 저장하기
+              </Button>
+            </div>
           </div>
         )}
       </main>
