@@ -428,8 +428,8 @@ const stopAudio = () => {
             </button>
           </div>
 
-          <div className="pt-20 space-y-4 px-2">
-            <div className="flex items-center gap-2 px-2">
+          <div className="pt-20 space-y-4 px-1">
+            <div className="flex items-center gap-2 px-1">
               <MessageCircle className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-[#5D7BAF]">함께 나누기</h3>
             </div>
@@ -441,7 +441,6 @@ const stopAudio = () => {
                 </div>
               )}
               <Textarea 
-                placeholder="오늘 말씀 어떠셨나요"
                 className="bg-white border-none focus-visible:ring-1 ring-blue-150 resize-none min-h-[80px] p-2 text-[#5D7BAF] font-semibold"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
