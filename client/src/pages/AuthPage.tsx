@@ -14,20 +14,14 @@ export default function AuthPage() {
 
   // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: {
-          // [수정] 주소 꼬임을 방지하기 위해 도메인 원형만 전달합니다.
-          // 수파베이스 Redirect URLs에 등록한 https://qt2026.vercel.app 과 일치해야 합니다.
-          redirectTo: window.location.origin 
-        }
-      });
-      if (error) throw error;
-    } catch (error: any) {
-      alert("카카오 로그인 실패: " + error.message);
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "kakao",
+    options: {
+      redirectTo: `${window.location.origin}/#/auth`
     }
-  };
+  });
+  if (error) alert(error.message);
+};
 
   const onSubmit = async (values: any) => {
     try {
