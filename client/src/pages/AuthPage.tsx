@@ -14,16 +14,10 @@ export default function AuthPage() {
 
   // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
-  // 현재 페이지가 /auth(모달 등)라면 메인으로, 아니라면 현재 보고 있던 메뉴 주소를 가져옵니다.
-  const returnUrl = window.location.hash.includes('auth') 
-    ? window.location.origin 
-    : window.location.origin + window.location.pathname + window.location.hash;
-
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "kakao",
     options: {
-      // 주소 뒤에 /auth를 붙이지 말고 현재 도메인 원본을 전달합니다.
-      // Supabase 설정에서 https://qt2026.vercel.app/** 를 허용해두어야 합니다.
+      // 주소 뒤에 /#/auth를 붙이지 말고 origin만 보냅니다.
       redirectTo: window.location.origin 
     }
   });
