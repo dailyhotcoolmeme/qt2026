@@ -408,23 +408,23 @@ const stopAudio = () => {
           </CardContent>
         </Card>
 
-        <div className="pt-2 pb-24 px-1 space-y-6">
+        <div className="pt-2 pb-2 px-1 space-y-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
               <Mic className="w-5 h-5 text-[#5D7BAF]" />
-              <span className="text-[#5D7BAF] text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>음성으로 듣기</span>
+              <span className="text-[#5D7BAF] text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>음성 재생</span>
             </button>
             <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5">
               <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400" : "text-gray-400"}`} />
-              <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
+              <span className="text-gray-400 text-sm font-normal" style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
             </button>
             <button onClick={handleCopyBibleText} className="flex flex-row items-center gap-1.5">
               <Copy className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
+              <span className="text-gray-400 text-sm font-normal" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
             </button>
             <button onClick={handleShareBibleText} className="flex flex-row items-center gap-1.5">
               <Share2 className="w-5 h-5 text-gray-400" />
-              <span className="text-gray-400 text-sm font-bold" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
+              <span className="text-gray-400 text-sm font-normal" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
             </button>
           </div>
 
