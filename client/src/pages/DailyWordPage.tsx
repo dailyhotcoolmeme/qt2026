@@ -380,8 +380,8 @@ const stopAudio = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pt-0 px-4 pb-10 space-y-3">
-        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-xs">
+      <main className="flex-1 overflow-y-auto pt-0 px-4 pb-10 space-y-3 bg-gray-100">
+        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-none">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="text-center py-1">
               <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
