@@ -159,7 +159,7 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
     }
   };
 
-          const handlePlayAudio = async () => {
+    const handlePlayAudio = async () => {
     if (!bibleData) return;
     
     // 현재 재생 중인 위치(초)를 기억 (이어듣기용)
@@ -178,16 +178,20 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
         : (bibleData.bible_books as any).book_order?.toString() || '0';
     }
 
-    const chapter = bibleData.chapter;
+        const chapter = bibleData.chapter;
     const verse = bibleData.verse.replace(/:/g, '_');
     
     // 성별 구분자(_F, _M) 포함 파일명
     const fileName = `qt_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
     const storagePath = `qt/${fileName}`; 
 
+    // 본문에서 숫자와 마침표(예: 1.) 제거
     const cleanText = bibleData.content.replace(/\d+\.\s+/g, "");
+    // 시편은 '편', 나머지는 '장'으로 단위 설정
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
+    
+    // 핵심 수정: cleanContent를 cleanText로 변경하여 정상 작동하게 함
+    const textToSpeak = `${cleanText}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
 
 
     try {
