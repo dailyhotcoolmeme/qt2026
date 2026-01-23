@@ -7,7 +7,7 @@ export function BottomNav() {
   const tabs = [
     { id: "word", label: "오늘의 말씀", path: "/" },
     { id: "qt", label: "오늘의 묵상", path: "/qt" },
-    { id: "reading", label: "성경 통독", path: "/reading" },
+    { id: "reading", label: "성경 읽기", path: "/reading" },
     { id: "archive", label: "내 기록함", path: "/archive" },
   ];
 
