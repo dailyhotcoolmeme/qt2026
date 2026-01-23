@@ -11,79 +11,76 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import AuthPage from "./AuthPage";
 
+// [대안] 서버 응답 지연 및 누락 방지를 위한 고정 장수 데이터
+const BIBLE_CHAPTERS_MAX: Record<string, number> = {
+  "창세기": 50, "출애굽기": 40, "레위기": 27, "민수기": 36, "신명기": 34, "여호수아": 24, "사사기": 21, "루기": 4, 
+  "사무엘상": 31, "사무엘하": 24, "열왕기상": 22, "열왕기하": 25, "역대상": 29, "역대하": 36, "에스라": 10, "느헤미야": 13, 
+  "에스더": 10, "욥기": 42, "시편": 150, "잠언": 31, "전도서": 12, "아가": 8, "이사야": 66, "예레미야": 52, 
+  "예레미야 애가": 5, "에스겔": 48, "다니엘": 12, "호세아": 14, "요엘": 3, "아모스": 9, "오바댜": 1, "요나": 4, 
+  "미가": 7, "나훔": 3, "하박국": 3, "스바냐": 3, "학개": 2, "스가랴": 14, "말라기": 4,
+  "마태복음": 28, "마가복음": 16, "누가복음": 24, "요한복음": 21, "사도행전": 28, "로마서": 16, "고린도전서": 16, 
+  "고린도후서": 13, "갈라디아서": 6, "에베소서": 6, "빌립보서": 4, "골로새서": 4, "데살로니가전서": 5, "데살로니가후서": 3, 
+  "디모데전서": 6, "디모데후서": 4, "디도서": 3, "빌레몬서": 1, "히브리서": 13, "야고보서": 5, "베드로전서": 5, 
+  "베드로후서": 3, "요한1서": 5, "요한2서": 1, "요한3서": 1, "유다서": 1, "요한계시록": 22
+};
+
 export default function ReadingPage() {
   const { fontSize } = useDisplaySettings();
   const [currentDate, setCurrentDate] = useState(new Date());
-  
-  // 상태 관리
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  
   const [books, setBooks] = useState<any[]>([]);
   const [bibleContent, setBibleContent] = useState<any[]>([]);
-  const [readHistory, setReadHistory] = useState<any[]>([]); 
-
   const [isGoalSet, setIsGoalSet] = useState(false);
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [memo, setMemo] = useState("");
 
   const [showModal, setShowModal] = useState<{show: boolean, type: 'START' | 'END'}>({ show: false, type: 'START' });
-  const [modalStep, setModalStep] = useState<'TESTAMENT' | 'BOOK' | 'CHAPTER'>('CHAPTER');
+  const [modalStep, setModalStep] = useState<'BOOK' | 'CHAPTER'>('BOOK');
   const [tempSelection, setTempSelection] = useState<any>(null);
-  const [alertConfig, setAlertConfig] = useState<{show: boolean, title: string, desc: string, action?: () => void, isConfirm?: boolean} | null>(null);
+  const [alertConfig, setAlertConfig] = useState<any>(null);
 
   const [goal, setGoal] = useState({
-    startBook: { id: 1, name: "창세기", book_order: 1 },
+    startBook: { id: 1, name: "창세기", order: 1 },
     startChapter: 1,
-    endBook: { id: 1, name: "창세기", book_order: 1 },
+    endBook: { id: 1, name: "창세기", order: 1 },
     endChapter: 1
   });
 
-  // 1. 초기 데이터 로드 및 404 방어
+  // 1. 초기 로드 및 새로고침 대응
   useEffect(() => {
     async function init() {
-      // bible_books 테이블 구조 반영: Id, book_name, book_order
       const { data: bookData } = await supabase.from('bible_books').select('Id, book_name, book_order').order('book_order', { ascending: true });
       if (bookData) setBooks(bookData);
 
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setIsAuthenticated(true);
-        loadUserData(session.user.id);
+        const saved = localStorage.getItem('reading_goal');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setGoal(parsed.goal);
+          setIsGoalSet(parsed.isGoalSet);
+          setCurrentReadChapter(parsed.currentChapter || parsed.goal.startChapter);
+        }
       }
     }
     init();
 
-    // 로그인 시 홈으로 튕기는 문제 방지 (리다이렉트 로직 제거)
+    // 로그인 시 홈 이동 방지
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' && session) {
         setIsAuthenticated(true);
-        loadUserData(session.user.id);
-        setShowLoginModal(false); 
-      } else if (event === 'SIGNED_OUT') {
-        setIsAuthenticated(false);
-        setIsGoalSet(false);
-        localStorage.removeItem('reading_goal');
+        setShowLoginModal(false);
       }
     });
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-  const loadUserData = async (userId: string) => {
-    const { data: history } = await supabase.from('user_bible_progress').select('*').eq('user_id', userId);
-    if (history) setReadHistory(history);
-
-    const saved = localStorage.getItem('reading_goal');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setGoal(parsed.goal);
-      setIsGoalSet(parsed.isGoalSet);
-      setCurrentReadChapter(parsed.currentChapter || parsed.goal.startChapter);
-    }
-  };
-
-  // 말씀 로드 (bible_verses 테이블 구조 반영: book_name, chapter, verse, content)
+  // 말씀 데이터 로드
   useEffect(() => {
     if (isGoalSet) {
       const fetchBible = async () => {
@@ -102,52 +99,31 @@ export default function ReadingPage() {
 
   // 목표 저장
   useEffect(() => {
-    if (isGoalSet && isAuthenticated) {
+    if (isGoalSet) {
       localStorage.setItem('reading_goal', JSON.stringify({ goal, isGoalSet, currentChapter: currentReadChapter }));
     }
-  }, [goal, isGoalSet, currentReadChapter, isAuthenticated]);
+  }, [goal, isGoalSet, currentReadChapter]);
 
-  // [수정 핵심] bible_verses에서 해당 권의 최대 장수를 가져오는 로직
-  const handleBookSelect = async (book: any) => {
-    setLoading(true);
-    // bible_verses에서 해당 권의 가장 큰 chapter 값을 가져옴
-    const { data } = await supabase
-      .from('bible_verses')
-      .select('chapter')
-      .eq('book_name', book.book_name)
-      .order('chapter', { ascending: false })
-      .limit(1);
-
-    const totalChapters = data && data.length > 0 ? data[0].chapter : 1;
-
+  // 권 선택 시 장 리스트 갱신 (대안: 고정 데이터 사용)
+  const handleBookSelect = (book: any) => {
     setTempSelection({
       id: book.Id,
       name: book.book_name,
-      book_name: book.book_name,
-      book_order: book.book_order,
-      total_chapters: totalChapters, // 동적으로 가져온 장수 적용
+      order: book.book_order,
+      total_chapters: BIBLE_CHAPTERS_MAX[book.book_name] || 50,
       chapter: 1
     });
-    setLoading(false);
     setModalStep('CHAPTER'); 
   };
 
   const handleFinalChapterSelect = (chapter: number) => {
-    const bookInfo = { 
-      id: tempSelection.id, 
-      name: tempSelection.book_name, 
-      book_order: tempSelection.book_order
-    };
+    const bookInfo = { id: tempSelection.id, name: tempSelection.name, order: tempSelection.order };
 
     if (showModal.type === 'START') {
       setGoal({ ...goal, startBook: bookInfo, startChapter: chapter, endBook: bookInfo, endChapter: chapter });
     } else {
-      // book_order를 기준으로 선후 관계 파악
-      const isEarlier = tempSelection.book_order < goal.startBook.book_order || 
-                       (tempSelection.book_order === goal.startBook.book_order && chapter < goal.startChapter);
-      
-      if (isEarlier) {
-        setAlertConfig({ show: true, title: "범위 오류", desc: "종료 위치는 시작 위치보다 이전일 수 없습니다.", isConfirm: false });
+      if (tempSelection.order < goal.startBook.order || (tempSelection.order === goal.startBook.order && chapter < goal.startChapter)) {
+        setAlertConfig({ show: true, title: "범위 오류", desc: "종료 위치가 시작보다 빠를 수 없습니다." });
         return;
       }
       setGoal({ ...goal, endBook: bookInfo, endChapter: chapter });
@@ -157,95 +133,75 @@ export default function ReadingPage() {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      <header className="flex-none w-full bg-white border-b border-gray-50 z-[100] shadow-sm">
+      <header className="flex-none w-full bg-white border-b border-gray-50 z-[100]">
         <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() - 1); setCurrentDate(d); }}><ChevronLeft /></Button>
-          <div className="text-center">
-            <h1 className="text-[#5D7BAF] font-black" style={{ fontSize: `${fontSize + 3}px` }}>성경 읽기</h1>
-            <p className="text-xs text-gray-400 font-bold">{currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate()-1)))}><ChevronLeft /></Button>
+          <div className="text-center font-black">
+            <h1 className="text-[#5D7BAF]" style={{ fontSize: `${fontSize + 3}px` }}>성경 읽기</h1>
+            <p className="text-xs text-gray-400">{currentDate.toLocaleDateString()}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => { const d = new Date(currentDate); d.setDate(d.getDate() + 1); if (d <= new Date()) setCurrentDate(d); }}><ChevronRight /></Button>
+          <Button variant="ghost" size="icon" onClick={() => setCurrentDate(new Date(currentDate.setDate(currentDate.getDate()+1)))}><ChevronRight /></Button>
         </div>
       </header>
 
       <main className="flex-1 overflow-y-auto p-4 pb-24 space-y-6">
-        {/* 대시보드 */}
-        <div className="grid grid-cols-2 gap-3 h-24">
-          <div className="bg-[#5D7BAF] rounded-2xl p-4 flex flex-col justify-center shadow-md">
-            <p className="text-white/70 font-bold text-[10px] mb-1">성경 전체 통독율</p>
-            <p className="text-white font-black text-xl mb-1">12.5%</p>
-            <div className="w-full bg-white/20 h-1 rounded-full"><div className="bg-white h-full" style={{ width: '12.5%' }} /></div>
-          </div>
-          <div className="bg-gray-50 border border-gray-100 rounded-2xl p-4 flex flex-col justify-center">
-            <p className="text-gray-400 font-bold text-[10px] mb-1">오늘 목표 진척도</p>
-            <p className="text-[#5D7BAF] font-black text-xl mb-1">40%</p>
-            <div className="w-full bg-gray-200 h-1 rounded-full"><div className="bg-[#5D7BAF] h-full" style={{ width: '40%' }} /></div>
-          </div>
-        </div>
-
         {!isGoalSet ? (
           <div className="relative bg-white rounded-[32px] border-2 border-[#5D7BAF]/10 p-7 shadow-sm">
             {!isAuthenticated && (
-              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/85 backdrop-blur-sm rounded-[32px]">
+              <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm rounded-[32px]">
                 <Lock className="w-10 h-10 text-[#5D7BAF] mb-4 opacity-30" />
                 <Button onClick={() => setShowLoginModal(true)} className="bg-[#5D7BAF] font-black rounded-full px-10 h-14 shadow-xl">로그인 후 시작하기</Button>
               </div>
             )}
             <div className="space-y-6">
-              <div className="flex items-center gap-2 text-[#5D7BAF]">
-                <BookOpen className="w-6 h-6" />
-                <h3 className="font-black text-lg">오늘의 읽기 목표 정하기</h3>
-              </div>
+              <div className="flex items-center gap-2 text-[#5D7BAF] font-black"><BookOpen /> 오늘의 목표 정하기</div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 cursor-pointer" onClick={() => { setTempSelection({...goal.startBook, book_name: goal.startBook.name}); setModalStep('BOOK'); setShowModal({show: true, type: 'START'}); }}>
+                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 cursor-pointer" onClick={() => { setModalStep('BOOK'); setShowModal({show: true, type: 'START'}); }}>
                   <p className="text-xs font-bold text-gray-400 mb-1">시작 위치</p>
                   <p className="font-black text-gray-700">{goal.startBook.name} {goal.startChapter}장</p>
                 </div>
-                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 cursor-pointer" onClick={() => { setTempSelection({...goal.endBook, book_name: goal.endBook.name}); setModalStep('BOOK'); setShowModal({show: true, type: 'END'}); }}>
+                <div className="bg-gray-50 p-5 rounded-3xl border border-gray-100 cursor-pointer" onClick={() => { setModalStep('BOOK'); setShowModal({show: true, type: 'END'}); }}>
                   <p className="text-xs font-bold text-gray-400 mb-1">종료 위치</p>
                   <p className="font-black text-gray-700">{goal.endBook.name} {goal.endChapter}장</p>
                 </div>
               </div>
-              <Button onClick={() => { setIsGoalSet(true); setCurrentReadChapter(goal.startChapter); }} className="w-full bg-[#5D7BAF] h-16 rounded-[24px] font-black text-xl shadow-lg">목표 확정</Button>
+              <Button onClick={() => setIsGoalSet(true)} className="w-full bg-[#5D7BAF] h-16 rounded-[24px] font-black text-xl">목표 확정</Button>
             </div>
           </div>
         ) : (
           <div className="space-y-6 animate-in fade-in">
-            <div className="flex justify-between items-center bg-gray-50 p-4 rounded-2xl border border-gray-100">
-              <div className="flex items-center gap-2 font-black text-[#5D7BAF]">
-                <CheckCircle2 size={18} />
-                <span>{goal.startBook.name} {goal.startChapter}장 ~ {goal.endBook.name} {goal.endChapter}장</span>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setIsGoalSet(false)} className="h-8 font-bold text-gray-400 hover:text-[#5D7BAF]"><Settings2 size={14} className="mr-1" /> 수정</Button>
-            </div>
-
-            <Card className="border-none bg-[#5D7BAF] shadow-2xl rounded-[32px] overflow-hidden text-white">
+            <Card className="border-none bg-[#5D7BAF] shadow-2xl rounded-[32px] text-white">
               <CardContent className="pt-10 pb-8 px-7">
-                <div className="flex justify-between items-center mb-8 font-black">
-                  <span className="text-xl">{goal.startBook.name} {currentReadChapter}장</span>
+                <div className="flex justify-between items-center mb-8 font-black text-xl">
+                  <span>{goal.startBook.name} {currentReadChapter}장</span>
                   <button className="bg-white/20 p-2 rounded-full"><Mic size={22} /></button>
                 </div>
-                <div className="min-h-[350px] max-h-[500px] overflow-y-auto pr-2" style={{ fontSize: `${fontSize}px` }}>
-                  {loading ? <div className="py-24 text-center opacity-60">말씀 로드 중...</div> : bibleContent.map((v, idx) => (
-                    <div key={idx} className="grid grid-cols-[2rem_1fr] items-start mb-5 leading-relaxed">
-                      <span className="font-bold opacity-40 text-right pr-4 pt-[3px] text-xs">{v.verse}</span>
-                      <span className="break-keep font-medium">{v.content}</span>
+                <div className="min-h-[350px] max-h-[500px] overflow-y-auto pr-2 leading-relaxed" style={{ fontSize: `${fontSize}px` }}>
+                  {loading ? <p className="text-center opacity-60 pt-20">로딩 중...</p> : bibleContent.map((v, i) => (
+                    <div key={i} className="mb-4 flex gap-3">
+                      <span className="opacity-40 text-xs font-bold pt-1">{v.verse}</span>
+                      <span>{v.content}</span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-10 pt-8 border-t border-white/10 flex items-center justify-between gap-3 font-black">
-                  <Button variant="ghost" className="text-white flex-1 h-14" onClick={() => currentReadChapter > goal.startChapter && setCurrentReadChapter(c => c - 1)} disabled={currentReadChapter <= goal.startChapter}><ChevronLeft size={24} /> 이전</Button>
-                  <Button onClick={() => setIsReadCompleted(!isReadCompleted)} className={`flex-none px-10 h-14 rounded-full shadow-xl transition-all ${isReadCompleted ? 'bg-green-500' : 'bg-white text-[#5D7BAF]'}`}>{isReadCompleted ? "완료됨" : "읽기 완료"}</Button>
-                  <Button variant="ghost" className="text-white flex-1 h-14" onClick={() => currentReadChapter < goal.endChapter && setCurrentReadChapter(c => c + 1)} disabled={currentReadChapter >= goal.endChapter}>다음 <ChevronRight size={24} /></Button>
+                <div className="mt-10 pt-8 border-t border-white/10 flex justify-between gap-3 font-black">
+                  <Button variant="ghost" className="text-white flex-1 h-14" onClick={() => setCurrentReadChapter(c => c - 1)} disabled={currentReadChapter <= goal.startChapter}><ChevronLeft /> 이전</Button>
+                  <Button onClick={() => setIsReadCompleted(!isReadCompleted)} className={`px-10 h-14 rounded-full ${isReadCompleted ? 'bg-green-500' : 'bg-white text-[#5D7BAF]'}`}>{isReadCompleted ? "완료됨" : "읽기 완료"}</Button>
+                  <Button variant="ghost" className="text-white flex-1 h-14" onClick={() => setCurrentReadChapter(c => c + 1)} disabled={currentReadChapter >= goal.endChapter}>다음 <ChevronRight /></Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* 하단 메모 기록장 (복구) */}
-            <div className="bg-gray-50 rounded-[28px] p-6 border border-gray-100 space-y-4 shadow-inner">
-               <div className="flex items-center gap-2 text-[#5D7BAF] font-black"><PenLine size={18} /> 오늘의 묵상 기록</div>
-               <Textarea placeholder="오늘 주신 말씀을 묵상하며 기록을 남겨보세요." className="bg-white border-none resize-none min-h-[140px] p-5 text-gray-700 rounded-2xl shadow-sm" value={memo} onChange={(e) => setMemo(e.target.value)} />
-               <Button className="w-full bg-[#5D7BAF] h-15 rounded-2xl font-black text-lg shadow-lg">기록 저장하기</Button>
+            {/* 하단 메모장 (복구) */}
+            <div className="bg-gray-50 rounded-[28px] p-6 border border-gray-100 space-y-4">
+              <div className="flex items-center gap-2 text-[#5D7BAF] font-black"><PenLine size={18} /> 오늘의 묵상</div>
+              <Textarea 
+                placeholder="말씀을 통해 느낀 점을 기록해 보세요." 
+                className="bg-white border-none resize-none min-h-[140px] rounded-2xl shadow-sm"
+                value={memo}
+                onChange={(e) => setMemo(e.target.value)}
+              />
+              <Button className="w-full bg-[#5D7BAF] h-14 rounded-2xl font-black">기록 저장하기</Button>
             </div>
           </div>
         )}
@@ -255,32 +211,22 @@ export default function ReadingPage() {
       <AnimatePresence>
         {showModal.show && (
           <div className="fixed inset-0 z-[300] flex items-end justify-center bg-black/70 backdrop-blur-sm">
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="w-full max-w-md bg-white rounded-t-[45px] shadow-2xl flex flex-col max-h-[85vh]">
-              <div className="p-8 pb-4">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="font-black text-[#5D7BAF] text-xl">위치 설정</h3>
-                  <button onClick={() => setShowModal({ ...showModal, show: false })} className="p-2 bg-gray-100 rounded-full text-gray-400"><X size={20}/></button>
-                </div>
-                <div className="flex items-center gap-2 bg-gray-50 p-2.5 rounded-2xl border border-gray-100 overflow-x-auto no-scrollbar">
-                  <span className={`px-4 py-2 rounded-xl font-bold text-sm flex-shrink-0 ${modalStep === 'BOOK' ? 'bg-[#5D7BAF] text-white shadow-md' : 'text-gray-400 cursor-pointer'}`} onClick={() => setModalStep('BOOK')}>{tempSelection?.book_name}</span>
-                  {modalStep === 'CHAPTER' && <><ArrowRight size={14} className="text-gray-300" /><span className="px-4 py-2 rounded-xl bg-[#5D7BAF] text-white font-bold text-sm flex-shrink-0">{tempSelection?.chapter}장</span></>}
-                </div>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="w-full max-w-md bg-white rounded-t-[40px] shadow-2xl flex flex-col max-h-[80vh]">
+              <div className="p-6 border-b flex justify-between items-center">
+                <h3 className="font-black text-[#5D7BAF]">{showModal.type === 'START' ? '시작' : '종료'} 위치 설정</h3>
+                <button onClick={() => setShowModal({ ...showModal, show: false })}><X /></button>
               </div>
-
-              <div className="flex-1 overflow-y-auto p-8 min-h-[400px]">
-                {modalStep === 'BOOK' && (
-                  <div className="grid grid-cols-2 gap-4">
+              <div className="flex-1 overflow-y-auto p-6">
+                {modalStep === 'BOOK' ? (
+                  <div className="grid grid-cols-2 gap-3">
                     {books.map(b => (
-                      <button key={b.Id} className="h-24 flex flex-col items-center justify-center rounded-[24px] border-2 bg-gray-50 border-transparent text-gray-500 font-black" onClick={() => handleBookSelect(b)}>
-                        {b.book_name}
-                      </button>
+                      <button key={b.Id} className="h-16 rounded-2xl border-2 border-gray-100 font-black text-gray-600 active:bg-[#5D7BAF] active:text-white" onClick={() => handleBookSelect(b)}>{b.book_name}</button>
                     ))}
                   </div>
-                )}
-                {modalStep === 'CHAPTER' && (
-                  <div className="grid grid-cols-5 gap-3">
-                    {[...Array(tempSelection?.total_chapters || 0)].map((_, i) => (
-                      <button key={i} className={`aspect-square rounded-[18px] flex items-center justify-center font-black text-base border-2 ${tempSelection?.chapter === i + 1 ? 'bg-[#5D7BAF] border-[#5D7BAF] text-white shadow-md scale-110' : 'bg-gray-50 border-transparent text-gray-400'}`} onClick={() => handleFinalChapterSelect(i + 1)}>{i + 1}</button>
+                ) : (
+                  <div className="grid grid-cols-5 gap-2">
+                    {[...Array(tempSelection?.total_chapters)].map((_, i) => (
+                      <button key={i} className="aspect-square rounded-xl border border-gray-200 font-black text-gray-500 active:bg-[#5D7BAF] active:text-white" onClick={() => handleFinalChapterSelect(i + 1)}>{i + 1}</button>
                     ))}
                   </div>
                 )}
@@ -290,12 +236,11 @@ export default function ReadingPage() {
         )}
       </AnimatePresence>
 
-      {/* 로그인 모달 */}
       <AnimatePresence>
         {showLoginModal && (
-          <div className="fixed inset-0 z-[500] flex items-center justify-center p-5 bg-black/70 backdrop-blur-md">
-            <div className="bg-white rounded-[45px] w-full max-w-sm relative p-8 shadow-2xl overflow-y-auto max-h-[85vh]">
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-8 right-8 text-gray-400 hover:text-gray-600"><X size={20}/></button>
+          <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/70 backdrop-blur-md p-5">
+            <div className="bg-white w-full max-w-sm rounded-[40px] p-8 relative">
+              <button className="absolute top-6 right-6" onClick={() => setShowLoginModal(false)}><X /></button>
               <AuthPage />
             </div>
           </div>
