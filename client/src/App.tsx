@@ -10,6 +10,7 @@ import { BottomNav } from "./components/BottomNav";
 import DailyWordPage from "./pages/DailyWordPage";
 import QTPage from "./pages/QTPage";
 import ReadingPage from "./pages/ReadingPage";
+import CommunityPage from "./pages/CommunityPage";
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
@@ -25,9 +26,10 @@ function Router() {
         <Route path="/" component={DailyWordPage} />
         <Route path="/qt" component={QTPage} />
         <Route path="/reading" component={ReadingPage} />
-        <Route path="/search" component={SearchPage} />
+        <Route path="/community" component={CommunityPage} />
         <Route path="/archive" component={ArchivePage} />
         <Route path="/auth" component={AuthPage} />
+        <Route path="/search" component={SearchPage} />
         <Route path="/register" component={RegisterPage} />
         <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
         <Route component={NotFound} />

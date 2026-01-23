@@ -1,86 +1,80 @@
 import { Link, useLocation } from "wouter";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { Button } from "./ui/button";
-import { Search, ChevronLeft } from "lucide-react"; // 1. ChevronLeft 추가
-import { useState } from "react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
+import { ChevronLeft, Menu, Type, Plus, Minus, Search, Settings, Bell, Calendar } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
 
 export function TopBar() {
-  const { fontSize, increaseFontSize, decreaseFontSize, fontFamily, setFontFamily } = useDisplaySettings();
-  const [location, setLocation] = useLocation(); // 2. [, setLocation] 에서 [location, setLocation]으로 변경
-  const [tempKeyword, setTempKeyword] = useState("");
-
-  // 3. 현재 페이지가 검색 결과 페이지인지 본문 보기 페이지인지 확인
-  const isInternalPage = location.startsWith("/search") || location.startsWith("/view");
-
-  const handleQuickSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tempKeyword.trim()) return;
-    setLocation(`/search?q=${encodeURIComponent(tempKeyword)}`);
-    setTempKeyword("");
-  };
+  const { fontSize, increaseFontSize, decreaseFontSize } = useDisplaySettings();
+  const [location] = useLocation();
+  const isInternalPage = location !== "/" && location !== "";
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/80 backdrop-blur-lg border-b border-zinc-100 px-3 py-3 flex items-center justify-between shadow-sm h-14">
-
-      {/* 4. 조건부 로고/뒤로가기: 메인이 아닐 땐 뒤로가기 버튼 표시 */}
-      {isInternalPage ? (
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => window.history.back()} 
-          className="flex-shrink-0 mr-2 w-8 h-8"
-        >
-          <ChevronLeft className="w-6 h-6 text-zinc-600" />
-        </Button>
-      ) : (
-        <Link href="/" className="flex-shrink-0 mr-2">
-          <img src="/icon-192.png" alt="로고" className="w-9 h-9" />
-        </Link>
-      )}
-
-      {/* 2. 빠른 검색창 */}
-      <form onSubmit={handleQuickSearch} className="flex-1 max-w-[130px] flex items-center bg-zinc-100 rounded-none px-2 h-9">
-        <input
-          type="text"
-          value={tempKeyword}
-          onChange={(e) => setTempKeyword(e.target.value)}
-          placeholder="검색어 입력"
-          className="flex-1 bg-transparent border-none outline-none text-sm text-zinc-800 w-full ml-1"
-        />
-        <button type="submit" className="p-1">
-          <Search className="w-4 h-4 text-zinc-400" />
-        </button>
-      </form>
-
-      {/* 3. 설정 영역 */}
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <div className="flex items-center bg-zinc-100 rounded-none overflow-hidden">
-          <Button variant="ghost" size="sm" onClick={decreaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-sm border-r border-zinc-200">작게-</Button>
-          <span className="text-sm font-bold text-gray-800 px-1.5 min-w-[28px] text-center tabular-nums bg-white h-8 flex items-center justify-center">
-            {fontSize}
-          </span>
-          
-          <Button variant="ghost" size="sm" onClick={increaseFontSize} className="h-8 px-2 rounded-none hover:bg-zinc-200 text-zinc-700 font-bold text-sm border-l border-zinc-200">크게+</Button>
-        </div>
+    <div className="fixed top-0 left-0 right-0 z-[150] bg-white/90 backdrop-blur-md border-b border-zinc-100 px-4 h-16 flex items-center justify-between shadow-sm">
+      
+      {/* 왼쪽: 뒤로가기 또는 햄버거 메뉴 */}
+      <div className="flex items-center gap-2">
+        {isInternalPage ? (
+          <Button variant="ghost" size="icon" onClick={() => window.history.back()} className="h-10 w-10 text-zinc-600">
+            <ChevronLeft className="w-6 h-6" />
+          </Button>
+        ) : (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-10 w-10 text-zinc-600">
+                <Menu className="w-6 h-6" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-[280px] p-0">
+              <SheetHeader className="p-6 border-b bg-zinc-50">
+                <SheetTitle className="flex items-center gap-2 text-[#6B8E78]">
+                  <img src="/logo.png" className="w-6 h-6" alt="로고" />
+                  묵상 일기
+                </SheetTitle>
+              </SheetHeader>
+              
+              {/* 사이드바 메뉴 리스트 */}
+              <div className="flex flex-col py-4">
+                <SidebarItem icon={<Search className="w-5 h-5" />} label="성경 검색" href="/search" />
+                <SidebarItem icon={<Calendar className="w-5 h-5" />} label="기록 캘린더" href="/archive" />
+                <SidebarItem icon={<Bell className="w-5 h-5" />} label="알림 설정" href="/settings/notis" />
+                <SidebarItem icon={<Settings className="w-5 h-5" />} label="앱 설정" href="/settings" />
+              </div>
+            </SheetContent>
+          </Sheet>
+        )}
         
-        <Select value={fontFamily} onValueChange={(val: string) => setFontFamily(val)}>
-          <SelectTrigger className="w-[130px] h-8 text-sm border border-zinc-200 bg-white font-bold focus:ring-0 focus:ring-offset-0 outline-none">
-            <SelectValue /> 
-          </SelectTrigger>
-          <SelectContent className="z-[200]"> 
-            <SelectItem value="sans-serif">고딕체</SelectItem>
-            <SelectItem value="serif">명조체</SelectItem>
-            <SelectItem value="monospace">나눔체</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* 앱 로고 (메인일 때만) */}
+        {!isInternalPage && (
+          <Link href="/" className="flex items-center gap-2">
+            <span className="text-xl font-extrabold text-[#6B8E78] tracking-tight">묵상 일기</span>
+          </Link>
+        )}
+      </div>
+
+      {/* 오른쪽: 글자 크기 조절 (아이콘 중심의 모던한 디자인) */}
+      <div className="flex items-center bg-zinc-100/80 rounded-full px-2 py-1 gap-1">
+        <button onClick={decreaseFontSize} className="p-1 hover:bg-white rounded-full transition-all shadow-sm">
+          <Minus className="w-4 h-4 text-zinc-500" />
+        </button>
+        <div className="flex items-center gap-1 px-2 border-x border-zinc-200">
+          <Type className="w-4 h-4 text-[#6B8E78]" />
+          <span className="text-[14px] font-bold text-zinc-700 w-5 text-center">{fontSize}</span>
+        </div>
+        <button onClick={increaseFontSize} className="p-1 hover:bg-white rounded-full transition-all shadow-sm">
+          <Plus className="w-4 h-4 text-zinc-500" />
+        </button>
       </div>
     </div>
+  );
+}
+
+// 사이드바 전용 메뉴 아이템 컴포넌트
+function SidebarItem({ icon, label, href }: { icon: React.ReactNode, label: string, href: string }) {
+  return (
+    <Link href={href} className="flex items-center gap-4 px-6 py-4 hover:bg-zinc-50 text-zinc-700 transition-colors border-b border-zinc-50/50">
+      <span className="text-zinc-400">{icon}</span>
+      <span className="text-[15px] font-medium">{label}</span>
+    </Link>
   );
 }
