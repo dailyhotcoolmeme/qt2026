@@ -13,17 +13,22 @@ export default function AuthPage() {
   });
 
   // 1. 카카오 로그인 실행 함수
-  const handleKakaoLogin = async () => {
-  const currentUrl = window.location.href; // 사용자가 현재 보고 있는 주소 그대로 가져옴
+  // AuthPage.tsx 수정본
+const handleKakaoLogin = async () => {
+  // window.location.href 대신 origin(도메인 루트)만 사용합니다.
+  // 예: https://qt2026.vercel.app
+  const rootUrl = window.location.origin; 
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "kakao",
     options: {
-      redirectTo: currentUrl // 이제 수파베이스가 /** 설정 덕분에 이 주소를 허용함
+      // 해시(#)가 포함된 복잡한 주소 대신 깔끔한 루트 주소로 리다이렉트 시킵니다.
+      redirectTo: rootUrl 
     }
   });
   if (error) alert(error.message);
 };
+
   const onSubmit = async (values: any) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
