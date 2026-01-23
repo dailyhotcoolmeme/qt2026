@@ -1,5 +1,6 @@
 import React from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, Router as WouterRouter } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
@@ -19,11 +20,10 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 
 function Router() {
-  const [location] = useLocation();
-
   return (
     <AnimatePresence mode="wait">
-      <Switch location={location} key={location}>
+      <Switch> 
+        {/* Switch 태그 안을 비웁니다. WouterRouter가 알아서 관리합니다 */}
         {/* 모든 페이지는 기본적으로 공개(Public) 상태입니다 */}
         <Route path="/" component={DailyWordPage} />
         <Route path="/qt" component={QTPage} />
@@ -46,13 +46,16 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DisplaySettingsProvider>
-        <Layout>
-          <TopBar />
-          <main className="flex-1 overflow-y-auto pb-20">
-            <Router />
-          </main>
-          <BottomNav />
-        </Layout>
+        {/* 아래 WouterRouter 줄을 추가하여 전체를 감싸세요 */}
+        <WouterRouter hook={useHashLocation}>
+          <Layout>
+            <TopBar />
+            <main className="flex-1 overflow-y-auto pb-20">
+              <Router />
+            </main>
+            <BottomNav />
+          </Layout>
+        </WouterRouter>
       </DisplaySettingsProvider>
     </QueryClientProvider>
   );
