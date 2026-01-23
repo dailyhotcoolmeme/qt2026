@@ -38,21 +38,15 @@ function Router() {
 
 function App() {
   useEffect(() => {
-  const handleAuth = async () => {
-    const href = window.location.href;
-    
-    // 카카오 로그인 후 돌아올 때 URL에 붙는 인증 정보를 Supabase가 인식하도록 돕습니다.
-    if (href.includes("access_token")) {
-      // 해시 라우팅을 사용하므로 URL 파싱 시 주의가 필요합니다.
-      // 별도의 처리가 없어도 Supabase 라이브러리가 초기화될 때 URL을 읽지만, 
-      // 404 방지를 위해 아래 코드를 유지합니다.
-      if (href.includes("//#")) {
-        window.history.replaceState(null, "", href.replace("//#", "/#"));
-      }
+  const href = window.location.href;
+  
+  // 카카오 로그인 후 access_token이 포함되어 돌아온 경우 처리
+  if (href.includes("access_token")) {
+    // //# 형태의 잘못된 경로가 생기면 바로잡습니다.
+    if (href.includes("//#")) {
+      window.history.replaceState(null, "", href.replace("//#", "/#"));
     }
-  };
-
-  handleAuth();
+  }
 }, []);
   return (
     <QueryClientProvider client={queryClient}>
