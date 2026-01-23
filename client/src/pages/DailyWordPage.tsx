@@ -462,7 +462,7 @@ const stopAudio = () => {
 
             <div className="space-y-3 pb-10">
               {sharingList.map((post) => (
-                <div key={post.id} className="bg-white border border-gray-150 rounded-lg p-4 shadow-xs relative">
+                <div key={post.id} className="bg-white border border-gray-150 border border-zinc-100 shadow-sm p-4">
                   <div className="flex justify-between items-center mb-3">
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>{post.is_anonymous ? "익명" : post.user_nickname}</p>
