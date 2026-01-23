@@ -1,4 +1,4 @@
-import React, { useEffect } from "react"; // 1. useEffect 추가 확인
+import React, { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -37,19 +37,18 @@ function Router() {
 }
 
 function App() {
-  // 2. [추가] 로그인 인증 리다이렉트 시 발생하는 URL 꼬임 및 404 방지 로직
+  // 로그인 후 돌아올 때 주소창에 생기는 이상 현상만 최소한으로 방어합니다.
   useEffect(() => {
     const href = window.location.href;
-    // 카카오 로그인 등 외부 인증 후 돌아올 때 '#'이 깨지거나 꼬이는 현상 강제 교정
-    if ((href.includes("access_token") || href.includes("code=")) && !window.location.hash.startsWith("#/")) {
-      const cleanHref = href.replace("#access_token", "/#access_token").replace("?code=", "/?code=");
-      window.history.replaceState(null, "", cleanHref);
+    if (href.includes("//#")) {
+      window.history.replaceState(null, "", href.replace("//#", "/#"));
     }
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <DisplaySettingsProvider>
+        {/* hook={useHashLocation}을 사용하여 새로고침 404를 방지합니다 */}
         <WouterRouter hook={useHashLocation}>
           <Layout>
             <TopBar />
