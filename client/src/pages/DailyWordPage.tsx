@@ -331,13 +331,13 @@ const stopAudio = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      <header className="flex-none w-full bg-gray-150 border-none z-[100] shadow-none">
-        <div className="flex items-center justify-between py-3 px-4 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" className="text-black-700 font-bold" onClick={() => {
+      <header className="flex-none w-full bg-[#5D7BAF] border-none z-[100] shadow-none">
+        <div className="flex items-center justify-between py-3 px-3 max-w-md mx-auto">
+          <Button variant="ghost" size="icon" className="text-white-700 font-bold" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
           }}><ChevronLeft className="w-6 h-6" /></Button>
           <div className="text-center relative">
-  <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
+  <h1 className="text-white font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
   
   {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
   <div 
@@ -345,12 +345,12 @@ const stopAudio = () => {
     onClick={() => (document.getElementById('date-picker') as any).showPicker()}
   >
     <p 
-      className="text-sm text-gray-400 font-bold transition-all duration-200 group-hover:text-[#5D7BAF] group-active:scale-95 flex items-center justify-center gap-1"
+      className="text-sm text-white-400 font-bold transition-all duration-200 group-hover:text-white-400 group-active:scale-95 flex items-center justify-center gap-1"
       style={{ fontSize: `${fontSize - 2}px` }}
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
       {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-      <span className="text-[12px] opacity-50">▼</span>
+      <span className="style={{ fontSize: `${fontSize -1}px` }}">▼</span>
     </p>
 
     {/* 실제로 달력을 띄워주는 숨겨진 input */}
@@ -380,7 +380,7 @@ const stopAudio = () => {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-3 bg-gray-150">
+      <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-3 bg-gray-300">
         <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-none">
           <CardContent className="pt-8 pb-5 px-6">
             <div className="text-center py-1">
