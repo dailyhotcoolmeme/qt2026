@@ -428,7 +428,7 @@ const stopAudio = () => {
             </button>
           </div>
 
-          <div className="pt-20 space-y-4 px-1">
+          <div className="pt-20 space-y-3 px-1">
             <div className="flex items-center gap-2 px-1">
               <MessageCircle className="w-5 h-5 text-primary" />
               <h3 className="font-bold text-[#5D7BAF]">함께 나누기</h3>
