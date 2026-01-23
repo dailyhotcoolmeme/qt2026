@@ -67,25 +67,29 @@ result.push({ num: parts[i].replace(/\./g, "").trim(), text: parts[i+1].trim() }
   }, [voiceType]);
 
   useEffect(() => {
+  // [수정 핵심] 404 방지 및 주소창 정리
+  // 이 로직을 최상단으로 올립니다.
+  if (window.location.hash.includes("access_token")) {
+    // replaceState는 페이지 이동 없이 주소창의 '글자'만 바꿉니다.
+    // 이렇게 하면 라우터가 404로 착각해서 홈으로 튕기는 걸 막아줍니다.
+    window.history.replaceState(null, "", "/#/qt");
+  }
+
   fetchQTVerse(currentDate);
   fetchMeditationPosts();
   
-  // 세션 체크 시, URL에 토큰이 있는지 확인하고 처리
   supabase.auth.getSession().then(({ data: { session } }) => {
     setIsAuthenticated(!!session);
     setCurrentUserId(session?.user?.id || null);
-    
-    // 만약 주소창에 access_token이 붙어있다면, 
-    // 깔끔하게 현재 페이지 주소(#/qt)로 다시 덮어씌워서 404 흔적을 지웁니다.
-    if (window.location.hash.includes("access_token")) {
-      window.location.hash = "/qt"; 
-    }
+    // 여기서 location.hash를 건드리는 코드는 삭제했습니다.
   });
 
   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
     setIsAuthenticated(!!session);
     setCurrentUserId(session?.user?.id || null);
-    if (session) setShowLoginModal(false);
+    if (session) {
+      setShowLoginModal(false);
+    }
   });
 
   return () => { subscription.unsubscribe(); };
