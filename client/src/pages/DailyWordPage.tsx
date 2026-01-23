@@ -331,13 +331,13 @@ const stopAudio = () => {
 
   return (
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      <header className="flex-none w-full bg-[#5D7BAF] border-none z-[100] shadow-none">
+      <header className="flex-none w-full bg-gray-200 border-sm z-[100] shadow-none">
         <div className="flex items-center justify-between py-3 px-3 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" className="text-white-700 font-bold" onClick={() => {
+          <Button variant="ghost" size="icon" className="text-[#5D7BAF] font-bold" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
-          }}><ChevronLeft className="w-6 h-6" /></Button>
+          }}><ChevronLeft className="w-8 h-8" /></Button>
           <div className="text-center relative">
-  <h1 className="text-white font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
+  <h1 className="text-[#5D7BAF] font-bold" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
   
   {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
   <div 
@@ -345,7 +345,7 @@ const stopAudio = () => {
     onClick={() => (document.getElementById('date-picker') as any).showPicker()}
   >
     <p 
-      className="text-sm text-white-400 font-bold transition-all duration-200 group-hover:text-white-400 group-active:scale-95 flex items-center justify-center gap-1"
+      className="text-gray-700 font-bold transition-all duration-200 group-hover:text-gray-700 group-active:scale-95 flex items-center justify-center gap-1"
       style={{ fontSize: `${fontSize - 2}px` }}
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
