@@ -333,7 +333,7 @@ const stopAudio = () => {
     <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
       <header className="flex-none w-full bg-white border-sm z-[100] shadow-none">
         <div className="flex items-center justify-between py-3 px-3 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" className="text-[#5D7BAF] font-bold" onClick={() => {
+          <Button variant="ghost" size="icon" className="font-bold" onClick={() => {
             const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
           }}><ChevronLeft className="w-8 h-8" /></Button>
           <div className="text-center relative">
@@ -381,7 +381,7 @@ const stopAudio = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-0 bg-white">
-        <Card className="border-none bg-[#92A9C9] shadow-none overflow-hidden rounded-none">
+        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-none">
           <CardContent className="pt-5 pb-5 px-5">
             <div className="text-center py-1">
               <div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
