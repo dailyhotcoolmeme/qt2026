@@ -18,6 +18,15 @@ import RegisterPage from "./pages/RegisterPage";
 import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
+// App.tsx 파일의 Router 함수 바로 위나 내부에 추가
+useEffect(() => {
+  // 주소창에 Supabase가 보낸 인증 토큰(access_token)은 있는데 '#'이 깨져있을 경우
+  if (window.location.href.includes("access_token") && !window.location.hash.includes("#/")) {
+    // 현재 주소에서 토큰 부분만 추출해서 HashRouter가 이해할 수 있는 형태(/#/)로 강제 변환
+    const newHref = window.location.href.replace(/([^#])#access_token/, "$1/#access_token");
+    window.history.replaceState(null, "", newHref);
+  }
+}, []);
 
 function Router() {
   return (
