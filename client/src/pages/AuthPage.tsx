@@ -14,17 +14,14 @@ export default function AuthPage() {
 
   // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
-  // 현재 페이지의 전체 주소를 가져옵니다. (예: https://qt2026.vercel.app/#/qt)
-  const currentUrl = window.location.href;
+  const currentUrl = window.location.href; // 사용자가 현재 보고 있는 주소 그대로 가져옴
 
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "kakao",
     options: {
-      // 404를 유발하던 /auth/callback 대신 현재 주소를 그대로 전달
-      redirectTo: currentUrl 
+      redirectTo: currentUrl // 이제 수파베이스가 /** 설정 덕분에 이 주소를 허용함
     }
   });
-
   if (error) alert(error.message);
 };
   const onSubmit = async (values: any) => {
