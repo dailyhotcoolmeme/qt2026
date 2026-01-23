@@ -345,7 +345,7 @@ const stopAudio = () => {
     onClick={() => (document.getElementById('date-picker') as any).showPicker()}
   >
     <p 
-      className="text-gray-700 font-bold transition-all duration-200 group-hover:text-gray-700 group-active:scale-95 flex items-center justify-center gap-1"
+      className="text-gray-400 font-bold transition-all duration-200 group-hover:text-gray-700 group-active:scale-95 flex items-center justify-center gap-1"
       style={{ fontSize: `${fontSize - 2}px` }}
     >
       {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -381,10 +381,10 @@ const stopAudio = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-0 bg-white">
-        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-none">
-          <CardContent className="pt-8 pb-5 px-6">
+        <Card className="border-none bg-[#5D7BAF]-400 shadow-none overflow-hidden rounded-none">
+          <CardContent className="pt-5 pb-5 px-5">
             <div className="text-center py-1">
-              <div className="text-white font-bold leading-[1.8] break-keep px-4 pb-0 text-center">
+              <div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
                 {bibleData ? (
                   <div className="flex flex-col gap-5"> 
                     {formatBibleContent(bibleData.content)?.map((verse, idx) => (
