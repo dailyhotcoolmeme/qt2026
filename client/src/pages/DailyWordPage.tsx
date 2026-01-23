@@ -435,7 +435,7 @@ const stopAudio = () => {
             </div>
             <div className="relative bg-gray-100 rounded-lg p-3 border border-gray-150">
               {!isAuthenticated && (
-                <div className="absolute inset-0 z-8 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-[10px] space-y-3">
+                <div className="absolute inset-0 z-8 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-lg space-y-3">
                   <Lock className="w-7 h-7 text-[#5D7BAF]" />
                   <Button size="lg" onClick={() => setShowLoginModal(true)}>로그인 후 나누기</Button>
                 </div>
