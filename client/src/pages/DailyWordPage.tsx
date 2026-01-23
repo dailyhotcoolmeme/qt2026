@@ -381,14 +381,14 @@ const stopAudio = () => {
       </header>
 
       <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-0 bg-white">
-        <Card className="border-none bg-[#5D7BAF] shadow-none overflow-hidden rounded-none">
+        <Card className="border-none bg-[#5D7BAF] shadow-sm overflow-hidden rounded-lg">
           <CardContent className="pt-5 pb-5 px-5">
             <div className="text-center py-1">
               <div className="text-white leading-[1.8] break-keep px-4 pb-0 text-center">
                 {bibleData ? (
                   <div className="flex flex-col gap-5"> 
                     {formatBibleContent(bibleData.content)?.map((verse, idx) => (
-                      <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
+                      <p key={idx} font-bold style={{ fontSize: `${fontSize}px`, lineHeight: '1.8' }}>
                         {verse.text.trim()}
                       </p>
                     ))}
@@ -408,7 +408,7 @@ const stopAudio = () => {
           </CardContent>
         </Card>
 
-        <div className="pt-0 pb-24 px-1 space-y-6">
+        <div className="pt-2 pb-24 px-1 space-y-6">
           <div className="flex items-center justify-center gap-7 pt-1.5">
             <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
               <Mic className="w-5 h-5 text-[#5D7BAF]" />
