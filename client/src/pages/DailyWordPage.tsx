@@ -399,7 +399,7 @@ const stopAudio = () => {
               </div>
               {bibleData && (
                 <div className="mt-5 pt-5 border-t border-white/20 flex justify-center">
-                  <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-5 rounded-full">
+                  <p className="text-sm text-white/90 font-bold bg-white/10 text-center px-4 py-1 rounded-full">
                     {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
                   </p>
                 </div>
