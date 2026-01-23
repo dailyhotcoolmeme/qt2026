@@ -460,7 +460,7 @@ const stopAudio = () => {
               </div>
             </div>
 
-            <div className="space-y-4 pb-10">
+            <div className="space-y-3 pb-10">
               {sharingList.map((post) => (
                 <div key={post.id} className="bg-white border border-gray-150 rounded-lg p-4 shadow-xs relative">
                   <div className="flex justify-between items-center mb-3">
