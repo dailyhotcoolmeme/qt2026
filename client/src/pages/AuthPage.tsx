@@ -12,14 +12,15 @@ export default function AuthPage() {
     defaultValues: { username: "", password: "" }
   });
 
-  // 1. 카카오 로그인 실행 함수 추가
+  // 1. 카카오 로그인 실행 함수
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
         options: {
-  // 여기에 방금 찾은 주소를 넣습니다. (끝에 /는 빼셔도 됩니다)
-          redirectTo: window.location.href
+          // [수정] Hash(#) 방식에서는 href 대신 origin을 사용해야 404를 방지합니다.
+          // 인증 후 메인으로 오면, 각 페이지의 리스너가 모달을 닫고 상태를 유지합니다.
+          redirectTo: window.location.origin
         }
       });
       if (error) throw error;
@@ -35,6 +36,11 @@ export default function AuthPage() {
         password: values.password
       });
       if (error) throw error;
+
+      // [확인] 여기에 setLocation("/")이 없는 것이 맞습니다.
+      // 로그인이 성공하면 ReadingPage.tsx 등 호출한 곳의 
+      // onAuthStateChange 리스너가 감지하여 모달을 닫습니다.
+
     } catch (error: any) {
       alert("로그인 실패: " + error.message);
     }
@@ -51,25 +57,39 @@ export default function AuthPage() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <div className="space-y-2">
             <Label className="text-sm font-bold text-gray-500 ml-1">아이디</Label>
-            <Input {...form.register("username")} className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" placeholder="아이디 입력" />
+            <Input 
+              {...form.register("username")} 
+              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6 focus:ring-2 focus:ring-[#7180B9]" 
+              placeholder="아이디 입력" 
+            />
           </div>
           <div className="space-y-2">
             <Label className="text-sm font-bold text-gray-500 ml-1">비밀번호</Label>
-            <Input {...form.register("password")} type="password" className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" placeholder="비밀번호 입력" />
+            <Input 
+              {...form.register("password")} 
+              type="password" 
+              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6 focus:ring-2 focus:ring-[#7180B9]" 
+              placeholder="비밀번호 입력" 
+            />
           </div>
           
-          <Button className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4" type="submit">
+          <Button 
+            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4 active:scale-[0.98] transition-transform" 
+            type="submit"
+          >
             로그인하기
           </Button>
 
-          {/* 2. 카카오 로그인 버튼 추가 */}
           <button 
             type="button"
             onClick={handleKakaoLogin}
             className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
           >
-            {/* 카카오 아이콘 이미지 (URL) */}
-            <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="kakao" />
+            <img 
+              src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" 
+              className="w-6 h-6" 
+              alt="kakao" 
+            />
             카카오 로그인
           </button>
 
