@@ -1,106 +1,60 @@
+// AuthPage.tsx (개선 버전)
 import React from "react";
-import { useForm } from "react-hook-form";
 import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
 import { supabase } from "../lib/supabase"; 
 import { useLocation, Link } from "wouter";
+import { motion } from "framer-motion"; // 애니메이션 추가
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const form = useForm({
-    defaultValues: { username: "", password: "" }
-  });
 
-  // 1. 카카오 로그인 실행 함수
-  // AuthPage.tsx 수정본
-const handleKakaoLogin = async () => {
-  // window.location.href 대신 origin(도메인 루트)만 사용합니다.
-  // 예: https://qt2026.vercel.app
-  const rootUrl = window.location.origin; 
-
+ const handleKakaoLogin = async () => {
+  // 뒤에 슬래시나 해시를 붙이지 말고 도메인만 보냅니다.
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "kakao",
     options: {
-      // 해시(#)가 포함된 복잡한 주소 대신 깔끔한 루트 주소로 리다이렉트 시킵니다.
-      redirectTo: rootUrl 
+      redirectTo: window.location.origin // "http://localhost:5173" 만 전달됨
     }
   });
   if (error) alert(error.message);
 };
 
-  const onSubmit = async (values: any) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: `${values.username}@church.com`,
-        password: values.password
-      });
-      if (error) throw error;
-      
-      // [유지] setLocation("/") 삭제 상태 유지 (현재 페이지 잔류를 위해)
-      
-    } catch (error: any) {
-      alert("로그인 실패: " + error.message);
-    }
-  };
-
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-start bg-white p-6 pt-20">
-      <div className="w-full max-w-[400px] space-y-10">
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl font-black text-gray-900 tracking-tight">환영합니다!</h1>
-          <p className="text-gray-400 font-bold">오늘도 말씀으로 하루를 시작하세요.</p>
+    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-white px-8 py-16">
+      {/* 상단: 환영 메시지 */}
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full text-center mt-10"
+      >
+        <h1 className="text-3xl font-black text-gray-900 leading-tight">
+          당신의 기도가<br />기록되는 공간
+        </h1>
+        <p className="text-gray-400 mt-4 font-medium">매일의 묵상과 중보를 음성으로 남겨보세요.</p>
+      </motion.div>
+
+      {/* 중단: 메인 로그인 버튼 (카카오) */}
+      <div className="w-full space-y-4">
+        <button 
+          onClick={handleKakaoLogin}
+          className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] text-lg font-bold rounded-[24px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-transform"
+        >
+          <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="kakao" />
+          카카오로 3초만에 시작하기
+        </button>
+        
+        <p className="text-center text-xs text-gray-300">
+          로그인 시 서비스 이용약관 및 개인정보 처리방침에 동의하게 됩니다.
+        </p>
+      </div>
+
+      {/* 하단: 보조 버튼 (일반 로그인) */}
+      <div className="w-full space-y-4 pt-6 border-t border-gray-50">
+        <div className="flex justify-center gap-6">
+          <Link href="/login-email" className="text-gray-400 text-sm font-bold">이메일 로그인</Link>
+          <span className="text-gray-200">|</span>
+          <Link href="/register" className="text-gray-400 text-sm font-bold">회원가입</Link>
         </div>
-
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="space-y-2">
-            <Label className="text-sm font-bold text-gray-500 ml-1">아이디</Label>
-            <Input 
-              {...form.register("username")} 
-              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" 
-              placeholder="아이디 입력" 
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-sm font-bold text-gray-500 ml-1">비밀번호</Label>
-            <Input 
-              {...form.register("password")} 
-              type="password" 
-              className="h-16 bg-gray-50 border-none rounded-2xl text-lg px-6" 
-              placeholder="비밀번호 입력" 
-            />
-          </div>
-          
-          <Button 
-            className="w-full h-16 bg-[#7180B9] text-white text-xl font-black rounded-2xl shadow-xl mt-4 active:scale-[0.98] transition-all" 
-            type="submit"
-          >
-            로그인하기
-          </Button>
-
-          {/* 카카오 로그인 버튼 */}
-          <button 
-            type="button"
-            onClick={handleKakaoLogin}
-            className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] text-xl font-black rounded-2xl shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-transform"
-          >
-            <img 
-              src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" 
-              className="w-6 h-6" 
-              alt="kakao" 
-            />
-            카카오 로그인
-          </button>
-
-          <div className="pt-8 flex flex-col items-center gap-4 border-t border-gray-100">
-            <p className="text-sm text-gray-400 font-bold">처음 방문하셨나요?</p>
-            <Link href="/register" className="w-full">
-              <a className="w-full h-16 flex items-center justify-center border-2 border-[#7180B9] text-[#7180B9] text-xl font-black rounded-2xl hover:bg-blue-50 transition-colors shadow-sm">
-                회원가입 하러 가기
-              </a>
-            </Link>
-          </div>
-        </form>
       </div>
     </div>
   );

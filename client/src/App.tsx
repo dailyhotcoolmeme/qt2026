@@ -47,19 +47,29 @@ function AppContent() {
   );
 }
 
-// 2. [껍데기 컴포넌트] 최상위에서 오직 Provider들만 관리합니다.
+// App.tsx 파일의 최하단 App 함수 부분
 export default function App() {
   useEffect(() => {
-    const href = window.location.href;
-    if (href.includes("access_token") && href.includes("//#")) {
-      window.history.replaceState(null, "", href.replace("//#", "/#"));
-    }
+    const checkAuthRedirect = () => {
+      const href = window.location.href;
+      
+      // 주소에 /#/# 가 포함되어 있다면 (404의 원인)
+      if (href.includes("/#/#")) {
+        // /#/# 를 /#/ 로 강제 변환합니다.
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        
+        // 변환 후 페이지를 살짝 새로고침하여 라우터가 인식하게 합니다.
+        window.location.reload();
+      }
+    };
+
+    checkAuthRedirect();
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <DisplaySettingsProvider>
-        {/* 이제 AppContent 안에 있는 Layout은 무조건 Provider의 자식이 됩니다. */}
         <AppContent />
       </DisplaySettingsProvider>
     </QueryClientProvider>
