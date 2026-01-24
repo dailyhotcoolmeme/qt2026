@@ -115,7 +115,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         voice: { 
           languageCode: "ko-KR", 
           // ⚠️ 중요: targetVoice를 기준으로 성별을 확실히 매칭 (B:여성, C:남성)
-          name: targetVoice === 'F' ? "ko-KR-Chirp3-HD-Despina" : "ko-KR-Chirp3-HD-Zubenelgenubi" 
+          name: targetVoice === 'F' ? "ko-KR-Chirp3-HD-Despina" : "ko-KR-Chirp3-HD-Charon" 
         },
         audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
       }),
