@@ -37,19 +37,29 @@ export default function DailyWordPage() {
   }, [currentDate]);
   
   const fetchVerse = async () => {
-    const formattedDate = currentDate.toISOString().split('T')[0];
-    const { data: verse } = await supabase
-      .from('daily_bible_verses')
-      .select('*')
-      .eq('display_date', formattedDate)
+  const formattedDate = currentDate.toISOString().split('T')[0];
+  
+  // 1. 오늘의 말씀 가져오기
+  const { data: verse } = await supabase
+    .from('daily_bible_verses')
+    .select('*')
+    .eq('display_date', formattedDate)
+    .maybeSingle();
+  
+  if (verse) {
+    // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
+    const { data: book } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', verse.bible_name) // bible_name으로 매칭
       .maybeSingle();
-    
-    if (verse) {
-      setBibleData(verse);
-      setAmenCount(verse.amen_count || 0);
-      setHasAmened(false);
-    }
-  };
+
+    // 3. bible_books 데이터를 포함해서 상태 업데이트
+    setBibleData({ ...verse, bible_books: book });
+    setAmenCount(verse.amen_count || 0);
+    setHasAmened(false);
+  }
+};
 
   const cleanContent = (text: string) => {
     if (!text) return "";
@@ -81,7 +91,6 @@ const togglePlay = () => {
 };
 
 // 2. TTS 실행 함수 (맺음말 추가 및 목소리 즉시 반영)
-// 2. TTS 실행 함수 (R2 캐싱 로직 추가 버전)
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
@@ -99,7 +108,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   // 4. 파일명 및 경로 생성 (daily 폴더 경로 적용)
   // daily_b(책번호)_c(장)_v(절)_(성별).mp3 구조
-  const bookOrder = bibleData.book_order || '0';
+  const bookOrder = bibleData.bible_books?.book_order?.toString() || '0';
   const chapter = bibleData.chapter;
   const verse = String(bibleData.verse).replace(/:/g, '_');
   const fileName = `daily_b${bookOrder}_c${chapter}_v${verse}_${targetVoice}.mp3`;
