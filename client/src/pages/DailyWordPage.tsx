@@ -85,8 +85,8 @@ const togglePlay = () => {
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
-  // 상태가 바뀌기 전이라도 클릭한 목소리를 우선 적용, 없으면 현재 상태 적용
-  const targetVoice = selectedVoice || voiceType;
+  // 수정 포인트: 인자로 넘어온 selectedVoice가 있으면 그걸 최우선으로 사용합니다.
+  const targetVoice = selectedVoice ? selectedVoice : voiceType;
 
   if (audioRef.current) {
     audioRef.current.pause();
@@ -111,7 +111,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         input: { text: textToSpeak },
         voice: { 
           languageCode: "ko-KR", 
-          // ko-KR-Neural2-B가 여성, C가 남성입니다.
+          // 여기서 한 번 더 확실하게 체크
           name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
         },
         audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
@@ -182,7 +182,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
-  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-300 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-400 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -211,7 +211,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
-  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-300 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-400 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
