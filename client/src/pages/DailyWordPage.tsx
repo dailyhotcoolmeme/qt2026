@@ -70,20 +70,31 @@ export default function DailyWordPage() {
     await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
   };
 
-  const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
+  // 1. 일시정지/재생 제어 함수 (이게 없으면 화면이 하얗게 변할 수 있습니다)
+const togglePlay = () => {
+  if (!audioRef.current) return;
+  if (isPlaying) {
+    audioRef.current.pause();
+  } else {
+    audioRef.current.play();
+  }
+  setIsPlaying(!isPlaying);
+};
+
+// 2. TTS 실행 함수 (맺음말 추가 및 목소리 즉시 반영)
+const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
-  // 1. 현재 선택한 혹은 변경된 목소리 설정
+  // 상태가 바뀌기 전이라도 클릭한 목소리를 우선 적용, 없으면 현재 상태 적용
   const targetVoice = selectedVoice || voiceType;
 
-  // 2. 기존 오디오 중지 및 초기화
   if (audioRef.current) {
     audioRef.current.pause();
     audioRef.current = null;
   }
 
-  // 3. 읽어줄 텍스트 생성 (말씀 내용 + 출처 맺음말)
   const mainContent = cleanContent(bibleData.content);
+  // 맺음말 생성: 예) 로마서 8장 28절 말씀
   const bibleSource = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절 말씀`;
   const textToSpeak = `${mainContent}. ${bibleSource}`;
 
@@ -100,30 +111,20 @@ export default function DailyWordPage() {
         input: { text: textToSpeak },
         voice: { 
           languageCode: "ko-KR", 
-          // 목소리 타입을 targetVoice로 즉시 반영
+          // ko-KR-Neural2-B가 여성, C가 남성입니다.
           name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
         },
-        audioConfig: { 
-          audioEncoding: "MP3", 
-          speakingRate: 0.95, // 읽기 속도 살짝 조절 (자연스럽게)
-          pitch: 0 
-        },
+        audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
       }),
     });
 
     const data = await response.json();
-    
     if (data.audioContent) {
       const audioSrc = `data:audio/mp3;base64,${data.audioContent}`;
       const audio = new Audio(audioSrc);
       audioRef.current = audio;
-      
       audio.play();
-      
-      // 재생이 끝나면 자동으로 재생 중 상태 해제
-      audio.onended = () => {
-        setIsPlaying(false);
-      };
+      audio.onended = () => setIsPlaying(false);
     }
   } catch (error) {
     console.error("TTS 에러:", error);
@@ -181,7 +182,7 @@ export default function DailyWordPage() {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
-  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-200 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-300 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -210,7 +211,7 @@ export default function DailyWordPage() {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
-  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-200 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-300 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
