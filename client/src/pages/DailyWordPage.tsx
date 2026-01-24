@@ -70,46 +70,66 @@ export default function DailyWordPage() {
     await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
   };
 
-  const handlePlayTTS = async () => {
-    if (!bibleData) return;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
+  const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
+  if (!bibleData) return;
+  
+  // 1. 현재 선택한 혹은 변경된 목소리 설정
+  const targetVoice = selectedVoice || voiceType;
+
+  // 2. 기존 오디오 중지 및 초기화
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current = null;
+  }
+
+  // 3. 읽어줄 텍스트 생성 (말씀 내용 + 출처 맺음말)
+  const mainContent = cleanContent(bibleData.content);
+  const bibleSource = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절 말씀`;
+  const textToSpeak = `${mainContent}. ${bibleSource}`;
+
+  const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY; 
+  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+
+  setShowAudioControl(true);
+  setIsPlaying(true);
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      body: JSON.stringify({
+        input: { text: textToSpeak },
+        voice: { 
+          languageCode: "ko-KR", 
+          // 목소리 타입을 targetVoice로 즉시 반영
+          name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+        },
+        audioConfig: { 
+          audioEncoding: "MP3", 
+          speakingRate: 0.95, // 읽기 속도 살짝 조절 (자연스럽게)
+          pitch: 0 
+        },
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (data.audioContent) {
+      const audioSrc = `data:audio/mp3;base64,${data.audioContent}`;
+      const audio = new Audio(audioSrc);
+      audioRef.current = audio;
+      
+      audio.play();
+      
+      // 재생이 끝나면 자동으로 재생 중 상태 해제
+      audio.onended = () => {
+        setIsPlaying(false);
+      };
     }
-
-    const textToSpeak = cleanContent(bibleData.content);
-    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY; 
-    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-
-    setShowAudioControl(true);
-    setIsPlaying(true);
-
-    try {
-      const response = await fetch(url, {
-        method: "POST",
-        body: JSON.stringify({
-          input: { text: textToSpeak },
-          voice: { 
-            languageCode: "ko-KR", 
-            name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
-          },
-          audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 },
-        }),
-      });
-
-      const data = await response.json();
-      if (data.audioContent) {
-        const audioSrc = `data:audio/mp3;base64,${data.audioContent}`;
-        const audio = new Audio(audioSrc);
-        audioRef.current = audio;
-        audio.play();
-        audio.onended = () => setIsPlaying(false);
-      }
-    } catch (error) {
-      console.error("TTS 에러:", error);
-      setIsPlaying(false);
-    }
-  };
+  } catch (error) {
+    console.error("TTS 에러:", error);
+    setIsPlaying(false);
+  }
+};
 
   // 날려먹었던 스와이프 로직 복구
   const onDragEnd = (event: any, info: any) => {
@@ -161,7 +181,7 @@ export default function DailyWordPage() {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
-  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-gray opacity-50 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-200 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -190,7 +210,7 @@ export default function DailyWordPage() {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
-  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-gray opacity-50 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-200 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
@@ -219,26 +239,52 @@ export default function DailyWordPage() {
         <p className="text-zinc-300 font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>아멘으로 화답해주세요</p>
       </div>
 
-      {/* 5. TTS 제어 팝업 */}
-      <AnimatePresence>
-        {showAudioControl && (
-          <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
-                  <p className="text-[13px] font-bold">말씀을 읽어드리고 있습니다</p>
-                </div>
-                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20}/></button>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => { setVoiceType('F'); handlePlayTTS(); }} className={`flex-1 py-2 rounded-xl text-xs font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성 목소리</button>
-                <button onClick={() => { setVoiceType('M'); handlePlayTTS(); }} className={`flex-1 py-2 rounded-xl text-xs font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성 목소리</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 5. TTS 제어 팝업 부분 */}
+<AnimatePresence>
+  {showAudioControl && (
+    <motion.div 
+      initial={{ y: 80 }} 
+      animate={{ y: 0 }} 
+      exit={{ y: 80 }} 
+      className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {/* 재생/일시정지 버튼 클릭 시 togglePlay 실행 */}
+            <button 
+              onClick={togglePlay} 
+              className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+            >
+              {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
+            </button>
+            <p className="text-[13px] font-bold">
+              {isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}
+            </p>
+          </div>
+          <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}>
+            <X size={20}/>
+          </button>
+        </div>
+        
+        <div className="flex gap-2">
+          <button 
+            onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
+          >
+            여성 목소리
+          </button>
+          <button 
+            onClick={() => { setVoiceType('M'); handlePlayTTS('M'); }} 
+            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
+          >
+            남성 목소리
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
     </div>
   );
 }
