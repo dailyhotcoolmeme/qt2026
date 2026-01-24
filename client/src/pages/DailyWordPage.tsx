@@ -198,7 +198,7 @@ export default function DailyWordPage() {
       </div>
 
       {/* 4. 아멘 버튼 (동그란 원형 복구) */}
-      <div className="flex flex-col items-center gap-3 pb-2">
+      <div className="flex flex-col items-center gap-3 pb-4">
         <motion.button 
           whileTap={{ scale: 0.9 }} onClick={handleAmenClick}
           className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500

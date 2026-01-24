@@ -9,7 +9,7 @@ export function Layout({ children, className }: { children: ReactNode; className
     <div className="min-h-screen w-full bg-zinc-50 flex justify-center">
       <div 
         className={cn(
-          "w-full max-w-[450px] min-h-screen bg-white shadow-2xl shadow-zinc-200/50 flex flex-col pb-[75px] relative overflow-hidden",
+          "w-full max-w-[450px] min-h-screen bg-white shadow-2xl shadow-zinc-200/50 flex flex-col pb-[70px] relative overflow-hidden",
           className
         )}
         style={{
