@@ -50,22 +50,22 @@ function AppContent() {
 // App.tsx 파일의 최하단 App 함수 부분
 export default function App() {
   useEffect(() => {
-    const checkAuthRedirect = () => {
-      const href = window.location.href;
+  const checkAuthRedirect = () => {
+    const href = window.location.href;
+    
+    if (href.includes("/#/#")) {
+      const newHref = href.replace("/#/#", "/#/");
+      window.history.replaceState(null, "", newHref);
       
-      // 주소에 /#/# 가 포함되어 있다면 (404의 원인)
-      if (href.includes("/#/#")) {
-        // /#/# 를 /#/ 로 강제 변환합니다.
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-        
-        // 변환 후 페이지를 살짝 새로고침하여 라우터가 인식하게 합니다.
+      // 0.3초 정도 대기 후 새로고침하여 로딩 화면을 충분히 보여줌
+      setTimeout(() => {
         window.location.reload();
-      }
-    };
+      }, 300);
+    }
+  };
 
-    checkAuthRedirect();
-  }, []);
+  checkAuthRedirect();
+}, []);
 
   return (
     <QueryClientProvider client={queryClient}>
