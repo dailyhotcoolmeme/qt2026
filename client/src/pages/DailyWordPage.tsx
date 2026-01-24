@@ -25,7 +25,6 @@ export default function DailyWordPage() {
   const [bibleData, setBibleData] = useState<any>(null);
   const [hasAmened, setHasAmened] = useState(false);
   const [amenCount, setAmenCount] = useState(0);
-  
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -85,17 +84,20 @@ const togglePlay = () => {
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
-  // selectedVoice가 있으면 그걸 쓰고, 없으면 현재 voiceType 상태를 씁니다.
-  // 이 순서가 바뀌면 남성 목소리가 먼저 나올 수 있습니다.
+  // 1. 이어듣기를 위해 현재 재생 위치(초)를 저장
+  const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
+
+  // 2. 목소리 결정 (인자가 있으면 인자값, 없으면 현재 상태)
+  // 처음 '음성 재생' 버튼을 누를 땐 selectedVoice가 없으므로 voiceType('F')을 따름
   const targetVoice = selectedVoice || voiceType;
 
+  // 3. 기존 오디오 중단
   if (audioRef.current) {
     audioRef.current.pause();
     audioRef.current = null;
   }
 
   const mainContent = cleanContent(bibleData.content);
-  // 맺음말 생성: 예) 로마서 8장 28절 말씀
   const bibleSource = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절 말씀`;
   const textToSpeak = `${mainContent}. ${bibleSource}`;
 
@@ -107,30 +109,35 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   try {
     const response = await fetch(url, {
-    method: "POST",
-    body: JSON.stringify({
-      input: { text: textToSpeak },
-      voice: { 
-        languageCode: "ko-KR", 
-        // 확실하게 targetVoice를 바라보게 합니다.
-        name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
-      },
-      audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
-    }),
-  });
+      method: "POST",
+      body: JSON.stringify({
+        input: { text: textToSpeak },
+        voice: { 
+          languageCode: "ko-KR", 
+          // F가 Neural2-B(여성), M이 Neural2-C(남성)임을 명확히 함
+          name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+        },
+        audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
+      }),
+    });
 
     const data = await response.json();
     if (data.audioContent) {
       const audioSrc = `data:audio/mp3;base64,${data.audioContent}`;
       const audio = new Audio(audioSrc);
+      
+      // 4. 저장했던 위치(lastTime)로 오디오 점프 (이어듣기 핵심)
+      audio.currentTime = lastTime;
+      
       audioRef.current = audio;
       audio.play();
+      
       audio.onended = () => {
-        setIsPlaying(false);        // 재생 상태 끄기
-        setShowAudioControl(false); // 팝업창 닫기 (이게 추가되어야 자동으로 닫힙니다)
+        setIsPlaying(false);
+        setShowAudioControl(false); // 끝까지 다 읽으면 자동으로 닫힘
       };
     }
-  } catch (error) { // 👈 catch문은 그대로 두세요!
+  } catch (error) {
     console.error("TTS 에러:", error);
     setIsPlaying(false);
   }
@@ -186,7 +193,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제) */}
-<div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-[#EAEAEA] rounded-[32px] scale-90 blur-[0.5px] border border-zinc-300 z-0" />
+<div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-[#F0F0F0] rounded-[32px] scale-90 blur-[0.5px] z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -215,7 +222,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일) */}
-<div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-[#EAEAEA] rounded-[32px] scale-90 blur-[0.5px] border border-zinc-300 z-0" />
+<div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-[#F0F0F0] rounded-[32px] scale-90 blur-[0.5px] z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
@@ -273,18 +280,20 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         </div>
         
         <div className="flex gap-2">
-          <button 
-            onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
-          >
-            여성 목소리
-          </button>
-          <button 
-            onClick={() => { setVoiceType('M'); handlePlayTTS('M'); }} 
-            className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
-          >
-            남성 목소리
-          </button>
+          <div className="flex gap-2">
+  <button 
+    onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
+    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
+  >
+    여성 목소리
+  </button>
+  <button 
+    onClick={() => { setVoiceType('M'); handlePlayTTS('M'); }} 
+    className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}
+  >
+    남성 목소리
+  </button>
+</div>
         </div>
       </div>
     </motion.div>
