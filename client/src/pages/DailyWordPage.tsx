@@ -288,16 +288,16 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         {/* 목소리 선택 영역 (박스 디자인 수정) */}
         <div className="flex gap-2">
           <button 
-            onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
-          >
-            여성 목소리
-          </button>
-          <button 
             onClick={() => { setVoiceType('M'); handlePlayTTS('M'); }} 
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
             남성 목소리
+          </button>
+          <button 
+            onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
+            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
+          >
+            여성 목소리
           </button>
         </div>
       </div>
