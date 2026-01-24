@@ -157,33 +157,41 @@ export default function DailyWordPage() {
   </div>
 </header>
 
-      {/* 2. 말씀 카드 (스와이프 로직/힌트 복구) */}
-      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        <div className="absolute left-[-82%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100" />
-        
-        <AnimatePresence mode="wait">
-          <motion.div 
-            key={currentDate.toISOString()}
-            drag="x" dragConstraints={{ left: 0, right: 0 }}
-            onDragEnd={onDragEnd}
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[85%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none"
-          >
-            {bibleData ? (
-              <>
-                <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
-                  {cleanContent(bibleData.content)}
-                </p>
-                <span className="font-medium text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-                </span>
-              </>
-            ) : <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>}
-          </motion.div>
-        </AnimatePresence>
+      {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
+<div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
+  
+  {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
+  <div className="absolute left-[-75%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  
+  <AnimatePresence mode="wait">
+    <motion.div 
+      key={currentDate.toISOString()}
+      drag="x" 
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2} // 드래그 시 탄성 추가
+      onDragEnd={onDragEnd}
+      initial={{ opacity: 0, x: 20 }} 
+      animate={{ opacity: 1, x: 0 }} 
+      exit={{ opacity: 0, x: -20 }}
+      // 중앙 카드가 양옆을 너무 가리지 않게 너비를 w-[82%]로 살짝 줄임
+      className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
+    >
+      {bibleData ? (
+        <>
+          <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
+            {cleanContent(bibleData.content)}
+          </p>
+          <span className="font-medium text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
+            {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+          </span>
+        </>
+      ) : <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>}
+    </motion.div>
+  </AnimatePresence>
 
-        <div className="absolute right-[-82%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100" />
-      </div>
+  {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
+  <div className="absolute right-[-75%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+</div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
       <div className="flex items-center gap-7 mt-3 mb-14"> 
