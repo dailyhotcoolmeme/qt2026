@@ -4,6 +4,7 @@ type FontFamily = "sans-serif" | "serif" | "monospace";
 
 interface DisplaySettingsContextType {
   fontSize: number;
+  setFontSize: (size: number) => void; // 이 줄 추가
   fontFamily: FontFamily;
   increaseFontSize: () => void;
   decreaseFontSize: () => void;
@@ -12,9 +13,9 @@ interface DisplaySettingsContextType {
 
 const DisplaySettingsContext = createContext<DisplaySettingsContextType | undefined>(undefined);
 
-const MIN_FONT_SIZE = 12;
+const MIN_FONT_SIZE = 14;
 const MAX_FONT_SIZE = 24;
-const DEFAULT_FONT_SIZE = 13;
+const DEFAULT_FONT_SIZE = 16;
 
 export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
   const [fontSize, setFontSize] = useState(() => {
@@ -63,15 +64,15 @@ export function DisplaySettingsProvider({ children }: { children: ReactNode }) {
 
 
   const increaseFontSize = () => {
-    setFontSize(prev => Math.min(prev + 1, MAX_FONT_SIZE));
-  };
+  setFontSize(prev => (prev < 22 ? prev + 1 : prev));
+};
 
   const decreaseFontSize = () => {
-    setFontSize(prev => Math.max(prev - 1, MIN_FONT_SIZE));
-  };
+  setFontSize(prev => (prev > 14 ? prev - 1 : prev));
+};
 
   return (
-    <DisplaySettingsContext.Provider value={{ fontSize, fontFamily, increaseFontSize, decreaseFontSize, setFontFamily }}>
+    <DisplaySettingsContext.Provider value={{ fontSize, fontFamily, setFontSize, increaseFontSize, decreaseFontSize, setFontFamily }}>
       {children}
     </DisplaySettingsContext.Provider>
   );

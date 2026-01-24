@@ -1,144 +1,90 @@
-import { useState, useEffect, useRef } from "react"; 
-import { Button } from "../components/ui/button";
-import { Card, CardContent } from "../components/ui/card";
-import { Textarea } from "../components/ui/textarea";
-import { Checkbox } from "../components/ui/checkbox";
-import {
-  Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock, CheckCircle2,
-  Mic, Trash2, Pause, Play, X
-} from "lucide-react"; 
+import React, { useState, useEffect, useRef } from "react";
+import { 
+  Heart, Headphones, Share2, Copy, Bookmark, 
+  Play, Pause, X, Calendar as CalendarIcon 
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import AuthPage from "./AuthPage";
 import { supabase } from "../lib/supabase"; 
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
-interface BibleVerse {
-  bible_name: string;
-  chapter: string;
-  verse: string;
-  content: string;
-  // 구조를 명확히 정의 (객체 형태)
-  bible_books: {
-    book_order: number;
-  } | null; 
-}
-
-export default function DailyWordsPage() {
+export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showCopyToast, setShowCopyToast] = useState(false); 
-  const { fontSize } = useDisplaySettings();
-  const [isAuthenticated, setIsAuthenticated] = useState(false); 
-  const [comment, setComment] = useState("");
-  const [sharingList, setSharingList] = useState<any[]>([]);
-  const [bibleData, setBibleData] = useState<BibleVerse | null>(null);
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [showDeleteToast, setShowDeleteToast] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const dateInputRef = useRef<HTMLInputElement>(null); 
 
-    // ✅ 수정된 상태 및 Ref
-  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F'); // 성별 상태 추가
-  const audioRef = useRef<HTMLAudioElement | null>(null);     // useState 대신 useRef 사용
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = new Date(e.target.value);
+    if (!isNaN(selectedDate.getTime())) {
+      if (selectedDate > today) {
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+        return;
+      }
+      setCurrentDate(selectedDate);
+    }
+  };
+  const [bibleData, setBibleData] = useState<any>(null);
+  const [hasAmened, setHasAmened] = useState(false);
+  const [amenCount, setAmenCount] = useState(0);
+  
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
+  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const { fontSize = 16 } = useDisplaySettings();
 
-  // 말씀 포맷팅 함수
-  const formatBibleContent = (content: string) => {
-    if (!content) return null;
-    const parts = content.split(/(\d+\.)/g).filter(Boolean);
-    const verses: { num: string; text: string }[] = [];
-    for (let i = 0; i < parts.length; i += 2) {
-      if (parts[i].match(/\d+\./)) {
-        verses.push({ num: parts[i], text: parts[i + 1] || "" });
-      } else {
-        verses.push({ num: "", text: parts[i] });
-        i--;
-      }
+  useEffect(() => {
+    fetchVerse();
+  }, [currentDate]);
+  
+  const fetchVerse = async () => {
+    const formattedDate = currentDate.toISOString().split('T')[0];
+    const { data: verse } = await supabase
+      .from('daily_bible_verses')
+      .select('*')
+      .eq('display_date', formattedDate)
+      .maybeSingle();
+    
+    if (verse) {
+      setBibleData(verse);
+      setAmenCount(verse.amen_count || 0);
+      setHasAmened(false);
     }
-    return verses;
   };
 
-  useEffect(() => {
-    if (showLoginModal) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [showLoginModal]);
+  const cleanContent = (text: string) => {
+    if (!text) return "";
+    return text
+      .replace(/^[.\s]+/, "") 
+      .replace(/\d+절/g, "")
+      .replace(/\d+/g, "")
+      .replace(/[."'“”‘’]/g, "")
+      .replace(/\.$/, "")
+      .trim();
+  };
 
-  useEffect(() => {
-    fetchDailyVerse(currentDate);
-    fetchSharingPosts();
+  const handleAmenClick = async () => {
+    if (hasAmened || !bibleData) return;
+    setHasAmened(true);
+    setAmenCount(prev => prev + 1);
+    await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
+  };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAuthenticated(!!session);
-      setCurrentUserId(session?.user?.id || null);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setIsAuthenticated(!!session);
-      setCurrentUserId(session?.user?.id || null);
-      if (session) setShowLoginModal(false);
-    });
-
-    return () => { subscription.unsubscribe(); };
-  }, [currentDate]);
-
-    const handlePlayTTS = async () => {
+  const handlePlayTTS = async () => {
     if (!bibleData) return;
-    
-    // 1. 현재 재생 중인 위치(초)를 기억 (목소리 바꿔도 이어서 듣기 위해)
-    const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
-
-    // 2. 이미 재생 중인 오디오가 있다면 중단하고 비우기
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
     }
 
-    let bookOrder = '0';
-    if (bibleData.bible_books) {
-      // @ts-ignore
-      bookOrder = bibleData.bible_books.book_order?.toString() || '0';
-    }
+    const textToSpeak = cleanContent(bibleData.content);
+    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY; 
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
 
-    const chapter = bibleData.chapter;
-    const verse = bibleData.verse.replace(/:/g, '_');
-    
-    // 3. 파일명에 성별(_F, _M) 추가 및 daily 폴더 지정
-    const fileName = `daily_b${bookOrder}_c${chapter}_v${verse}_${voiceType}.mp3`;
-    const storagePath = `daily/${fileName}`; 
-
-    const cleanContent = bibleData.content.replace(/\d+\./g, "").trim();
-    const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const textToSpeak = `${cleanContent}. ${bibleData.bible_name} ${chapter}${unit} ${bibleData.verse}절 말씀.`;
+    setShowAudioControl(true);
+    setIsPlaying(true);
 
     try {
-      // 4. 서버(Supabase)에 이미 해당 성별의 파일이 있는지 확인
-      const { data: existingFile } = supabase.storage
-        .from('bible-assets')
-        .getPublicUrl(storagePath);
-
-      const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
-
-      if (checkRes.ok) {
-        const savedAudio = new Audio(existingFile.publicUrl);
-        savedAudio.currentTime = lastTime; // 이어듣기 적용
-        setupAudioEvents(savedAudio); 
-        return;
-      }
-
-      // 5. 서버에 없으면 구글 TTS로 새로 생성
-      const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY;
-      const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-      
       const response = await fetch(url, {
         method: "POST",
         body: JSON.stringify({
@@ -147,443 +93,141 @@ export default function DailyWordsPage() {
             languageCode: "ko-KR", 
             name: voiceType === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
           },
-          audioConfig: { audioEncoding: "MP3",speakingRate: 0.9 },
+          audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 },
         }),
       });
 
-      const resData = await response.json();
-      if (!resData.audioContent) return;
-
-      const binary = atob(resData.audioContent);
-      const array = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-      const blob = new Blob([array], { type: 'audio/mp3' });
-
-      // 6. 생성된 파일을 daily 폴더에 업로드
-      await supabase.storage
-        .from('bible-assets')
-        .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
-
-      const audioObj = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
-      audioObj.currentTime = lastTime; // 이어듣기 적용
-      setupAudioEvents(audioObj);
-
+      const data = await response.json();
+      if (data.audioContent) {
+        const audioSrc = `data:audio/mp3;base64,${data.audioContent}`;
+        const audio = new Audio(audioSrc);
+        audioRef.current = audio;
+        audio.play();
+        audio.onended = () => setIsPlaying(false);
+      }
     } catch (error) {
       console.error("TTS 에러:", error);
-    }
-  };
-
-  // 성별 변경 시 즉시 재호출하는 감시자
-  useEffect(() => {
-    if (showAudioControl && isPlaying) {
-      handlePlayTTS();
-    }
-  }, [voiceType]);
-
-  // 오디오 이벤트 설정 (Ref에 등록하고 재생)
-  const setupAudioEvents = (audioObj: HTMLAudioElement) => {
-    audioRef.current = audioObj;
-    
-    audioObj.onended = () => {
       setIsPlaying(false);
-      setShowAudioControl(false);
-      audioRef.current = null;
-    };
-
-    setShowAudioControl(true);
-    setIsPlaying(true);
-    audioObj.play();
-  };
-
-  // ⭕ 이 버전만 남겨두세요 (audioRef 사용)
-const togglePlayPause = () => {
-  if (audioRef.current) {
-    if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else {
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  }
-};
-
-const stopAudio = () => {
-  if (audioRef.current) {
-    audioRef.current.pause();
-    audioRef.current = null;
-  }
-  setIsPlaying(false);
-  setShowAudioControl(false);
-};
-
-
-  const toggleSpeechRecognition = () => {
-    if (isRecording) {
-      if (recognitionRef.current) {
-        recognitionRef.current.shouldStop = true;
-        recognitionRef.current.stop();
-      }
-      return;
-    }
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) { alert("음성 인식을 지원하지 않는 브라우저입니다."); return; }
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.continuous = true;
-    recognition.onstart = () => { setIsRecording(true); recognition.shouldStop = false; };
-    recognition.onend = () => { if (recognition.shouldStop === false) recognition.start(); else setIsRecording(false); };
-    recognition.onresult = (event: any) => {
-      let newText = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) newText += event.results[i][0].transcript;
-      }
-      if (newText) setComment((prev) => (prev.trim() + " " + newText.trim()).trim());
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  };
-
-  const fetchDailyVerse = async (date: Date) => {
-  const offset = date.getTimezoneOffset() * 60000;
-  const localDate = new Date(date.getTime() - offset);
-  const formattedDate = localDate.toISOString().split('T')[0];
-
-  // 1. 오늘의 말씀 데이터를 먼저 가져옵니다.
-  const { data: verse, error: verseError } = await supabase
-    .from('daily_bible_verses')
-    .select('*')
-    .eq('display_date', formattedDate)
-    .maybeSingle();
-
-  if (verseError) {
-    console.error("말씀 불러오기 에러:", verseError);
-    return;
-  }
-
-  if (verse) {
-    // 2. 말씀이 있다면, 그 성경 이름(예: 빌립보서)으로 번호를 따로 찾아옵니다.
-    const { data: book } = await supabase
-      .from('bible_books')
-      .select('book_order')
-      .eq('book_name', verse.bible_name)
-      .maybeSingle();
-
-    // 3. 말씀 데이터에 번호 데이터를 합쳐서 상태에 저장합니다.
-    const combinedData = { ...verse, bible_books: book };
-    
-    // 확인용 alert (성공하면 삭제하세요)
-    // alert("조인 성공 확인: " + (combinedData.bible_books?.book_order || "없음"));
-    
-    setBibleData(combinedData);
-  } else {
-    setBibleData(null);
-  }
-};
-
-
-  const fetchSharingPosts = async () => {
-    const startOfDay = new Date(currentDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(currentDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    const { data, error } = await supabase.from('sharing_posts').select('*')
-      .gte('created_at', startOfDay.toISOString())
-      .lte('created_at', endOfDay.toISOString())
-      .order('created_at', { ascending: false });
-    if (!error) setSharingList(data || []);
-  };
-
-  const handleRegisterSharing = async () => {
-    if (!isAuthenticated) { setShowLoginModal(true); return; }
-    if (!comment.trim()) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    const meta = user?.user_metadata;
-    const kakaoName = meta?.full_name || meta?.name || meta?.nickname;
-    const finalNickname = isAnonymous ? "익명" : (kakaoName || "신실한 성도");
-    const newPost = { content: comment, user_id: user?.id, user_nickname: finalNickname, is_anonymous: isAnonymous };
-    const { error } = await supabase.from('sharing_posts').insert([newPost]);
-    if (!error) { setComment(""); fetchSharingPosts(); }
-  };
-
-  const handleDeleteSharing = async (id: number) => {
-    const { error } = await supabase.from('sharing_posts').delete().eq('id', id);
-    if (!error) {
-      setSharingList(prev => prev.filter(post => post.id !== id));
-      setShowDeleteToast(true);
-      setTimeout(() => setShowDeleteToast(false), 2000);
     }
   };
 
-  const handleCopyBibleText = async () => {
-    if (!bibleData) return;
-    const textToCopy = `"${bibleData.content}" - ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`;
-    await navigator.clipboard.writeText(textToCopy);
-    setShowCopyToast(true);
-    setTimeout(() => setShowCopyToast(false), 2000); 
-  };
-
-  const handleShareBibleText = async () => {
-    if (!bibleData) return;
-    const shareData = { title: '오늘의 말씀', text: `"${bibleData.content}" - ${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`, url: window.location.href };
-    try { if (navigator.share) await navigator.share(shareData); else handleCopyBibleText(); } catch (err) { console.log(err); }
+  // 날려먹었던 스와이프 로직 복구
+  const onDragEnd = (event: any, info: any) => {
+    if (info.offset.x > 100) { // 이전 날짜
+      const d = new Date(currentDate);
+      d.setDate(d.getDate() - 1);
+      setCurrentDate(d);
+    } else if (info.offset.x < -100) { // 다음 날짜
+      const d = new Date(currentDate);
+      d.setDate(d.getDate() + 1);
+      if (d <= today) setCurrentDate(d);
+    }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-hidden pt-[64px]">
-      <header className="flex-none w-full bg-white border-sm z-[100] shadow-none">
-        <div className="flex items-center justify-between py-3 px-3 max-w-md mx-auto">
-          <Button variant="ghost" size="icon" className="font-bold" onClick={() => {
-            const d = new Date(currentDate); d.setDate(d.getDate()-1); setCurrentDate(d);
-          }}><ChevronLeft className="w-8 h-8" /></Button>
-          <div className="text-center relative">
-  <h1 className="text-[#5D7BAF] font-black" style={{ fontSize: `${fontSize + 3}px` }}>오늘의 말씀</h1>
+    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
+      
+      {/* 1. 날짜 영역 전체를 아래 내용으로 싹 지우고 덮어쓰세요 */}
+<header className="text-center mb-3 flex flex-col items-center relative">
+  <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
+    {currentDate.getFullYear()}
+  </p>
   
-  {/* 날짜 클릭 시 달력이 뜨도록 감싸는 영역 */}
-  <div 
-    className="relative cursor-pointer group flex flex-col items-center" 
-    onClick={() => (document.getElementById('date-picker') as any).showPicker()}
-  >
-    <p 
-      className="text-gray-400 font-bold transition-all duration-200 group-hover:text-gray-400 group-active:scale-95 flex items-center justify-center gap-1"
-      style={{ fontSize: `${fontSize - 2}px` }}
+  <div className="flex items-center gap-2">
+    <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
+      {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+    </h2>
+    
+    {/* 달력 버튼 */}
+    <button 
+      onClick={() => dateInputRef.current?.showPicker()} 
+      className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
     >
-      {currentDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}
-      {` (${currentDate.toLocaleDateString('ko-KR', {weekday: 'short'})})`}
-      <span className="style={{ fontSize: `${fontSize -1}px` }}">▼</span>
-    </p>
+      <CalendarIcon size={18} strokeWidth={2.5} />
+    </button>
 
-    {/* 실제로 달력을 띄워주는 숨겨진 input */}
-    <input
-      id="date-picker"
+    {/* 숨겨진 날짜 입력 input */}
+    <input 
       type="date"
-      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-      // 오늘 날짜까지만 선택 가능하도록 제한
-      max={new Date().toISOString().split("T")[0]}
-      value={currentDate.toISOString().split("T")[0]}
-      onChange={(e) => {
-        if (!e.target.value) return;
-        const selectedDate = new Date(e.target.value);
-        // 오늘(미래 제외)까지만 선택 가능하게 로직 적용
-        if (selectedDate <= today) {
-          setCurrentDate(selectedDate);
-        }
-      }}
+      ref={dateInputRef}
+      onChange={handleDateChange}
+      max={new Date().toISOString().split("T")[0]} 
+      className="absolute opacity-0 pointer-events-none"
     />
   </div>
-</div>
+</header>
 
-          <Button variant="ghost" size="icon" className="text-black-700 font-bold" onClick={() => {
-            const d = new Date(currentDate); d.setDate(d.getDate() + 1);
-            if (d <= today) setCurrentDate(d);
-          }}><ChevronRight className="w-6 h-6" /></Button>
-        </div>
-      </header>
+      {/* 2. 말씀 카드 (스와이프 로직/힌트 복구) */}
+      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
+        <div className="absolute left-[-82%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100" />
+        
+        <AnimatePresence mode="wait">
+          <motion.div 
+            key={currentDate.toISOString()}
+            drag="x" dragConstraints={{ left: 0, right: 0 }}
+            onDragEnd={onDragEnd}
+            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+            className="w-[85%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none"
+          >
+            {bibleData ? (
+              <>
+                <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
+                  {cleanContent(bibleData.content)}
+                </p>
+                <span className="font-medium text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+                </span>
+              </>
+            ) : <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>}
+          </motion.div>
+        </AnimatePresence>
 
-      <main className="flex-1 overflow-y-auto pt-0 px-4 pb-0 space-y-0 bg-white">
-        <Card className="border-none bg-[#5D7BAF] shadow-sm overflow-hidden rounded-lg">
-          <CardContent className="pt-5 pb-5 px-5">
-            <div className="text-center py-1">
-              <div className="text-white leading-[1.8] break-keep px-4 pb-0 font-semibold text-center">
-                {bibleData ? (
-                  <div className="flex flex-col gap-5"> 
-                    {formatBibleContent(bibleData.content)?.map((verse, idx) => (
-                      <p key={idx} style={{ fontSize: `${fontSize}px`, lineHeight: '1.7' }}>
-                        {verse.text.trim()}
-                      </p>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-white pb-5">등록된 말씀이 없습니다.</p>
-                )}
-              </div>
-              {bibleData && (
-                <div className="mt-5 pt-5 border-t border-white/20 flex justify-center">
-                  <p className="text-sm text-white/90 font-semibold bg-white/10 text-center px-4 py-1 rounded-full">
-                    {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="absolute right-[-82%] w-[85%] max-w-sm aspect-[4/5] bg-white opacity-40 rounded-[32px] scale-90 blur-[1px] border border-zinc-100" />
+      </div>
 
-        <div className="pt-2 pb-2 px-1 space-y-6">
-          <div className="flex items-center justify-center gap-7 pt-1.5">
-            <button onClick={handlePlayTTS} className="flex flex-row items-center gap-1.5">
-              <Mic className="w-5 h-5 text-[#5D7BAF] font-black" />
-              <span className="text-[#5D7BAF] text-sm font-black" style={{ fontSize: `${fontSize - 2}px` }}>음성 재생</span>
-            </button>
-            <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-row items-center gap-1.5">
-              <Star className={`w-5 h-5 ${isFavorite ? "fill-yellow-400 text-yellow-400 font-semibold" : "text-gray-400"}`} />
-              <span className="text-gray-400 text-sm font-semibold" style={{ fontSize: `${fontSize - 2}px` }}>기록함</span>
-            </button>
-            <button onClick={handleCopyBibleText} className="flex flex-row items-center gap-1.5">
-              <Copy className="w-5 h-5 text-gray-400 font-semibold" />
-              <span className="text-gray-400 text-sm font-semibold" style={{ fontSize: `${fontSize - 2}px` }}>복사</span>
-            </button>
-            <button onClick={handleShareBibleText} className="flex flex-row items-center gap-1.5">
-              <Share2 className="w-5 h-5 text-gray-400 font-semibold" />
-              <span className="text-gray-400 text-sm font-semibold" style={{ fontSize: `${fontSize - 2}px` }}>공유</span>
-            </button>
-          </div>
+      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
+      <div className="flex items-center gap-7 mt-3 mb-14"> 
+        <button onClick={handlePlayTTS} className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+        </button>
+        <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+        </button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+      </div>
 
-          <div className="pt-20 space-y-3 px-1">
-            <div className="flex items-center gap-2 px-1">
-              <MessageCircle className="w-5 h-5 text-primary" />
-              <h3 className="font-bold text-[#5D7BAF]">함께 나누기</h3>
-            </div>
-            <div className="relative bg-gray-100 rounded-lg p-3 border border-gray-150">
-              {!isAuthenticated && (
-                <div className="absolute inset-0 z-8 flex flex-col items-center justify-center bg-gray-50/80 backdrop-blur-[0.5px] rounded-lg space-y-3">
-                  <Lock className="w-7 h-7 text-[#5D7BAF]" />
-                  <Button size="lg" onClick={() => setShowLoginModal(true)}>로그인 후 나누기</Button>
-                </div>
-              )}
-              <Textarea 
-                className="bg-white border-none focus-visible:ring-1 ring-blue-150 resize-none min-h-[80px] p-2 text-[#5D7BAF] font-semibold"
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-              <div className="flex items-center justify-between mt-4 pt-0">
-                <div className="flex items-center gap-10">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <Checkbox checked={isAnonymous} onCheckedChange={(val) => setIsAnonymous(!!val)} className="border-gray-400 data-[state=checked]:bg-gray-500 data-[state=checked]:border-gray-500" />
-                    <span className="text-sm font-semibold text-gray-500">익명 나누기</span>
-                  </label>
-                  <button onClick={(e) => { e.preventDefault(); toggleSpeechRecognition(); }} className={`flex items-center gap-1 px-3 py-1.5 rounded-full transition-all active:scale-95 ${isRecording ? "bg-[#5D7BAF] animate-pulse text-white shadow-none" : "text-[#5D7BAF] hover:bg-gray-100"}`}>
-                    <Mic className="w-4 h-4 pointer-events-none" />
-                    <span className="text-sm font-semibold pointer-events-none">{isRecording ? "녹음 중..(■중단)" : "음성으로 입력"}</span>
-                  </button>
-                </div>
-                <Button size="sm" className="rounded-full px-7 font-bold bg-[#5D7BAF] text-white border-none ring-0 shadow-none outline-none" onClick={handleRegisterSharing} disabled={!comment.trim()} style={{ fontSize: `${fontSize - 2}px` }}>등록</Button>
-              </div>
-            </div>
+      {/* 4. 아멘 버튼 (동그란 원형 복구) */}
+      <div className="flex flex-col items-center gap-3 pb-2">
+        <motion.button 
+          whileTap={{ scale: 0.9 }} onClick={handleAmenClick}
+          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
+            ${hasAmened ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
+        >
+          <Heart className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} strokeWidth={hasAmened ? 0 : 2} />
+          <span className="font-black" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
+          <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>{amenCount.toLocaleString()}</span>
+        </motion.button>
+        <p className="text-zinc-300 font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>아멘으로 화답해주세요</p>
+      </div>
 
-            <div className="space-y-3 pb-10">
-              {sharingList.map((post) => (
-                <div key={post.id} className="bg-white border border-gray-150 border border-zinc-100 shadow-sm p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#5D7BAF]" style={{ fontSize: `${fontSize}px` }}>{post.is_anonymous ? "익명" : post.user_nickname}</p>
-                      <p className="text-gray-400 flex items-center gap-2" style={{ fontSize: `${fontSize - 3}px` }}>
-                        {(() => {
-                          const d = new Date(post.created_at);
-                          const date = d.toLocaleDateString('en-CA');
-                          const time = d.toTimeString().split(' ')[0].substring(0, 5);
-                          return <><span className="font-bold">{date}</span><span className="text-gray-300">|</span><span className="font-bold">{time}</span></>;
-                        })()}
-                      </p>
-                    </div>
-                    {isAuthenticated && currentUserId === post.user_id && (
-                      <button onClick={() => setDeleteId(post.id)} className="text-gray-300 hover:text-red-400 p-1"><Trash2 style={{ width: `${fontSize}px`, height: `${fontSize}px` }} /></button>
-                    )}
-                  </div>
-                  <p className="text-gray-700 leading-relaxed whitespace-pre-wrap" style={{ fontSize: `${fontSize}px` }}>{post.content}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </main>
-
-            {/* DailyWordPage 전용 오디오 컨트롤러 (드래그 기능 포함) */}
+      {/* 5. TTS 제어 팝업 */}
       <AnimatePresence>
         {showAudioControl && (
-          <motion.div 
-            drag="y" // 상하 드래그 활성화
-            dragConstraints={{ top: -400, bottom: 50 }} // 드래그 제한 범위
-            initial={{ y: 100, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            exit={{ y: 100, opacity: 0 }} 
-            className="fixed bottom-6 left-4 right-4 z-[250] max-w-md mx-auto"
-          >
-            {/* touch-none: 드래그 시 배경 스크롤 방지 */}
-            <div className="bg-[#5D7BAF] text-white p-4 rounded-2xl shadow-2xl flex flex-col gap-3 border border-white/20 touch-none">
+          <motion.div initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
+            <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  {/* 재생 상태 아이콘 */}
-                  <div className="bg-white/20 p-2 rounded-full animate-pulse">
-                    <Mic size={18}/>
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold opacity-90">오늘의 말씀을 재생중입니다...</p>
-                    <p className="text-[9px] opacity-60 mb-1">상하로 드래그하여 위치 조절 가능</p>
-                    
-                    {/* 성별 선택 버튼 (DailyWordPage의 voiceType 상태와 연동) */}
-                    <div className="flex gap-2 mt-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setVoiceType('F'); }} 
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'F' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                      >여성 목소리</button>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); setVoiceType('M'); }} 
-                        className={`text-[10px] px-2.5 py-0.5 rounded-full border transition-all ${voiceType === 'M' ? "bg-white text-[#5D7BAF] font-bold" : "border-white/40 text-white/70"}`}
-                      >남성 목소리</button>
-                    </div>
-                  </div>
+                  {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
+                  <p className="text-[13px] font-bold">말씀을 읽어드리고 있습니다</p>
                 </div>
-
-                {/* 조작 버튼 (DailyWordPage의 togglePlayPause, stopAudio 함수와 연동) */}
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); togglePlayPause(); }}>
-                    {isPlaying ? <Pause size={20} fill="currentColor"/> : <Play size={20} fill="currentColor"/>}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="text-white hover:bg-white/10" onClick={(e) => { e.stopPropagation(); stopAudio(); }}>
-                    <X size={20}/>
-                  </Button>
-                </div>
+                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20}/></button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => { setVoiceType('F'); handlePlayTTS(); }} className={`flex-1 py-2 rounded-xl text-xs font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성 목소리</button>
+                <button onClick={() => { setVoiceType('M'); handlePlayTTS(); }} className={`flex-1 py-2 rounded-xl text-xs font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성 목소리</button>
               </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-
-
-      <AnimatePresence>
-        {showCopyToast && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[300] bg-gray-600/90 text-white px-5 py-3 rounded-xl flex items-center gap-2 shadow-lg whitespace-nowrap">
-            <CheckCircle2 className="w-5 h-5 text-green-400" />
-            <span className="font-bold text-sm">말씀이 복사되었습니다</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {deleteId !== null && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDeleteId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative bg-white rounded-2xl p-6 shadow-xl w-full max-w-[280px] text-center">
-              <h3 className="text-lg font-bold text-gray-900 mb-2">정말 삭제할까요?</h3>
-              <p className="text-sm text-gray-500 mb-6">삭제된 내용은 복구할 수 없습니다.</p>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteId(null)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold text-sm">취소</button>
-                <button onClick={() => { handleDeleteSharing(deleteId); setDeleteId(null); }} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold text-sm">삭제하기</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showDeleteToast && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="fixed inset-0 flex items-center justify-center z-[110] pointer-events-none">
-            <div className="bg-gray-600/90 text-white px-6 py-3 rounded-lg shadow-lg text-sm font-bold flex items-center gap-2">
-              <Trash2 className="text-white" size={18} />
-              <span>삭제되었습니다</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showLoginModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 overflow-y-auto">
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} className="bg-white rounded-3xl w-full max-w-sm overflow-hidden relative p-6 max-h-[90vh] overflow-y-auto">
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-4 right-4 text-gray-400 z-[210]">✕</button>
-              <AuthPage />
-            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

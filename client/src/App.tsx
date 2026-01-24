@@ -19,53 +19,49 @@ import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 
-function Router() {
+// 1. [알맹이 컴포넌트] Layout과 모든 페이지 로직을 담습니다.
+function AppContent() {
   return (
-    <AnimatePresence mode="wait">
-      <Switch> 
-        <Route path="/" component={DailyWordPage} />
-        <Route path="/qt" component={QTPage} />
-        <Route path="/reading" component={ReadingPage} />
-        <Route path="/community" component={CommunityPage} />
-        <Route path="/archive" component={ArchivePage} />
-        <Route path="/auth" component={AuthPage} />
-        <Route path="/search" component={SearchPage} />
-        <Route path="/register" component={RegisterPage} />
-        <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
-        <Route component={NotFound} />
-      </Switch>
-    </AnimatePresence>
+    <WouterRouter hook={useHashLocation}>
+      <Layout>
+        <TopBar />
+        <main className="flex-1 flex flex-col relative overflow-hidden">
+          <AnimatePresence mode="wait">
+            <Switch> 
+              <Route path="/" component={DailyWordPage} />
+              <Route path="/qt" component={QTPage} />
+              <Route path="/reading" component={ReadingPage} />
+              <Route path="/community" component={CommunityPage} />
+              <Route path="/archive" component={ArchivePage} />
+              <Route path="/auth" component={AuthPage} />
+              <Route path="/search" component={SearchPage} />
+              <Route path="/register" component={RegisterPage} />
+              <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
+              <Route component={NotFound} />
+            </Switch>
+          </AnimatePresence>
+        </main>
+        <BottomNav />
+      </Layout>
+    </WouterRouter>
   );
 }
 
-function App() {
+// 2. [껍데기 컴포넌트] 최상위에서 오직 Provider들만 관리합니다.
+export default function App() {
   useEffect(() => {
-  const href = window.location.href;
-  
-  // 카카오 로그인 후 access_token이 포함되어 돌아온 경우 처리
-  if (href.includes("access_token")) {
-    // //# 형태의 잘못된 경로가 생기면 바로잡습니다.
-    if (href.includes("//#")) {
+    const href = window.location.href;
+    if (href.includes("access_token") && href.includes("//#")) {
       window.history.replaceState(null, "", href.replace("//#", "/#"));
     }
-  }
-}, []);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <DisplaySettingsProvider>
-        {/* hook={useHashLocation}을 사용하여 새로고침 404를 방지합니다 */}
-        <WouterRouter hook={useHashLocation}>
-          <Layout>
-            <TopBar />
-            <main className="flex-1 overflow-y-auto pb-20">
-              <Router />
-            </main>
-            <BottomNav />
-          </Layout>
-        </WouterRouter>
+        {/* 이제 AppContent 안에 있는 Layout은 무조건 Provider의 자식이 됩니다. */}
+        <AppContent />
       </DisplaySettingsProvider>
     </QueryClientProvider>
   );
 }
-
-export default App;
