@@ -85,8 +85,9 @@ const togglePlay = () => {
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
-  // 수정 포인트: 인자로 넘어온 selectedVoice가 있으면 그걸 최우선으로 사용합니다.
-  const targetVoice = selectedVoice ? selectedVoice : voiceType;
+  // selectedVoice가 있으면 그걸 쓰고, 없으면 현재 voiceType 상태를 씁니다.
+  // 이 순서가 바뀌면 남성 목소리가 먼저 나올 수 있습니다.
+  const targetVoice = selectedVoice || voiceType;
 
   if (audioRef.current) {
     audioRef.current.pause();
@@ -106,17 +107,17 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   try {
     const response = await fetch(url, {
-      method: "POST",
-      body: JSON.stringify({
-        input: { text: textToSpeak },
-        voice: { 
-          languageCode: "ko-KR", 
-          // 여기서 한 번 더 확실하게 체크
-          name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
-        },
-        audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
-      }),
-    });
+    method: "POST",
+    body: JSON.stringify({
+      input: { text: textToSpeak },
+      voice: { 
+        languageCode: "ko-KR", 
+        // 확실하게 targetVoice를 바라보게 합니다.
+        name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
+      },
+      audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
+    }),
+  });
 
     const data = await response.json();
     if (data.audioContent) {
@@ -124,9 +125,12 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       const audio = new Audio(audioSrc);
       audioRef.current = audio;
       audio.play();
-      audio.onended = () => setIsPlaying(false);
+      audio.onended = () => {
+        setIsPlaying(false);        // 재생 상태 끄기
+        setShowAudioControl(false); // 팝업창 닫기 (이게 추가되어야 자동으로 닫힙니다)
+      };
     }
-  } catch (error) {
+  } catch (error) { // 👈 catch문은 그대로 두세요!
     console.error("TTS 에러:", error);
     setIsPlaying(false);
   }
@@ -182,7 +186,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
-  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-zinc-200/50 opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -211,7 +215,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
-  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-zinc-200/50 opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
