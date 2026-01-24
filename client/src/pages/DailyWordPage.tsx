@@ -182,7 +182,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제): left 값을 -75% 정도로 조절 */}
-  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-400 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -211,7 +211,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일): right 값을 -75% 정도로 조절 */}
-  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-400 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
+  <div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white opacity-100 rounded-[32px] scale-90 blur-[1px] border border-zinc-100 z-0" />
 </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
