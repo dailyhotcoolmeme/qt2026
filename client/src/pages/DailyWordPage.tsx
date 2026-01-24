@@ -81,40 +81,71 @@ const togglePlay = () => {
 };
 
 // 2. TTS 실행 함수 (맺음말 추가 및 목소리 즉시 반영)
+// 2. TTS 실행 함수 (R2 캐싱 로직 추가 버전)
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
   // 1. 이어듣기: 현재 재생 위치 저장
   const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
 
-  // 2. 목소리 결정: 인자가 있으면 우선, 없으면 현재 상태(기본값 'F')
+  // 2. 목소리 결정
   const targetVoice = selectedVoice || voiceType;
 
-  // 3. 기존 오디오 완전 정지 및 초기화
+  // 3. 기존 오디오 초기화
   if (audioRef.current) {
     audioRef.current.pause();
     audioRef.current = null;
   }
 
+  // 4. 파일명 및 경로 생성 (daily 폴더 경로 적용)
+  // daily_b(책번호)_c(장)_v(절)_(성별).mp3 구조
+  const bookOrder = bibleData.book_order || '0';
+  const chapter = bibleData.chapter;
+  const verse = String(bibleData.verse).replace(/:/g, '_');
+  const fileName = `daily_b${bookOrder}_c${chapter}_v${verse}_${targetVoice}.mp3`;
+  const storagePath = `daily/${fileName}`; // daily 폴더로 지정
+
   const mainContent = cleanContent(bibleData.content);
   const bibleSource = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절 말씀`;
   const textToSpeak = `${mainContent}. ${bibleSource}`;
 
-  const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY; 
-  const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-
-  // 팝업을 먼저 띄우고 재생 상태로 변경
+  // 팝업 먼저 표시
   setShowAudioControl(true);
   setIsPlaying(true);
 
   try {
+    // [STEP 1] Supabase Storage에 이미 파일이 있는지 확인
+    const { data: existingFile } = supabase.storage
+      .from('bible-assets')
+      .getPublicUrl(storagePath);
+
+    const checkRes = await fetch(existingFile.publicUrl, { method: 'HEAD' });
+
+    // [STEP 2] 파일이 있으면 바로 재생 (API 호출 안함)
+    if (checkRes.ok) {
+      const savedAudio = new Audio(existingFile.publicUrl);
+      savedAudio.currentTime = lastTime;
+      
+      audioRef.current = savedAudio;
+      savedAudio.onended = () => {
+        setIsPlaying(false);
+        setShowAudioControl(false);
+        audioRef.current = null;
+      };
+      savedAudio.play();
+      return;
+    }
+
+    // [STEP 3] 파일이 없으면 Google TTS API 호출
+    const apiKey = import.meta.env.VITE_GOOGLE_TTS_API_KEY; 
+    const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
+
     const response = await fetch(url, {
       method: "POST",
       body: JSON.stringify({
         input: { text: textToSpeak },
         voice: { 
           languageCode: "ko-KR", 
-          // ⚠️ 중요: targetVoice를 기준으로 성별을 확실히 매칭 (B:여성, C:남성)
           name: targetVoice === 'F' ? "ko-KR-Chirp3-HD-Despina" : "ko-KR-Chirp3-HD-Charon" 
         },
         audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
@@ -123,23 +154,31 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
     const data = await response.json();
     if (data.audioContent) {
+      // [STEP 4] Storage에 업로드 (캐싱)
+      const binary = atob(data.audioContent);
+      const array = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+      const blob = new Blob([array], { type: 'audio/mp3' });
+
+      await supabase.storage
+        .from('bible-assets')
+        .upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
+
+      // [STEP 5] 재생
       const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-      
-      // 이어듣기 적용
       audio.currentTime = lastTime;
       audioRef.current = audio;
       
-      // 끝났을 때의 처리 (QTPage와 동일)
       audio.onended = () => {
         setIsPlaying(false);
-        setShowAudioControl(false); // 재생 완료 시에만 닫힘
+        setShowAudioControl(false);
         audioRef.current = null;
       };
 
       audio.play();
     }
   } catch (error) {
-    console.error("TTS 에러:", error);
+    console.error("TTS 재생/캐싱 에러:", error);
     setIsPlaying(false);
     setShowAudioControl(false);
   }
