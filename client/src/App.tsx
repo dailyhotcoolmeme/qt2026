@@ -15,57 +15,60 @@ import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
 import RegisterPage from "./pages/RegisterPage";
+import TermsPage from "./pages/TermsPage"; // 1. TermsPage 임포트 추가
 import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 
-// 1. [알맹이 컴포넌트] Layout과 모든 페이지 로직을 담습니다.
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
-      <Layout>
-        <TopBar />
-        <main className="flex-1 flex flex-col relative overflow-hidden">
-          <AnimatePresence mode="wait">
-            <Switch> 
-              <Route path="/" component={DailyWordPage} />
-              <Route path="/qt" component={QTPage} />
-              <Route path="/reading" component={ReadingPage} />
-              <Route path="/community" component={CommunityPage} />
-              <Route path="/archive" component={ArchivePage} />
-              <Route path="/auth" component={AuthPage} />
-              <Route path="/search" component={SearchPage} />
-              <Route path="/register" component={RegisterPage} />
-              <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
-              <Route component={NotFound} />
-            </Switch>
-          </AnimatePresence>
-        </main>
-        <BottomNav />
-      </Layout>
+      <AnimatePresence mode="wait">
+        <Switch>
+          {/* 2. 약관 페이지는 상단바/하단바가 없는 독립된 레이아웃으로 배치 */}
+          <Route path="/terms/:type" component={TermsPage} />
+          <Route path="/auth" component={AuthPage} />
+
+          {/* 3. 나머지 메인 서비스 페이지들은 기존 Layout 안에서 동작 */}
+          <Route>
+            <Layout>
+              <TopBar />
+              <main className="flex-1 flex flex-col relative overflow-hidden">
+                <Switch> 
+                  <Route path="/" component={DailyWordPage} />
+                  <Route path="/qt" component={QTPage} />
+                  <Route path="/reading" component={ReadingPage} />
+                  <Route path="/community" component={CommunityPage} />
+                  <Route path="/archive" component={ArchivePage} />
+                  <Route path="/search" component={SearchPage} />
+                  <Route path="/register" component={RegisterPage} />
+                  <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
+                  <Route component={NotFound} />
+                </Switch>
+              </main>
+              <BottomNav />
+            </Layout>
+          </Route>
+        </Switch>
+      </AnimatePresence>
     </WouterRouter>
   );
 }
 
-// App.tsx 파일의 최하단 App 함수 부분
 export default function App() {
   useEffect(() => {
-  const checkAuthRedirect = () => {
-    const href = window.location.href;
-    
-    if (href.includes("/#/#")) {
-      const newHref = href.replace("/#/#", "/#/");
-      window.history.replaceState(null, "", newHref);
-      
-      // 0.3초 정도 대기 후 새로고침하여 로딩 화면을 충분히 보여줌
-      setTimeout(() => {
-        window.location.reload();
-      }, 300);
-    }
-  };
-
-  checkAuthRedirect();
-}, []);
+    const checkAuthRedirect = () => {
+      const href = window.location.href;
+      if (href.includes("/#/#")) {
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        setTimeout(() => {
+          window.location.reload();
+        }, 300);
+      }
+    };
+    checkAuthRedirect();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
