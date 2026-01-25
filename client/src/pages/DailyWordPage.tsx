@@ -124,7 +124,12 @@ export default function DailyWordPage() {
 
     const targetVoice = voiceType;
     const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
+    
+// [여기에 추가] 컨트롤러를 보여줘야 화면이 반응합니다.
+    setShowAudioControl(true);
 
+    if (audioRef.current) {
+      audioRef.current.pause();
     // 2. [핵심] 기존 오디오를 완전히 파괴 (소스까지 비워야 안 겹칩니다)
     if (audioRef.current) {
       audioRef.current.pause();
