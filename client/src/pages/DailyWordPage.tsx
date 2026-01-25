@@ -31,10 +31,13 @@ export default function DailyWordPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
-  // 성별이 바뀔 때 재생 중이면 즉시 다시 재생 (QTPage 로직 복구)
+ // [수정] 성별 변경 시 QTPage와 동일하게 로직 보호
   useEffect(() => {
-    if (showAudioControl && isPlaying) {
-      handlePlayTTS();
+    // 컨트롤바가 켜져 있고 재생 중일 때만, 그리고 현재 목소리와 설정값이 다를 때만 실행
+    if (showAudioControl && isPlaying && audioRef.current) {
+      if (!audioRef.current.src.includes(`_${voiceType}.mp3`)) {
+        handlePlayTTS();
+      }
     }
   }, [voiceType]);
 
@@ -113,13 +116,20 @@ export default function DailyWordPage() {
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (!bibleData) return;
 
-    const targetVoice = selectedVoice || voiceType;
-    if (selectedVoice) setVoiceType(targetVoice);
+    // 1. 만약 인자로 목소리가 들어오면 상태만 바꾸고 함수 종료 (useEffect가 대신 실행함)
+    if (selectedVoice) {
+      setVoiceType(selectedVoice);
+      return;
+    }
 
+    const targetVoice = voiceType;
     const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
 
+    // 2. [핵심] 기존 오디오를 완전히 파괴 (소스까지 비워야 안 겹칩니다)
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.src = ""; 
+      audioRef.current.load();
       audioRef.current = null;
     }
 
@@ -315,16 +325,16 @@ export default function DailyWordPage() {
           </button>
         </div>
         
-        {/* 목소리 선택 영역 (박스 디자인 수정) */}
+        {/* 목소리 선택 영역 (수정본) */}
         <div className="flex gap-2">
           <button 
-            onClick={() => { setVoiceType('F'); handlePlayTTS('F'); }} 
+            onClick={() => setVoiceType('F')} 
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
             여성 목소리
           </button>
           <button 
-            onClick={() => { setVoiceType('M'); handlePlayTTS('M'); }} 
+            onClick={() => setVoiceType('M')} 
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
             남성 목소리
