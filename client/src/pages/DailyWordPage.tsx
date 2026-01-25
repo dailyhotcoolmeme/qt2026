@@ -261,7 +261,7 @@ export default function DailyWordPage() {
           <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
             {cleanContent(bibleData.content)}
           </p>
-          <span className="font-medium text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          <span className="font-bold text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
             {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
           </span>
         </>
@@ -280,7 +280,7 @@ export default function DailyWordPage() {
   className="flex flex-col items-center gap-1.5 text-zinc-400"
 >
   <Headphones size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+  <span className="font-black" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
 </button>
 
         <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
