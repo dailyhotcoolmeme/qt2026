@@ -35,12 +35,6 @@ export default function AuthPage() {
         transition={{ duration: 0.6 }}
         className="w-full text-center mt-12"
       >
-        <span 
-          className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block"
-          style={{ fontSize: `${fontSize * 0.70}px` }}
-        >
-          QuietTime Diary
-        </span>
         <h1 
           className="font-black text-zinc-900 leading-[1.3] tracking-tighter"
           style={{ fontSize: `${fontSize * 1.8}px` }}
@@ -52,8 +46,8 @@ export default function AuthPage() {
           className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep"
           style={{ fontSize: `${fontSize}px` }}
         >
-          매일의 묵상(QT)과 중보를<br />
-          음성으로 기록하고 보관하세요.
+          매일 묵상과 중보를<br />
+          기록하고 보관하세요.
         </p>
       </motion.div>
 
@@ -94,13 +88,7 @@ export default function AuthPage() {
           카카오로 3초만에 시작하기
         </motion.button>
         
-        <p 
-          className="text-center text-zinc-400 leading-relaxed px-4 opacity-70"
-          style={{ fontSize: `${fontSize * 0.7}px` }}
-        >
-          본 서비스는 사용자의 소중한 기록을<br />
-          안전하게 관리하고 보호합니다.
-        </p>
+        
       </div>
 
       {/* 하단: 보조 버튼 */}
@@ -112,7 +100,7 @@ export default function AuthPage() {
       >
         <div className="flex items-center justify-center gap-5 py-6">
           <Link href="/login-email">
-            <span className="text-zinc-500 font-semibold hover:text-[#4A6741] transition-colors cursor-pointer" style={{ fontSize: `${fontSize * 0.9}px` }}>이메일 로그인</span>
+            <span className="text-zinc-500 font-semibold hover:text-[#4A6741] transition-colors cursor-pointer" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</span>
           </Link>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
           <Link href="/register">
