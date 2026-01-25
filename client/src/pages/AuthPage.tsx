@@ -1,15 +1,24 @@
-import React from "react";
+import React, { useState } from "react"; // useState 추가
 import { Button } from "../components/ui/button";
 import { supabase } from "../lib/supabase"; 
 import { useLocation, Link } from "wouter";
 import { motion } from "framer-motion";
-import { useDisplaySettings } from "../components/DisplaySettingsProvider"; // 1. 설정 훅 추가
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
-  const { fontSize = 16 } = useDisplaySettings(); // 2. 설정된 폰트 크기 가져오기
+  const { fontSize = 16 } = useDisplaySettings();
+  
+  // 1. 약관 동의 상태 추가
+  const [agreed, setAgreed] = useState(false);
 
   const handleKakaoLogin = async () => {
+    // 2. 미동의 시 진행 차단
+    if (!agreed) {
+      alert("이용약관 및 개인정보 처리방침에 동의해 주세요.");
+      return;
+    }
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: {
@@ -22,7 +31,7 @@ export default function AuthPage() {
   return (
     <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 py-20">
       
-      {/* 상단: 환영 메시지 */}
+      {/* 상단: 환영 메시지 (기존 유지) */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -31,33 +40,48 @@ export default function AuthPage() {
       >
         <span 
           className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block"
-          style={{ fontSize: `${fontSize * 0.75}px` }} // 비율에 맞춘 크기 조절
+          style={{ fontSize: `${fontSize * 0.75}px` }}
         >
-          PRAYER RECORD
+          Quiet Time Diary
         </span>
         <h1 
           className="font-black text-zinc-900 leading-[1.3] tracking-tighter"
-          style={{ fontSize: `${fontSize * 1.8}px` }} // 제목은 기본보다 크게
+          style={{ fontSize: `${fontSize * 1.8}px` }}
         >
           당신의 기도가<br />
           <span className="text-[#4A6741]">기록되는 공간</span>
         </h1>
         <p 
           className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep"
-          style={{ fontSize: `${fontSize}px` }} // 본문 크기 기준
+          style={{ fontSize: `${fontSize}px` }}
         >
-          매일의 묵상과 중보를<br />
-          음성으로 편하게 남겨보세요.
+          매일의 묵상(QT)과 중보를<br />
+          음성으로 기록하고 보관하세요.
         </p>
       </motion.div>
 
       {/* 중단: 메인 로그인 버튼 영역 */}
       <div className="w-full max-w-sm space-y-6">
+        {/* 3. 약관 동의 체크박스 삽입 (디자인 흐름을 깨지 않도록 중앙 정렬) */}
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <input 
+            type="checkbox" 
+            id="agree-check" 
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="w-5 h-5 accent-[#4A6741] cursor-pointer"
+          />
+          <label htmlFor="agree-check" className="text-zinc-600 font-medium cursor-pointer" style={{ fontSize: `${fontSize * 0.85}px` }}>
+            <Link href="/terms/service"><a className="underline underline-offset-4 decoration-zinc-300">이용약관</a></Link> 및{" "}
+            <Link href="/terms/privacy"><a className="underline underline-offset-4 decoration-zinc-300">개인정보 지침</a></Link>에 동의합니다
+          </label>
+        </div>
+
         <motion.button 
-          whileTap={{ scale: 0.96 }}
+          whileTap={agreed ? { scale: 0.96 } : {}} // 동의 시에만 애니메이션 작동
           onClick={handleKakaoLogin}
-          className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[20px] shadow-[0_4px_12px_rgba(254,229,0,0.2)] flex items-center justify-center gap-3 transition-all"
-          style={{ fontSize: `${fontSize * 1.05}px` }} // 버튼 텍스트 살짝 강조
+          className={`w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[20px] shadow-[0_4px_12px_rgba(254,229,0,0.2)] flex items-center justify-center gap-3 transition-all ${!agreed ? 'opacity-60 cursor-not-allowed' : 'opacity-100'}`}
+          style={{ fontSize: `${fontSize * 1.05}px` }}
         >
           <img 
             src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" 
@@ -69,14 +93,14 @@ export default function AuthPage() {
         
         <p 
           className="text-center text-zinc-400 leading-relaxed px-4 opacity-70"
-          style={{ fontSize: `${fontSize * 0.7}px` }} // 약관 등은 작게
+          style={{ fontSize: `${fontSize * 0.7}px` }}
         >
-          로그인 시 서비스 이용약관 및<br />
-          개인정보 처리방침에 동의하게 됩니다.
+          본 서비스는 사용자의 기적 같은 기록을<br />
+          안전하게 관리하고 보호합니다.
         </p>
       </div>
 
-      {/* 하단: 보조 버튼 (이메일 로그인/회원가입) */}
+      {/* 하단: 보조 버튼 (기존 유지) */}
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
