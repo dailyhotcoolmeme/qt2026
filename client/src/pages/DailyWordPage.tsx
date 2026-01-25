@@ -121,9 +121,12 @@ export default function DailyWordPage() {
     }
 
     const targetVoice = voiceType;
-    const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
+    // [수정] 현재 오디오 파일명에 현재 날짜(display_date)가 포함되어 있을 때만 시간을 기억하고, 아니면 0으로 초기화
+    const isSameVerse = audioRef.current?.src.includes(bibleData.display_date);
+    const lastTime = isSameVerse ? (audioRef.current?.currentTime || 0) : 0;
 
     setShowAudioControl(true);
+
 
     // 2. [핵심] 기존 오디오 완전 파괴 및 괄호 정리
     if (audioRef.current) {
