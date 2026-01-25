@@ -280,7 +280,7 @@ export default function DailyWordPage() {
   className="flex flex-col items-center gap-1.5 text-zinc-400"
 >
   <Headphones size={22} strokeWidth={1.5} />
-  <span className="font-black" text-[#4A6741] style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+  <span className="font-black" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
 </button>
 
         <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
