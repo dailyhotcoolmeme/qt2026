@@ -261,7 +261,7 @@ export default function DailyWordPage() {
           <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
             {cleanContent(bibleData.content)}
           </p>
-          <span className="font-medium text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          <span className="font-bold text-[#4A6741] opacity-40" style={{ fontSize: `${fontSize * 0.9}px` }}>
             {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
           </span>
         </>
