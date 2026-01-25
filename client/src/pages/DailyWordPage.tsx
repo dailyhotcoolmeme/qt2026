@@ -121,9 +121,12 @@ export default function DailyWordPage() {
     }
 
     const targetVoice = voiceType;
-    // [수정] 현재 오디오 파일명에 현재 날짜(display_date)가 포함되어 있을 때만 시간을 기억하고, 아니면 0으로 초기화
-    const isSameVerse = audioRef.current?.src.includes(bibleData.display_date);
-    const lastTime = isSameVerse ? (audioRef.current?.currentTime || 0) : 0;
+    // 현재 재생 중인 파일이 오늘 날짜의 말씀인지 아주 확실하게 체크
+    const currentSrc = audioRef.current?.src || "";
+    const isSameDate = currentSrc.includes(`daily_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
+    
+    // 같은 날짜면 이어듣고(lastTime 유지), 날짜가 바뀌었으면 처음부터(0)
+    const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
 
     setShowAudioControl(true);
 
