@@ -15,21 +15,22 @@ import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
 import RegisterPage from "./pages/RegisterPage";
-import TermsPage from "./pages/TermsPage"; // 1. TermsPage 임포트 추가
+import TermsPage from "./pages/TermsPage"; 
 import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
+import { supabase } from "./lib/supabase"; // 상단에 추가됨
 
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
       <AnimatePresence mode="wait">
         <Switch>
-          {/* 2. 약관 페이지는 상단바/하단바가 없는 독립된 레이아웃으로 배치 */}
+          {/* 약관 및 인증 페이지 (독립 레이아웃) */}
           <Route path="/terms/:type" component={TermsPage} />
           <Route path="/auth" component={AuthPage} />
 
-          {/* 3. 나머지 메인 서비스 페이지들은 기존 Layout 안에서 동작 */}
+          {/* 메인 서비스 페이지 (공통 레이아웃) */}
           <Route>
             <Layout>
               <TopBar />
@@ -57,6 +58,7 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
+    // 1. 카카오 로그인 리다이렉트 처리
     const checkAuthRedirect = () => {
       const href = window.location.href;
       if (href.includes("/#/#")) {
@@ -67,7 +69,31 @@ export default function App() {
         }, 300);
       }
     };
+
+    // 2. 로그인 성공 시 약관 동의 내역 자동 저장 로직
+    const syncAgreements = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        // 이미 저장된 동의 내역이 있는지 확인
+        const { data: existing } = await supabase
+          .from('user_terms_agreements')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        // 내역이 없으면 (최초 가입/로그인 시) 동의 도장 찍기
+        if (!existing || existing.length === 0) {
+          await supabase.from('user_terms_agreements').insert([
+            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
+            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
+          ]);
+        }
+      }
+    };
+
     checkAuthRedirect();
+    syncAgreements();
   }, []);
 
   return (
