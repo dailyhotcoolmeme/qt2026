@@ -276,6 +276,7 @@ export default function DailyWordPage() {
   <Headphones size={22} strokeWidth={1.5} />
   <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
 </button>
+
         <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
