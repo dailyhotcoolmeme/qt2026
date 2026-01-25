@@ -33,20 +33,20 @@ export default function AuthPage() {
           className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block"
           style={{ fontSize: `${fontSize * 0.75}px` }} // 비율에 맞춘 크기 조절
         >
-          PRAYER RECORD
+          QuietTime DIARY
         </span>
         <h1 
           className="font-black text-zinc-900 leading-[1.3] tracking-tighter"
           style={{ fontSize: `${fontSize * 1.8}px` }} // 제목은 기본보다 크게
         >
-          당신의 기도가<br />
+          우리의 기도가<br />
           <span className="text-[#4A6741]">기록되는 공간</span>
         </h1>
         <p 
           className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep"
           style={{ fontSize: `${fontSize}px` }} // 본문 크기 기준
         >
-          매일의 묵상과 중보를<br />
+          매일의 묵상(QT)과 중보를<br />
           음성으로 편하게 남겨보세요.
         </p>
       </motion.div>
@@ -89,7 +89,7 @@ export default function AuthPage() {
               className="text-zinc-500 font-semibold hover:text-[#4A6741] transition-colors"
               style={{ fontSize: `${fontSize * 0.9}px` }}
             >
-              이메일 로그인
+              아이디 로그인
             </a>
           </Link>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
