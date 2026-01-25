@@ -269,9 +269,13 @@ export default function DailyWordPage() {
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
       <div className="flex items-center gap-7 mt-3 mb-14"> 
-        <button onClick={handlePlayTTS} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
-        </button>
+        <button 
+  onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+  className="flex flex-col items-center gap-1.5 text-zinc-400"
+>
+  <Headphones size={22} strokeWidth={1.5} />
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+</button
         <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
