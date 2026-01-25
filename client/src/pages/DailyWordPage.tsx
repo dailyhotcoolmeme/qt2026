@@ -31,13 +31,11 @@ export default function DailyWordPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
- // [수정] 성별 변경 시 QTPage와 동일하게 로직 보호
+ // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
   useEffect(() => {
-    // 컨트롤바가 켜져 있고 재생 중일 때만, 그리고 현재 목소리와 설정값이 다를 때만 실행
-    if (showAudioControl && isPlaying && audioRef.current) {
-      if (!audioRef.current.src.includes(`_${voiceType}.mp3`)) {
-        handlePlayTTS();
-      }
+    // 오디오 컨트롤러가 켜져 있을 때만 성별 변경을 반영하여 다시 재생함
+    if (showAudioControl) {
+      handlePlayTTS();
     }
   }, [voiceType]);
 
@@ -112,11 +110,11 @@ export default function DailyWordPage() {
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
 
-  // 3. TTS 실행 함수 (QTPage 로직 복구 버전)
+  // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (!bibleData) return;
 
-    // 1. 만약 인자로 목소리가 들어오면 상태만 바꾸고 함수 종료 (useEffect가 대신 실행함)
+    // 1. 목소리 변경 시 상태 업데이트 후 종료 (useEffect가 바통을 이어받음)
     if (selectedVoice) {
       setVoiceType(selectedVoice);
       return;
@@ -124,13 +122,10 @@ export default function DailyWordPage() {
 
     const targetVoice = voiceType;
     const lastTime = audioRef.current ? audioRef.current.currentTime : 0;
-    
-// [여기에 추가] 컨트롤러를 보여줘야 화면이 반응합니다.
+
     setShowAudioControl(true);
 
-    if (audioRef.current) {
-      audioRef.current.pause();
-    // 2. [핵심] 기존 오디오를 완전히 파괴 (소스까지 비워야 안 겹칩니다)
+    // 2. [핵심] 기존 오디오 완전 파괴 및 괄호 정리
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.src = ""; 
@@ -145,7 +140,7 @@ export default function DailyWordPage() {
     const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
     try {
-      // 1. 서버 캐시 확인 (가장 빠름)
+      // 서버 캐시 확인
       const checkRes = await fetch(publicUrl, { method: 'HEAD' });
 
       if (checkRes.ok) {
@@ -154,7 +149,7 @@ export default function DailyWordPage() {
         return;
       }
 
-      // 2. 서버에 없을 때만 API 호출 (최초 1회)
+      // 서버에 없을 때 구글 TTS 호출
       const mainContent = cleanContent(bibleData.content);
       const unit = bibleData.bible_name === "시편" ? "편" : "장";
       const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
@@ -177,7 +172,7 @@ export default function DailyWordPage() {
         const ttsAudio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
         setupAudioEvents(ttsAudio, lastTime);
 
-        // 스토리지 저장 (백그라운드)
+        // [복구 완료] 스토리지 저장 (백그라운드)
         const binary = atob(resData.audioContent);
         const array = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
