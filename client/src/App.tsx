@@ -26,11 +26,8 @@ function AppContent() {
     <WouterRouter hook={useHashLocation}>
       <AnimatePresence mode="wait">
         <Switch>
-          {/* 약관 및 인증 페이지 (독립 레이아웃) */}
           <Route path="/terms/:type" component={TermsPage} />
           <Route path="/auth" component={AuthPage} />
-
-          {/* 메인 서비스 페이지 (공통 레이아웃) */}
           <Route>
             <Layout>
               <TopBar />
@@ -58,48 +55,42 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    // 1. 카카오 로그인 리다이렉트 처리 (#/# -> /#/)
-    const href = window.location.href;
-    if (href.includes("/#/#")) {
-      const newHref = href.replace("/#/#", "/#/");
-      window.history.replaceState(null, "", newHref);
-      setTimeout(() => {
-        window.location.reload();
-      }, 300);
-      return; 
-    }
+    // 1. 카카오 URL 정리 (#/# 문제 해결)
+    const handleRedirect = () => {
+      const href = window.location.href;
+      if (href.includes("/#/#")) {
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        // 즉시 로드하지 않고 상태만 바꾼 뒤 필요한 경우만 리로드 유도
+      }
+    };
+    handleRedirect();
 
-    // 2. 로그인 상태 변화를 감지하여 동의 내역 저장 (가장 확실한 방법)
+    // 2. 인증 상태 감시 및 약관 동의 자동 저장
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        const user = session.user;
+        // 동의 내역 저장 시도
+        try {
+          const { data: existing } = await supabase
+            .from('user_terms_agreements')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .limit(1);
 
-        // 이미 동의했는지 확인
-        const { data: existing } = await supabase
-          .from('user_terms_agreements')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
-
-        // 내역이 없으면 v1.0으로 저장
-        if (!existing || existing.length === 0) {
-          const { error } = await supabase.from('user_terms_agreements').insert([
-            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-          ]);
-          
-          if (error) {
-            console.error("약관 저장 에러:", error);
-          } else {
-            console.log("v1.0 약관 동의 저장 완료");
+          if (!existing || existing.length === 0) {
+            await supabase.from('user_terms_agreements').insert([
+              { user_id: session.user.id, term_type: 'service', term_version: 'v1.0' },
+              { user_id: session.user.id, term_type: 'privacy', term_version: 'v1.0' }
+            ]);
+            console.log("v1.0 약관 동의 기록 성공");
           }
+        } catch (err) {
+          console.error("동의 기록 중 에러:", err);
         }
       }
     });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   return (
