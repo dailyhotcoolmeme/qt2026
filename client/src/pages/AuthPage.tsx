@@ -18,7 +18,7 @@ export default function AuthPage() {
 
   const { register, getValues } = useForm();
 
-  // 카카오 로그인 로직 (작동 확인 완료)
+  // 카카오 로그인 로직 (작동 유지)
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -57,7 +57,7 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative">
-      {/* 자동완성 시 발생하는 파란 배경색 강제 투명화 */}
+      {/* 1. 자동완성 배경색 완벽 차단 */}
       <style dangerouslySetInnerHTML={{ __html: `
         input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
@@ -65,8 +65,8 @@ export default function AuthPage() {
         }
       `}} />
       
-      {/* 상단 메시지 구역 */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center">
+      {/* 상단 메시지 구역: mt-16을 주어 요청하신 대로 살짝 아래로 이동 */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
         </span>
@@ -80,7 +80,7 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 버튼 뭉치 구역: 요청하신 중간 위치로 끌어올림 */}
+      {/* 버튼 뭉치 구역: 중앙 위치 및 간격 유지 */}
       <div className="w-full max-w-sm mt-32 mb-auto flex flex-col items-center gap-6">
         <button 
           onClick={handleKakaoLogin} 
@@ -97,7 +97,7 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* 아이디 로그인 팝업 */}
+      {/* 아이디 로그인 팝업 (디자인 고정) */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
@@ -113,13 +113,13 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-4 px-2">
-                {/* 아이디 박스 - 배경색 Zinc-50 고정 및 가로 너비 준수 */}
+                {/* 2. 아이디 박스 가로 너비 준수 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
                   <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
                 </div>
 
-                {/* 비밀번호 박스 - 눈 아이콘 박스 내부 안착 */}
+                {/* 3. 눈 아이콘 내부 안착 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
                   <div className="flex items-center">
