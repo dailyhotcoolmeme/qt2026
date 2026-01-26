@@ -22,85 +22,78 @@ import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/not-found";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
-import { supabase } from "./lib/supabase"; // 상단에 추가됨
+import { supabase } from "./lib/supabase";
 
 function AppContent() {
-  return (
-    <WouterRouter hook={useHashLocation}>
-      <AnimatePresence mode="wait">
-        <Switch>
-          {/* 약관 및 인증 페이지 (독립 레이아웃) */}
-          <Route path="/terms/:type" component={TermsPage} />
-          <Route path="/auth" component={AuthPage} />
+  return (
+    <WouterRouter hook={useHashLocation}>
+      <AnimatePresence mode="wait">
+        <Switch>
+          {/* 약관 및 인증 페이지 (독립 레이아웃) */}
+          <Route path="/terms/:type" component={TermsPage} />
+          <Route path="/auth" component={AuthPage} />
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
 
-          {/* 메인 서비스 페이지 (공통 레이아웃) */}
-          <Route>
-            <Layout>
-              <TopBar />
-              <main className="flex-1 flex flex-col relative overflow-hidden">
-                <Switch> 
-                  <Route path="/" component={DailyWordPage} />
-                  <Route path="/qt" component={QTPage} />
-                  <Route path="/reading" component={ReadingPage} />
-                  <Route path="/community" component={CommunityPage} />
-                  <Route path="/archive" component={ArchivePage} />
+          {/* 메인 서비스 페이지 (공통 레이아웃) */}
+          <Route>
+            <Layout>
+              <TopBar />
+              <main className="flex-1 flex flex-col relative overflow-hidden">
+                <Switch> 
+                  <Route path="/" component={DailyWordPage} />
+                  <Route path="/qt" component={QTPage} />
+                  <Route path="/reading" component={ReadingPage} />
+                  <Route path="/community" component={CommunityPage} />
+                  <Route path="/archive" component={ArchivePage} />
                   <Route path="/login" component={LoginPage} />
-                  <Route path="/search" component={SearchPage} />
-                  <Route path="/register" component={RegisterPage} />
-                  <Route path="/find-account" component={FindAccountPage} />
-                  <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
-                  <Route component={NotFound} />
-                </Switch>
-              </main>
-              <BottomNav />
-            </Layout>
-          </Route>
-        </Switch>
-      </AnimatePresence>
-    </WouterRouter>
-  );
+                  <Route path="/search" component={SearchPage} />
+                  <Route path="/register" component={RegisterPage} />
+                  <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
+                  <Route component={NotFound} />
+                </Switch>
+              </main>
+              <BottomNav />
+            </Layout>
+          </Route>
+        </Switch>
+      </AnimatePresence>
+    </WouterRouter>
+  );
 }
 
 export default function App() {
-  useEffect(() => {
-    // App.tsx 내부의 useEffect -> checkAuthRedirect 부분
+  useEffect(() => {
+    const checkAuthRedirect = () => {
+      const href = window.location.href;
+      const hash = window.location.hash;
 
-  const checkAuthRedirect = () => {
-  const href = window.location.href;
+      // 1. 비밀번호 재설정 토큰 감지 (가장 우선 순위)
+      if (href.includes("access_token") || hash.includes("access_token")) {
+        // 현재 해시에 담긴 토큰 정보를 유지하면서 페이지 이동
+        const cleanHash = hash.replace('#', '');
+        if (!hash.startsWith("#/update-password")) {
+          window.location.hash = `/update-password#${cleanHash}`;
+          return;
+        }
+      }
 
-  // [수정] 비밀번호 찾기 메일 링크 처리
-  if (href.includes("access_token") || href.includes("type=recovery")) {
-    // 1. 현재 주소창에 있는 해시(#) 이후의 모든 내용(토큰 포함)을 가져옵니다.
-    const hashContent = window.location.hash; 
+      // 2. 카카오 로그인 특유의 /#/# 버그 수정
+      if (href.includes("/#/#")) {
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        setTimeout(() => window.location.reload(), 300);
+      }
+    };
 
-    // 2. /update-password 페이지로 이동하되, 뒤에 기존 토큰들을 그대로 붙여줍니다.
-    // 기존: window.location.hash = "/update-password"; (토큰 유실)
-    // 수정: 아래 코드는 토큰을 보존합니다.
-    if (!window.location.hash.startsWith("#/update-password")) {
-      window.location.hash = `#/update-password${hashContent.replace('#', '')}`;
-    }
-    return;
-  }
-
-  // 기존 카카오 로그인 처리 로직 (그대로 유지)
-  if (href.includes("/#/#")) {
-    const newHref = href.replace("/#/#", "/#/");
-    window.history.replaceState(null, "", newHref);
-    setTimeout(() => window.location.reload(), 300);
-  }
-};
-
-
-    // [추가] 2. Supabase 이벤트 감시 (비밀번호 재설정 전용)
+    // Supabase 인증 상태 변경 감지
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         window.location.hash = "/update-password";
       }
     });
 
-    // 3. 약관 동의 내역 자동 저장 (기존과 동일)
+    // 약관 동의 내역 자동 저장
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -122,15 +115,14 @@ export default function App() {
     checkAuthRedirect();
     syncAgreements();
 
-    // 청소 로직 추가
     return () => subscription.unsubscribe();
   }, []);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <DisplaySettingsProvider>
-        <AppContent />
-      </DisplaySettingsProvider>
-    </QueryClientProvider>
-  );
+  return (
+    <QueryClientProvider client={queryClient}>
+      <DisplaySettingsProvider>
+        <AppContent />
+      </DisplaySettingsProvider>
+    </QueryClientProvider>
+  );
 }
