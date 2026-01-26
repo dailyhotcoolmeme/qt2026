@@ -65,7 +65,6 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    useEffect(() => {
     // 1. 카카오 & 비밀번호 재설정 리다이렉트 처리 (수정됨)
     const checkAuthRedirect = () => {
       const href = window.location.href;
@@ -116,10 +115,6 @@ export default function App() {
     // 청소 로직 추가
     return () => subscription.unsubscribe();
   }, []);
-
-    checkAuthRedirect();
-    syncAgreements();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
