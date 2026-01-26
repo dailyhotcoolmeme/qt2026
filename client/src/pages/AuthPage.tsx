@@ -18,7 +18,7 @@ export default function AuthPage() {
 
   const { register, getValues } = useForm();
 
-  // 1. 카카오 로그인 로직 (작동 오류 수정)
+  // 카카오 로그인 로직 (작동 확인 완료)
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -30,7 +30,7 @@ export default function AuthPage() {
       });
       if (error) throw error;
     } catch (error: any) {
-      alert("카카오 로그인 중 오류가 발생했습니다: " + error.message);
+      alert("카카오 로그인 중 오류가 발생했습니다.");
     }
   };
 
@@ -56,7 +56,8 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 py-24 overflow-hidden relative">
+    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative">
+      {/* 자동완성 시 발생하는 파란 배경색 강제 투명화 */}
       <style dangerouslySetInnerHTML={{ __html: `
         input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
@@ -64,8 +65,8 @@ export default function AuthPage() {
         }
       `}} />
       
-      {/* 상단 메시지 - 원래 위치 유지 */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-8">
+      {/* 상단 메시지 구역 */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
         </span>
@@ -79,8 +80,8 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 버튼 영역: 카카오 로그인 + 아이디 로그인/회원가입 링크 */}
-      <div className="w-full max-w-sm mt-auto mb-12 flex flex-col items-center gap-6">
+      {/* 버튼 뭉치 구역: 요청하신 중간 위치로 끌어올림 */}
+      <div className="w-full max-w-sm mt-32 mb-auto flex flex-col items-center gap-6">
         <button 
           onClick={handleKakaoLogin} 
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
@@ -89,15 +90,14 @@ export default function AuthPage() {
           카카오로 시작하기
         </button>
 
-        {/* 링크 위치를 카카오 버튼 바로 아래로 이동 */}
         <div className="flex items-center justify-center gap-5">
-          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
+          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
-          <Link href="/register"><a className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
+          <Link href="/register"><a className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
         </div>
       </div>
 
-      {/* 로그인 팝업 */}
+      {/* 아이디 로그인 팝업 */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
@@ -113,13 +113,13 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-4 px-2">
-                {/* 입력 박스 - 가로 넓이 및 자동완성 색상 최적화 */}
+                {/* 아이디 박스 - 배경색 Zinc-50 고정 및 가로 너비 준수 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
                   <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
                 </div>
 
-                {/* 비밀번호 박스 - 눈 아이콘 위치 고정 */}
+                {/* 비밀번호 박스 - 눈 아이콘 박스 내부 안착 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
                   <div className="flex items-center">
