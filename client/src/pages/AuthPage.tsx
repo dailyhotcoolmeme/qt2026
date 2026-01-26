@@ -138,9 +138,9 @@ export default function AuthPage() {
                     <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400'}`}>로그인 유지</span>
                   </button>
                   <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
-                    <Link href="/find-id"><a>아이디 찾기</a></Link>
+                    <Link href="/find-account"><a>아이디 찾기</a></Link>
                     <span className="text-zinc-200">|</span>
-                    <Link href="/find-pw"><a>비밀번호 찾기</a></Link>
+                    <Link href="/find-account"><a>비밀번호 찾기</a></Link>
                   </div>
                 </div>
 
