@@ -16,7 +16,7 @@ export default function AuthPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [autoLogin, setAutoLogin] = useState(true);
 
-  const { register, handleSubmit } = useForm();
+  const { register, getValues } = useForm(); // handleSubmit 대신 getValues 사용
 
   const handleKakaoLogin = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
@@ -26,13 +26,30 @@ export default function AuthPage() {
     if (error) alert(error.message);
   };
 
-  const onLogin = async (values: any) => {
+  // 자동 실행 방지를 위해 수동 함수로 변경
+  const handleManualLogin = async () => {
+    const values = getValues();
+    if (!values.username || !values.password) {
+      setErrorMsg("아이디와 비밀번호를 모두 입력해 주세요.");
+      return;
+    }
+
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const { data: profile, error: pErr } = await supabase.from("profiles").select("email").eq("username", values.username).maybeSingle();
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", values.username)
+        .maybeSingle();
+
       if (pErr || !profile) throw new Error("아이디를 확인해 주세요.");
-      const { error: lErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: values.password });
+
+      const { error: lErr } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password: values.password
+      });
+
       if (lErr) throw new Error("비밀번호가 일치하지 않습니다.");
       setLocation("/");
     } catch (e: any) {
@@ -43,10 +60,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 pt-16 pb-32 overflow-hidden relative">
+    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 pt-12 pb-32 overflow-hidden relative">
       
-      {/* 상단 문구 (카카오 버튼을 위해 위치 소폭 상향) */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full text-center mt-4">
+      {/* 상단 메시지 (위치 상향 조정) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full text-center mt-2">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-3 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
         </span>
@@ -60,8 +77,8 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 중단: 카카오 버튼 (위치 올림) */}
-      <div className="w-full max-w-sm mb-10">
+      {/* 중단: 카카오 버튼 */}
+      <div className="w-full max-w-sm mb-6">
         <motion.button 
           whileTap={{ scale: 0.96 }}
           onClick={handleKakaoLogin}
@@ -78,19 +95,17 @@ export default function AuthPage() {
       </div>
 
       {/* 하단 보조 버튼 */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-5">
-          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-bold hover:text-[#4A6741] transition-colors" style={{ fontSize: `${fontSize * 0.9}px` }}>
-            아이디 로그인
-          </button>
-          <span className="w-[1px] h-3 bg-zinc-300"></span>
-          <Link href="/register">
-            <a className="text-zinc-500 font-bold hover:text-[#4A6741] transition-colors" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a>
-          </Link>
-        </div>
-      </motion.div>
+      <div className="w-full max-w-sm flex items-center justify-center gap-5 pb-10">
+        <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-bold hover:text-[#4A6741] transition-colors" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          아이디 로그인
+        </button>
+        <span className="w-[1px] h-3 bg-zinc-300"></span>
+        <Link href="/register">
+          <a className="text-zinc-500 font-bold hover:text-[#4A6741] transition-colors" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a>
+        </Link>
+      </div>
 
-      {/* 로그인 슬라이드 팝업 - 잘림 방지 강화 */}
+      {/* 로그인 팝업 */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
@@ -100,27 +115,25 @@ export default function AuthPage() {
               animate={{ y: 0 }} 
               exit={{ y: "100%" }} 
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] px-6 pt-4 pb-32 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] px-6 pt-10 pb-40 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
             >
-              {/* 상단 드래그 핸들 */}
-              <div className="w-12 h-1.5 bg-zinc-100 rounded-full mx-auto mt-2 mb-6" />
-
               <div className="flex justify-between items-center mb-6 px-2">
                 <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
                 <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24}/></button>
               </div>
 
-              <form onSubmit={handleSubmit(onLogin)} className="space-y-3 px-2">
+              {/* 자동 실행 방지를 위해 form 대신 div 사용 */}
+              <div className="space-y-3 px-2">
                 <div className="bg-zinc-50 rounded-[20px] p-4 border-2 border-transparent focus-within:border-[#4A6741] transition-all">
                   <label className="text-[#4A6741] font-bold text-[10px] block mb-1">아이디</label>
-                  <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900 text-sm" placeholder="아이디 입력" />
+                  <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900 text-sm" placeholder="아이디 입력" autoFocus />
                 </div>
 
                 <div className="bg-zinc-50 rounded-[20px] p-4 border-2 border-transparent focus-within:border-[#4A6741] transition-all">
                   <label className="text-[#4A6741] font-bold text-[10px] block mb-1">비밀번호</label>
-                  <div className="flex items-center gap-3">
-                    <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold flex-1 text-zinc-900 text-sm" placeholder="비밀번호 입력" />
-                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-400">
+                  <div className="flex items-center gap-3 relative">
+                    <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold flex-1 text-zinc-900 text-sm pr-10" placeholder="비밀번호 입력" />
+                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 absolute right-0">
                       {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
                     </button>
                   </div>
@@ -147,15 +160,14 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* 🔴 핵심: 하단 탭 바 높이만큼 여유를 주기 위해 절대 잘리지 않도록 배치 */}
                 <button 
                   disabled={isLoading} 
-                  type="submit" 
-                  className="w-full h-[64px] bg-[#4A6741] text-white rounded-[22px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all"
+                  onClick={handleManualLogin}
+                  className="w-full h-[64px] bg-[#4A6741] text-white rounded-[22px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mt-4"
                 >
                   {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
                 </button>
-              </form>
+              </div>
             </motion.div>
           </>
         )}
