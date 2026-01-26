@@ -16,17 +16,18 @@ export default function UpdatePasswordPage() {
   // UpdatePasswordPage.tsx 내부의 useEffect
 useEffect(() => {
   const handleSession = async () => {
-    [span_0](start_span)// 주소창(href) 전체 문자열에서 access_token과 refresh_token을 강제로 파싱합니다[span_0](end_span).
     const url = window.location.href;
+    // 주소창 전체에서 access_token과 refresh_token을 강제로 파싱합니다.
     const token = url.match(/access_token=([^&]*)/)?.[1];
     const refresh = url.match(/refresh_token=([^&]*)/)?.[1];
 
     if (token && refresh) {
-      [span_1](start_span)// 추출한 토큰을 Supabase 세션에 수동으로 설정합니다[span_1](end_span).
-      await supabase.auth.setSession({
+      // 추출한 토큰을 Supabase 세션에 강제로 주입합니다.
+      const { error } = await supabase.auth.setSession({
         access_token: token,
         refresh_token: refresh,
       });
+      if (!error) console.log("인증 세션 강제 수립 성공");
     }
   };
   handleSession();
