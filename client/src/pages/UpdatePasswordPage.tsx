@@ -13,25 +13,25 @@ export default function UpdatePasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  useEffect(() => {
-    const handleSession = async () => {
-      // 1. URL에서 직접 access_token 추출 (가장 확실한 방법)
-      const fullUrl = window.location.href;
-      const hashParams = new URLSearchParams(fullUrl.split('#')[1] || fullUrl.split('?')[1]);
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
+  // UpdatePasswordPage.tsx 내부의 useEffect
+useEffect(() => {
+  const handleSession = async () => {
+    // 주소창(href) 전체 문자열에서 access_token과 refresh_token을 직접 찾아냅니다.
+    const url = window.location.href;
+    const token = url.match(/access_token=([^&]*)/)?.[1];
+    const refresh = url.match(/refresh_token=([^&]*)/)?.[1];
 
-      if (accessToken && refreshToken) {
-        // 2. 토큰이 발견되면 즉시 세션 수동 수립
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (!error) console.log("인증 세션 수동 수립 성공");
-      }
-    };
-    handleSession();
-  }, []);
+    if (token && refresh) {
+      // 찾았다면 Supabase에 강제로 주입
+      await supabase.auth.setSession({
+        access_token: token,
+        refresh_token: refresh,
+      });
+    }
+  };
+  handleSession();
+}, []);
+
 
   const handleUpdate = async () => {
     if (password !== confirmPassword) {
