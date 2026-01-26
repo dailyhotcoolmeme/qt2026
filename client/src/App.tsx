@@ -63,35 +63,17 @@ function AppContent() {
 }
 
 export default function App() {
-  // [진단용] 주소창에 뭐가 들어있는지 화면에 강제로 띄워봅니다.
-  if (window.location.href.includes("access_token")) {
-    return (
-      <div style={{ padding: '20px', wordBreak: 'break-all', background: 'white', zIndex: 9999, position: 'fixed', inset: 0 }}>
-        <h1>현재 주소창 데이터 추출 결과:</h1>
-        <p><strong>전체 주소:</strong> {window.location.href}</p>
-        <p><strong>토큰 존재 여부:</strong> {window.location.href.includes("access_token") ? "✅ 있음" : "❌ 없음"}</p>
-        <button onClick={() => window.location.hash = "/update-password"} style={{ padding: '10px', background: 'black', color: 'white' }}>
-          강제로 비밀번호 페이지로 이동하기
-        </button>
-      </div>
-    );
-  }
   useEffect(() => {
   const checkAuthRedirect = () => {
   const href = window.location.href;
-  const hash = window.location.hash;
 
-  // 1. 비밀번호 재설정 토큰 감지
   if (href.includes("access_token")) {
-    // 이미 해당 페이지라면 중복 이동 방지
-    if (hash.startsWith("#/update-password")) return;
-
-    // 현재 주소창의 토큰 정보를 포함한 전체 해시를 가져옵니다.
-    const tokenPart = hash.includes("access_token") ? hash : href.substring(href.indexOf("#"));
-    
-    // 핵심: /update-password 뒤에 토큰 정보를 그대로 붙여서 보냅니다.
-    window.location.hash = `/update-password${tokenPart.replace('#', '#')}`;
-    return;
+    if (!window.location.hash.startsWith("#/update-password")) {
+      // ⚠️ 기존: window.location.hash = "/update-password";
+      // ✅ 수정: 현재 주소창의 토큰(hash)을 버리지 말고 뒤에 그대로 붙입니다.
+      window.location.hash = `/update-password${window.location.hash}`; 
+      return;
+    }
   }
 
   // 2. 카카오 로그인 특유의 /#/# 버그 수정 (그대로 유지)
