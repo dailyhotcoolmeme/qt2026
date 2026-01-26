@@ -42,30 +42,23 @@ export default function FindAccountPage() {
 
   // 2. 비밀번호 재설정 로직 (OTP 페이지 이동 추가)
   const handleResetPw = async () => {
-    if (!email) return;
-    setIsLoading(true);
-    setResult(null);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-      
-      if (error) throw error;
-      
-      setResult({ 
-        success: true, 
-        message: "비밀번호 재설정 이메일을 발송했습니다. 메일함에 적힌 6자리 인증번호를 확인해주세요!" 
-      });
+  if (!email) return;
+  setIsLoading(true); [span_3](start_span)// 로딩 시작[span_3](end_span)
+  
+  try {
+    // 1. 일단 이메일을 보냅니다.
+    await supabase.auth.resetPasswordForEmail(email.trim());
+    
+    [span_4](start_span)[span_5](start_span)// 2. 텀을 주지 않고 바로 페이지를 이동시킵니다.[span_4](end_span)[span_5](end_span)
+    // 6자리 숫자를 입력해야 한다는 것을 페이지 상단에서 강조할 것입니다.
+    setLocation("/update-password"); 
+  } catch (e: any) {
+    setResult({ success: false, message: "실패했습니다. 다시 시도해 주세요." });
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-      // 2초 뒤에 인증번호를 입력하는 페이지로 이동시킵니다.
-      setTimeout(() => {
-        setLocation("/update-password");
-      }, 2000);
-
-    } catch (e: any) {
-      setResult({ success: false, message: "이메일 발송에 실패했습니다. 주소를 확인해 주세요." });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative z-50">
