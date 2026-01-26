@@ -65,39 +65,57 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    // 1. 카카오 로그인 리다이렉트 처리
-    const checkAuthRedirect = () => {
-      const href = window.location.href;
-      if (href.includes("/#/#")) {
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-        setTimeout(() => {
-          window.location.reload();
-        }, 300);
-      }
-    };
+    useEffect(() => {
+    // 1. 카카오 & 비밀번호 재설정 리다이렉트 처리 (수정됨)
+    const checkAuthRedirect = () => {
+      const href = window.location.href;
 
-    // 2. 로그인 성공 시 약관 동의 내역 자동 저장 로직
-    const syncAgreements = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      // [추가] 비밀번호 찾기 메일 링크를 타고 들어왔을 때 처리
+      if (href.includes("type=recovery")) {
+        window.location.hash = "/update-password";
+        return;
+      }
 
-      if (user) {
-        // 이미 저장된 동의 내역이 있는지 확인
-        const { data: existing } = await supabase
-          .from('user_terms_agreements')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
+      // 기존 카카오 로그인 처리 로직
+      if (href.includes("/#/#")) {
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        setTimeout(() => window.location.reload(), 300);
+      }
+    };
 
-        // 내역이 없으면 (최초 가입/로그인 시) 동의 도장 찍기
-        if (!existing || existing.length === 0) {
-          await supabase.from('user_terms_agreements').insert([
-            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-          ]);
-        }
-      }
-    };
+    // [추가] 2. Supabase 이벤트 감시 (비밀번호 재설정 전용)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        window.location.hash = "/update-password";
+      }
+    });
+
+    // 3. 약관 동의 내역 자동 저장 (기존과 동일)
+    const syncAgreements = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: existing } = await supabase
+          .from('user_terms_agreements')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (!existing || existing.length === 0) {
+          await supabase.from('user_terms_agreements').insert([
+            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
+            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
+          ]);
+        }
+      }
+    };
+
+    checkAuthRedirect();
+    syncAgreements();
+
+    // 청소 로직 추가
+    return () => subscription.unsubscribe();
+  }, []);
 
     checkAuthRedirect();
     syncAgreements();
