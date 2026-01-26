@@ -16,33 +16,25 @@ export default function UpdatePasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  // [중요] 페이지 로드 시 해시에 있는 토큰을 수동으로 세션에 주입
   useEffect(() => {
-    const handleInitialSession = async () => {
-      // 1. 현재 주소창의 전체 URL에서 토큰을 찾습니다.
+    const recoverSession = async () => {
+      // 1. 현재 URL 전체에서 토큰 파라미터를 추출합니다.
       const fullUrl = window.location.href;
+      const urlParams = new URLSearchParams(fullUrl.split('#')[1] || fullUrl.split('?')[1]);
       
-      // Supabase 이메일 링크는 보통 #access_token=... 형태로 옵니다.
-      if (fullUrl.includes("access_token")) {
-        // 해시(#) 뒤의 내용을 쿼리 파라미터처럼 분석합니다.
-        const hashContent = window.location.hash.split('#').pop() || "";
-        const urlParams = new URLSearchParams(hashContent.includes("?") ? hashContent.split("?")[1] : hashContent);
-        
-        const accessToken = urlParams.get("access_token");
-        const refreshToken = urlParams.get("refresh_token");
+      const accessToken = urlParams.get("access_token");
+      const refreshToken = urlParams.get("refresh_token");
 
-        if (accessToken && refreshToken) {
-          // 2. Supabase 세션을 강제로 설정합니다.
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          
-          if (!error) console.log("인증 세션 수동 복구 성공");
-        }
+      if (accessToken && refreshToken) {
+        // 2. 추출한 토큰으로 Supabase 세션을 강제로 수립합니다.
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (!error) console.log("인증 세션 수동 복구 완료");
       }
     };
-    handleInitialSession();
+    recoverSession();
   }, []);
 
   const handleUpdate = async () => {
@@ -59,21 +51,20 @@ export default function UpdatePasswordPage() {
     setStatus(null);
 
     try {
-      // 세션을 한 번 더 확인
+      // 3. 업데이트 시점에 다시 한 번 세션을 체크합니다.
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("session_missing");
+      if (!session) throw new Error("auth_missing");
 
       const { error } = await supabase.auth.updateUser({ password: password.trim() });
       if (error) throw error;
 
-      setStatus({ type: "success", msg: "비밀번호 변경 완료! 잠시 후 로그인 페이지로 이동합니다." });
+      setStatus({ type: "success", msg: "비밀번호가 성공적으로 변경되었습니다! 곧 로그인 페이지로 이동합니다." });
       setTimeout(() => setLocation("/auth"), 2500);
     } catch (e: any) {
-      // 세션이 없거나 오류가 난 경우
-      const msg = (e.message === "session_missing" || e.message.includes("session"))
-        ? "인증 세션이 만료되었습니다. 다시 '비밀번호 찾기' 메일을 보내주세요."
-        : e.message || "비밀번호 변경에 실패했습니다.";
-      setStatus({ type: "error", msg });
+      const errorMsg = (e.message === "auth_missing" || e.message.includes("session"))
+        ? "인증 정보가 유효하지 않습니다. 메일의 링크를 다시 클릭하거나 새로 신청해 주세요."
+        : e.message || "오류가 발생했습니다.";
+      setStatus({ type: "error", msg: errorMsg });
     } finally {
       setIsLoading(false);
     }
@@ -87,10 +78,10 @@ export default function UpdatePasswordPage() {
       </div>
 
       <div className="w-full max-w-sm space-y-4">
-        {/* 새 비밀번호 */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative flex items-center gap-3">
-          <div className="flex-1 flex flex-col">
-            <label className="text-[#4A6741] font-bold text-[11px] mb-2">새 비밀번호</label>
+        {/* 새 비밀번호 입력 */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] flex items-center gap-3">
+          <div className="flex-1">
+            <label className="text-[#4A6741] font-bold text-[11px] block mb-2">새 비밀번호</label>
             <div className="flex items-center gap-3">
               <Lock size={18} className="text-zinc-300 shrink-0" />
               <input 
@@ -102,15 +93,15 @@ export default function UpdatePasswordPage() {
               />
             </div>
           </div>
-          <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+          <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 p-2 hover:text-zinc-500">
             {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
         </div>
 
-        {/* 비밀번호 확인 */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative flex items-center gap-3">
-          <div className="flex-1 flex flex-col">
-            <label className="text-[#4A6741] font-bold text-[11px] mb-2">비밀번호 확인</label>
+        {/* 비밀번호 확인 입력 */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] flex items-center gap-3">
+          <div className="flex-1">
+            <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호 확인</label>
             <div className="flex items-center gap-3">
               <Lock size={18} className="text-zinc-300 shrink-0" />
               <input 
@@ -122,7 +113,7 @@ export default function UpdatePasswordPage() {
               />
             </div>
           </div>
-          <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+          <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)} className="text-zinc-300 p-2 hover:text-zinc-500">
             {showPwConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
           </button>
         </div>
@@ -130,7 +121,7 @@ export default function UpdatePasswordPage() {
         <button 
           onClick={handleUpdate}
           disabled={isLoading || !password || !confirmPassword}
-          className="w-full h-[64px] bg-[#4A6741] disabled:bg-zinc-200 text-white rounded-[22px] font-black shadow-lg flex items-center justify-center mt-4 active:scale-95 transition-all"
+          className="w-full h-[64px] bg-[#4A6741] disabled:bg-zinc-200 text-white rounded-[22px] font-black shadow-lg flex items-center justify-center mt-4 transition-all active:scale-95"
         >
           {isLoading ? <Loader2 className="animate-spin" /> : "비밀번호 변경하기"}
         </button>
