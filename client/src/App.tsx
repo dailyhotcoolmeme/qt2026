@@ -63,6 +63,19 @@ function AppContent() {
 }
 
 export default function App() {
+  // [진단용] 주소창에 뭐가 들어있는지 화면에 강제로 띄워봅니다.
+  if (window.location.href.includes("access_token")) {
+    return (
+      <div style={{ padding: '20px', wordBreak: 'break-all', background: 'white', zIndex: 9999, position: 'fixed', inset: 0 }}>
+        <h1>현재 주소창 데이터 추출 결과:</h1>
+        <p><strong>전체 주소:</strong> {window.location.href}</p>
+        <p><strong>토큰 존재 여부:</strong> {window.location.href.includes("access_token") ? "✅ 있음" : "❌ 없음"}</p>
+        <button onClick={() => window.location.hash = "/update-password"} style={{ padding: '10px', background: 'black', color: 'white' }}>
+          강제로 비밀번호 페이지로 이동하기
+        </button>
+      </div>
+    );
+  }
   useEffect(() => {
   const checkAuthRedirect = () => {
   const href = window.location.href;
