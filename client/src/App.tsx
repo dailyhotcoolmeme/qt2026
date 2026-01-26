@@ -65,25 +65,28 @@ function AppContent() {
 export default function App() {
   useEffect(() => {
     const checkAuthRedirect = () => {
-      const href = window.location.href;
+  const href = window.location.href;
+  const hash = window.location.hash;
 
-      // 1. 비밀번호 재설정 토큰 감지 (수정됨)
-      if (href.includes("access_token")) {
-        // 주소창을 복잡하게 합치지 말고, 가장 단순하게 페이지 이동만 시킵니다.
-        // 토큰은 어차피 주소창에 남아있으므로 UpdatePasswordPage에서 읽을 수 있습니다.
-        if (!window.location.hash.startsWith("#/update-password")) {
-          window.location.hash = "/update-password";
-          return;
-        }
-      }
+  // 1. 비밀번호 재설정 토큰 감지
+  if (href.includes("access_token")) {
+    // 이미 해당 페이지에 있다면 중복 이동 방지
+    if (hash.startsWith("#/update-password")) return;
 
-      // 2. 카카오 로그인 특유의 /#/# 버그 수정 (그대로 유지)
-      if (href.includes("/#/#")) {
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-        setTimeout(() => window.location.reload(), 300);
-      }
-    };
+    // 현재 주소창의 토큰 정보를 그대로 유지하며 이동
+    const tokenData = hash.includes("access_token") ? hash : href.substring(href.indexOf("#"));
+    window.location.hash = `/update-password${tokenData}`;
+    return;
+  }
+
+  // 2. 카카오 로그인 특유의 /#/# 버그 수정 (유지)
+  if (href.includes("/#/#")) {
+    const newHref = href.replace("/#/#", "/#/");
+    window.history.replaceState(null, "", newHref);
+    setTimeout(() => window.location.reload(), 300);
+  }
+};
+
 
     // [이벤트 감시] 비밀번호 재설정 전용 (그대로 유지)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
