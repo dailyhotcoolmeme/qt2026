@@ -66,15 +66,20 @@ export default function App() {
   useEffect(() => {
   const checkAuthRedirect = () => {
   const href = window.location.href;
+  const hash = window.location.hash;
 
+  // 1. 주소창에 토큰이 들어왔을 때
   if (href.includes("access_token")) {
-    if (!window.location.hash.startsWith("#/update-password")) {
-      // ⚠️ 기존: window.location.hash = "/update-password";
-      // ✅ 수정: 현재 주소창의 토큰(hash)을 버리지 말고 뒤에 그대로 붙입니다.
-      window.location.hash = `/update-password${window.location.hash}`; 
-      return;
-    }
+    // 이미 해당 페이지라면 무한 루프 방지를 위해 중단
+    if (hash.startsWith("#/update-password")) return;
+
+    // 현재 주소창의 토큰들(hash)을 통째로 들고 비밀번호 페이지로 점프
+    // 예: /#/update-password#access_token=...
+    const tokenPart = hash.startsWith('#') ? hash : `#${hash}`;
+    window.location.hash = `/update-password${tokenPart}`;
   }
+};
+
 
   // 2. 카카오 로그인 특유의 /#/# 버그 수정 (그대로 유지)
   if (href.includes("/#/#")) {
