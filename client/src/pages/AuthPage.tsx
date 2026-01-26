@@ -99,7 +99,7 @@ export default function AuthPage() {
         className="w-full max-w-sm"
       >
         <div className="flex items-center justify-center gap-5 py-6">
-          <Link href="/login-email">
+          <Link href="/login">
             <span className="text-zinc-500 font-semibold hover:text-[#4A6741] transition-colors cursor-pointer" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</span>
           </Link>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
