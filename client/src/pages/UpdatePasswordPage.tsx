@@ -12,25 +12,29 @@ export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [showPwConfirm, setShowPwConfirm] = useState(false); // 두 번째 박스용 상태 추가
+  const [showPwConfirm, setShowPwConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; msg: string } | null>(null);
 
-  // 세션 유실 방지 로직
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        // 세션이 없을 경우 1초 정도 기다렸다가 다시 확인 (Supabase 초기화 지연 대응)
-        setTimeout(async () => {
-          const { data: { session: retrySession } } = await supabase.auth.getSession();
-          if (!retrySession) {
-            console.warn("인증 세션을 찾을 수 없습니다. 링크를 다시 확인해주세요.");
-          }
-        }, 1000);
+    const syncSession = async () => {
+      // 1. 현재 주소창의 해시값에서 토큰이 있는지 확인
+      const hash = window.location.hash;
+      if (hash.includes("access_token")) {
+        // 2. Supabase에게 이 토큰을 사용해 세션을 수동으로 설정하라고 명령
+        const query = new URLSearchParams(hash.replace("#", "?"));
+        const accessToken = query.get("access_token");
+        const refreshToken = query.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+        }
       }
     };
-    checkSession();
+    syncSession();
   }, []);
 
   const handleUpdate = async () => {
@@ -47,75 +51,67 @@ export default function UpdatePasswordPage() {
     setStatus(null);
 
     try {
-      // 세션을 명시적으로 체크한 후 업데이트 실행
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error("인증 세션이 만료되었습니다. 다시 '비밀번호 찾기' 메일을 보내주세요.");
-      }
-
       const { error } = await supabase.auth.updateUser({ password: password.trim() });
       if (error) throw error;
 
-      setStatus({ type: "success", msg: "비밀번호가 성공적으로 변경되었습니다! 곧 로그인 페이지로 이동합니다." });
-      
-      setTimeout(() => {
-        setLocation("/auth");
-      }, 2500);
+      setStatus({ type: "success", msg: "변경 완료! 로그인 페이지로 이동합니다." });
+      setTimeout(() => setLocation("/auth"), 2000);
     } catch (e: any) {
-      // 세션 관련 에러인 경우 더 친절하게 안내
-      const errorMsg = e.message.includes("session") 
-        ? "인증 시간이 초과되었습니다. 메일을 다시 보내주세요." 
-        : e.message || "비밀번호 변경에 실패했습니다.";
-      setStatus({ type: "error", msg: errorMsg });
+      setStatus({ type: "error", msg: "인증 세션이 만료되었습니다. 다시 '비밀번호 찾기' 메일을 보내주세요." });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col items-center px-8 pt-24">
+    <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col items-center px-8 pt-24 relative">
       <div className="w-full max-w-sm text-center mb-12">
-        <h2 className="font-black text-zinc-900 mb-4" style={{ fontSize: `${fontSize * 1.6}px` }}>
-          새 비밀번호 설정
-        </h2>
-        <p className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          로그인 시 사용할 새로운 비밀번호를<br />입력해 주세요.
-        </p>
+        <h2 className="font-black text-zinc-900 mb-4" style={{ fontSize: `${fontSize * 1.6}px` }}>새 비밀번호 설정</h2>
+        <p className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.9}px` }}>로그인 시 사용할 새로운 비밀번호를 입력해 주세요.</p>
       </div>
 
       <div className="w-full max-w-sm space-y-4">
         {/* 새 비밀번호 입력 */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative">
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
           <label className="text-[#4A6741] font-bold text-[11px] block mb-2">새 비밀번호</label>
-          <div className="flex items-center gap-3">
-            <Lock size={18} className="text-zinc-300" />
+          <div className="flex items-center relative">
+            <Lock size={18} className="text-zinc-300 mr-3 shrink-0" />
             <input 
               type={showPw ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="flex-1 bg-transparent outline-none font-bold text-zinc-900"
+              className="flex-1 bg-transparent outline-none font-bold text-zinc-900 pr-10 w-full"
               placeholder="6자리 이상 입력"
             />
-            <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 p-1">
-              {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
+            {/* 눈 아이콘 버튼: 절대 좌표로 위치 고정 */}
+            <button 
+              type="button" 
+              onClick={() => setShowPw(!showPw)} 
+              className="absolute right-0 text-zinc-300 hover:text-[#4A6741] transition-colors p-1 z-10"
+            >
+              {showPw ? <EyeOff size={22} /> : <Eye size={22} />}
             </button>
           </div>
         </div>
 
-        {/* 비밀번호 확인 입력 (눈 표시 추가) */}
-        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative">
+        {/* 비밀번호 확인 입력 */}
+        <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
           <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호 확인</label>
-          <div className="flex items-center gap-3">
-            <Lock size={18} className="text-zinc-300" />
+          <div className="flex items-center relative">
+            <Lock size={18} className="text-zinc-300 mr-3 shrink-0" />
             <input 
               type={showPwConfirm ? "text" : "password"}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="flex-1 bg-transparent outline-none font-bold text-zinc-900"
+              className="flex-1 bg-transparent outline-none font-bold text-zinc-900 pr-10 w-full"
               placeholder="한번 더 입력"
             />
-            <button type="button" onClick={() => setShowPwConfirm(!showPwConfirm)} className="text-zinc-300 p-1">
-              {showPwConfirm ? <EyeOff size={20} /> : <Eye size={20} />}
+            <button 
+              type="button" 
+              onClick={() => setShowPwConfirm(!showPwConfirm)} 
+              className="absolute right-0 text-zinc-300 hover:text-[#4A6741] transition-colors p-1 z-10"
+            >
+              {showPwConfirm ? <EyeOff size={22} /> : <Eye size={22} />}
             </button>
           </div>
         </div>
@@ -128,12 +124,8 @@ export default function UpdatePasswordPage() {
           {isLoading ? <Loader2 className="animate-spin" /> : "비밀번호 변경하기"}
         </button>
 
-        {/* 상태 메시지 */}
         {status && (
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className={`mt-6 p-5 rounded-[22px] flex items-start gap-3 ${status.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`mt-6 p-5 rounded-[22px] flex items-start gap-3 ${status.type === "success" ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
             {status.type === "success" ? <CheckCircle2 size={20} className="shrink-0 mt-0.5" /> : <AlertCircle size={20} className="shrink-0 mt-0.5" />}
             <p className="font-bold text-sm leading-relaxed">{status.msg}</p>
           </motion.div>
