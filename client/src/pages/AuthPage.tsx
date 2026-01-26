@@ -81,7 +81,7 @@ export default function AuthPage() {
       </motion.div>
 
       {/* 버튼 뭉치 구역: 중앙 위치 및 간격 유지 */}
-      <div className="w-full max-w-sm mt-32 mb-auto flex flex-col items-center gap-6">
+      <div className="w-full max-w-sm mt-28 mb-auto flex flex-col items-center gap-6">
         <button 
           onClick={handleKakaoLogin} 
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
