@@ -18,6 +18,22 @@ export default function AuthPage() {
 
   const { register, getValues } = useForm();
 
+  // 1. 카카오 로그인 로직 (작동 오류 수정)
+  const handleKakaoLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "kakao",
+        options: { 
+          redirectTo: window.location.origin,
+          queryParams: { prompt: 'login' } 
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      alert("카카오 로그인 중 오류가 발생했습니다: " + error.message);
+    }
+  };
+
   const handleManualLogin = async () => {
     const values = getValues();
     if (!values.username || !values.password) {
@@ -40,20 +56,16 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 py-20 overflow-hidden relative">
-      {/* 1. 자동완성 시 발생하는 배경색 강제 제거 (가장 확실한 방법) */}
+    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 py-24 overflow-hidden relative">
       <style dangerouslySetInnerHTML={{ __html: `
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus, 
-        input:-webkit-autofill:active  {
+        input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
             -webkit-text-fill-color: #18181b !important;
         }
       `}} />
       
-      {/* 상단 문구 - 원래 위치 고정 */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-12">
+      {/* 상단 메시지 - 원래 위치 유지 */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-8">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
         </span>
@@ -67,20 +79,25 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 카카오 버튼 */}
-      <div className="w-full max-w-sm">
-        <button className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3">
+      {/* 버튼 영역: 카카오 로그인 + 아이디 로그인/회원가입 링크 */}
+      <div className="w-full max-w-sm mt-auto mb-12 flex flex-col items-center gap-6">
+        <button 
+          onClick={handleKakaoLogin} 
+          className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+        >
           <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="카카오" />
           카카오로 시작하기
         </button>
+
+        {/* 링크 위치를 카카오 버튼 바로 아래로 이동 */}
+        <div className="flex items-center justify-center gap-5">
+          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
+          <span className="w-[1px] h-3 bg-zinc-300"></span>
+          <Link href="/register"><a className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
+        </div>
       </div>
 
-      <div className="w-full max-w-sm flex items-center justify-center gap-5 py-6">
-        <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
-        <span className="w-[1px] h-3 bg-zinc-300"></span>
-        <Link href="/register"><a className="text-zinc-500 font-semibold hover:text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
-      </div>
-
+      {/* 로그인 팝업 */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
@@ -88,7 +105,7 @@ export default function AuthPage() {
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[100] px-8 pt-10 pb-28 shadow-2xl" // pb-28로 탭 바 위로 올림
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[100] px-8 pt-10 pb-28 shadow-2xl"
             >
               <div className="flex justify-between items-center mb-8 px-2">
                 <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
@@ -96,14 +113,14 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-4 px-2">
-                {/* 2. 아이디 박스 - 가로 넓이 제한(w-full) 및 내부 패딩 최적화 */}
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] w-full">
+                {/* 입력 박스 - 가로 넓이 및 자동완성 색상 최적화 */}
+                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
                   <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
                 </div>
 
-                {/* 3. 비밀번호 박스 - 눈 아이콘 위치 고정 및 가로 잘림 방지 */}
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] w-full relative flex flex-col">
+                {/* 비밀번호 박스 - 눈 아이콘 위치 고정 */}
+                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
                   <div className="flex items-center">
                     <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold w-full text-zinc-900 pr-10" placeholder="비밀번호 입력" />
