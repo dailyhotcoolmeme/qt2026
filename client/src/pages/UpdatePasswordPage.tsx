@@ -16,13 +16,13 @@ export default function UpdatePasswordPage() {
   // UpdatePasswordPage.tsx 내부의 useEffect
 useEffect(() => {
   const handleSession = async () => {
-    // 주소창(href) 전체 문자열에서 access_token과 refresh_token을 직접 찾아냅니다.
+    [span_0](start_span)// 주소창(href) 전체 문자열에서 access_token과 refresh_token을 강제로 파싱합니다[span_0](end_span).
     const url = window.location.href;
     const token = url.match(/access_token=([^&]*)/)?.[1];
     const refresh = url.match(/refresh_token=([^&]*)/)?.[1];
 
     if (token && refresh) {
-      // 찾았다면 Supabase에 강제로 주입
+      [span_1](start_span)// 추출한 토큰을 Supabase 세션에 수동으로 설정합니다[span_1](end_span).
       await supabase.auth.setSession({
         access_token: token,
         refresh_token: refresh,
