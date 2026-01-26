@@ -41,6 +41,7 @@ function AppContent() {
                   <Route path="/reading" component={ReadingPage} />
                   <Route path="/community" component={CommunityPage} />
                   <Route path="/archive" component={ArchivePage} />
+                  <Route path="/login" component={LoginPage} />
                   <Route path="/search" component={SearchPage} />
                   <Route path="/register" component={RegisterPage} />
                   <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
