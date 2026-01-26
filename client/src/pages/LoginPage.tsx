@@ -79,15 +79,14 @@ export default function LoginPage() {
           </div>
 
           <div className="flex justify-between px-2 pt-2">
-            <Link href="/find-pw"><a className="text-zinc-400 font-bold text-xs">비밀번호 찾기</a></Link>
-            <Link href="/register"><a className="text-[#4A6741] font-bold text-xs underline underline-offset-4">회원가입 하기</a></Link>
+            {/* 🛠️ 비밀번호 찾기 클릭 시 파라미터를 들고 이동하도록 수정 */}
+            <Link href="/find-account?tab=pw">
+              <a className="text-zinc-400 font-bold text-xs">비밀번호 찾기</a>
+            </Link>
+            <Link href="/register">
+              <a className="text-[#4A6741] font-bold text-xs underline underline-offset-4">회원가입 하기</a>
+            </Link>
           </div>
 
-          <button disabled={isLoading} type="submit" className="w-full h-18 bg-[#4A6741] text-white rounded-[28px] font-black shadow-xl mt-6 active:scale-95 transition-all flex items-center justify-center gap-2">
-            {isLoading ? <Loader2 className="animate-spin" /> : "로그인"}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
+          <button disabled={isLoading} type="submit" className="w-full h-16 bg-[#4A6741] text-white rounded-[28px] font-black shadow-xl mt-6 active:scale-95 transition-all flex items-center justify-center gap-2">
+            {isLoading ? <Loader2 className="animate-spin
