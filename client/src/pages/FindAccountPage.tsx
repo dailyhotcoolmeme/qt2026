@@ -48,7 +48,7 @@ export default function FindAccountPage() {
         redirectTo: `${window.location.origin}/update-password`,
       });
       if (error) throw error;
-      setResult({ success: true, message: "비밀번호 재설정 이메일을 발송했습니다. 메일함을 확인해 주세요." });
+      setResult({ success: true, message: "비밀번호 재설정 이메일을 발송했습니다. 메일함을 확인해 주세요.(메일함에 없을 경우 스팸메일함 확인)" });
     } catch (e: any) {
       setResult({ success: false, message: "이메일 발송에 실패했습니다. 주소를 확인해 주세요." });
     } finally {
