@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "../lib/supabase"; 
 import { useLocation, Link } from "wouter";
-import { RefreshCw, ArrowLeft, Check, AlertCircle, Eye, EyeOff, Sparkles, Church, User, Lock, Phone, X } from "lucide-react";
+import { RefreshCw, ArrowLeft, Check, AlertCircle, Eye, EyeOff, Sparkles, Church, User, Lock, Mail, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
@@ -15,16 +15,22 @@ export default function RegisterPage() {
   const { fontSize = 16 } = useDisplaySettings();
   const { register, handleSubmit, setValue, watch } = useForm({ mode: "onChange" });
   
+  // 상태 관리
   const [usernameStatus, setUsernameStatus] = useState<'none' | 'success' | 'error'>('none');
+  const [emailStatus, setEmailStatus] = useState<'none' | 'success' | 'error'>('none');
   const [nicknameStatus, setNicknameStatus] = useState<'none' | 'success' | 'error'>('none');
+  
   const [usernameMsg, setUsernameMsg] = useState("");
+  const [emailMsg, setEmailMsg] = useState("");
   const [nicknameMsg, setNicknameMsg] = useState("");
+  
   const [errorModal, setErrorModal] = useState<{show: boolean, msg: string}>({ show: false, msg: "" });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCustomRank, setShowCustomRank] = useState(false);
   const [showPw, setShowPw] = useState(false);
   
   const username = (watch("username") || "").trim();
+  const email = (watch("email") || "").trim();
   const nickname = watch("nickname") || "";
   const password = watch("password") || "";
   const passwordConfirm = watch("passwordConfirm") || "";
@@ -33,6 +39,7 @@ export default function RegisterPage() {
   const isPasswordMatch = isPasswordValid && password === passwordConfirm;
   const showPasswordError = passwordConfirm.length > 0 && password !== passwordConfirm;
 
+  // 닉네임 자동 생성
   const generateNickname = useCallback(() => {
     const nick = `${adjectives[Math.floor(Math.random() * adjectives.length)]}${nouns[Math.floor(Math.random() * nouns.length)]}${Math.floor(Math.random() * 899 + 100)}`;
     setValue("nickname", nick);
@@ -42,38 +49,60 @@ export default function RegisterPage() {
 
   useEffect(() => { generateNickname(); }, [generateNickname]);
 
-  const checkDuplicate = async (field: "username" | "nickname", value: string) => {
+  // 중복 확인 함수 (아이디, 이메일, 닉네임 공용)
+  const checkDuplicate = async (field: "username" | "email" | "nickname", value: string) => {
     if (!value) return;
     try {
+      // 이메일 형식 체크 (이메일일 경우만)
+      if (field === "email" && !value.includes("@")) {
+        setEmailStatus('error');
+        setEmailMsg("올바른 이메일 형식이 아닙니다.");
+        return;
+      }
+
       const { data } = await supabase.from("profiles").select("id").eq(field, value).maybeSingle();
+      
       if (field === "username") {
-        if (data) { setUsernameStatus('error'); setUsernameMsg("이미 사용 중인 정보입니다 😢"); }
-        else { setUsernameStatus('success'); setUsernameMsg("사용 가능한 정보입니다!"); }
+        if (data) { setUsernameStatus('error'); setUsernameMsg("이미 사용 중인 아이디입니다."); }
+        else { setUsernameStatus('success'); setUsernameMsg("사용 가능한 아이디입니다!"); }
+      } else if (field === "email") {
+        if (data) { setEmailStatus('error'); setEmailMsg("이미 가입된 이메일입니다."); }
+        else { setEmailStatus('success'); setEmailMsg("사용 가능한 이메일입니다!"); }
       } else {
-        if (data) { setNicknameStatus('error'); setNicknameMsg("이미 사용 중인 정보입니다 😢"); }
-        else { setNicknameStatus('success'); setNicknameMsg("사용 가능한 정보입니다!"); }
+        if (data) { setNicknameStatus('error'); setNicknameMsg("이미 사용 중인 닉네임입니다."); }
+        else { setNicknameStatus('success'); setNicknameMsg("사용 가능한 닉네임입니다!"); }
       }
     } catch (e) { console.error(e); }
   };
 
   const onSubmit = async (values: any) => {
-    if (usernameStatus !== 'success') return setErrorModal({ show: true, msg: "아이디 중복 확인을 완료해 주세요." });
-    if (!isPasswordMatch) return setErrorModal({ show: true, msg: "비밀번호가 일치하지 않거나 너무 짧습니다." });
-    if (nicknameStatus !== 'success') return setErrorModal({ show: true, msg: "닉네임 중복 확인을 완료해 주세요." });
+    if (usernameStatus !== 'success') return setErrorModal({ show: true, msg: "아이디 중복 확인을 해주세요." });
+    if (emailStatus !== 'success') return setErrorModal({ show: true, msg: "이메일 중복 확인을 해주세요." });
+    if (!isPasswordMatch) return setErrorModal({ show: true, msg: "비밀번호를 다시 확인해 주세요." });
+    if (nicknameStatus !== 'success') return setErrorModal({ show: true, msg: "닉네임 중복 확인을 해주세요." });
 
     setIsSubmitting(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: `${values.username}@church.com`,
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email, // 진짜 이메일 사용
         password: values.password,
         options: {
-          data: { nickname: values.nickname, full_name: values.fullName, phone: values.phone, rank: values.rank, church: values.church }
+          data: { 
+            username: values.username,
+            nickname: values.nickname, 
+            full_name: values.fullName, 
+            phone: values.phone, 
+            rank: values.rank, 
+            church: values.church 
+          }
         }
       });
-      if (authError) throw authError;
-      window.location.href = "/";
+
+      if (error) throw error;
+      alert("🎉 환영합니다! 가입이 완료되었습니다.");
+      setLocation("/");
     } catch (error: any) {
-      setErrorModal({ show: true, msg: "가입 중 오류가 발생했습니다." });
+      setErrorModal({ show: true, msg: error.message || "가입 중 오류가 발생했습니다." });
     } finally {
       setIsSubmitting(false);
     }
@@ -95,9 +124,9 @@ export default function RegisterPage() {
               <div className="w-12 h-12 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertCircle size={24} />
               </div>
-              <h3 className="font-black text-zinc-900 mb-2" style={{ fontSize: `${fontSize * 1.1}px` }}>확인이 필요해요</h3>
+              <h3 className="font-black text-zinc-900 mb-2" style={{ fontSize: `${fontSize * 1.1}px` }}>확인 필요</h3>
               <p className="text-zinc-500 font-medium mb-6 leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>{errorModal.msg}</p>
-              <button onClick={() => setErrorModal({ show: false, msg: "" })} className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold active:scale-95 transition-transform">확인</button>
+              <button onClick={() => setErrorModal({ show: false, msg: "" })} className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold">확인</button>
             </motion.div>
           </div>
         )}
@@ -118,8 +147,20 @@ export default function RegisterPage() {
             {usernameMsg && <span className="font-bold" style={{ fontSize: `${fontSize * 0.65}px`, color: usernameStatus === 'success' ? '#10b981' : '#ef4444' }}>{usernameMsg}</span>}
           </div>
           <div className="flex items-center gap-3">
-            <input {...register("username", { required: true })} className="bg-transparent outline-none w-full text-zinc-900 font-black" placeholder="영문/숫자 입력" style={{ fontSize: `${fontSize * 1.1}px` }} />
-            <button type="button" onClick={() => checkDuplicate("username", username)} className="font-bold px-4 py-2 rounded-xl bg-zinc-900 text-white shrink-0 shadow-sm active:scale-95 transition-transform" style={{ fontSize: `${fontSize * 0.7}px` }}>중복확인</button>
+            <input {...register("username", { required: true })} className="bg-transparent outline-none w-full text-zinc-900 font-black" placeholder="아이디 입력" style={{ fontSize: `${fontSize * 1.1}px` }} />
+            <button type="button" onClick={() => checkDuplicate("username", username)} className="font-bold px-4 py-2 rounded-xl bg-zinc-900 text-white shrink-0" style={{ fontSize: `${fontSize * 0.7}px` }}>중복확인</button>
+          </div>
+        </div>
+
+        {/* 이메일 (신규 추가) */}
+        <div className={`rounded-3xl p-5 border-2 shadow-sm mb-4 transition-all duration-300 ${getBorderStyle(emailStatus)}`}>
+          <div className="flex justify-between items-center mb-2">
+            <label className="font-bold text-[#4A6741] flex items-center gap-1" style={{ fontSize: `${fontSize * 0.75}px` }}><Mail size={14}/> 이메일</label>
+            {emailMsg && <span className="font-bold" style={{ fontSize: `${fontSize * 0.65}px`, color: emailStatus === 'success' ? '#10b981' : '#ef4444' }}>{emailMsg}</span>}
+          </div>
+          <div className="flex items-center gap-3">
+            <input {...register("email", { required: true })} type="email" className="bg-transparent outline-none w-full text-zinc-900 font-bold" placeholder="example@email.com" style={{ fontSize: `${fontSize}px` }} />
+            <button type="button" onClick={() => checkDuplicate("email", email)} className="font-bold px-4 py-2 rounded-xl bg-zinc-900 text-white shrink-0" style={{ fontSize: `${fontSize * 0.7}px` }}>중복확인</button>
           </div>
         </div>
 
@@ -127,8 +168,8 @@ export default function RegisterPage() {
         <div className={`rounded-3xl p-5 border-2 shadow-sm mb-4 transition-all duration-300 ${showPasswordError ? 'border-red-500 bg-red-50/10' : isPasswordMatch ? 'border-emerald-500 bg-emerald-50/10' : 'border-[#4A6741]/10'}`}>
           <div className="flex justify-between items-center mb-2">
             <label className="font-bold text-[#4A6741] flex items-center gap-1" style={{ fontSize: `${fontSize * 0.75}px` }}><Lock size={14}/> 비밀번호</label>
-            {showPasswordError && <span className="font-bold text-red-500 flex items-center gap-1" style={{ fontSize: `${fontSize * 0.65}px` }}><X size={10}/> 비밀번호 일치하지 않음</span>}
-            {isPasswordMatch && <span className="font-bold text-emerald-600 flex items-center gap-1" style={{ fontSize: `${fontSize * 0.65}px` }}><Check size={10}/> 비밀번호 일치</span>}
+            {showPasswordError && <span className="font-bold text-red-500 flex items-center gap-1" style={{ fontSize: `${fontSize * 0.65}px` }}><X size={10}/> 불일치</span>}
+            {isPasswordMatch && <span className="font-bold text-emerald-600 flex items-center gap-1" style={{ fontSize: `${fontSize * 0.65}px` }}><Check size={10}/> 일치함</span>}
           </div>
           <div className="space-y-4">
             <div className="flex items-center gap-3 border-b border-zinc-100 pb-2">
@@ -145,25 +186,24 @@ export default function RegisterPage() {
         <div className={`rounded-3xl p-5 border-2 shadow-sm mb-4 transition-all duration-300 ${getBorderStyle(nicknameStatus)}`}>
           <div className="flex justify-between items-center mb-2">
             <label className="font-bold text-[#4A6741] flex items-center gap-1" style={{ fontSize: `${fontSize * 0.75}px` }}><Sparkles size={14}/> 닉네임</label>
-            <button type="button" onClick={generateNickname} className="text-zinc-400 font-bold flex items-center gap-1 hover:text-zinc-600" style={{ fontSize: `${fontSize * 0.65}px` }}><RefreshCw size={10} /> 다른추천</button>
+            <button type="button" onClick={generateNickname} className="text-zinc-400 font-bold flex items-center gap-1" style={{ fontSize: `${fontSize * 0.65}px` }}><RefreshCw size={10} /> 다른추천</button>
           </div>
           <div className="flex items-center gap-3 mb-1">
             <input {...register("nickname", { required: true })} className="bg-transparent outline-none w-full text-[#4A6741] font-black" style={{ fontSize: `${fontSize * 1.3}px` }} />
-            <button type="button" onClick={() => checkDuplicate("nickname", nickname)} className="font-bold px-4 py-2 rounded-xl bg-[#4A6741] text-white shrink-0 active:scale-95 transition-transform" style={{ fontSize: `${fontSize * 0.7}px` }}>중복확인</button>
+            <button type="button" onClick={() => checkDuplicate("nickname", nickname)} className="font-bold px-4 py-2 rounded-xl bg-[#4A6741] text-white shrink-0" style={{ fontSize: `${fontSize * 0.7}px` }}>중복확인</button>
           </div>
           {nicknameMsg && <p className="font-bold mt-1" style={{ fontSize: `${fontSize * 0.65}px`, color: nicknameStatus === 'success' ? '#10b981' : '#ef4444' }}>{nicknameMsg}</p>}
         </div>
 
         <h2 className="font-bold text-zinc-400 mt-10 mb-4 px-1" style={{ fontSize: `${fontSize * 0.8}px` }}>선택 입력</h2>
         
-        {/* 선택 입력 섹션 (너비 수정) */}
         <div className="bg-white rounded-3xl p-6 border-2 border-[#4A6741]/5 space-y-6 shadow-sm overflow-hidden">
-             <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-between gap-4">
                 <span className="font-bold text-zinc-400 shrink-0" style={{ fontSize: `${fontSize * 0.75}px` }}>본명</span>
-                <input {...register("fullName")} placeholder="실명을 입력해 주세요" className="bg-transparent text-right outline-none text-zinc-800 font-medium min-w-0 flex-1" style={{ fontSize: `${fontSize}px` }} />
+                <input {...register("fullName")} placeholder="실명 입력" className="bg-transparent text-right outline-none text-zinc-800 font-medium min-w-0 flex-1" style={{ fontSize: `${fontSize}px` }} />
              </div>
              <div className="h-[1px] bg-zinc-50 w-full" />
-             <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-between gap-4">
                 <span className="font-bold text-zinc-400 shrink-0" style={{ fontSize: `${fontSize * 0.75}px` }}>전화번호</span>
                 <input {...register("phone")} placeholder="010-0000-0000" className="bg-transparent text-right outline-none text-zinc-800 font-medium min-w-0 flex-1" style={{ fontSize: `${fontSize}px` }} 
                   onChange={(e) => {
@@ -172,13 +212,13 @@ export default function RegisterPage() {
                   }} />
              </div>
              <div className="h-[1px] bg-zinc-50 w-full" />
-             <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-between gap-4">
                 <span className="font-bold text-zinc-400 shrink-0" style={{ fontSize: `${fontSize * 0.75}px` }}>직분</span>
                 <div className="flex-1 flex justify-end overflow-hidden">
                   {showCustomRank ? (
                     <input {...register("rank")} autoFocus placeholder="직접 입력" className="bg-transparent text-right outline-none text-[#4A6741] font-bold w-full" style={{ fontSize: `${fontSize}px` }} />
                   ) : (
-                    <select {...register("rank")} onChange={(e) => e.target.value === "직접 입력" && setShowCustomRank(true)} className="bg-transparent outline-none text-right text-zinc-800 font-medium appearance-none w-full max-w-[150px]" style={{ fontSize: `${fontSize}px` }}>
+                    <select {...register("rank")} onChange={(e) => e.target.value === "직접 입력" && setShowCustomRank(true)} className="bg-transparent outline-none text-right text-zinc-800 font-medium appearance-none w-full max-w-[160px]" style={{ fontSize: `${fontSize}px` }}>
                       <option value="">선택</option>
                       {ranks.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
@@ -186,9 +226,9 @@ export default function RegisterPage() {
                 </div>
              </div>
              <div className="h-[1px] bg-zinc-50 w-full" />
-             <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-between gap-4">
                 <span className="font-bold text-zinc-400 shrink-0" style={{ fontSize: `${fontSize * 0.75}px` }}>소속 교회</span>
-                <input {...register("church")} placeholder="교회 이름을 입력해 주세요" className="bg-transparent text-right outline-none text-zinc-800 font-medium min-w-0 flex-1" style={{ fontSize: `${fontSize}px` }} />
+                <input {...register("church")} placeholder="교회 이름 입력" className="bg-transparent text-right outline-none text-zinc-800 font-medium min-w-0 flex-1" style={{ fontSize: `${fontSize}px` }} />
              </div>
         </div>
 
