@@ -63,6 +63,7 @@ function AppContent() {
 }
 
 export default function App() {
+  useEffect(() => {
   const checkAuthRedirect = () => {
   const href = window.location.href;
   const hash = window.location.hash;
