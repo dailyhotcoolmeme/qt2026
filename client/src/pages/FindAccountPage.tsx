@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react"; // useEffect 추가
+import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion"; 
@@ -6,26 +6,25 @@ import { ArrowLeft, Mail, CheckCircle2, AlertCircle, Loader2 } from "lucide-reac
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function FindAccountPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const settings = useDisplaySettings();
   const fontSize = settings?.fontSize || 16;
   
-  // 초기값 설정
   const [activeTab, setActiveTab] = useState<"id" | "pw">("id");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // 핵심: 주소창의 ?tab=pw 변화를 감시해서 탭을 강제로 바꿉니다.
+  // 탭 감지 로직 강화
   useEffect(() => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const tabParam = searchParams.get("tab");
-    if (tabParam === "pw") {
+    // 해시 라우팅 환경에서도 안전하게 파라미터를 읽어오기 위해 전체 URL을 검사합니다.
+    const fullUrl = window.location.href;
+    if (fullUrl.includes("tab=pw")) {
       setActiveTab("pw");
     } else {
       setActiveTab("id");
     }
-  }, [window.location.search]); // 주소창이 바뀔 때마다 실행
+  }, [location]); // 주소가 바뀔 때마다 다시 확인
 
   const handleFindId = async () => {
     if (!email) return;
@@ -50,7 +49,6 @@ export default function FindAccountPage() {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (error) throw error;
-      // 이메일 주소를 들고 비밀번호 변경 페이지로 이동
       setLocation(`/update-password?email=${encodeURIComponent(email.trim())}`); 
     } catch (e: any) {
       setIsLoading(false);
@@ -69,8 +67,18 @@ export default function FindAccountPage() {
 
       <div className="flex-1 px-8 pt-4">
         <div className="flex bg-zinc-100 p-1.5 rounded-[20px] mb-10">
-          <button onClick={() => { setActiveTab("id"); setResult(null); }} className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "id" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}>아이디 찾기</button>
-          <button onClick={() => { setActiveTab("pw"); setResult(null); }} className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "pw" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}>비밀번호 찾기</button>
+          <button 
+            onClick={() => { setActiveTab("id"); setResult(null); }} 
+            className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "id" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}
+          >
+            아이디 찾기
+          </button>
+          <button 
+            onClick={() => { setActiveTab("pw"); setResult(null); }} 
+            className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "pw" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}
+          >
+            비밀번호 찾기
+          </button>
         </div>
 
         <div className="mb-8 px-1">
@@ -85,7 +93,13 @@ export default function FindAccountPage() {
         <div className="space-y-6">
           <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] flex items-center gap-4">
             <Mail className="text-zinc-300" size={20} />
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="이메일 주소 입력" className="flex-1 bg-transparent outline-none font-bold text-zinc-900 text-sm" />
+            <input 
+              type="email" 
+              value={email} 
+              onChange={(e) => setEmail(e.target.value)} 
+              placeholder="이메일 주소 입력" 
+              className="flex-1 bg-transparent outline-none font-bold text-zinc-900 text-sm" 
+            />
           </div>
 
           <button 
