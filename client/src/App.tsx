@@ -47,6 +47,7 @@ function AppContent() {
                   <Route path="/login" component={LoginPage} />
                   <Route path="/search" component={SearchPage} />
                   <Route path="/register" component={RegisterPage} />
+                  <Route path="/find-account" component={FindAccountPage} />
                   <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
                   <Route component={NotFound} />
                 </Switch>
