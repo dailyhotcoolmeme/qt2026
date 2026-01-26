@@ -45,7 +45,7 @@ export default function FindAccountPage() {
     setResult(null);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: "https://qt2026.vercel.app/#/update-password/",
+        redirectTo: "https://qt2026.vercel.app/",
       });
       if (error) throw error;
       setResult({ success: true, message: "비밀번호 재설정 이메일을 발송했습니다. 메일함을 확인해 주세요.(메일함에 없을 경우 스팸메일함 확인)" });
