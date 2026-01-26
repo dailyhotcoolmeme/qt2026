@@ -14,6 +14,7 @@ import CommunityPage from "./pages/CommunityPage";
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
+import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage"; 
 import NotFound from "./pages/not-found";
