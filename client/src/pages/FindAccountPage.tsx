@@ -1,20 +1,21 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "wouter";
-import { motion, AnimatePresence } from "framer-motion"; // AnimatePresence 명시적 확인
-import { ArrowLeft, Mail, Send, CheckCircle2, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion"; 
+import { ArrowLeft, Mail, CheckCircle2, AlertCircle } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function FindAccountPage() {
   const [, setLocation] = useLocation();
   const settings = useDisplaySettings();
-  const fontSize = settings?.fontSize || 16; // 안전한 접근
+  const fontSize = settings?.fontSize || 16;
   
   const [activeTab, setActiveTab] = useState<"id" | "pw">("id");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
+  // 1. 아이디 찾기 로직 (기존 유지)
   const handleFindId = async () => {
     if (!email) return;
     setIsLoading(true);
@@ -39,16 +40,26 @@ export default function FindAccountPage() {
     }
   };
 
+  // 2. 비밀번호 재설정 로직 (OTP 페이지 이동 추가)
   const handleResetPw = async () => {
     if (!email) return;
     setIsLoading(true);
     setResult(null);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: "https://qt2026.vercel.app",
-      });
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      
       if (error) throw error;
-      setResult({ success: true, message: "비밀번호 재설정 이메일을 발송했습니다. 메일함을 확인해 주세요.(메일함에 없을 경우 스팸메일함 확인)" });
+      
+      setResult({ 
+        success: true, 
+        message: "비밀번호 재설정 이메일을 발송했습니다. 메일함에 적힌 6자리 인증번호를 확인해주세요!" 
+      });
+
+      // 2초 뒤에 인증번호를 입력하는 페이지로 이동시킵니다.
+      setTimeout(() => {
+        setLocation("/update-password");
+      }, 2000);
+
     } catch (e: any) {
       setResult({ success: false, message: "이메일 발송에 실패했습니다. 주소를 확인해 주세요." });
     } finally {
@@ -87,7 +98,7 @@ export default function FindAccountPage() {
           </h3>
           <p className="text-zinc-400 font-medium leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
             가입 시 등록한 이메일 주소를 입력하시면<br />
-            {activeTab === "id" ? "아이디 정보를 확인해 드립니다." : "재설정 링크를 보내드립니다."}
+            {activeTab === "id" ? "아이디 정보를 확인해 드립니다." : "인증번호를 보내드립니다."}
           </p>
         </div>
 
@@ -112,7 +123,6 @@ export default function FindAccountPage() {
           </button>
         </div>
 
-        {/* 결과 메시지 부분 안정화 */}
         {result && (
           <div className={`mt-8 p-6 rounded-[24px] flex items-start gap-3 ${result.success ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
             {result.success ? <CheckCircle2 size={20} className="shrink-0 mt-0.5" /> : <AlertCircle size={20} className="shrink-0 mt-0.5" />}
