@@ -62,20 +62,9 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    const checkAuthRedirect = () => {
+    // 1. 카카오 로그인 특유의 /#/# 버그 수정 (유지)
+    const fixKakaoHash = () => {
       const href = window.location.href;
-      const hash = window.location.hash;
-
-      // 1. 비밀번호 재설정 토큰 감지 및 유지
-      if (href.includes("access_token")) {
-        if (!hash.startsWith("#/update-password")) {
-          const tokenPart = hash.startsWith('#') ? hash : `#${hash}`;
-          window.location.hash = `/update-password${tokenPart}`;
-          return;
-        }
-      }
-
-      // 2. 카카오 로그인 특유의 /#/# 버그 수정
       if (href.includes("/#/#")) {
         const newHref = href.replace("/#/#", "/#/");
         window.history.replaceState(null, "", newHref);
@@ -83,12 +72,7 @@ export default function App() {
       }
     };
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        window.location.hash = "/update-password";
-      }
-    });
-
+    // 2. 약관 동의 내역 자동 저장 로직 (유지)
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -107,10 +91,10 @@ export default function App() {
       }
     };
 
-    checkAuthRedirect();
+    fixKakaoHash();
     syncAgreements();
 
-    return () => subscription.unsubscribe();
+    // 기존의 복잡한 checkAuthRedirect 및 PASSWORD_RECOVERY 이벤트 감시는 삭제했습니다.
   }, []);
 
   return (
