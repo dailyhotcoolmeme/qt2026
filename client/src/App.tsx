@@ -14,6 +14,7 @@ import CommunityPage from "./pages/CommunityPage";
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
+import FindAccountPage from "./pages/FindAccountPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage"; 
@@ -30,6 +31,7 @@ function AppContent() {
           {/* 약관 및 인증 페이지 (독립 레이아웃) */}
           <Route path="/terms/:type" component={TermsPage} />
           <Route path="/auth" component={AuthPage} />
+          <Route path="/find-account" component={FindAccountPage} />
 
           {/* 메인 서비스 페이지 (공통 레이아웃) */}
           <Route>
