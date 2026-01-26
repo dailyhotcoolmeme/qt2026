@@ -85,7 +85,7 @@ export default function RegisterPage() {
 
   // 공통 스타일 정의
   const getBorderStyle = (status: 'none' | 'success' | 'error') => {
-    if (status === 'success') return "border-[#4A6741] bg-emerald-50/10";
+    if (status === 'success') return "border-[#4A6741] bg-[#4A6741]";
     if (status === 'error') return "border-red-500 bg-red-50/10";
     return "border-[#4A6741]/10 bg-white";
   };
