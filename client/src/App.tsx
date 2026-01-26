@@ -29,13 +29,11 @@ function AppContent() {
     <WouterRouter hook={useHashLocation}>
       <AnimatePresence mode="wait">
         <Switch>
-          {/* 약관 및 인증 페이지 (독립 레이아웃) */}
           <Route path="/terms/:type" component={TermsPage} />
           <Route path="/auth" component={AuthPage} />
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
 
-          {/* 메인 서비스 페이지 (공통 레이아웃) */}
           <Route>
             <Layout>
               <TopBar />
@@ -64,41 +62,33 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-  const checkAuthRedirect = () => {
-  const href = window.location.href;
-  const hash = window.location.hash;
+    const checkAuthRedirect = () => {
+      const href = window.location.href;
+      const hash = window.location.hash;
 
-  // 1. 주소창에 토큰이 들어왔을 때
-  if (href.includes("access_token")) {
-    // 이미 해당 페이지라면 무한 루프 방지를 위해 중단
-    if (hash.startsWith("#/update-password")) return;
+      // 1. 비밀번호 재설정 토큰 감지 및 유지
+      if (href.includes("access_token")) {
+        if (!hash.startsWith("#/update-password")) {
+          const tokenPart = hash.startsWith('#') ? hash : `#${hash}`;
+          window.location.hash = `/update-password${tokenPart}`;
+          return;
+        }
+      }
 
-    // 현재 주소창의 토큰들(hash)을 통째로 들고 비밀번호 페이지로 점프
-    // 예: /#/update-password#access_token=...
-    const tokenPart = hash.startsWith('#') ? hash : `#${hash}`;
-    window.location.hash = `/update-password${tokenPart}`;
-  }
-};
+      // 2. 카카오 로그인 특유의 /#/# 버그 수정
+      if (href.includes("/#/#")) {
+        const newHref = href.replace("/#/#", "/#/");
+        window.history.replaceState(null, "", newHref);
+        setTimeout(() => window.location.reload(), 300);
+      }
+    };
 
-
-  // 2. 카카오 로그인 특유의 /#/# 버그 수정 (그대로 유지)
-  if (href.includes("/#/#")) {
-    const newHref = href.replace("/#/#", "/#/");
-    window.history.replaceState(null, "", newHref);
-    setTimeout(() => window.location.reload(), 300);
-  }
-};
-
-
-
-    // [이벤트 감시] 비밀번호 재설정 전용 (그대로 유지)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         window.location.hash = "/update-password";
       }
     });
 
-    // [약관 동의] 자동 저장 로직 (그대로 유지)
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -122,7 +112,6 @@ export default function App() {
 
     return () => subscription.unsubscribe();
   }, []);
-
 
   return (
     <QueryClientProvider client={queryClient}>
