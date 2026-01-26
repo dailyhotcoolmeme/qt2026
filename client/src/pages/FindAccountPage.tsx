@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion"; 
-import { ArrowLeft, Mail, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function FindAccountPage() {
@@ -15,18 +15,12 @@ export default function FindAccountPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // 1. 아이디 찾기 로직 (기존 유지)
   const handleFindId = async () => {
     if (!email) return;
     setIsLoading(true);
     setResult(null);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("email", email.trim())
-        .maybeSingle();
-
+      const { data, error } = await supabase.from("profiles").select("username").eq("email", email.trim()).maybeSingle();
       if (error) throw error;
       if (data) {
         setResult({ success: true, message: `회원님의 아이디는 [${data.username}] 입니다.` });
@@ -34,31 +28,29 @@ export default function FindAccountPage() {
         setResult({ success: false, message: "해당 이메일로 가입된 정보가 없습니다." });
       }
     } catch (e: any) {
-      setResult({ success: false, message: "오류가 발생했습니다. 다시 시도해 주세요." });
-    } finally {
-      setIsLoading(false);
-    }
+      setResult({ success: false, message: "오류가 발생했습니다." });
+    } finally { setIsLoading(false); }
   };
 
-  // 2. 비밀번호 재설정 로직 (OTP 페이지 이동 추가)
+  // 핵심 수정 부분: 이메일 발송 후 즉시 페이지 이동
   const handleResetPw = async () => {
-  if (!email) return;
-  setIsLoading(true); [span_3](start_span)// 로딩 시작[span_3](end_span)
-  
-  try {
-    // 1. 일단 이메일을 보냅니다.
-    await supabase.auth.resetPasswordForEmail(email.trim());
-    
-    [span_4](start_span)[span_5](start_span)// 2. 텀을 주지 않고 바로 페이지를 이동시킵니다.[span_4](end_span)[span_5](end_span)
-    // 6자리 숫자를 입력해야 한다는 것을 페이지 상단에서 강조할 것입니다.
-    setLocation("/update-password"); 
-  } catch (e: any) {
-    setResult({ success: false, message: "실패했습니다. 다시 시도해 주세요." });
-  } finally {
-    setIsLoading(false);
-  }
-};
+    if (!email) return;
+    setIsLoading(true);
+    setResult(null);
+    try {
+      // 1. 수파베이스에 재설정 요청
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+      if (error) throw error;
+      
+      // 2. 대기 시간 없이 바로 인증번호 입력 페이지로 강제 이동
+      // (이때 이메일 주소를 기억해서 넘겨주면 사용자가 더 편합니다)
+      setLocation("/update-password"); 
 
+    } catch (e: any) {
+      setIsLoading(false);
+      setResult({ success: false, message: "이메일 발송 실패. 주소를 확인해 주세요." });
+    }
+  };
 
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative z-50">
@@ -71,18 +63,8 @@ export default function FindAccountPage() {
 
       <div className="flex-1 px-8 pt-4">
         <div className="flex bg-zinc-100 p-1.5 rounded-[20px] mb-10">
-          <button 
-            onClick={() => { setActiveTab("id"); setResult(null); }}
-            className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "id" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}
-          >
-            아이디 찾기
-          </button>
-          <button 
-            onClick={() => { setActiveTab("pw"); setResult(null); }}
-            className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "pw" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}
-          >
-            비밀번호 찾기
-          </button>
+          <button onClick={() => { setActiveTab("id"); setResult(null); }} className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "id" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}>아이디 찾기</button>
+          <button onClick={() => { setActiveTab("pw"); setResult(null); }} className={`flex-1 py-3 rounded-[16px] font-bold transition-all ${activeTab === "pw" ? "bg-white text-[#4A6741] shadow-sm" : "text-zinc-400"}`}>비밀번호 찾기</button>
         </div>
 
         <div className="mb-8 px-1">
@@ -90,21 +72,14 @@ export default function FindAccountPage() {
             {activeTab === "id" ? "아이디를 잊으셨나요?" : "비밀번호를 재설정할까요?"}
           </h3>
           <p className="text-zinc-400 font-medium leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
-            가입 시 등록한 이메일 주소를 입력하시면<br />
-            {activeTab === "id" ? "아이디 정보를 확인해 드립니다." : "인증번호를 보내드립니다."}
+            가입 시 등록한 이메일 주소를 입력해 주세요.
           </p>
         </div>
 
         <div className="space-y-6">
           <div className="bg-white rounded-[24px] p-5 shadow-sm border-2 border-transparent focus-within:border-[#4A6741] flex items-center gap-4">
             <Mail className="text-zinc-300" size={20} />
-            <input 
-              type="email" 
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="이메일 주소 입력" 
-              className="flex-1 bg-transparent outline-none font-bold text-zinc-900 text-sm"
-            />
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="이메일 주소 입력" className="flex-1 bg-transparent outline-none font-bold text-zinc-900 text-sm" />
           </div>
 
           <button 
@@ -112,7 +87,7 @@ export default function FindAccountPage() {
             disabled={isLoading || !email}
             className="w-full h-[64px] bg-[#4A6741] disabled:bg-zinc-200 text-white rounded-[22px] font-black shadow-lg flex items-center justify-center gap-2"
           >
-            {isLoading ? "처리 중..." : "확인하기"}
+            {isLoading ? <Loader2 className="animate-spin" /> : "확인하기"}
           </button>
         </div>
 
