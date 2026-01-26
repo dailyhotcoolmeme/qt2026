@@ -65,23 +65,33 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    // 1. 카카오 & 비밀번호 재설정 리다이렉트 처리 (수정됨)
-    const checkAuthRedirect = () => {
-      const href = window.location.href;
+    // App.tsx 내부의 useEffect -> checkAuthRedirect 부분
 
-      // [추가] 비밀번호 찾기 메일 링크를 타고 들어왔을 때 처리
-      if (href.includes("type=recovery")) {
-        window.location.hash = "/update-password";
-        return;
-      }
+  const checkAuthRedirect = () => {
+  const href = window.location.href;
 
-      // 기존 카카오 로그인 처리 로직
-      if (href.includes("/#/#")) {
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-        setTimeout(() => window.location.reload(), 300);
-      }
-    };
+  // [수정] 비밀번호 찾기 메일 링크 처리
+  if (href.includes("access_token") || href.includes("type=recovery")) {
+    // 1. 현재 주소창에 있는 해시(#) 이후의 모든 내용(토큰 포함)을 가져옵니다.
+    const hashContent = window.location.hash; 
+
+    // 2. /update-password 페이지로 이동하되, 뒤에 기존 토큰들을 그대로 붙여줍니다.
+    // 기존: window.location.hash = "/update-password"; (토큰 유실)
+    // 수정: 아래 코드는 토큰을 보존합니다.
+    if (!window.location.hash.startsWith("#/update-password")) {
+      window.location.hash = `#/update-password${hashContent.replace('#', '')}`;
+    }
+    return;
+  }
+
+  // 기존 카카오 로그인 처리 로직 (그대로 유지)
+  if (href.includes("/#/#")) {
+    const newHref = href.replace("/#/#", "/#/");
+    window.history.replaceState(null, "", newHref);
+    setTimeout(() => window.location.reload(), 300);
+  }
+};
+
 
     // [추가] 2. Supabase 이벤트 감시 (비밀번호 재설정 전용)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
