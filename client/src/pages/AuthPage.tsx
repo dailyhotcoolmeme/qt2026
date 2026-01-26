@@ -30,19 +30,9 @@ export default function AuthPage() {
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const { data: profile, error: pErr } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("username", values.username)
-        .maybeSingle();
-
+      const { data: profile, error: pErr } = await supabase.from("profiles").select("email").eq("username", values.username).maybeSingle();
       if (pErr || !profile) throw new Error("아이디를 확인해 주세요.");
-
-      const { error: lErr } = await supabase.auth.signInWithPassword({
-        email: profile.email,
-        password: values.password
-      });
-
+      const { error: lErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: values.password });
       if (lErr) throw new Error("비밀번호가 일치하지 않습니다.");
       setLocation("/");
     } catch (e: any) {
@@ -53,15 +43,10 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 pt-16 pb-24 overflow-hidden relative">
+    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-[#F8F8F8] px-8 pt-16 pb-32 overflow-hidden relative">
       
-      {/* 상단 메시지 (y축 위치 살짝 조정) */}
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full text-center mt-8"
-      >
+      {/* 상단 문구 (카카오 버튼을 위해 위치 소폭 상향) */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="w-full text-center mt-4">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-3 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
         </span>
@@ -75,8 +60,8 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 중단 버튼 영역 (카카오 버튼 위치 상향 조정) */}
-      <div className="w-full max-w-sm mb-12">
+      {/* 중단: 카카오 버튼 (위치 올림) */}
+      <div className="w-full max-w-sm mb-10">
         <motion.button 
           whileTap={{ scale: 0.96 }}
           onClick={handleKakaoLogin}
@@ -86,7 +71,6 @@ export default function AuthPage() {
           <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="카카오" />
           카카오로 시작하기
         </motion.button>
-        
         <p className="text-center text-zinc-400 leading-relaxed px-4 opacity-70" style={{ fontSize: `${fontSize * 0.7}px` }}>
           본 서비스는 사용자의 기록을<br />
           안전하게 관리하고 보호합니다.
@@ -95,7 +79,7 @@ export default function AuthPage() {
 
       {/* 하단 보조 버튼 */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-5 pb-8">
+        <div className="flex items-center justify-center gap-5">
           <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-bold hover:text-[#4A6741] transition-colors" style={{ fontSize: `${fontSize * 0.9}px` }}>
             아이디 로그인
           </button>
@@ -106,24 +90,24 @@ export default function AuthPage() {
         </div>
       </motion.div>
 
-      {/* 로그인 슬라이드 팝업 (잘림 방지 수정) */}
+      {/* 로그인 슬라이드 팝업 - 잘림 방지 강화 */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="fixed inset-0 bg-black/50 z-[90] backdrop-blur-sm" />
             <motion.div 
               initial={{ y: "100%" }} 
               animate={{ y: 0 }} 
               exit={{ y: "100%" }} 
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] px-6 pt-8 pb-10" // pb-10과 px-6으로 하단 여백 확보
+              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[32px] z-[100] px-6 pt-4 pb-32 shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
             >
-              {/* 팝업 상단 바 (핸들러 느낌) */}
-              <div className="w-12 h-1.5 bg-zinc-100 rounded-full mx-auto mb-6" />
+              {/* 상단 드래그 핸들 */}
+              <div className="w-12 h-1.5 bg-zinc-100 rounded-full mx-auto mt-2 mb-6" />
 
               <div className="flex justify-between items-center mb-6 px-2">
                 <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
-                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-300 p-2"><X size={24}/></button>
+                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24}/></button>
               </div>
 
               <form onSubmit={handleSubmit(onLogin)} className="space-y-3 px-2">
@@ -136,8 +120,8 @@ export default function AuthPage() {
                   <label className="text-[#4A6741] font-bold text-[10px] block mb-1">비밀번호</label>
                   <div className="flex items-center gap-3">
                     <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold flex-1 text-zinc-900 text-sm" placeholder="비밀번호 입력" />
-                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300">
-                      {showPw ? <EyeOff size={18}/> : <Eye size={18}/>}
+                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-400">
+                      {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
                     </button>
                   </div>
                 </div>
@@ -163,11 +147,11 @@ export default function AuthPage() {
                   </div>
                 )}
 
-                {/* 하단 내비바에 잘리지 않도록 버튼 간격 조정 및 하단 여백 확보 */}
+                {/* 🔴 핵심: 하단 탭 바 높이만큼 여유를 주기 위해 절대 잘리지 않도록 배치 */}
                 <button 
                   disabled={isLoading} 
                   type="submit" 
-                  className="w-full h-[60px] bg-[#4A6741] text-white rounded-[18px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mb-4"
+                  className="w-full h-[64px] bg-[#4A6741] text-white rounded-[22px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all"
                 >
                   {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
                 </button>
