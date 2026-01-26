@@ -34,23 +34,21 @@ export default function FindAccountPage() {
 
   // 핵심 수정 부분: 이메일 발송 후 즉시 페이지 이동
   const handleResetPw = async () => {
-    if (!email) return;
-    setIsLoading(true);
-    setResult(null);
-    try {
-      // 1. 수파베이스에 재설정 요청
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
-      if (error) throw error;
-      
-      // 2. 대기 시간 없이 바로 인증번호 입력 페이지로 강제 이동
-      // (이때 이메일 주소를 기억해서 넘겨주면 사용자가 더 편합니다)
-      setLocation("/update-password"); 
+  if (!email) return;
+  setIsLoading(true);
+  try {
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    if (error) throw error;
+    
+    // 핵심: 이메일 주소를 주소창(Query String)에 담아서 보냅니다.
+    setLocation(`/update-password?email=${encodeURIComponent(email.trim())}`); 
 
-    } catch (e: any) {
-      setIsLoading(false);
-      setResult({ success: false, message: "이메일 발송 실패. 주소를 확인해 주세요." });
-    }
-  };
+  } catch (e: any) {
+    setIsLoading(false);
+    setResult({ success: false, message: "이메일 발송 실패." });
+  }
+};
+
 
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative z-50">
