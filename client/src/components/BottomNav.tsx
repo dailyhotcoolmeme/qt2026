@@ -33,7 +33,7 @@ function NavItem({ href, icon, label, active }: { href: string; icon: React.Reac
         <div className={`p-1.5 rounded-2xl transition-all ${active ? 'bg-green-60 text-[#4A6741]' : 'text-zinc-400'}`}>
           {React.cloneElement(icon, { size: 22, strokeWidth: active ? 2.5 : 2 })}
         </div>
-        <span className={`text-[14px] font-black tracking-tighter ${active ? 'text-[#4A6741]' : 'text-zinc-400'}`}>
+        <span className={`text-[14px] font-medium tracking-tighter ${active ? 'text-[#4A6741]' : 'text-zinc-400'}`}>
           {label}
         </span>
       </div>
