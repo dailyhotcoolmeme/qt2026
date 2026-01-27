@@ -69,9 +69,16 @@ export default function LoginPage() {
           </div>
 
           <div className="flex justify-end px-2 pt-2">
+            {/* [수정된 핵심 부분]
+               주소창에 tab=pw를 붙이는 대신, sessionStorage(메모리)에 
+               "activeTab" 정보를 저장하고 이동합니다.
+            */}
             <button 
               type="button"
-              onClick={() => setLocation("/find-account?tab=pw")} 
+              onClick={() => {
+                sessionStorage.setItem("activeTab", "pw"); 
+                setLocation("/find-account");
+              }} 
               className="text-zinc-400 text-sm font-bold hover:text-zinc-600"
             >
               비밀번호를 잊으셨나요?
