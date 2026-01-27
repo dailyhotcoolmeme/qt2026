@@ -29,11 +29,11 @@ export function BottomNav() {
 function NavItem({ href, icon, label, active }: { href: string; icon: React.ReactElement; label: string; active: boolean }) {
   return (
     <Link href={href}>
-      <div className="flex flex-col items-center justify-center min-w-[68px] h-full gap-1 cursor-pointer">
-        <div className={`p-1.5 rounded-2xl transition-all ${active ? 'bg-green-60 text-[#4A6741]' : 'text-zinc-400'}`}>
+      <div className="flex flex-col items-center justify-center min-w-[68px] h-full gap-0.5 cursor-pointer">
+        <div className={`p-1.5 rounded-2xl transition-all ${active ? 'bg-green-50 text-[#4A6741]' : 'text-zinc-400'}`}>
           {React.cloneElement(icon, { size: 22, strokeWidth: active ? 2.5 : 2 })}
         </div>
-        <span className={`text-[14px] font-medium tracking-tighter ${active ? 'text-[#4A6741]' : 'text-zinc-400'}`}>
+        <span className={`text-[14px] font-bold tracking-tighter ${active ? 'text-[#4A6741]' : 'text-zinc-400'}`}>
           {label}
         </span>
       </div>
