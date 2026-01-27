@@ -93,7 +93,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
       {/* 뒤로가기 헤더 - 위치 조정을 위해 pt-16으로 아래로 내림 */}
-      <header className="px-6 pt-24 pb-4">
+      <header className="px-6 pt-20 pb-10">
         <button onClick={() => setLocation("/auth")} className="p-2 -ml-2 text-zinc-400">
           <ArrowLeft size={24} />
         </button>
