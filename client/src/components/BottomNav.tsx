@@ -30,10 +30,10 @@ function NavItem({ href, icon, label, active }: { href: string; icon: React.Reac
   return (
     <Link href={href}>
       <div className="flex flex-col items-center justify-center min-w-[68px] h-full gap-0.5 cursor-pointer">
-        <div className={`p-1.5 rounded-2xl transition-all ${active ? 'bg-[#4A6741]-50 text-[#4A6741]' : 'text-zinc-400'}`}>
+        <div className={`p-1.5 rounded-2xl transition-all ${active ? 'bg-green-50 text-[#4A6741]' : 'text-zinc-400'}`}>
           {React.cloneElement(icon, { size: 22, strokeWidth: active ? 2.5 : 2 })}
         </div>
-        <span className={`text-[13px] font-bold tracking-tighter ${active ? 'text-[#4A6741]' : 'text-zinc-400'}`}>
+        <span className={`text-[13px] font-bold tracking-tighter ${active ? 'text-[#4A6741] text-[14px]' : 'text-zinc-400'}`}>
           {label}
         </span>
       </div>
