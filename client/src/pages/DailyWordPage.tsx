@@ -277,8 +277,8 @@ export default function DailyWordPage() {
       <div className="flex items-center gap-8 mt-3 mb-14"> 
         <button 
   onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-  className="flex flex-col items-center gap-1.5 text-zinc-400"
->
+  className="flex flex-col items-center gap-1.5 text-zinc-400">
+    <div className={`p-1.5 rounded-2xl bg-green-50 text-[#4A6741]'}`}></div>
   <Headphones size={22} strokeWidth={1.5} />
   <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
 </button>
