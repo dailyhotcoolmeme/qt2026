@@ -93,7 +93,7 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
       {/* 뒤로가기 헤더 - 위치 조정을 위해 pt-16으로 아래로 내림 */}
-      <header className="px-6 pt-16 pb-4">
+      <header className="px-6 pt-24 pb-4">
         <button onClick={() => setLocation("/auth")} className="p-2 -ml-2 text-zinc-400">
           <ArrowLeft size={24} />
         </button>
@@ -108,7 +108,7 @@ export default function RegisterPage() {
         >
           <h1 className="font-black text-zinc-900 leading-[1.4] tracking-tighter" style={{ fontSize: `${fontSize * 1.6}px` }}>
             3초만에 가입하고<br />
-            <span className="text-[#4A6741]">묵상을 시작하세요</span>
+            <span className="text-[#4A6741]">묵상 기록을 보관하세요</span>
           </h1>
         </motion.div>
 
@@ -138,7 +138,7 @@ export default function RegisterPage() {
         {/* 구분선 */}
         <div className="flex items-center gap-4 mb-8">
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
-          <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-widest">OR</span>
+          <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-widest">혹은</span>
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
         </div>
 
@@ -148,7 +148,7 @@ export default function RegisterPage() {
             onClick={() => setIsFormVisible(true)}
             className="w-full py-4 text-zinc-400 font-bold text-sm underline underline-offset-4 decoration-zinc-200 active:text-zinc-800 transition-colors text-center"
           >
-            직접 정보를 입력해서 가입하시겠어요?
+            직접 정보(아이디, 비밀번호 등)를 입력해서 가입하시겠어요?
           </button>
         )}
 
