@@ -277,10 +277,10 @@ export default function DailyWordPage() {
       <div className="flex items-center gap-8 mt-3 mb-14"> 
         <button 
   onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-  className="flex flex-col items-center gap-1.5 text-[#4A6741] text-zinc-400"
+  className="flex flex-col items-center gap-1.5 text-zinc-400"
 >
   <Headphones size={22} strokeWidth={1.5} />
-  <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
 </button>
 
         <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
@@ -301,7 +301,6 @@ export default function DailyWordPage() {
           <span className="font-black" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
           <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>{amenCount.toLocaleString()}</span>
         </motion.button>
-        <p className="text-zinc-300 font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>아멘으로 화답해주세요</p>
       </div>
 
       {/* 5. TTS 제어 팝업 부분 */}
