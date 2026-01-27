@@ -148,7 +148,7 @@ export default function RegisterPage() {
             onClick={() => setIsFormVisible(true)}
             className="w-full py-4 text-zinc-400 font-bold text-sm underline underline-offset-4 decoration-zinc-200 active:text-zinc-800 transition-colors text-center"
           >
-            직접 정보(아이디, 비밀번호 등)를 입력해서 가입하시겠어요?
+            직접 가입하기 (아이디, 닉네임, 이메일 등록)
           </button>
         )}
 
