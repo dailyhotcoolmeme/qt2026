@@ -12,13 +12,13 @@ export function BottomNav() {
       <NavItem href="/" icon={<Sun />} label="오늘말씀" active={location === "/"} />
       
       {/* 오늘묵상: Sparkles (기도의 영성을 상징하는 반짝임) */}
-      <NavItem href="/meditation" icon={<Sparkles />} label="오늘묵상" active={location === "/meditation"} />
+      <NavItem href="/qt" icon={<Sparkles />} label="오늘묵상" active={location === "/qt"} />
       
       {/* 성경읽기: Book */}
-      <NavItem href="/bible" icon={<Book />} label="성경읽기" active={location === "/bible"} />
+      <NavItem href="/reading" icon={<Book />} label="성경읽기" active={location === "/reading"} />
       
       {/* 중보모임: Users2 */}
-      <NavItem href="/group" icon={<Users2 />} label="중보모임" active={location === "/group"} />
+      <NavItem href="/community" icon={<Users2 />} label="중보모임" active={location === "/community"} />
       
       {/* 내기록함: Lock */}
       <NavItem href="/archive" icon={<Lock />} label="내기록함" active={location === "/archive"} />
