@@ -18,7 +18,7 @@ export default function AuthPage() {
 
   const { register, getValues } = useForm();
 
-  // 카카오 로그인 로직 (작동 유지)
+  // 카카오 로그인 로직
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -56,8 +56,7 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative">
-      {/* 1. 자동완성 배경색 완벽 차단 */}
+    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative text-left">
       <style dangerouslySetInnerHTML={{ __html: `
         input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
@@ -65,7 +64,6 @@ export default function AuthPage() {
         }
       `}} />
       
-      {/* 상단 메시지 구역: mt-16을 주어 요청하신 대로 살짝 아래로 이동 */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
         <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
           QuietTime Diary
@@ -80,7 +78,6 @@ export default function AuthPage() {
         </p>
       </motion.div>
 
-      {/* 버튼 뭉치 구역: 중앙 위치 및 간격 유지 */}
       <div className="w-full max-w-sm mt-28 mb-auto flex flex-col items-center gap-6">
         <button 
           onClick={handleKakaoLogin} 
@@ -97,7 +94,6 @@ export default function AuthPage() {
         </div>
       </div>
 
-      {/* 아이디 로그인 팝업 (디자인 고정) */}
       <AnimatePresence>
         {isLoginOpen && (
           <>
@@ -113,13 +109,11 @@ export default function AuthPage() {
               </div>
 
               <div className="space-y-4 px-2">
-                {/* 2. 아이디 박스 가로 너비 준수 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
                   <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
                 </div>
 
-                {/* 3. 눈 아이콘 내부 안착 */}
                 <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
                   <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
                   <div className="flex items-center">
@@ -137,12 +131,16 @@ export default function AuthPage() {
                     </div>
                     <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400'}`}>로그인 유지</span>
                   </button>
+                  
+                  {/* 핵심 수정 부분: 탭 신호를 포함한 링크 */}
                   <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
-                    <Link href="/find-account"><a>아이디 찾기</a></Link>
+                    <Link href="/find-account?tab=id"><a>아이디 찾기</a></Link>
                     <span className="text-zinc-200">|</span>
-                    <Link href="/find-account"><a>비밀번호 찾기</a></Link>
+                    <Link href="/find-account?tab=pw"><a>비밀번호 찾기</a></Link>
                   </div>
                 </div>
+
+                {errorMsg && <p className="text-red-500 text-[12px] font-bold px-2">{errorMsg}</p>}
 
                 <button 
                   disabled={isLoading} onClick={handleManualLogin}
