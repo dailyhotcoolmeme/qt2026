@@ -14,13 +14,14 @@ const emailDomains = ["naver.com", "gmail.com", "daum.net", "hanmail.net", "kaka
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
-  const { register, handleSubmit, setValue, watch, getValues, trigger } = useForm({ mode: "onChange" });
+  const { register, handleSubmit, setValue, watch, getValues } = useForm({ mode: "onChange" });
   
   const [step, setStep] = useState(1);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isRankModalOpen, setIsRankModalOpen] = useState(false);
   
-  const [usernameStatus, setUsernameStatus] = useState('none');
+  // 상태 관리: 중복 확인 여부
+  const [usernameStatus, setUsernameStatus] = useState('none'); // 'none' | 'success' | 'error'
   const [emailStatus, setEmailStatus] = useState('none');
   const [nicknameStatus, setNicknameStatus] = useState('none');
   
@@ -53,6 +54,7 @@ export default function RegisterPage() {
       value = `${values.emailId}@${domain}`;
     }
     if (!value || value.includes('undefined')) return setModal({ show: true, title: "알림", msg: "정보를 입력해주세요.", type: "error" });
+    
     try {
       const { data, error } = await supabase.from("profiles").select("id").eq(field, value).maybeSingle();
       if (error) throw error;
@@ -60,8 +62,13 @@ export default function RegisterPage() {
       if (field === "username") setUsernameStatus(isAvailable ? 'success' : 'error');
       if (field === "nickname") setNicknameStatus(isAvailable ? 'success' : 'error');
       if (field === "email") setEmailStatus(isAvailable ? 'success' : 'error');
-      setModal({ show: true, title: isAvailable ? "확인 완료" : "중복", msg: isAvailable ? "사용 가능합니다." : "이미 사용 중입니다.", type: isAvailable ? "success" : "error" });
-    } catch (e) { setModal({ show: true, title: "오류", msg: "통신 실패", type: "error" }); }
+      
+      if (!isAvailable) {
+        setModal({ show: true, title: "중복 확인", msg: "이미 사용 중인 정보입니다.", type: "error" });
+      }
+    } catch (e) { 
+      setModal({ show: true, title: "오류", msg: "통신 중 오류가 발생했습니다.", type: "error" }); 
+    }
   };
 
   const handleNextStep = () => {
@@ -82,24 +89,25 @@ export default function RegisterPage() {
         options: { data: { username: values.username, nickname: values.nickname, full_name: values.fullName || "", phone: values.phone || "", rank: values.rank || "", church: values.church || "" } }
       });
       if (error) throw error;
-      setModal({ show: true, title: "가입 완료", msg: "환영합니다! 가입이 완료되었습니다.", type: "success" });
+      setModal({ show: true, title: "가입 완료", msg: "가입이 완료되었습니다! 로그인 해주세요.", type: "success" });
     } catch (error: any) {
       setModal({ show: true, title: "실패", msg: error.message, type: "error" });
     } finally { setIsSubmitting(false); }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left">
+    <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
       <style dangerouslySetInnerHTML={{ __html: `
         input:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px white inset !important; -webkit-text-fill-color: #4A6741 !important; }
-        input { background-color: transparent !important; color: #4A6741 !important; outline: none; border: none; text-align: right; font-weight: 700; }
+        input { background-color: transparent !important; color: #4A6741 !important; outline: none; border: none; text-align: left; font-weight: 700; width: 100%; }
+        input::placeholder { color: #d1d1d6; font-weight: 500; }
       `}} />
 
-      <header className="px-6 pt-20 pb-10 flex items-center">
-        <button onClick={() => setLocation("/auth")} className="p-2 -ml-2 text-zinc-400 shrink-0"><ArrowLeft size={24} /></button>
+      <header className="px-6 pt-20 pb-10">
+        <button onClick={() => setLocation("/auth")} className="p-2 -ml-2 text-zinc-400"><ArrowLeft size={24} /></button>
       </header>
 
-      <div className="flex-1 px-8">
+      <div className="flex-1 px-8 pb-20">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-4 mb-12 text-center">
           <h1 className="font-black text-zinc-900 leading-[1.4] tracking-tighter" style={{ fontSize: `${fontSize * 1.2}px` }}>
             3초만에 가입하고<br />
@@ -107,6 +115,7 @@ export default function RegisterPage() {
           </h1>
         </motion.div>
 
+        {/* 카카오 가입 구역 (기존 유지) */}
         <div className="space-y-6 mb-12 flex flex-col items-center">
           <button 
             onClick={() => { if(!isAgreedAll) return setModal({show:true, title:"약관 동의", msg:"필수 약관에 동의하셔야 가입이 가능합니다.", type:"error"}); supabase.auth.signInWithOAuth({provider:'kakao'}); }} 
@@ -132,6 +141,7 @@ export default function RegisterPage() {
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
         </div>
 
+        {/* 직접 가입하기 버튼 */}
         <button 
           onClick={() => setIsPopupOpen(true)}
           className="w-full h-[64px] bg-white border-2 border-zinc-100 text-zinc-900 font-bold rounded-[22px] shadow-sm flex flex-col items-center justify-center active:scale-95 transition-all"
@@ -149,7 +159,7 @@ export default function RegisterPage() {
             <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} 
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[110] flex flex-col max-h-[92vh] shadow-2xl overflow-hidden"
             >
-              {/* 상단 헤더: 단계 표시 및 닫기 */}
+              {/* 상단 헤더 */}
               <div className="px-8 pt-10 pb-4 relative">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="font-black text-[#4A6741]" style={{ fontSize: `${fontSize * 1.3}px` }}>{step === 1 ? "필수 입력" : "선택 입력"}</h2>
@@ -162,49 +172,70 @@ export default function RegisterPage() {
                 </div>
               </div>
 
-              {/* 입력 영역 (스크롤 가능) */}
+              {/* 입력 영역 */}
               <div className="flex-1 overflow-y-auto px-8 pb-32">
                 {step === 1 ? (
                   <div className="space-y-1 pt-4">
-                    <div className={`flex items-center justify-between border-b-2 py-5 transition-all ${attemptedStep1 && usernameStatus !== 'success' ? 'bg-red-50 px-3 rounded-xl border-transparent' : 'border-zinc-50'}`}>
-                      <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디</span>
-                      <div className="flex-1 flex items-center justify-end gap-2">
-                        <input {...register("username")} className="w-full" placeholder="아이디 입력" />
-                        <button type="button" onClick={() => checkDuplicate("username")} className="shrink-0 px-3 py-1.5 bg-zinc-900 text-white text-[10px] rounded-lg font-bold">확인</button>
+                    {/* 아이디 */}
+                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-5">
+                      <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디</span>
+                      <div className="flex-1 flex items-center gap-2">
+                        <input {...register("username")} placeholder="아이디 입력" />
+                        <button type="button" onClick={() => checkDuplicate("username")} 
+                          className={`shrink-0 px-3 py-1.5 text-white text-[10px] rounded-lg font-bold transition-all ${usernameStatus === 'success' ? 'bg-[#4A6741]' : 'bg-zinc-900'}`}>
+                          중복확인
+                        </button>
                       </div>
                     </div>
-                    <div className={`flex flex-col border-b-2 py-5 transition-all ${attemptedStep1 && emailStatus !== 'success' ? 'bg-red-50 px-3 rounded-xl border-transparent' : 'border-zinc-50'}`}>
+
+                    {/* 이메일 */}
+                    <div className="flex flex-col border-b-2 border-zinc-50 py-5">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.9}px` }}>이메일</span>
-                        <div className="flex-1 flex items-center justify-end gap-1">
-                          <input {...register("emailId")} className="w-20" placeholder="이메일" />
+                        <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>이메일</span>
+                        <div className="flex-1 flex items-center gap-1">
+                          <input {...register("emailId")} className="!w-24" placeholder="이메일" />
                           <span className="text-zinc-300 text-xs">@</span>
-                          <div className="w-28">
-                            {showCustomDomain ? <input {...register("customDomain")} autoFocus className="w-full" /> : 
-                            <select {...register("emailDomain")} onChange={e => e.target.value === "직접 입력" && setShowCustomDomain(true)} className="w-full text-right font-bold text-[#4A6741] bg-transparent outline-none appearance-none pr-1">{emailDomains.map(d => <option key={d} value={d}>{d}</option>)}</select>}
+                          <div className="flex-1">
+                            {showCustomDomain ? <input {...register("customDomain")} autoFocus /> : 
+                            <select {...register("emailDomain")} onChange={e => e.target.value === "직접 입력" && setShowCustomDomain(true)} className="w-full font-bold text-[#4A6741] bg-transparent outline-none">
+                              {emailDomains.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>}
                           </div>
                         </div>
+                        <button type="button" onClick={() => checkDuplicate("email")} 
+                          className={`shrink-0 px-3 py-1.5 text-white text-[10px] rounded-lg font-bold transition-all ${emailStatus === 'success' ? 'bg-[#4A6741]' : 'bg-zinc-900'}`}>
+                          중복확인
+                        </button>
                       </div>
-                      <button type="button" onClick={() => checkDuplicate("email")} className="text-[10px] text-zinc-400 font-bold underline text-right mt-2">이메일 중복확인</button>
                     </div>
-                    <div className={`flex flex-col border-b-2 py-5 transition-all ${attemptedStep1 && !isPasswordMatch ? 'bg-red-50 px-3 rounded-xl border-transparent' : 'border-zinc-50'}`}>
+
+                    {/* 비밀번호 */}
+                    <div className="flex flex-col border-b-2 border-zinc-50 py-5">
                       <div className="flex items-center justify-between mb-4">
-                        <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.9}px` }}>비밀번호</span>
-                        <div className="flex-1 flex items-center justify-end gap-2">
-                          <input {...register("password")} type={showPw ? "text" : "password"} className="w-full" placeholder="8자 이상" />
+                        <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>비밀번호</span>
+                        <div className="flex-1 flex items-center gap-2">
+                          <input {...register("password")} type={showPw ? "text" : "password"} placeholder="8자 이상 입력" />
                           <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 shrink-0">{showPw ? <EyeOff size={18}/> : <Eye size={18}/>}</button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.8}px` }}>확인</span>
-                        <input {...register("passwordConfirm")} type={showPw ? "text" : "password"} className="w-full" placeholder="비밀번호 다시 입력" />
+                        <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>비밀번호 확인</span>
+                        <input {...register("passwordConfirm")} type={showPw ? "text" : "password"} placeholder="다시 한번 입력" />
                       </div>
                     </div>
-                    <div className={`flex items-center justify-between border-b-2 py-5 transition-all ${attemptedStep1 && nicknameStatus !== 'success' ? 'bg-red-50 px-3 rounded-xl border-transparent' : 'border-zinc-50'}`}>
-                      <div className="flex items-center gap-1 w-20 shrink-0"><span className="font-bold text-zinc-400" style={{ fontSize: `${fontSize * 0.9}px` }}>닉네임</span><button type="button" onClick={generateNickname} className="text-zinc-300"><RefreshCw size={12}/></button></div>
-                      <div className="flex-1 flex items-center justify-end gap-2">
-                        <input {...register("nickname")} className="w-full !text-[#4A6741]" />
-                        <button type="button" onClick={() => checkDuplicate("nickname")} className="shrink-0 px-3 py-1.5 bg-[#4A6741] text-white text-[10px] rounded-lg font-bold">확인</button>
+
+                    {/* 닉네임 */}
+                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-5">
+                      <div className="flex items-center gap-1 w-28 shrink-0">
+                        <span className="font-bold text-zinc-400" style={{ fontSize: `${fontSize * 0.9}px` }}>닉네임</span>
+                        <button type="button" onClick={generateNickname} className="text-zinc-300"><RefreshCw size={12}/></button>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <input {...register("nickname")} className="!text-[#4A6741]" />
+                        <button type="button" onClick={() => checkDuplicate("nickname")} 
+                          className={`shrink-0 px-3 py-1.5 text-white text-[10px] rounded-lg font-bold transition-all ${nicknameStatus === 'success' ? 'bg-[#4A6741]' : 'bg-zinc-900'}`}>
+                          중복확인
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -212,14 +243,14 @@ export default function RegisterPage() {
                   <div className="space-y-1 pt-4">
                     {[ { id: "fullName", label: "본명" }, { id: "phone", label: "전화번호" }, { id: "church", label: "소속 교회" } ].map(item => (
                       <div key={item.id} className="flex items-center justify-between border-b-2 border-zinc-50 py-5">
-                        <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.9}px` }}>{item.label}</span>
-                        <input {...register(item.id)} className="w-full" placeholder="입력(선택)" />
+                        <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>{item.label}</span>
+                        <input {...register(item.id as any)} placeholder="입력(선택사항)" />
                       </div>
                     ))}
                     <div className="flex items-center justify-between border-b-2 border-zinc-50 py-5">
-                      <span className="font-bold text-zinc-400 shrink-0 w-20" style={{ fontSize: `${fontSize * 0.9}px` }}>직분</span>
-                      <button type="button" onClick={() => setIsRankModalOpen(true)} className="flex-1 text-right font-bold text-[#4A6741] flex items-center justify-end gap-1">
-                        {watch("rank") || "선택하기"} <ChevronRight size={16}/>
+                      <span className="font-bold text-zinc-400 shrink-0 w-28" style={{ fontSize: `${fontSize * 0.9}px` }}>직분</span>
+                      <button type="button" onClick={() => setIsRankModalOpen(true)} className="flex-1 text-left font-bold text-[#4A6741] flex items-center justify-between">
+                        {watch("rank") || "선택하기"} <ChevronRight size={16} className="text-zinc-300"/>
                       </button>
                     </div>
                     {/* 약관 동의 */}
@@ -235,7 +266,7 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* 하단 고정 버튼 영역 */}
+              {/* 하단 고정 버튼 */}
               <div className="absolute bottom-0 left-0 right-0 p-8 bg-white border-t border-zinc-50">
                 {step === 1 ? (
                   <button onClick={handleNextStep} className="w-full h-[64px] bg-zinc-900 text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2">다음 단계로 <ChevronRight size={20}/></button>
