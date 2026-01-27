@@ -106,9 +106,9 @@ export default function RegisterPage() {
           animate={{ opacity: 1, y: 0 }} 
           className="mt-4 mb-12 text-center"
         >
-          <h1 className="font-black text-zinc-900 leading-[1.4] tracking-tighter" style={{ fontSize: `${fontSize * 1.6}px` }}>
+          <h1 className="font-black text-zinc-900 leading-[1.4] tracking-tighter" style={{ fontSize: `${fontSize * 1.2}px` }}>
             3초만에 가입하고<br />
-            <span className="text-[#4A6741]">묵상 기록을 보관하세요</span>
+            <span className="text-[#4A6741]" style={{ fontSize: `${fontSize * 1.6}px` }}>묵상 일기를 남겨보세요</span>
           </h1>
         </motion.div>
 
