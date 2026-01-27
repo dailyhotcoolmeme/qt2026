@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   Share2, Star, MessageCircle, ChevronLeft, ChevronRight, Copy, Lock,
-  Mic, Trash2, CheckCircle2, PenLine, Pause, Play, X, Plus, Heart, Calendar as CalendarIcon
+  Mic, Trash2, CheckCircle2, PenLine, Pause, Play, X, Plus, Heart, Calendar as CalendarIcon,
+  Headphones
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -21,15 +22,14 @@ export default function QTPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showWriteModal, setShowWriteModal] = useState(false); // 작성 팝업 제어
+  const [showWriteModal, setShowWriteModal] = useState(false);
 
   // 작성 폼 상태
   const [meditation, setMeditation] = useState("");
   const [prayer, setPrayer] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [isRecording, setIsRecording] = useState<'meditation' | 'prayer' | null>(null);
 
-  // 오디오/TTS 상태
+  // 오디오 상태
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -56,12 +56,7 @@ export default function QTPage() {
       .maybeSingle();
 
     if (verse) {
-      const { data: book } = await supabase
-        .from('bible_books')
-        .select('book_order')
-        .eq('book_name', verse.bible_name)
-        .maybeSingle();
-      setBibleData({ ...verse, bible_books: book });
+      setBibleData(verse);
     } else {
       setBibleData(null);
     }
@@ -98,17 +93,16 @@ export default function QTPage() {
     }
   };
 
-  // 디자인 컨셉 차용: DailyWordPage 스타일의 날짜 헤더
   return (
-    <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] overflow-y-auto pt-24 pb-24 px-4">
+    <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] overflow-y-auto pt-24 pb-32 px-4 no-scrollbar">
       
-      {/* 1. 날짜 헤더 (DailyWord 컨셉) */}
-      <header className="text-center mb-6 flex flex-col items-center relative">
+      {/* 1. 날짜 헤더 */}
+      <header className="text-center mb-10 flex flex-col items-center relative">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
         <div className="flex items-center gap-2">
-          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
+          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.3}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
           <button onClick={() => dateInputRef.current?.showPicker()} className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]">
@@ -118,115 +112,190 @@ export default function QTPage() {
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (QTpage 형식 + DailyWord 디자인) */}
+      {/* 2. 말씀 카드 */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.05)] border border-white p-8 mb-8"
+        className="w-full max-w-md bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.04)] border border-white/50 p-8 mb-10"
       >
-        <div className="max-h-[300px] overflow-y-auto custom-scrollbar mb-6">
+        <div className="max-h-[350px] overflow-y-auto no-scrollbar mb-6">
           {bibleData ? (
-            <div className="space-y-4 text-zinc-800 leading-relaxed break-keep" style={{ fontSize: `${fontSize}px` }}>
+            <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep" style={{ fontSize: `${fontSize}px` }}>
               {bibleData.content.split('\n').map((line: string, i: number) => (
-                <p key={i}>{line}</p>
+                <p key={i} className="font-medium">{line}</p>
               ))}
             </div>
-          ) : <p className="text-center py-10 text-zinc-300">오늘의 QT 말씀이 없습니다.</p>}
+          ) : <p className="text-center py-10 text-zinc-300">오늘의 QT 말씀이 등록되지 않았습니다.</p>}
         </div>
         {bibleData && (
-          <div className="text-center pt-4 border-t border-zinc-50">
-            <span className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          <div className="text-center pt-5 border-t border-zinc-50">
+            <span className="font-bold text-[#4A6741] opacity-50 italic" style={{ fontSize: `${fontSize * 0.9}px` }}>
               {bibleData.bible_name} {bibleData.chapter}:{bibleData.verse}
             </span>
           </div>
         )}
       </motion.div>
 
-      {/* 3. 툴바 (DailyWord 스타일) */}
-      <div className="flex items-center gap-8 mb-12">
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Mic size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 듣기</span>
+      {/* 3. 툴바 (DailyWordPage 스타일 그대로 적용) */}
+      <div className="flex items-center justify-center gap-10 mb-16">
+        <button 
+          onClick={() => setShowAudioControl(true)}
+          className="flex flex-col items-center gap-2 text-zinc-400 hover:text-[#4A6741] transition-all active:scale-90"
+        >
+          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center border border-zinc-50">
+            <Headphones size={24} strokeWidth={1.5} />
+          </div>
+          <span className="font-bold" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 듣기</span>
         </button>
-        <button onClick={() => setIsFavorite(!isFavorite)} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Star size={22} strokeWidth={1.5} className={isFavorite ? "fill-yellow-400 text-yellow-400" : ""} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span>
+
+        <button 
+          onClick={() => setIsFavorite(!isFavorite)}
+          className="flex flex-col items-center gap-2 text-zinc-400 hover:text-[#4A6741] transition-all active:scale-90"
+        >
+          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center border border-zinc-50">
+            <Heart 
+              size={24} 
+              strokeWidth={1.5} 
+              className={isFavorite ? "fill-red-500 text-red-500" : ""} 
+            />
+          </div>
+          <span className="font-bold" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span>
         </button>
-        <button onClick={() => {navigator.clipboard.writeText(bibleData?.content); alert("복사되었습니다.");}} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>복사</span>
+
+        <button 
+          onClick={() => {
+            if(!bibleData) return;
+            navigator.clipboard.writeText(`${bibleData.content}\n\n(${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse})`);
+            alert("말씀이 복사되었습니다.");
+          }}
+          className="flex flex-col items-center gap-2 text-zinc-400 hover:text-[#4A6741] transition-all active:scale-90"
+        >
+          <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center border border-zinc-50">
+            <Copy size={24} strokeWidth={1.5} />
+          </div>
+          <span className="font-bold" style={{ fontSize: `${fontSize * 0.75}px` }}>복사</span>
         </button>
       </div>
 
-      {/* 4. 묵상 나눔 리스트 (DailyWord 카드 컨셉) */}
-      <div className="w-full max-w-md space-y-4">
-        <div className="flex items-center gap-2 mb-2 px-2">
-          <MessageCircle className="w-5 h-5 text-[#4A6741]" />
-          <h3 className="font-bold text-zinc-800" style={{ fontSize: `${fontSize}px` }}>묵상 나눔 리스트</h3>
+      {/* 4. 묵상 나눔 리스트 (상단 공간 확보 mt-16) */}
+      <div className="w-full max-w-md space-y-5 mt-16">
+        <div className="flex items-center gap-2 mb-4 px-2">
+          <div className="w-1 h-5 bg-[#4A6741] rounded-full" />
+          <h3 className="font-black text-zinc-800" style={{ fontSize: `${fontSize * 1.1}px` }}>
+            오늘의 묵상 나눔
+          </h3>
         </div>
-        {meditationList.map((post) => (
-          <motion.div key={post.id} className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-50">
-            <div className="flex justify-between items-center mb-3">
-              <span className="font-bold text-[#4A6741] text-sm">{post.user_nickname}</span>
-              <span className="text-[10px] text-zinc-300">{new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+        
+        {meditationList.length > 0 ? meditationList.map((post) => (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+            key={post.id} className="bg-white rounded-[24px] p-6 shadow-sm border border-zinc-100/50"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <span className="font-black text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>{post.user_nickname}</span>
+              <span className="text-[11px] font-bold text-zinc-300 bg-zinc-50 px-2 py-1 rounded-md">
+                {new Date(post.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </span>
             </div>
-            <div className="space-y-3 text-zinc-600 text-sm leading-relaxed">
-              {post.my_meditation && <p>📖 {post.my_meditation}</p>}
-              {post.my_prayer && <p>🙏 {post.my_prayer}</p>}
+            <div className="space-y-4 text-zinc-600 font-medium leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
+              {post.my_meditation && (
+                <div className="flex gap-2">
+                  <span className="shrink-0 text-[#4A6741]">📖</span>
+                  <p className="break-all">{post.my_meditation}</p>
+                </div>
+              )}
+              {post.my_prayer && (
+                <div className="flex gap-2">
+                  <span className="shrink-0 text-[#4A6741]">🙏</span>
+                  <p className="break-all">{post.my_prayer}</p>
+                </div>
+              )}
             </div>
           </motion.div>
-        ))}
+        )) : (
+          <div className="py-20 text-center">
+            <p className="text-zinc-300 font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아직 남겨진 묵상이 없습니다.<br/>첫 번째 묵상을 남겨보세요!</p>
+          </div>
+        )}
       </div>
 
-      {/* 5. 플로팅 버튼 (작성 팝업 트리거) */}
+      {/* 5. 플로팅 버튼 */}
       <button 
         onClick={() => isAuthenticated ? setShowWriteModal(true) : setShowLoginModal(true)}
-        className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-40"
+        className="fixed bottom-24 right-6 w-16 h-16 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-40 border-4 border-white"
       >
-        <Plus size={28} />
+        <Plus size={32} strokeWidth={3} />
       </button>
 
-      {/* 6. 작성 팝업 모달 */}
+      {/* 6. 작성 팝업 (버튼 잘림 방지 pb-20 및 글자 크기 연동) */}
       <AnimatePresence>
         {showWriteModal && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowWriteModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="fixed inset-0 z-[100] flex items-end justify-center p-0 sm:p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
+              onClick={() => setShowWriteModal(false)} 
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm" 
+            />
             <motion.div 
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              className="relative bg-white w-full max-w-md rounded-t-[32px] sm:rounded-[32px] p-8 shadow-2xl"
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative bg-white w-full max-w-md rounded-t-[40px] shadow-2xl overflow-hidden"
+              style={{ maxHeight: '92vh' }}
             >
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-black text-zinc-800">오늘의 묵상 나누기</h3>
-                <button onClick={() => setShowWriteModal(false)} className="text-zinc-400"><X /></button>
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs font-bold text-[#4A6741] mb-2 ml-1">묵상 기록 📖</label>
-                  <textarea 
-                    value={meditation} onChange={(e) => setMeditation(e.target.value)}
-                    className="w-full h-32 bg-zinc-50 rounded-2xl p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
-                    placeholder="오늘 말씀에서 깨달은 점을 기록해보세요."
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-[#4A6741] mb-2 ml-1">묵상 기도 🙏</label>
-                  <textarea 
-                    value={prayer} onChange={(e) => setPrayer(e.target.value)}
-                    className="w-full h-32 bg-zinc-50 rounded-2xl p-4 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
-                    placeholder="오늘의 기도를 남겨보세요."
-                  />
-                </div>
-                <div className="flex items-center justify-between pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={isAnonymous} onChange={(e) => setIsAnonymous(e.target.checked)} className="rounded text-[#4A6741]" />
-                    <span className="text-sm font-bold text-zinc-400">익명으로 나누기</span>
-                  </label>
-                  <button 
-                    onClick={handleRegister}
-                    className="bg-[#4A6741] text-white px-8 py-3 rounded-2xl font-bold shadow-lg active:scale-95 transition-transform"
-                  >
-                    등록하기
+              {/* 스크롤 가능한 내부 영역 */}
+              <div className="overflow-y-auto px-10 pt-12 pb-24 no-scrollbar" style={{ maxHeight: '92vh' }}>
+                <div className="flex justify-between items-center mb-10">
+                  <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.35}px` }}>
+                    오늘의 묵상 기록
+                  </h3>
+                  <button onClick={() => setShowWriteModal(false)} className="p-2 bg-zinc-100 rounded-full text-zinc-400">
+                    <X size={24} />
                   </button>
+                </div>
+                
+                <div className="space-y-10">
+                  <div>
+                    <label className="block font-black text-[#4A6741] mb-4 ml-1" style={{ fontSize: `${fontSize * 0.9}px` }}>나의 묵상 📖</label>
+                    <textarea 
+                      value={meditation} onChange={(e) => setMeditation(e.target.value)}
+                      style={{ fontSize: `${fontSize * 1}px` }}
+                      className="w-full h-44 bg-zinc-50 rounded-[28px] p-6 focus:outline-none focus:ring-2 focus:ring-[#4A6741]/10 border-none resize-none font-medium"
+                      placeholder="말씀을 통해 주신 마음을 적어주세요."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-black text-[#4A6741] mb-4 ml-1" style={{ fontSize: `${fontSize * 0.9}px` }}>나의 기도 🙏</label>
+                    <textarea 
+                      value={prayer} onChange={(e) => setPrayer(e.target.value)}
+                      style={{ fontSize: `${fontSize * 1}px` }}
+                      className="w-full h-44 bg-zinc-50 rounded-[28px] p-6 focus:outline-none focus:ring-2 focus:ring-[#4A6741]/10 border-none resize-none font-medium"
+                      placeholder="주님께 드리는 짧은 기도를 남겨주세요."
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between py-4">
+                    <button 
+                      type="button" 
+                      onClick={() => setIsAnonymous(!isAnonymous)}
+                      className="flex items-center gap-3 group"
+                    >
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center transition-all ${isAnonymous ? 'bg-[#4A6741]' : 'border-2 border-zinc-200'}`}>
+                        {isAnonymous && <CheckCircle2 size={16} className="text-white" />}
+                      </div>
+                      <span className="font-bold text-zinc-400" style={{ fontSize: `${fontSize * 0.9}px` }}>익명으로 올리기</span>
+                    </button>
+                  </div>
+
+                  {/* 하단 버튼: 잘림 방지를 위해 하단 여백 내부에 배치 */}
+                  <div className="pt-2">
+                    <button 
+                      onClick={handleRegister}
+                      className="w-full h-[76px] bg-[#4A6741] text-white rounded-[24px] font-black shadow-xl active:scale-95 transition-all"
+                      style={{ fontSize: `${fontSize * 1.1}px` }}
+                    >
+                      나눔 등록하기
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -237,11 +306,11 @@ export default function QTPage() {
       {/* 로그인 모달 */}
       <AnimatePresence>
         {showLoginModal && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60">
-            <div className="bg-white rounded-[32px] w-full max-w-sm p-8 relative">
-              <button onClick={() => setShowLoginModal(false)} className="absolute top-6 right-6 text-zinc-400">✕</button>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white rounded-[40px] w-full max-w-sm p-10 relative shadow-2xl">
+              <button onClick={() => setShowLoginModal(false)} className="absolute top-8 right-8 text-zinc-300"><X /></button>
               <AuthPage />
-            </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
