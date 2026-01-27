@@ -1,30 +1,25 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import { useLocation } from "wouter";
-import { motion } from "framer-motion"; 
 import { ArrowLeft, Mail, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function FindAccountPage() {
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const settings = useDisplaySettings();
   const fontSize = settings?.fontSize || 16;
   
-  const [activeTab, setActiveTab] = useState<"id" | "pw">("id");
+  // 1. 메모리에 저장된 탭 정보가 있는지 확인합니다.
+  const savedTab = sessionStorage.getItem("activeTab") as "id" | "pw" | null;
+  const [activeTab, setActiveTab] = useState<"id" | "pw">(savedTab || "id");
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
-  // 탭 감지 로직 강화
   useEffect(() => {
-    // 해시 라우팅 환경에서도 안전하게 파라미터를 읽어오기 위해 전체 URL을 검사합니다.
-    const fullUrl = window.location.href;
-    if (fullUrl.includes("tab=pw")) {
-      setActiveTab("pw");
-    } else {
-      setActiveTab("id");
-    }
-  }, [location]); // 주소가 바뀔 때마다 다시 확인
+    // 2. 탭을 설정한 후에는 메모리를 비워줍니다. (다음 접속 시 영향을 안 주게)
+    sessionStorage.removeItem("activeTab");
+  }, []);
 
   const handleFindId = async () => {
     if (!email) return;
