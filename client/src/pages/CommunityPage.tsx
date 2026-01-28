@@ -1,125 +1,207 @@
-import React, { useState } from "react";
-import { Users, Globe, Plus, X, Camera, Lock, Hash, Tag, Info, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useState, useRef } from "react";
+import { Users, Plus, X, Camera, Lock, Hash, Tag, Info, Check, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function CommunityPage() {
   const { fontSize = 16 } = useDisplaySettings();
-  const [activeTab, setActiveTab] = useState<'my' | 'open'>('my');
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
-
-  // 모임 개설 폼 상태
+  
+  // 폼 상태
   const [formData, setFormData] = useState({
     name: '',
-    slug: '',       // 모임 아이디
+    slug: '',
     password: '',
     category: '교회',
-    customCategory: '',
     description: '',
+    imageUrl: ''
   });
 
-  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
+  const [isSlugVerified, setIsSlugVerified] = useState(false);
+  const [showSlugModal, setShowSlugModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 모임 아이디 중복 체크
-  const checkSlug = async (slug: string) => {
-    if (slug.length < 3) return;
-    setSlugStatus('checking');
-    const { data } = await supabase.from('groups').select('group_slug').eq('group_slug', slug).maybeSingle();
-    setSlugStatus(data ? 'taken' : 'available');
+  // 1. 이미지 압축 및 업로드 (임시 브라우저 압축 로직 포함)
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // TODO: 여기에 이미지 압축 라이브러리(browser-image-compression 등) 연동 가능
+    // 현재는 미리보기용 URL 생성 (실제 서버 저장 로직은 다음 단계)
+    const previewUrl = URL.createObjectURL(file);
+    setFormData({ ...formData, imageUrl: previewUrl });
+    alert("이미지가 선택되었습니다. 개설 시 서버에 저장됩니다.");
   };
 
-  const handleCreate = async () => {
-    if (slugStatus !== 'available') return alert("모임 아이디 중복 확인을 해주세요.");
-    // ... 실제 생성 로직 (다음 단계에서 연결)
-    alert("모임 개설 요청이 전송되었습니다.");
-  };
+  // 2. 모임 유형 리스트
+  const categories = ["가족", "교회", "학교", "직장", "기타"];
 
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
       
-      {/* 상단 탭 (내 모임으로 이름 변경) */}
-      <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-8">
-        <button onClick={() => setActiveTab('my')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>내 모임</button>
-        <button onClick={() => setActiveTab('open')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'open' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>오픈 모임</button>
-      </div>
-
       <AnimatePresence mode="wait">
         {viewMode === 'list' ? (
-          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md text-center pt-10">
-             {/* 모임이 없는 상태의 UI */}
-             <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-300">
+          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md text-center pt-20">
+             <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-200">
                 <Users size={32} />
              </div>
-             <p className="font-bold text-zinc-400 mb-8">개설된 모임이 없습니다.<br/>첫 번째 모임을 만들어보세요!</p>
-             <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2">
+             <p className="font-bold text-zinc-400 mb-8 leading-relaxed">참여 중인 모임이 없습니다.<br/>새로운 공동체를 시작해보세요.</p>
+             <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all">
                 <Plus size={20} /> 모임 개설하기
              </button>
           </motion.div>
         ) : (
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
             <div className="flex justify-between items-center mb-2 px-2">
-               <h3 className="font-black text-zinc-800" style={{ fontSize: `${fontSize * 1.2}px` }}>모임 개설</h3>
-               <button onClick={() => setViewMode('list')} className="text-zinc-400"><X /></button>
+               <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
+               <button onClick={() => setViewMode('list')} className="w-9 h-9 flex items-center justify-center bg-white rounded-full text-zinc-400 shadow-sm"><X size={20}/></button>
             </div>
 
-            <div className="bg-white rounded-[32px] p-6 shadow-sm border border-white space-y-6">
-              {/* 이미지 (추후 R2 연결) */}
-              <div className="flex flex-col items-center py-2">
-                <div className="w-20 h-20 bg-zinc-50 rounded-[28px] border-2 border-dashed border-zinc-200 flex items-center justify-center text-zinc-300">
-                  <Camera size={24} />
+            <div className="bg-white rounded-[36px] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.03)] border border-white space-y-8">
+              
+              {/* 대표 이미지 설정 */}
+              <div className="flex flex-col items-center">
+                <div 
+                  onClick={() => fileInputRef.current?.click()}
+                  className="group relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#4A6741]"
+                >
+                  {formData.imageUrl ? (
+                    <img src={formData.imageUrl} className="w-full h-full object-cover" alt="대표이미지" />
+                  ) : (
+                    <Camera size={28} className="text-zinc-300 group-hover:text-[#4A6741]" />
+                  )}
+                  <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <span className="text-[11px] font-bold text-zinc-400 mt-2">모임 대표 이미지</span>
+                <input type="file" ref={fileInputRef} onChange={handleImageChange} accept="image/*" className="hidden" />
+                <span className="text-[11px] font-bold text-zinc-400 mt-3">모임 대표 이미지 설정</span>
               </div>
 
-              {/* 입력 필드들 */}
-              <div className="space-y-4">
-                <div className="relative">
-                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 이름</label>
-                  <input className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold" placeholder="모임 이름을 입력하세요" />
+              <div className="space-y-6">
+                {/* 모임 이름 */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름</label>
+                  <input 
+                    className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-zinc-800 focus:ring-2 focus:ring-[#4A6741]/20 transition-all" 
+                    placeholder="모임의 이름을 정해주세요"
+                    value={formData.name}
+                    onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  />
                 </div>
 
-                <div className="relative">
-                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 아이디 (중복확인)</label>
-                  <div className="relative">
+                {/* 모임 아이디 + 중복확인 */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 아이디</label>
+                  <div className="flex gap-2">
                     <input 
-                      onChange={(e) => checkSlug(e.target.value)}
-                      className="w-full bg-zinc-50 border-none rounded-2xl p-4 pr-12 mt-1 font-bold" 
-                      placeholder="영문, 숫자 3자 이상" 
+                      disabled={isSlugVerified}
+                      className={`flex-1 border-none rounded-2xl p-4 font-bold transition-all ${isSlugVerified ? 'bg-green-50 text-green-700' : 'bg-zinc-50 text-zinc-800'}`} 
+                      placeholder="모임 아이디 입력"
+                      value={formData.slug}
                     />
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                      {slugStatus === 'checking' && <div className="w-4 h-4 border-2 border-[#4A6741] border-t-transparent rounded-full animate-spin" />}
-                      {slugStatus === 'available' && <CheckCircle2 size={20} className="text-green-500" />}
-                      {slugStatus === 'taken' && <AlertCircle size={20} className="text-red-500" />}
-                    </div>
+                    <button 
+                      onClick={() => setShowSlugModal(true)}
+                      className={`px-5 rounded-2xl font-black text-sm shadow-sm transition-all ${isSlugVerified ? 'bg-white text-zinc-300 cursor-default' : 'bg-[#4A6741] text-white active:scale-95'}`}
+                    >
+                      {isSlugVerified ? '확인완료' : '중복확인'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="relative">
-                  <label className="text-[11px] font-black text-[#4A6741] ml-1">입장 비밀번호</label>
-                  <input type="password" dclassName="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold" placeholder="비밀번호 설정" />
+                {/* 입장 비밀번호 (그대로 노출) */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">입장 비밀번호</label>
+                  <input 
+                    type="text" 
+                    className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-zinc-800" 
+                    placeholder="비밀번호 설정 (보안이 필요할 때)"
+                    value={formData.password}
+                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                  />
                 </div>
 
-                <div className="relative">
-                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 유형</label>
-                  <select className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold appearance-none">
-                    <option>교회</option>
-                    <option>가족</option>
-                    <option>학교</option>
-                    <option>직장</option>
-                    <option>기타 (직접입력)</option>
-                  </select>
+                {/* 모임 유형 (커스텀 팝업) */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 유형</label>
+                  <button 
+                    onClick={() => setShowCategoryModal(true)}
+                    className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800 active:bg-zinc-100 transition-colors"
+                  >
+                    <span>{formData.category}</span>
+                    <ChevronRight size={18} className="text-zinc-300" />
+                  </button>
                 </div>
 
-                <div className="relative">
-                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 설명</label>
-                  <textarea className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 h-24 resize-none" placeholder="모임원들에게 전할 메시지" />
+                {/* 모임 설명 */}
+                <div className="space-y-2">
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 설명</label>
+                  <textarea 
+                    className="w-full bg-zinc-50 border-none rounded-2xl p-4 h-28 resize-none font-medium text-zinc-600 leading-relaxed" 
+                    placeholder="모임원들에게 전할 따뜻한 메시지를 입력하세요"
+                    value={formData.description}
+                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                  />
                 </div>
               </div>
 
-              <button onClick={handleCreate} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg">모임 만들기</button>
+              <button className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-[0_10px_25px_rgba(74,103,65,0.2)] active:scale-95 transition-all text-lg">
+                모임 개설하기
+              </button>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 모임 유형 선택 바텀 시트 */}
+      <AnimatePresence>
+        {showCategoryModal && (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowCategoryModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              className="relative bg-white w-full max-w-md rounded-t-[40px] p-8 pb-12 shadow-2xl"
+            >
+              <h4 className="font-black text-zinc-900 mb-6 text-center">모임 유형 선택</h4>
+              <div className="grid grid-cols-1 gap-3">
+                {categories.map((cat) => (
+                  <button 
+                    key={cat}
+                    onClick={() => { setFormData({...formData, category: cat}); setShowCategoryModal(false); }}
+                    className={`w-full p-5 rounded-2xl font-bold text-left transition-all ${formData.category === cat ? 'bg-[#4A6741] text-white' : 'bg-zinc-50 text-zinc-500'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 모임 아이디 중복확인용 모달 (심플 버전) */}
+      <AnimatePresence>
+        {showSlugModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-xs rounded-[32px] p-8 text-center shadow-2xl">
+              <h4 className="font-black text-zinc-900 mb-4">모임 아이디 확인</h4>
+              <input 
+                className="w-full bg-zinc-50 border-none rounded-xl p-4 mb-6 font-bold text-center"
+                placeholder="아이디 입력"
+                onChange={(e) => setFormData({...formData, slug: e.target.value})}
+              />
+              <div className="flex gap-3">
+                <button onClick={() => setShowSlugModal(false)} className="flex-1 py-3 bg-zinc-100 text-zinc-500 rounded-xl font-bold">취소</button>
+                <button 
+                  onClick={() => { setIsSlugVerified(true); setShowSlugModal(false); }}
+                  className="flex-1 py-3 bg-[#4A6741] text-white rounded-xl font-bold"
+                >
+                  사용하기
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
