@@ -38,16 +38,19 @@ export default function CommunityPage() {
 
   // 카카오 로그인 함수
   const handleKakaoLogin = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'kakao',
-        options: { redirectTo: window.location.href }
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      alert("카카오 로그인 실패: " + err.message);
-    }
-  };
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'kakao',
+      options: { 
+        // window.location.href 대신, 쿼리 파라미터가 다 잘린 깔끔한 주소만 보냅니다.
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) throw error;
+  } catch (err: any) {
+    alert("로그인 실패: " + err.message);
+  }
+};
 
   // 일반 로그인 유도 (로그인 페이지로 이동하거나 모달 띄우기)
   const handleEmailLogin = () => {
