@@ -42,8 +42,8 @@ export default function CommunityPage() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: { 
-        // window.location.href 대신, 쿼리 파라미터가 다 잘린 깔끔한 주소만 보냅니다.
-        redirectTo: window.location.origin + window.location.pathname
+        // 가장 확실하게 작동했던 홈 주소로 리다이렉트
+        redirectTo: window.location.origin 
       }
     });
     if (error) throw error;
