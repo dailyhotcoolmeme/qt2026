@@ -33,9 +33,9 @@ export default function CommunityPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [joiningGroup, setJoiningGroup] = useState<any | null>(null);
-  const [groupInputPassword, setGroupInputPassword] = useState("");
+  const [inputPassword, setInputPassword] = useState("");
 
-  // --- 어제 만든 아이디 로그인 팝업용 상태 ---
+  // --- 아이디 로그인 팝업 관련 상태 ---
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [showIdLoginInput, setShowIdLoginInput] = useState(false); 
   const [loginId, setLoginId] = useState("");
@@ -55,7 +55,7 @@ export default function CommunityPage() {
     }
   };
 
-  // 어제 만든 아이디 로그인 로직 (@id.com 방식)
+  // 아이디 로그인 실행 (@id.com 방식 재활용)
   const handleIdLogin = async () => {
     if (!loginId || !loginPw) return alert("아이디와 비밀번호를 입력해주세요.");
     setLoading(true);
@@ -162,7 +162,7 @@ export default function CommunityPage() {
       if (error) throw error;
       alert("가입이 완료되었습니다!");
       setJoiningGroup(null);
-      setGroupInputPassword("");
+      setInputPassword("");
       fetchGroups();
     } catch (err: any) { alert(err.message); }
     finally { setLoading(false); }
@@ -224,6 +224,7 @@ export default function CommunityPage() {
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
       
+      {/* 탭 메뉴 */}
       <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-6">
         <button onClick={() => setActiveTab('my')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white shadow-md' : 'text-zinc-400'}`}>내 모임</button>
         <button onClick={() => setActiveTab('open')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'open' ? 'bg-[#4A6741] text-white shadow-md' : 'text-zinc-400'}`}>오픈 모임</button>
@@ -234,6 +235,7 @@ export default function CommunityPage() {
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
             {activeTab === 'my' ? (
               !user ? (
+                /* 비로그인 유도 화면 */
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 px-6">
                   <div className="w-20 h-20 bg-white rounded-[32px] shadow-sm flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Users size={32}/></div>
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
@@ -248,11 +250,13 @@ export default function CommunityPage() {
                   </div>
                 </motion.div>
               ) : (
+                /* 참여 중인 모임 리스트 */
                 <div className="space-y-1">
                   {loading ? <div className="py-20 text-center text-zinc-300 font-bold">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
                 </div>
               )
             ) : (
+              /* 오픈 모임 화면 */
               <>
                 <div className="space-y-4 mb-6">
                   <div className="relative">
@@ -272,6 +276,7 @@ export default function CommunityPage() {
             <button onClick={() => user ? setViewMode('create') : setShowLoginPopup(true)} className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50"><Plus size={28} /></button>
           </motion.div>
         ) : (
+          /* 모임 개설 화면 */
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
             <div className="flex justify-between items-center px-2">
                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
@@ -309,14 +314,14 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* --- 어제 만든 로그인 팝업 이식 --- */}
+      {/* --- 통합 로그인 팝업 (이미지 디자인 완벽 반영) --- */}
       <AnimatePresence>
         {showLoginPopup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
             <div onClick={() => {setShowLoginPopup(false); setShowIdLoginInput(false);}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
               {!showIdLoginInput ? (
-                /* 1단계: 로그인 방식 선택 */
+                /* 1단계: 로그인 선택 */
                 <div className="text-center">
                   <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mx-auto mb-4 text-[#4A6741] shadow-sm"><Users size={28}/></div>
                   <h4 className="font-black text-zinc-900 mb-2 text-lg">로그인이 필요합니다</h4>
@@ -332,29 +337,40 @@ export default function CommunityPage() {
                   </div>
                 </div>
               ) : (
-                /* 2단계: 아이디/비밀번호 직접 입력 (어제 만든 그 폼) */
-                <div className="space-y-5 text-left">
-                  <div className="flex items-center gap-2 mb-2">
-                    <button onClick={() => setShowIdLoginInput(false)} className="text-zinc-400"><X size={20}/></button>
+                /* 2단계: 아이디/비번 입력 (사용자 제공 이미지 디자인 반영) */
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center mb-2">
                     <h4 className="font-black text-zinc-900 text-lg">아이디 로그인</h4>
+                    <button onClick={() => setShowIdLoginInput(false)} className="text-zinc-300"><X size={24}/></button>
                   </div>
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-[#4A6741] ml-1">아이디</label>
-                      <input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" placeholder="아이디를 입력하세요" value={loginId} onChange={(e) => setLoginId(e.target.value)} />
+                  <div className="space-y-4 text-left">
+                    <div className="bg-zinc-50 rounded-2xl p-5">
+                      <label className="block text-[11px] font-bold text-[#4A6741] mb-2">아이디</label>
+                      <input className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300" placeholder="아이디 입력" value={loginId} onChange={(e) => setLoginId(e.target.value)} />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[11px] font-black text-[#4A6741] ml-1">비밀번호</label>
-                      <div className="relative">
-                        <input type={showPw ? "text" : "password"} className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" placeholder="••••••••" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} />
-                        <button onClick={() => setShowPw(!showPw)} className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-300">{showPw ? <EyeOff size={20}/> : <Eye size={20}/>}</button>
-                      </div>
+                    <div className="bg-zinc-50 rounded-2xl p-5 relative">
+                      <label className="block text-[11px] font-bold text-[#4A6741] mb-2">비밀번호</label>
+                      <input type={showPw ? "text" : "password"} className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300" placeholder="비밀번호 입력" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} />
+                      <button onClick={() => setShowPw(!showPw)} className="absolute right-5 bottom-5 text-zinc-300">
+                        {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 h-5 bg-[#4A6741] rounded-full flex items-center justify-center"><Check size={12} className="text-white"/></div>
+                      <span className="text-[12px] font-bold text-zinc-500">로그인 유지</span>
+                    </div>
+                    <div className="flex gap-2 text-[12px] font-bold text-zinc-400">
+                      <span>아이디 찾기</span>
+                      <span className="opacity-30">|</span>
+                      <span>비밀번호 찾기</span>
                     </div>
                   </div>
                   <button onClick={handleIdLogin} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg active:scale-95 transition-all">
-                    {loading ? "로그인 중..." : "로그인"}
+                    {loading ? "로그인 중..." : "로그인하기"}
                   </button>
-                  <button onClick={() => window.location.href = '#/register'} className="w-full text-center text-zinc-400 text-xs font-bold underline mt-2">아직 회원이 아니신가요? 회원가입</button>
+                  <button onClick={() => window.location.href = '#/register'} className="w-full text-center text-zinc-400 text-xs font-bold underline pt-2">아직 회원이 아니신가요? 회원가입 하기</button>
                 </div>
               )}
             </motion.div>
@@ -362,23 +378,25 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
+      {/* 가입 비밀번호 팝업 (모임 가입용) */}
       <AnimatePresence>
         {joiningGroup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
-            <div onClick={() => {setJoiningGroup(null); setGroupInputPassword("");}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <div onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
               <h4 className="font-black text-zinc-900 mb-2 text-center text-lg">비밀번호 입력</h4>
               <p className="text-zinc-400 text-sm text-center mb-6">모임 가입을 위해 비밀번호가 필요합니다.</p>
-              <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4" placeholder="••••" value={groupInputPassword} onChange={(e) => setGroupInputPassword(e.target.value)} autoFocus />
+              <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4 focus:ring-0" placeholder="••••" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
               <div className="flex gap-3">
-                <button onClick={() => {setJoiningGroup(null); setGroupInputPassword("");}} className="flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold">취소</button>
-                <button onClick={() => joinGroup(joiningGroup.id, groupInputPassword)} disabled={loading} className="flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg disabled:opacity-50">{loading ? "처리중" : "확인"}</button>
+                <button onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold">취소</button>
+                <button onClick={() => joinGroup(joiningGroup.id, inputPassword)} disabled={loading} className="flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg">{loading ? "처리중" : "확인"}</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
+      {/* 선택 모달 (유형/지역/나이) */}
       <AnimatePresence>
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
@@ -403,5 +421,14 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Lucide 아이콘에 없는 Check 아이콘 수동 추가용
+function Check({ size, className }: { size: number, className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
   );
 }
