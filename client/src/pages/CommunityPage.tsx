@@ -36,7 +36,25 @@ export default function CommunityPage() {
   const [inputPassword, setInputPassword] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  // 초기 유저 확인 및 세션 리스너
+  // 카카오 로그인 함수
+  const handleKakaoLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      alert("카카오 로그인 실패: " + err.message);
+    }
+  };
+
+  // 일반 로그인 유도 (로그인 페이지로 이동하거나 모달 띄우기)
+  const handleEmailLogin = () => {
+    // 기존에 만드신 로그인 경로가 있다면 window.location.href = '/login' 등으로 연결 가능
+    alert("이메일 로그인 페이지로 이동합니다.");
+  };
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
@@ -54,7 +72,6 @@ export default function CommunityPage() {
     };
   }, []);
 
-  // 탭이 바뀌거나 유저 상태가 바뀔 때 데이터 로드 (탭 고정 유지)
   useEffect(() => {
     fetchGroups();
   }, [activeTab, user]);
@@ -62,7 +79,6 @@ export default function CommunityPage() {
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      // 1. 오픈 모임 데이터 로드 (항상 수행)
       const { data: openData, error: openErr } = await supabase
         .from('groups')
         .select('*')
@@ -70,7 +86,6 @@ export default function CommunityPage() {
         .order('created_at', { ascending: false });
       if (!openErr) setAllOpenGroups(openData || []);
 
-      // 2. 내 모임 데이터 로드 (로그인 시에만)
       if (user) {
         const { data, error } = await supabase
           .from('group_members')
@@ -101,13 +116,11 @@ export default function CommunityPage() {
       setShowLoginPopup(true);
       return;
     }
-
     const isMember = myGroups.some(m => m.id === group.id);
     if (isMember) {
       alert(`${group.name} 모임으로 입장합니다.`);
       return;
     }
-
     if (group.password) {
       setJoiningGroup(group);
       return;
@@ -120,7 +133,6 @@ export default function CommunityPage() {
       const target = allOpenGroups.find(g => g.id === groupId);
       if (target && target.password !== password) return alert("비밀번호가 틀렸습니다.");
     }
-
     setLoading(true);
     try {
       const { error } = await supabase
@@ -207,13 +219,13 @@ export default function CommunityPage() {
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
                   <p className="text-zinc-400 text-sm font-medium mb-10 leading-relaxed">로그인 후 모임을 개설하거나<br/>초대받은 모임에 참여할 수 있습니다.</p>
                   <div className="space-y-3">
-                    <button className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm"><MessageSquare size={18} fill="currentColor"/> 카카오로 시작하기</button>
-                    <button className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100">이메일 로그인</button>
+                    <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"><MessageSquare size={18} fill="currentColor"/> 카카오로 시작하기</button>
+                    <button onClick={handleEmailLogin} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">이메일 로그인</button>
                   </div>
                 </motion.div>
               ) : (
                 <div className="space-y-1">
-                  {loading ? <div className="py-20 text-center animate-spin text-zinc-200 text-xs">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
+                  {loading ? <div className="py-20 text-center text-zinc-300 font-bold">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
                 </div>
               )
             ) : (
@@ -301,8 +313,8 @@ export default function CommunityPage() {
               <h4 className="font-black text-zinc-900 mb-2 text-lg">로그인이 필요합니다</h4>
               <p className="text-zinc-400 text-sm mb-8 leading-relaxed">로그인 후 자유롭게 모임에 가입하고<br/>대화에 참여하실 수 있습니다.</p>
               <div className="space-y-3">
-                <button className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2"><MessageSquare size={18} fill="currentColor"/> 카카오 로그인</button>
-                <button className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100">일반 로그인</button>
+                <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"><MessageSquare size={18} fill="currentColor"/> 카카오 로그인</button>
+                <button onClick={handleEmailLogin} className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">일반 로그인</button>
                 <button onClick={() => setShowLoginPopup(false)} className="w-full py-3 text-zinc-300 font-bold text-sm mt-2">다음에 할게요</button>
               </div>
             </motion.div>
