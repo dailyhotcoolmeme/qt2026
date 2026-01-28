@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { 
-  Users, Globe, Plus, X, Camera, ChevronRight, Search, 
-  Mic, BarChart3, Check, Settings, ShieldCheck 
+  Users, Globe, Plus, X, Camera, ChevronRight, Search 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -19,15 +18,14 @@ export default function CommunityPage() {
     password: '',
     category: '교회',
     description: '',
-    imageUrl: '', // 브라우저 미리보기용
-    imageFile: null as File | null // 실제 업로드용 파일
+    imageUrl: '', 
+    imageFile: null as File | null
   });
 
   const [isSlugVerified, setIsSlugVerified] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. 이미지 선택 및 미리보기 (압축은 추후 라이브러리 추가 권장)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -39,11 +37,11 @@ export default function CommunityPage() {
     }
   };
 
-  // 2. 모임 아이디 중복 체크
   const handleCheckSlug = async () => {
     if (!formData.slug || formData.slug.length < 2) return alert("아이디를 2자 이상 입력해주세요.");
     try {
-      const { data } = await supabase.from('groups').select('group_slug').eq('group_slug', formData.slug).maybeSingle();
+      const { data, error } = await supabase.from('groups').select('group_slug').eq('group_slug', formData.slug).maybeSingle();
+      if (error) throw error;
       if (data) {
         alert("이미 사용 중인 아이디입니다.");
         setIsSlugVerified(false);
@@ -54,7 +52,6 @@ export default function CommunityPage() {
     } catch (err: any) { alert("확인 중 오류: " + err.message); }
   };
 
-  // 3. 모임 개설 실행 (이미지 업로드 포함)
   const handleCreateSubmit = async () => {
     if (!formData.name) return alert("모임 이름을 입력해주세요.");
     if (!isSlugVerified) return alert("모임 아이디 중복 확인이 필요합니다.");
@@ -66,21 +63,26 @@ export default function CommunityPage() {
 
       let finalImageUrl = null;
 
-      // [추가] 이미지 파일이 있으면 Storage에 업로드
+      // 이미지 업로드 로직
       if (formData.imageFile) {
         const fileExt = formData.imageFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `group_images/${fileName}`;
+        const fileName = `${user.id}-${Math.random()}.${fileExt}`;
+        const filePath = `${fileName}`; // avatars 버킷 바로 아래 저장
 
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from('avatars') // Supabase Storage에 'avatars' 버킷이 있어야 합니다.
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
           .upload(filePath, formData.imageFile);
 
         if (uploadError) throw uploadError;
-        finalImageUrl = uploadData.path; // 업로드된 경로 저장
+
+        // 업로드된 이미지의 Public URL 가져오기
+        const { data: { publicUrl } } = supabase.storage
+          .from('avatars')
+          .getPublicUrl(filePath);
+        
+        finalImageUrl = publicUrl;
       }
 
-      // groups 테이블에 저장 (group_image 컬럼 포함)
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert([{ 
@@ -90,7 +92,7 @@ export default function CommunityPage() {
           category: formData.category,
           description: formData.description,
           owner_id: user.id,
-          group_image: finalImageUrl // 이제 이미지가 들어갑니다!
+          group_image: finalImageUrl 
         }])
         .select().single();
 
@@ -116,7 +118,6 @@ export default function CommunityPage() {
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
       
-      {/* 탭 구조 유지 */}
       <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-8">
         <button onClick={() => setActiveTab('my')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>
           <Users size={18} /> 내 모임
@@ -132,8 +133,8 @@ export default function CommunityPage() {
             <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-200">
               <Users size={32} />
             </div>
-            <p className="font-bold text-zinc-400 mb-8">참여 중인 모임이 없습니다.</p>
-            <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2 transition-all">
+            <p className="font-bold text-zinc-400 mb-8 leading-relaxed">참여 중인 모임이 없습니다.<br/>새로운 공동체를 시작해보세요.</p>
+            <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
               <Plus size={20} /> 모임 개설하기
             </button>
           </motion.div>
@@ -144,7 +145,7 @@ export default function CommunityPage() {
                <button onClick={() => setViewMode('list')} className="w-9 h-9 flex items-center justify-center bg-white rounded-full text-zinc-400 shadow-sm"><X size={20}/></button>
             </div>
 
-            <div className="bg-white rounded-[36px] p-8 shadow-sm border border-white space-y-8">
+            <div className="bg-white rounded-[36px] p-8 shadow-sm border border-white space-y-8 text-left">
               <div className="flex flex-col items-center">
                 <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#4A6741]">
                   {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" alt="대표" /> : <Camera size={28} className="text-zinc-300" />}
@@ -154,12 +155,12 @@ export default function CommunityPage() {
               </div>
 
               <div className="space-y-6">
-                <div className="space-y-2 text-left">
+                <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름</label>
                   <input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-zinc-800" placeholder="모임 이름" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                 </div>
 
-                <div className="space-y-2 text-left">
+                <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 아이디</label>
                   <div className="flex gap-2 items-center">
                     <input className={`flex-1 min-w-0 border-none rounded-2xl p-4 font-bold ${isSlugVerified ? 'bg-green-50 text-green-700' : 'bg-zinc-50'}`} placeholder="아이디 입력" value={formData.slug} onChange={(e) => { setFormData({...formData, slug: e.target.value}); setIsSlugVerified(false); }} />
@@ -167,12 +168,12 @@ export default function CommunityPage() {
                   </div>
                 </div>
 
-                <div className="space-y-2 text-left">
+                <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">입장 비밀번호</label>
                   <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" placeholder="비밀번호" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                 </div>
 
-                <div className="space-y-2 text-left">
+                <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 유형</label>
                   <button onClick={() => setShowCategoryModal(true)} className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800">
                     <span>{formData.category}</span>
@@ -180,13 +181,13 @@ export default function CommunityPage() {
                   </button>
                 </div>
 
-                <div className="space-y-2 text-left">
+                <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 설명</label>
                   <textarea className="w-full bg-zinc-50 border-none rounded-2xl p-4 h-28 resize-none font-medium text-zinc-600" placeholder="메시지" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
                 </div>
               </div>
 
-              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg transition-all">
+              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg transition-all active:scale-95">
                 {loading ? '개설 중...' : '모임 개설하기'}
               </button>
             </div>
@@ -194,7 +195,6 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 유형 선택 바텀 시트 */}
       {showCategoryModal && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center">
           <div onClick={() => setShowCategoryModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
