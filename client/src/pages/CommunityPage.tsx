@@ -31,6 +31,10 @@ export default function CommunityPage() {
   const [modalType, setModalType] = useState<'category' | 'location' | 'age' | 'filter_loc' | 'filter_age' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // 가입 로직 관련 상태
+  const [joiningGroup, setJoiningGroup] = useState<any | null>(null);
+  const [inputPassword, setInputPassword] = useState("");
+
   useEffect(() => { fetchGroups(); }, [activeTab]);
 
   const fetchGroups = async () => {
@@ -69,6 +73,46 @@ export default function CommunityPage() {
     setFilteredGroups(result);
   }, [filters, searchQuery, allOpenGroups]);
 
+  // 가입/입장 핸들러
+  const handleGroupClick = async (group: any) => {
+    const isMember = myGroups.some(m => m.id === group.id);
+    if (isMember) {
+      alert(`${group.name} 모임으로 입장합니다.`);
+      return;
+    }
+
+    if (group.password) {
+      setJoiningGroup(group);
+      return;
+    }
+
+    joinGroup(group.id);
+  };
+
+  const joinGroup = async (groupId: string, password?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return alert("로그인이 필요합니다.");
+
+    if (password) {
+      const target = allOpenGroups.find(g => g.id === groupId);
+      if (target && target.password !== password) return alert("비밀번호가 틀렸습니다.");
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .insert([{ group_id: groupId, user_id: user.id, role: 'member' }]);
+      if (error) throw error;
+
+      alert("가입이 완료되었습니다!");
+      setJoiningGroup(null);
+      setInputPassword("");
+      fetchGroups();
+    } catch (err: any) { alert(err.message); }
+    finally { setLoading(false); }
+  };
+
   const handleCreateSubmit = async () => {
     if (!formData.name.trim() || !isSlugVerified) return alert("필수값을 확인해주세요.");
     setLoading(true);
@@ -97,11 +141,11 @@ export default function CommunityPage() {
     finally { setLoading(false); }
   };
 
-  // 리스트 카드 컴포넌트 (내 모임 / 오픈 모임 대응)
   const GroupCard = ({ group, mode }: { group: any, mode: 'my' | 'open' }) => {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-        className="w-full bg-white rounded-[28px] p-5 shadow-sm border border-zinc-50 flex items-center gap-4 mb-3"
+        onClick={() => handleGroupClick(group)}
+        className="w-full bg-white rounded-[28px] p-5 shadow-sm border border-zinc-50 flex items-center gap-4 mb-3 cursor-pointer active:scale-[0.98] transition-all"
       >
         <div className="w-16 h-16 bg-zinc-50 rounded-[22px] overflow-hidden flex-shrink-0 border border-zinc-100">
           {group.group_image ? <img src={group.group_image} className="w-full h-full object-cover" /> : <Users className="w-full h-full p-4 text-zinc-200" />}
@@ -109,11 +153,9 @@ export default function CommunityPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <h4 className="font-bold text-zinc-900 truncate" style={{ fontSize: `${fontSize}px` }}>{group.name}</h4>
-            {/* 내 모임 탭에서는 오픈 모임인 경우만 표시, 오픈 탭에서는 가입된 경우만 표시 */}
             {mode === 'my' && group.is_open && <span className="px-2 py-0.5 bg-blue-50 text-blue-500 text-[9px] rounded-full font-bold border border-blue-100">오픈</span>}
             {mode === 'open' && myGroups.some(m => m.id === group.id) && <span className="px-2 py-0.5 bg-[#4A6741] text-white text-[9px] rounded-full font-bold">내 모임</span>}
           </div>
-          
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-400 font-medium">
             {group.is_open ? (
               <>
@@ -145,7 +187,6 @@ export default function CommunityPage() {
       <AnimatePresence mode="wait">
         {viewMode === 'list' ? (
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
-            
             {activeTab === 'open' && (
               <div className="space-y-4 mb-6">
                 <div className="relative">
@@ -162,9 +203,8 @@ export default function CommunityPage() {
                 </div>
               </div>
             )}
-
             <div className="space-y-1">
-              {loading ? (
+              {loading && !joiningGroup ? (
                 <div className="flex flex-col items-center py-20 text-zinc-300 gap-3"><div className="w-6 h-6 border-2 border-zinc-200 border-t-[#4A6741] rounded-full animate-spin"/></div>
               ) : (activeTab === 'my' ? myGroups : filteredGroups).length > 0 ? (
                 (activeTab === 'my' ? myGroups : filteredGroups).map(g => <GroupCard key={g.id} group={g} mode={activeTab} />)
@@ -172,13 +212,11 @@ export default function CommunityPage() {
                 <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>
               )}
             </div>
-
             <button onClick={() => setViewMode('create')} className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50">
               <Plus size={28} />
             </button>
           </motion.div>
         ) : (
-          /* 개설 폼 유지 */
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
             <div className="flex justify-between items-center px-2">
                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
@@ -194,7 +232,7 @@ export default function CommunityPage() {
                   {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <Camera size={28} className="text-zinc-300" />}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e)=>{const f=e.target.files?.[0]; if(f) setFormData({...formData, imageUrl:URL.createObjectURL(f), imageFile:f})}} />
-                <span className="text-[11px] font-bold text-zinc-400 mt-3">대표 이미지 설정 (선택)</span>
+                <span className="text-[11px] font-bold text-zinc-400 mt-3 text-center">대표 이미지 설정 (선택)</span>
               </div>
               <div className="space-y-6">
                 <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 *</label><input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} /></div>
@@ -216,7 +254,27 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 모달 */}
+      {/* 비밀번호 입력 모달 */}
+      <AnimatePresence>
+        {joiningGroup && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+            <div onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
+              <h4 className="font-black text-zinc-900 mb-2 text-center text-lg">비밀번호 입력</h4>
+              <p className="text-zinc-400 text-sm text-center mb-6">모임 가입을 위해 비밀번호가 필요합니다.</p>
+              <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4" placeholder="••••" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
+              <div className="flex gap-3">
+                <button onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold">취소</button>
+                <button onClick={() => joinGroup(joiningGroup.id, inputPassword)} disabled={loading} className="flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg disabled:opacity-50">
+                  {loading ? "처리중" : "확인"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 선택 모달 (유형/지역/나이) */}
       <AnimatePresence>
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
@@ -233,7 +291,7 @@ export default function CommunityPage() {
                       else if(modalType === 'filter_loc') setFilters({...filters, location: item});
                       else if(modalType === 'filter_age') setFilters({...filters, age: item});
                       setModalType(null);
-                    }} className="p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 hover:bg-[#4A6741] hover:text-white transition-all">{item}</button>
+                    }} className="p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all">{item}</button>
                 ))}
               </div>
             </motion.div>
