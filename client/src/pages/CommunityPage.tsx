@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, 
   UserCircle, Hash, Lock, Unlock, Calendar, Filter, Tag, MessageSquare
-} from "lucide-react"; // 오타 수정: lucide-react로 원복
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -36,7 +36,6 @@ export default function CommunityPage() {
   const [inputPassword, setInputPassword] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  // 카카오 로그인 핸들러 (리다이렉트는 안정적인 홈으로 유지)
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -219,7 +218,6 @@ export default function CommunityPage() {
                     <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all">
                       <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오로 시작하기
                     </button>
-                    {/* 아이디 로그인 반영 */}
                     <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
                       아이디 로그인
                     </button>
@@ -291,7 +289,6 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 가입 비밀번호 팝업 */}
       <AnimatePresence>
         {joiningGroup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
@@ -309,7 +306,6 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 비로그인 입장 유도 팝업 */}
       <AnimatePresence>
         {showLoginPopup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
@@ -322,7 +318,6 @@ export default function CommunityPage() {
                 <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
                   <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
                 </button>
-                {/* 아이디 로그인 반영 */}
                 <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
                   아이디 로그인
                 </button>
@@ -336,16 +331,15 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 선택 모달 (유형/지역/나이) */}
       <AnimatePresence>
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
             <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
-              <div className=\"grid grid-cols-2 gap-3\">
-                {(modalType.includes('loc') ? [\"전국\", \"서울\", \"경기\", \"인천\", \"부산\", \"대구\", \"광주\", \"대전\", \"울산\", \"강원\", \"충북\", \"충남\", \"전북\", \"전남\", \"경북\", \"경남\", \"제주\"] : 
-                  modalType.includes('age') ? [\"전체\", \"10대\", \"20대\", \"30대\", \"40대\", \"50대\", \"60대 이상\"] : 
-                  [\"가족\", \"교회\", \"학교\", \"직장\", \"기타\"]).map((item) => (
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-2 gap-3">
+                {(modalType.includes('loc') ? ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] : 
+                  modalType.includes('age') ? ["전체", "10대", "20대", "30대", "40대", "50대", "60대 이상"] : 
+                  ["가족", "교회", "학교", "직장", "기타"]).map((item) => (
                   <button key={item} onClick={() => {
                       if(modalType === 'category') setFormData({...formData, category: item});
                       else if(modalType === 'location') setFormData({...formData, location: item});
@@ -353,7 +347,7 @@ export default function CommunityPage() {
                       else if(modalType === 'filter_loc') setFilters({...filters, location: item});
                       else if(modalType === 'filter_age') setFilters({...filters, age: item});
                       setModalType(null);
-                    }} className=\"p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all\">{item}</button>
+                    }} className="p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all">{item}</button>
                 ))}
               </div>
             </motion.div>
