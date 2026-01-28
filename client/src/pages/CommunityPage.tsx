@@ -1,161 +1,124 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Users, Globe, Plus, Settings, ShieldCheck, 
-  ChevronRight, Mic, BarChart3, X, Check, Camera
-} from "lucide-react";
+import React, { useState } from "react";
+import { Users, Globe, Plus, X, Camera, Lock, Hash, Tag, Info, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase"; // Supabase 클라이언트
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
-
-type ViewMode = 'no-group' | 'create-group' | 'group-main' | 'admin-panel';
 
 export default function CommunityPage() {
   const { fontSize = 16 } = useDisplaySettings();
-  const [viewMode, setViewMode] = useState<ViewMode>('no-group');
-  const [activeTab, setActiveTab] = useState<'private' | 'open'>('private');
-  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'my' | 'open'>('my');
+  const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
 
-  // 모임 정보 상태
-  const [myGroup, setMyGroup] = useState<any>(null);
-  const [newGroupName, setNewGroupName] = useState("");
-  const [groupDescription, setGroupDescription] = useState("");
+  // 모임 개설 폼 상태
+  const [formData, setFormData] = useState({
+    name: '',
+    slug: '',       // 모임 아이디
+    password: '',
+    category: '교회',
+    customCategory: '',
+    description: '',
+  });
 
-  useEffect(() => {
-    checkUserGroup();
-  }, []);
+  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle');
 
-  // 1. 사용자가 가입한 모임이 있는지 확인하는 함수
-  const checkUserGroup = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      // group_members 테이블에서 현재 사용자가 속한 모임 조회
-      const { data: memberData, error } = await supabase
-        .from('group_members')
-        .select(`
-          role,
-          groups (
-            id,
-            name,
-            description,
-            owner_id
-          )
-        `)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (memberData && memberData.groups) {
-        setMyGroup(memberData.groups);
-        // 리더면 관리자 패널로, 멤버면 일반 메인으로 (기획에 따라 조정 가능)
-        setViewMode(memberData.role === 'leader' ? 'admin-panel' : 'group-main');
-      } else {
-        setViewMode('no-group');
-      }
-    }
-    setLoading(false);
+  // 모임 아이디 중복 체크
+  const checkSlug = async (slug: string) => {
+    if (slug.length < 3) return;
+    setSlugStatus('checking');
+    const { data } = await supabase.from('groups').select('group_slug').eq('group_slug', slug).maybeSingle();
+    setSlugStatus(data ? 'taken' : 'available');
   };
 
-  // 2. 실제 서버에 모임을 개설하는 함수
-  const handleCreateGroup = async () => {
-    if (!newGroupName.trim()) return alert("모임 이름을 입력해주세요.");
-    
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert("로그인이 필요합니다.");
-
-      // A. groups 테이블에 모임 생성
-      const { data: group, error: groupError } = await supabase
-        .from('groups')
-        .insert([
-          { 
-            name: newGroupName, 
-            description: groupDescription, 
-            owner_id: user.id 
-          }
-        ])
-        .select()
-        .single();
-
-      if (groupError) throw groupError;
-
-      // B. 생성자를 리더 권한으로 group_members에 추가
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert([
-          { 
-            group_id: group.id, 
-            user_id: user.id, 
-            role: 'leader' 
-          }
-        ]);
-
-      if (memberError) throw memberError;
-
-      alert("모임이 개설되었습니다!");
-      setMyGroup(group);
-      setViewMode('admin-panel'); // 개설 직후 관리자 모드로 진입
-      
-    } catch (error: any) {
-      alert("모임 생성 실패: " + error.message);
-    }
+  const handleCreate = async () => {
+    if (slugStatus !== 'available') return alert("모임 아이디 중복 확인을 해주세요.");
+    // ... 실제 생성 로직 (다음 단계에서 연결)
+    alert("모임 개설 요청이 전송되었습니다.");
   };
-
-  if (loading) return <div className="flex items-center justify-center min-h-screen text-zinc-400">불러오는 중...</div>;
 
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
       
+      {/* 상단 탭 (내 모임으로 이름 변경) */}
+      <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-8">
+        <button onClick={() => setActiveTab('my')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>내 모임</button>
+        <button onClick={() => setActiveTab('open')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'open' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>오픈 모임</button>
+      </div>
+
       <AnimatePresence mode="wait">
-        {/* CASE 1: 모임 없음 */}
-        {viewMode === 'no-group' && (
-          <motion.div key="no" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md flex flex-col items-center text-center pt-10">
-            <div className="w-24 h-24 bg-white rounded-[32px] shadow-sm flex items-center justify-center mb-6 text-[#4A6741]">
-              <Users size={40} />
-            </div>
-            <h2 className="font-black text-zinc-800 mb-2" style={{ fontSize: `${fontSize * 1.3}px` }}>아직 참여 중인<br/>중보모임이 없습니다.</h2>
-            <div className="w-full mt-10 space-y-4">
-              <button onClick={() => setViewMode('create-group')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-xl">새 모임 만들기</button>
-            </div>
+        {viewMode === 'list' ? (
+          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md text-center pt-10">
+             {/* 모임이 없는 상태의 UI */}
+             <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-300">
+                <Users size={32} />
+             </div>
+             <p className="font-bold text-zinc-400 mb-8">개설된 모임이 없습니다.<br/>첫 번째 모임을 만들어보세요!</p>
+             <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2">
+                <Plus size={20} /> 모임 개설하기
+             </button>
           </motion.div>
-        )}
-
-        {/* CASE 2: 모임 개설 폼 */}
-        {viewMode === 'create-group' && (
-          <motion.div key="create" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="w-full max-w-md space-y-6">
-            <div className="bg-white rounded-[32px] p-8 shadow-sm border border-white space-y-6">
-              <h3 className="font-black text-zinc-800" style={{ fontSize: `${fontSize * 1.1}px` }}>모임 정보 입력</h3>
-              <input 
-                value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)}
-                className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold"
-                placeholder="모임 이름"
-              />
-              <textarea 
-                value={groupDescription} onChange={(e) => setGroupDescription(e.target.value)}
-                className="w-full bg-zinc-50 border-none rounded-2xl p-4 h-24 resize-none"
-                placeholder="모임 소개"
-              />
-              <button onClick={handleCreateGroup} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black">개설 완료</button>
-              <button onClick={() => setViewMode('no-group')} className="w-full text-zinc-400 font-bold text-sm text-center">취소</button>
+        ) : (
+          <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
+            <div className="flex justify-between items-center mb-2 px-2">
+               <h3 className="font-black text-zinc-800" style={{ fontSize: `${fontSize * 1.2}px` }}>모임 개설</h3>
+               <button onClick={() => setViewMode('list')} className="text-zinc-400"><X /></button>
             </div>
-          </motion.div>
-        )}
 
-        {/* CASE 3: 관리자 패널 (모임 정보 노출) */}
-        {viewMode === 'admin-panel' && (
-          <motion.div key="admin" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md space-y-6">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="text-[#4A6741]" />
-                <h3 className="font-black text-zinc-800" style={{ fontSize: `${fontSize * 1.1}px` }}>{myGroup?.name} 관리자</h3>
+            <div className="bg-white rounded-[32px] p-6 shadow-sm border border-white space-y-6">
+              {/* 이미지 (추후 R2 연결) */}
+              <div className="flex flex-col items-center py-2">
+                <div className="w-20 h-20 bg-zinc-50 rounded-[28px] border-2 border-dashed border-zinc-200 flex items-center justify-center text-zinc-300">
+                  <Camera size={24} />
+                </div>
+                <span className="text-[11px] font-bold text-zinc-400 mt-2">모임 대표 이미지</span>
               </div>
+
+              {/* 입력 필드들 */}
+              <div className="space-y-4">
+                <div className="relative">
+                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 이름</label>
+                  <input className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold" placeholder="모임 이름을 입력하세요" />
+                </div>
+
+                <div className="relative">
+                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 아이디 (중복확인)</label>
+                  <div className="relative">
+                    <input 
+                      onChange={(e) => checkSlug(e.target.value)}
+                      className="w-full bg-zinc-50 border-none rounded-2xl p-4 pr-12 mt-1 font-bold" 
+                      placeholder="영문, 숫자 3자 이상" 
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      {slugStatus === 'checking' && <div className="w-4 h-4 border-2 border-[#4A6741] border-t-transparent rounded-full animate-spin" />}
+                      {slugStatus === 'available' && <CheckCircle2 size={20} className="text-green-500" />}
+                      {slugStatus === 'taken' && <AlertCircle size={20} className="text-red-500" />}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <label className="text-[11px] font-black text-[#4A6741] ml-1">입장 비밀번호</label>
+                  <input type="password" dclassName="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold" placeholder="비밀번호 설정" />
+                </div>
+
+                <div className="relative">
+                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 유형</label>
+                  <select className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 font-bold appearance-none">
+                    <option>교회</option>
+                    <option>가족</option>
+                    <option>학교</option>
+                    <option>직장</option>
+                    <option>기타 (직접입력)</option>
+                  </select>
+                </div>
+
+                <div className="relative">
+                  <label className="text-[11px] font-black text-[#4A6741] ml-1">모임 설명</label>
+                  <textarea className="w-full bg-zinc-50 border-none rounded-2xl p-4 mt-1 h-24 resize-none" placeholder="모임원들에게 전할 메시지" />
+                </div>
+              </div>
+
+              <button onClick={handleCreate} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg">모임 만들기</button>
             </div>
-            <div className="bg-white p-8 rounded-[32px] shadow-sm border border-white">
-              <p className="text-zinc-500 font-medium leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                {myGroup?.description || "등록된 소개가 없습니다."}
-              </p>
-            </div>
-            <p className="text-center text-zinc-300 text-xs font-bold pt-10">이제 멤버들을 초대하고 음성 분석 리포트를 확인해보세요.</p>
           </motion.div>
         )}
       </AnimatePresence>
