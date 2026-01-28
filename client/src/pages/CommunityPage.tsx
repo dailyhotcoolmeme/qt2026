@@ -103,7 +103,6 @@ export default function CommunityPage() {
     setFilteredGroups(result);
   }, [filters, searchQuery, allOpenGroups]);
 
-  // 카카오 로그인 로직 (AuthPage 방식)
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -119,7 +118,6 @@ export default function CommunityPage() {
     }
   };
 
-  // 일반 로그인 로직 (AuthPage 방식 - username@id.com)
   const handleManualLogin = async () => {
     if (!loginId || !loginPw) {
       setErrorMsg("아이디와 비밀번호를 입력해주세요.");
@@ -299,7 +297,7 @@ export default function CommunityPage() {
               </div>
               <div className="space-y-6">
                 <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 *</label><input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} /></div>
-                <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">아이디 *</label><div className="flex gap-2"><input className="flex-1 bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.slug} onChange={(e)=>setFormData({...formData, slug:e.target.value, isSlugVerified:false})} /><button onClick={()=>{setIsSlugVerified(true); alert("확인 완료")}} className="w-20 bg-[#4A6741] text-white rounded-2xl font-bold text-xs">확인</button></div></div>
+                <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">아이디 *</label><div className="flex gap-2"><input className="flex-1 bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.slug} onChange={(e)=>setFormData({...formData, slug:e.target.value})} /><button onClick={()=>{setIsSlugVerified(true); alert("확인 완료")}} className="w-20 bg-[#4A6741] text-white rounded-2xl font-bold text-xs">확인</button></div></div>
                 {type === 'private' ? (
                   <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">유형 *</label><button onClick={()=>setModalType('category')} className="w-full bg-zinc-50 rounded-2xl p-4 flex justify-between font-bold text-zinc-800"><span>{formData.category || "선택"}</span><ChevronRight size={18}/></button></div>
                 ) : (
@@ -311,13 +309,13 @@ export default function CommunityPage() {
                 )}
                 <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">비밀번호 {type==='private'?'*':'(선택)'}</label><input className="w-full bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.password} onChange={(e)=>setFormData({...formData, password:e.target.value})} /></div>
               </div>
-              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg">개설하기</button>
+              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg active:scale-95 transition-all">개설하기</button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- 로그인 선택 모달 (AuthPage 방식) --- */}
+      {/* --- 로그인 선택 모달 --- */}
       <AnimatePresence>
         {isLoginOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
@@ -340,7 +338,7 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* --- 아이디 로그인 입력 모달 (AuthPage 방식 완벽 이식) --- */}
+      {/* --- 아이디 로그인 입력 모달 (AuthPage 방식 완벽 이식 - 빌드 에러 수정) --- */}
       <AnimatePresence>
         {isManualLoginOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
@@ -359,67 +357,75 @@ export default function CommunityPage() {
                 </div>
                 <div className="bg-zinc-50 rounded-[24px] p-5 relative focus-within:ring-2 focus-within:ring-[#4A6741]/20 transition-all">
                   <label className="block text-[11px] font-black text-[#4A6741] mb-1.5 uppercase tracking-wider">비밀번호</label>
-                  <input type={showPw ? \"text\" : \"password\"} className=\"w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base\" placeholder=\"비밀번호 입력\" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} />
-                  <button onClick={() => setShowPw(!showPw)} className=\"absolute right-6 bottom-6 text-zinc-300 hover:text-[#4A6741] transition-colors\">
+                  <input 
+                    type={showPw ? "text" : "password"} 
+                    className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" 
+                    placeholder="비밀번호 입력" 
+                    value={loginPw} 
+                    onChange={(e) => setLoginPw(e.target.value)} 
+                  />
+                  <button onClick={() => setShowPw(!showPw)} className="absolute right-6 bottom-6 text-zinc-300 hover:text-[#4A6741] transition-colors">
                     {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
                   </button>
                 </div>
               </div>
 
-              <div className=\"flex items-center justify-between px-1 mb-8\">
-                <button onClick={() => setAutoLogin(!autoLogin)} className=\"flex items-center gap-2 group\">
+              <div className="flex items-center justify-between px-1 mb-8">
+                <button onClick={() => setAutoLogin(!autoLogin)} className="flex items-center gap-2 group">
                   <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${autoLogin ? 'bg-[#4A6741]' : 'border-2 border-zinc-200 group-hover:border-[#4A6741]'}`}>
-                    {autoLogin && <Check size={14} className=\"text-white\" />}
+                    {autoLogin && <Check size={14} className="text-white" />}
                   </div>
                   <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400 group-hover:text-[#4A6741]'}`}>로그인 유지</span>
                 </button>
-                <div className=\"flex gap-3 text-zinc-400 font-bold text-[13px]\">
-                  <Link href=\"/find-account?tab=id\"><a className=\"hover:text-zinc-600 transition-colors\">아이디 찾기</a></Link>
-                  <span className=\"text-zinc-200\">|</span>
-                  <Link href=\"/find-account?tab=pw\"><a className=\"hover:text-zinc-600 transition-colors\">비밀번호 찾기</a></Link>
+                <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
+                  <Link href="/find-account?tab=id"><a className="hover:text-zinc-600 transition-colors">아이디 찾기</a></Link>
+                  <span className="text-zinc-200">|</span>
+                  <Link href="/find-account?tab=pw"><a className="hover:text-zinc-600 transition-colors">비밀번호 찾기</a></Link>
                 </div>
               </div>
 
-              {errorMsg && <p className=\"text-red-500 text-[12px] font-bold px-2 mb-4\">{errorMsg}</p>}
+              {errorMsg && <p className="text-red-500 text-[12px] font-bold px-2 mb-4">{errorMsg}</p>}
 
-              <button onClick={handleManualLogin} disabled={isLoading} className=\"w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mb-6\">
-                {isLoading ? <Loader2 className=\"animate-spin\" /> : \"로그인하기\"}
+              <button onClick={handleManualLogin} disabled={isLoading} className="w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mb-6">
+                {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
               </button>
 
-              <button onClick={() => window.location.href = '#/register'} className=\"w-full text-center\">
-                <span className=\"text-zinc-400 text-[13px] font-bold border-b border-zinc-200 pb-0.5 hover:text-zinc-600 transition-all\">아직 회원이 아니신가요? 회원가입 하기</span>
+              <button onClick={() => window.location.href = '#/register'} className="w-full text-center">
+                <span className="text-zinc-400 text-[13px] font-bold border-b border-zinc-200 pb-0.5 hover:text-zinc-600 transition-all">아직 회원이 아니신가요? 회원가입 하기</span>
               </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
+      {/* 가입 비밀번호 팝업 */}
       <AnimatePresence>
         {joiningGroup && (
-          <div className=\"fixed inset-0 z-[110] flex items-center justify-center px-6\">
-            <div onClick={() => {setJoiningGroup(null); setInputPassword(\"\");}} className=\"absolute inset-0 bg-black/60 backdrop-blur-sm\" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className=\"relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl\">
-              <h4 className=\"font-black text-zinc-900 mb-2 text-center text-lg\">비밀번호 입력</h4>
-              <p className=\"text-zinc-400 text-sm text-center mb-6\">모임 가입을 위해 비밀번호가 필요합니다.</p>
-              <input type=\"text\" className=\"w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4\" placeholder=\"••••\" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
-              <div className=\"flex gap-3\">
-                <button onClick={() => {setJoiningGroup(null); setInputPassword(\"\");}} className=\"flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold\">취소</button>
-                <button onClick={() => joinGroup(joiningGroup.id, inputPassword)} disabled={loading} className=\"flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg disabled:opacity-50\">{loading ? \"처리중\" : \"확인\"}</button>
+          <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
+            <div onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
+              <h4 className="font-black text-zinc-900 mb-2 text-center text-lg">비밀번호 입력</h4>
+              <p className="text-zinc-400 text-sm text-center mb-6">모임 가입을 위해 비밀번호가 필요합니다.</p>
+              <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4" placeholder="••••" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
+              <div className="flex gap-3">
+                <button onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold">취소</button>
+                <button onClick={() => joinGroup(joiningGroup.id, inputPassword)} disabled={loading} className="flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg disabled:opacity-50">{loading ? "처리중" : "확인"}</button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
+      {/* 카테고리/지역/연령 필터 모달 */}
       <AnimatePresence>
         {modalType && (
-          <div className=\"fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6\">
-            <div onClick={() => setModalType(null)} className=\"absolute inset-0 bg-black/40 backdrop-blur-sm\" />
-            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
-              <div className=\"grid grid-cols-2 gap-3\">
-                {(modalType.includes('loc') ? [\"전국\", \"서울\", \"경기\", \"인천\", \"부산\", \"대구\", \"광주\", \"대전\", \"울산\", \"강원\", \"충북\", \"충남\", \"전북\", \"전남\", \"경북\", \"경남\", \"제주\"] : 
-                  modalType.includes('age') ? [\"전체\", \"10대\", \"20대\", \"30대\", \"40대\", \"50대\", \"60대 이상\"] : 
-                  [\"가족\", \"교회\", \"학교\", \"직장\", \"기타\"]).map((item) => (
+          <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
+            <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-2 gap-3">
+                {(modalType.includes('loc') ? ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] : 
+                  modalType.includes('age') ? ["전체", "10대", "20대", "30대", "40대", "50대", "60대 이상"] : 
+                  ["가족", "교회", "학교", "직장", "기타"]).map((item) => (
                   <button key={item} onClick={() => {
                       if(modalType === 'category') setFormData({...formData, category: item});
                       else if(modalType === 'location') setFormData({...formData, location: item});
@@ -427,7 +433,7 @@ export default function CommunityPage() {
                       else if(modalType === 'filter_loc') setFilters({...filters, location: item});
                       else if(modalType === 'filter_age') setFilters({...filters, age: item});
                       setModalType(null);
-                    }} className=\"p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all\">{item}</button>
+                    }} className="p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all">{item}</button>
                 ))}
               </div>
             </motion.div>
