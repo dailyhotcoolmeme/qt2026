@@ -17,7 +17,7 @@ export default function CommunityPage() {
     name: '',
     slug: '',
     password: '',
-    category: '교회',
+    category: '',
     description: '',
     imageUrl: '', 
     imageFile: null as File | null
@@ -191,12 +191,21 @@ export default function CommunityPage() {
 
                 {/* 모임 유형 (필수) */}
                 <div className="space-y-2">
-                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 유형 <span className="text-red-400">*</span></label>
-                  <button onClick={() => setShowCategoryModal(true)} className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800">
-                    <span>{formData.category}</span>
-                    <ChevronRight size={18} className="text-zinc-300" />
-                  </button>
-                </div>
+  <label className="text-[12px] font-black text-[#4A6741] ml-1">
+    모임 유형 <span className="text-red-400">*</span>
+  </label>
+  <button 
+    onClick={() => setShowCategoryModal(true)}
+    className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800"
+  >
+    {/* 값이 없으면 안내 문구, 있으면 선택한 값 표시 */}
+    <span className={formData.category ? "text-zinc-800" : "text-zinc-400"}>
+      {formData.category || "유형을 선택해주세요"}
+    </span>
+    <ChevronRight size={18} className="text-zinc-300" />
+  </button>
+</div>
+
 
                 {/* 모임 설명 (선택) */}
                 <div className="space-y-2">
