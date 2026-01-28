@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, 
   UserCircle, Hash, Lock, Unlock, Calendar, Filter, Tag, MessageSquare, Eye, EyeOff, Loader2, Check 
-} from "lucide-center"; // 원본 라이브러리 명칭 유지
+} from "lucide-react"; // lucide-center에서 lucide-react로 수정 완료
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -69,7 +69,6 @@ export default function CommunityPage() {
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      // 1. 전체 오픈 모임 가져오기
       const { data: openData, error: openErr } = await supabase
         .from('groups')
         .select('*')
@@ -78,7 +77,6 @@ export default function CommunityPage() {
       
       if (!openErr) setAllOpenGroups(openData || []);
 
-      // 2. 내가 가입한 모임 가져오기 (가입일 기준 정렬)
       if (user) {
         const { data, error } = await supabase
           .from('group_members')
@@ -127,7 +125,6 @@ export default function CommunityPage() {
     }
   };
 
-  // [수정: 대시보드 이동 로직 반영]
   const handleGroupClick = async (group: any) => {
     if (!user) {
       setIsLoginRedirectOpen(true);
@@ -136,13 +133,11 @@ export default function CommunityPage() {
 
     const isMember = myGroups.some(m => m.id === group.id);
     
-    // 이미 가입된 멤버라면 대시보드로 이동
     if (isMember) {
       setLocation(`/group/${group.id}`);
       return;
     }
 
-    // 가입 안 된 경우: 비밀번호 확인 또는 즉시 가입
     if (group.password) {
       setJoiningGroup(group);
     } else {
@@ -167,7 +162,6 @@ export default function CommunityPage() {
       
       if (error) throw error;
       
-      // 가입 성공 시 대시보드로 이동
       setLocation(`/group/${groupId}`);
     } catch (err: any) {
       alert("가입 중 오류가 발생했습니다.");
@@ -190,7 +184,7 @@ export default function CommunityPage() {
       let finalUrl = '';
       if (formData.imageFile) {
         const fileName = `${user.id}-${Date.now()}`;
-        const { data, error } = await supabase.storage.from('avatars').upload(fileName, formData.imageFile);
+        const { error } = await supabase.storage.from('avatars').upload(fileName, formData.imageFile);
         if (error) throw error;
         finalUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
       }
@@ -215,7 +209,6 @@ export default function CommunityPage() {
 
       if (gErr) throw gErr;
 
-      // 개설자를 모임장으로 등록
       await supabase.from('group_members').insert([{
         group_id: newGroup.id,
         user_id: user.id,
@@ -225,7 +218,6 @@ export default function CommunityPage() {
       alert("모임이 성공적으로 개설되었습니다!");
       setViewMode('list');
       fetchGroups();
-      // 개설 후 바로 대시보드 이동
       setLocation(`/group/${newGroup.id}`);
     } catch (err: any) {
       alert(err.message);
@@ -234,7 +226,6 @@ export default function CommunityPage() {
     }
   };
 
-  // 모임 카드 컴포넌트
   const GroupCard = ({ group, mode }: { group: any, mode: 'my' | 'open' }) => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -278,7 +269,6 @@ export default function CommunityPage() {
 
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
-      {/* 탭 메뉴 */}
       <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-6">
         <button 
           onClick={() => setActiveTab('my')}
@@ -329,7 +319,6 @@ export default function CommunityPage() {
               )
             ) : (
               <>
-                {/* 오픈 모임 검색 및 필터 */}
                 <div className="space-y-4 mb-6">
                   <div className="relative">
                     <input 
@@ -365,7 +354,6 @@ export default function CommunityPage() {
               </>
             )}
             
-            {/* 개설 플로팅 버튼 */}
             <button 
               onClick={() => user ? setViewMode('create') : setLocation('/auth')}
               className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50"
@@ -374,7 +362,6 @@ export default function CommunityPage() {
             </button>
           </motion.div>
         ) : (
-          /* 개설 폼 화면 (기존 로직 100% 보존) */
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="w-full max-w-md space-y-5 pb-10">
             <div className="flex justify-between items-center px-2">
               <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
@@ -397,7 +384,6 @@ export default function CommunityPage() {
                 </button>
               </div>
 
-              {/* 이미지 업로드 */}
               <div className="flex flex-col items-center">
                 <div 
                   onClick={() => fileInputRef.current?.click()}
@@ -412,7 +398,6 @@ export default function CommunityPage() {
                 <span className="text-[11px] font-bold text-zinc-400 mt-3">대표 이미지 설정 (선택)</span>
               </div>
 
-              {/* 입력 필드들 */}
               <div className="space-y-6">
                 <div className="space-y-1">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 *</label>
@@ -468,12 +453,11 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 로그인 유도 모달 */}
       <AnimatePresence>
         {isLoginRedirectOpen && (
           <div className="fixed inset-0 z-[200] flex items-end justify-center px-4 pb-10">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginRedirectOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl overflow-hidden">
+            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} transition={{ type: \"spring\", damping: 25, stiffness: 200 }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl overflow-hidden\">
               <button onClick={() => setIsLoginRedirectOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500"><X size={24}/></button>
               <div className="text-center py-6">
                 <div className="w-16 h-16 bg-zinc-50 rounded-[24px] flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Lock size={28} /></div>
@@ -486,7 +470,6 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 비밀번호 입력 가입 모달 */}
       <AnimatePresence>
         {joiningGroup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
@@ -511,12 +494,11 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 카테고리/지역/연령 선택 시트 */}
       <AnimatePresence>
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
             <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar">
+            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
               <div className="grid grid-cols-2 gap-3">
                 {(modalType.includes('loc') ? ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] : 
                   modalType.includes('age') ? ["전체", "10대", "20대", "30대", "40대", "50대", "60대 이상"] : 
