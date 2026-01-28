@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, 
   UserCircle, Hash, Lock, Unlock, Calendar, Filter, Tag, MessageSquare
-} from "lucide-center";
+} from "lucide-react"; // 오타 수정: lucide-react로 원복
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -216,18 +216,16 @@ export default function CommunityPage() {
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
                   <p className="text-zinc-400 text-sm font-medium mb-10 leading-relaxed">로그인 후 모임을 개설하거나<br/>초대받은 모임에 참여할 수 있습니다.</p>
                   <div className="space-y-3">
-                    {/* 카카오 아이콘 보정: fill 적용 */}
                     <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all">
                       <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오로 시작하기
                     </button>
-                    {/* 일반 로그인 -> 아이디 로그인 페이지로 정확히 연결 */}
+                    {/* 아이디 로그인 반영 */}
                     <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
                       아이디 로그인
                     </button>
-                    {/* 회원가입 페이지 연결 */}
                     <div className="pt-2">
                       <span className="text-zinc-400 text-xs font-medium">계정이 없으신가요? </span>
-                      <button onClick={() => window.location.href = '#/register'} className="text-[#4A6741] text-xs font-bold underline decoration-solid offset-4">회원가입 하기</button>
+                      <button onClick={() => window.location.href = '#/register'} className="text-[#4A6741] text-xs font-bold underline">회원가입 하기</button>
                     </div>
                   </div>
                 </motion.div>
@@ -298,7 +296,7 @@ export default function CommunityPage() {
         {joiningGroup && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center px-6">
             <div onClick={() => {setJoiningGroup(null); setInputPassword("");}} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-sm rounded-[32px] p-8 shadow-2xl">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl">
               <h4 className="font-black text-zinc-900 mb-2 text-center text-lg">비밀번호 입력</h4>
               <p className="text-zinc-400 text-sm text-center mb-6">모임 가입을 위해 비밀번호가 필요합니다.</p>
               <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4" placeholder="••••" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
@@ -324,10 +322,10 @@ export default function CommunityPage() {
                 <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
                   <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
                 </button>
+                {/* 아이디 로그인 반영 */}
                 <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
                   아이디 로그인
                 </button>
-                {/* 팝업 내부 회원가입 하기 */}
                 <div className="pt-1">
                   <button onClick={() => window.location.href = '#/register'} className="text-zinc-400 text-[11px] font-medium underline">회원가입 하기</button>
                 </div>
@@ -343,11 +341,11 @@ export default function CommunityPage() {
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
             <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar">
-              <div className="grid grid-cols-2 gap-3">
-                {(modalType.includes('loc') ? ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] : 
-                  modalType.includes('age') ? ["전체", "10대", "20대", "30대", "40대", "50대", "60대 이상"] : 
-                  ["가족", "교회", "학교", "직장", "기타"]).map((item) => (
+            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
+              <div className=\"grid grid-cols-2 gap-3\">
+                {(modalType.includes('loc') ? [\"전국\", \"서울\", \"경기\", \"인천\", \"부산\", \"대구\", \"광주\", \"대전\", \"울산\", \"강원\", \"충북\", \"충남\", \"전북\", \"전남\", \"경북\", \"경남\", \"제주\"] : 
+                  modalType.includes('age') ? [\"전체\", \"10대\", \"20대\", \"30대\", \"40대\", \"50대\", \"60대 이상\"] : 
+                  [\"가족\", \"교회\", \"학교\", \"직장\", \"기타\"]).map((item) => (
                   <button key={item} onClick={() => {
                       if(modalType === 'category') setFormData({...formData, category: item});
                       else if(modalType === 'location') setFormData({...formData, location: item});
@@ -355,7 +353,7 @@ export default function CommunityPage() {
                       else if(modalType === 'filter_loc') setFilters({...filters, location: item});
                       else if(modalType === 'filter_age') setFilters({...filters, age: item});
                       setModalType(null);
-                    }} className="p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all">{item}</button>
+                    }} className=\"p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all\">{item}</button>
                 ))}
               </div>
             </motion.div>
