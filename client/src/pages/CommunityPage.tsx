@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { 
   Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, 
   UserCircle, Hash, Lock, Unlock, Calendar, Filter, Tag, MessageSquare, Eye, EyeOff, Loader2, Check 
-} from "lucide-react"; // lucide-center에서 lucide-react로 수정 완료
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -130,14 +130,11 @@ export default function CommunityPage() {
       setIsLoginRedirectOpen(true);
       return;
     }
-
     const isMember = myGroups.some(m => m.id === group.id);
-    
     if (isMember) {
       setLocation(`/group/${group.id}`);
       return;
     }
-
     if (group.password) {
       setJoiningGroup(group);
     } else {
@@ -153,15 +150,12 @@ export default function CommunityPage() {
         return;
       }
     }
-
     setLoading(true);
     try {
       const { error } = await supabase
         .from('group_members')
         .insert([{ group_id: groupId, user_id: user.id, role: 'member' }]);
-      
       if (error) throw error;
-      
       setLocation(`/group/${groupId}`);
     } catch (err: any) {
       alert("가입 중 오류가 발생했습니다.");
@@ -178,7 +172,6 @@ export default function CommunityPage() {
       alert("필수 항목을 모두 입력하고 중복 확인을 해주세요.");
       return;
     }
-
     setLoading(true);
     try {
       let finalUrl = '';
@@ -188,7 +181,6 @@ export default function CommunityPage() {
         if (error) throw error;
         finalUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
       }
-
       const { data: newGroup, error: gErr } = await supabase
         .from('groups')
         .insert([{
@@ -206,15 +198,12 @@ export default function CommunityPage() {
         }])
         .select()
         .single();
-
       if (gErr) throw gErr;
-
       await supabase.from('group_members').insert([{
         group_id: newGroup.id,
         user_id: user.id,
         role: 'leader'
       }]);
-
       alert("모임이 성공적으로 개설되었습니다!");
       setViewMode('list');
       fetchGroups();
@@ -457,7 +446,7 @@ export default function CommunityPage() {
         {isLoginRedirectOpen && (
           <div className="fixed inset-0 z-[200] flex items-end justify-center px-4 pb-10">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginRedirectOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} transition={{ type: \"spring\", damping: 25, stiffness: 200 }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl overflow-hidden\">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl overflow-hidden">
               <button onClick={() => setIsLoginRedirectOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500"><X size={24}/></button>
               <div className="text-center py-6">
                 <div className="w-16 h-16 bg-zinc-50 rounded-[24px] flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Lock size={28} /></div>
@@ -498,7 +487,7 @@ export default function CommunityPage() {
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
             <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar">
               <div className="grid grid-cols-2 gap-3">
                 {(modalType.includes('loc') ? ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"] : 
                   modalType.includes('age') ? ["전체", "10대", "20대", "30대", "40대", "50대", "60대 이상"] : 
