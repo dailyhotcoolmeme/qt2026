@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { 
-  Users, Globe, Plus, X, Camera, ChevronRight, Search 
+  Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, UserCircle 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -12,57 +12,49 @@ export default function CommunityPage() {
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
   const [loading, setLoading] = useState(false);
   
-  // 폼 상태
+  // 폼 상태 (오픈 모임용 필드 추가)
   const [formData, setFormData] = useState({
+    type: 'private' as 'private' | 'open', // 일반(폐쇄) vs 오픈
     name: '',
     slug: '',
     password: '',
     category: '',
+    location: '전국', // 오픈 모임용
+    ageRange: '연령 무관', // 오픈 모임용
     description: '',
     imageUrl: '', 
     imageFile: null as File | null
   });
 
   const [isSlugVerified, setIsSlugVerified] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [modalType, setModalType] = useState<'category' | 'location' | 'age' | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 이미지 선택 처리
+  const categories = ["가족", "교회", "학교", "직장", "기타"];
+  const locations = ["전국", "서울", "경기", "인천", "부산", "대구", "광주", "대전", "울산", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"];
+  const ages = ["연령 무관", "10대", "20대", "30대", "40대", "50대", "60대 이상"];
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFormData({ 
-        ...formData, 
-        imageUrl: URL.createObjectURL(file),
-        imageFile: file 
-      });
+      setFormData({ ...formData, imageUrl: URL.createObjectURL(file), imageFile: file });
     }
   };
 
-  // 모임 아이디 중복 체크
   const handleCheckSlug = async () => {
     if (!formData.slug || formData.slug.length < 2) return alert("아이디를 2자 이상 입력해주세요.");
     try {
-      const { data, error } = await supabase.from('groups').select('group_slug').eq('group_slug', formData.slug).maybeSingle();
-      if (error) throw error;
-      if (data) {
-        alert("이미 사용 중인 아이디입니다.");
-        setIsSlugVerified(false);
-      } else {
-        alert("사용 가능한 아이디입니다!");
-        setIsSlugVerified(true);
-      }
+      const { data } = await supabase.from('groups').select('group_slug').eq('group_slug', formData.slug).maybeSingle();
+      if (data) { alert("이미 사용 중인 아이디입니다."); setIsSlugVerified(false); }
+      else { alert("사용 가능한 아이디입니다!"); setIsSlugVerified(true); }
     } catch (err: any) { alert("확인 중 오류: " + err.message); }
   };
 
-  // 모임 개설 실행 (필수/선택값 로직 반영)
   const handleCreateSubmit = async () => {
-    // 1. 필수값 체크
-    if (!formData.name.trim()) return alert("필수항목: 모임 이름을 입력해주세요.");
-    if (!formData.slug.trim()) return alert("필수항목: 모임 아이디를 입력해주세요.");
-    if (!isSlugVerified) return alert("필수항목: 모임 아이디 중복 확인이 필요합니다.");
-    if (!formData.password.trim()) return alert("필수항목: 입장 비밀번호를 설정해주세요.");
-    if (!formData.category) return alert("필수항목: 모임 유형을 선택해주세요.");
+    if (!formData.name.trim()) return alert("모임 이름을 입력해주세요.");
+    if (!formData.slug.trim() || !isSlugVerified) return alert("아이디 중복 확인이 필요합니다.");
+    if (!formData.password.trim()) return alert("입장 비밀번호를 입력해주세요.");
+    if (!formData.category) return alert("모임 유형을 선택해주세요.");
 
     setLoading(true);
     try {
@@ -70,27 +62,15 @@ export default function CommunityPage() {
       if (!user) throw new Error("로그인이 필요합니다.");
 
       let finalImageUrl = null;
-
-      // 2. 선택값 처리 - 이미지 업로드 (파일이 있을 때만 실행)
       if (formData.imageFile) {
         const fileExt = formData.imageFile.name.split('.').pop();
         const fileName = `${user.id}-${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('avatars')
-          .upload(filePath, formData.imageFile);
-
+        const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, formData.imageFile);
         if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('avatars')
-          .getPublicUrl(filePath);
-        
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName);
         finalImageUrl = publicUrl;
       }
 
-      // 3. DB 저장 (설명은 빈 값이어도 허용)
       const { data: group, error: groupError } = await supabase
         .from('groups')
         .insert([{ 
@@ -98,37 +78,30 @@ export default function CommunityPage() {
           group_slug: formData.slug,
           password: formData.password,
           category: formData.category,
-          description: formData.description || "", // 선택값: 비어있으면 빈 문자열
+          description: formData.description || "",
           owner_id: user.id,
-          group_image: finalImageUrl // 선택값: 없으면 null
+          group_image: finalImageUrl,
+          is_open: formData.type === 'open', // 오픈 여부 저장
+          location: formData.type === 'open' ? formData.location : null,
+          age_range: formData.type === 'open' ? formData.ageRange : null
         }])
         .select().single();
 
       if (groupError) throw groupError;
+      await supabase.from('group_members').insert([{ group_id: group.id, user_id: user.id, role: 'leader' }]);
 
-      // 리더 권한 부여
-      await supabase.from('group_members').insert([{ 
-        group_id: group.id, user_id: user.id, role: 'leader' 
-      }]);
-
-      alert("모임 개설이 완료되었습니다!");
+      alert("모임 개설 완료!");
       setViewMode('list');
-      // 상태 초기화
-      setFormData({ name: '', slug: '', password: '', category: '교회', description: '', imageUrl: '', imageFile: null });
+      setFormData({ type: 'private', name: '', slug: '', password: '', category: '', location: '전국', ageRange: '연령 무관', description: '', imageUrl: '', imageFile: null });
       setIsSlugVerified(false);
-    } catch (error: any) {
-      alert("개설 실패: " + error.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (error: any) { alert("개설 실패: " + error.message); }
+    finally { setLoading(false); }
   };
-
-  const categories = ["가족", "교회", "학교", "직장", "기타"];
 
   return (
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
       
-      {/* 상단 탭 */}
+      {/* 상단 탭 (기존 유지) */}
       <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-8">
         <button onClick={() => setActiveTab('my')} className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white' : 'text-zinc-400'}`}>
           <Users size={18} /> 내 모임
@@ -141,40 +114,39 @@ export default function CommunityPage() {
       <AnimatePresence mode="wait">
         {viewMode === 'list' ? (
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md text-center pt-10">
-            <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-200">
-              <Users size={32} />
-            </div>
-            <p className="font-bold text-zinc-400 mb-8 leading-relaxed">참여 중인 모임이 없습니다.<br/>새로운 공동체를 시작해보세요.</p>
-            <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95">
-              <Plus size={20} /> 모임 개설하기
-            </button>
+            <div className="w-20 h-20 bg-white rounded-[28px] shadow-sm flex items-center justify-center mb-6 mx-auto text-zinc-200"><Users size={32} /></div>
+            <p className="font-bold text-zinc-400 mb-8">참여 중인 모임이 없습니다.</p>
+            <button onClick={() => setViewMode('create')} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg flex items-center justify-center gap-2 active:scale-95 transition-all"><Plus size={20} /> 모임 개설하기</button>
           </motion.div>
         ) : (
-          /* 모임 개설 화면 */
-          <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="w-full max-w-md space-y-5 pb-10">
-            <div className="flex justify-between items-center mb-2 px-2">
+          <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
+            <div className="flex justify-between items-center px-2">
                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
                <button onClick={() => setViewMode('list')} className="w-9 h-9 flex items-center justify-center bg-white rounded-full text-zinc-400 shadow-sm"><X size={20}/></button>
             </div>
 
-            <div className="bg-white rounded-[36px] p-8 shadow-sm border border-white space-y-8 text-left">
-              {/* 이미지 설정 (선택값) */}
+            <div className="bg-white rounded-[36px] p-8 shadow-sm border space-y-8 text-left">
+              {/* [추가] 일반 / 오픈 선택 스위치 */}
+              <div className="flex bg-zinc-100 p-1 rounded-2xl">
+                <button onClick={() => setFormData({...formData, type: 'private'})} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${formData.type === 'private' ? 'bg-white text-[#4A6741] shadow-sm' : 'text-zinc-400'}`}>일반 모임</button>
+                <button onClick={() => setFormData({...formData, type: 'open'})} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${formData.type === 'open' ? 'bg-white text-[#4A6741] shadow-sm' : 'text-zinc-400'}`}>오픈 모임</button>
+              </div>
+
+              {/* 이미지 (선택) */}
               <div className="flex flex-col items-center">
                 <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#4A6741]">
-                  {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" alt="대표" /> : <Camera size={28} className="text-zinc-300" />}
+                  {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <Camera size={28} className="text-zinc-300" />}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageChange} />
-                <span className="text-[11px] font-bold text-zinc-400 mt-3">모임 대표 이미지 설정 (선택)</span>
+                <span className="text-[11px] font-bold text-zinc-400 mt-3 text-center">모임 대표 이미지 설정 (선택)</span>
               </div>
 
               <div className="space-y-6">
-                {/* 모임 이름 (필수) */}
                 <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 <span className="text-red-400">*</span></label>
                   <input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-zinc-800" placeholder="모임 이름" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
                 </div>
 
-                {/* 모임 아이디 (필수) */}
                 <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 아이디 <span className="text-red-400">*</span></label>
                   <div className="flex gap-2 items-center">
@@ -183,55 +155,79 @@ export default function CommunityPage() {
                   </div>
                 </div>
 
-                {/* 입장 비밀번호 (필수) */}
                 <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">입장 비밀번호 <span className="text-red-400">*</span></label>
                   <input type="text" className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-zinc-800" placeholder="비밀번호" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} />
                 </div>
 
-                {/* 모임 유형 (필수) */}
                 <div className="space-y-2">
-  <label className="text-[12px] font-black text-[#4A6741] ml-1">
-    모임 유형 <span className="text-red-400">*</span>
-  </label>
-  <button 
-    onClick={() => setShowCategoryModal(true)}
-    className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800"
-  >
-    {/* 값이 없으면 안내 문구, 있으면 선택한 값 표시 */}
-    <span className={formData.category ? "text-zinc-800" : "text-zinc-400"}>
-      {formData.category || "유형을 선택해주세요"}
-    </span>
-    <ChevronRight size={18} className="text-zinc-300" />
-  </button>
-</div>
+                  <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 유형 <span className="text-red-400">*</span></label>
+                  <button onClick={() => setModalType('category')} className="w-full bg-zinc-50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800">
+                    <span className={formData.category ? "text-zinc-800" : "text-zinc-400"}>{formData.category || "유형 선택"}</span>
+                    <ChevronRight size={18} className="text-zinc-300" />
+                  </button>
+                </div>
 
+                {/* [오픈 모임 전용 필드] 지역 / 나이 */}
+                {formData.type === 'open' && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="space-y-6 pt-2">
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-black text-blue-500 ml-1 flex items-center gap-1"><MapPin size={12}/> 활동 지역 (오픈모임 필수)</label>
+                      <button onClick={() => setModalType('location')} className="w-full bg-blue-50/50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800">
+                        <span>{formData.location}</span>
+                        <ChevronRight size={18} className="text-blue-200" />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[12px] font-black text-blue-500 ml-1 flex items-center gap-1"><UserCircle size={12}/> 가입 연령대 (오픈모임 필수)</label>
+                      <button onClick={() => setModalType('age')} className="w-full bg-blue-50/50 border-none rounded-2xl p-4 flex justify-between items-center font-bold text-zinc-800">
+                        <span>{formData.ageRange}</span>
+                        <ChevronRight size={18} className="text-blue-200" />
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
 
-                {/* 모임 설명 (선택) */}
                 <div className="space-y-2">
                   <label className="text-[12px] font-black text-[#4A6741] ml-1">모임 설명 (선택)</label>
-                  <textarea className="w-full bg-zinc-50 border-none rounded-2xl p-4 h-28 resize-none font-medium text-zinc-600 leading-relaxed" placeholder="참여 인원들에게 보여줄 메시지" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                  <textarea className="w-full bg-zinc-50 border-none rounded-2xl p-4 h-28 resize-none font-medium text-zinc-600" placeholder="말씀, 기도 중심의 모임 소개를 적어주세요" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
                 </div>
               </div>
 
               <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg transition-all active:scale-95 text-lg">
-                {loading ? '모임 만드는 중...' : '모임 개설하기'}
+                {loading ? '개설 중...' : '모임 개설하기'}
               </button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 모임 유형 선택 바텀 시트 */}
+      {/* 공통 바텀 시트 (유형, 지역, 나이 통합 처리) */}
       <AnimatePresence>
-        {showCategoryModal && (
+        {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center">
-            <div onClick={() => setShowCategoryModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-t-[40px] p-8 pb-14 shadow-2xl">
-              <h4 className="font-black text-zinc-900 mb-6 text-center">모임 유형 선택</h4>
+            <div onClick={() => setModalType(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="relative bg-white w-full max-w-md rounded-t-[40px] p-8 pb-14 shadow-2xl max-h-[80vh] overflow-y-auto no-scrollbar">
+              <h4 className="font-black text-zinc-900 mb-6 text-center">
+                {modalType === 'category' ? '모임 유형 선택' : modalType === 'location' ? '지역 선택' : '연령대 선택'}
+              </h4>
               <div className="grid grid-cols-2 gap-3">
-                {categories.map((cat) => (
-                  <button key={cat} onClick={() => { setFormData({...formData, category: cat}); setShowCategoryModal(false); }} className={`p-5 rounded-2xl font-bold transition-all ${formData.category === cat ? 'bg-[#4A6741] text-white' : 'bg-zinc-50 text-zinc-500'}`}>{cat}</button>
+                {(modalType === 'category' ? categories : modalType === 'location' ? locations : ages).map((item) => (
+                  <button 
+                    key={item} 
+                    onClick={() => {
+                      if(modalType === 'category') setFormData({...formData, category: item});
+                      else if(modalType === 'location') setFormData({...formData, location: item});
+                      else setFormData({...formData, ageRange: item});
+                      setModalType(null);
+                    }} 
+                    className={`p-4 rounded-2xl font-bold transition-all ${
+                      (modalType === 'category' ? formData.category : modalType === 'location' ? formData.location : formData.ageRange) === item 
+                      ? 'bg-[#4A6741] text-white shadow-md' : 'bg-zinc-50 text-zinc-500'
+                    }`}
+                  >
+                    {item}
+                  </button>
                 ))}
               </div>
             </motion.div>
