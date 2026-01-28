@@ -63,13 +63,14 @@ export default function App() {
   useEffect(() => {
     // 1. 카카오 로그인 특유의 /#/# 버그 수정 (새로고침 로직 제거)
     const fixKakaoHash = () => {
-      const href = window.location.href;
-      if (href.includes("/#/#")) {
-        // 주소창에서 잘못된 해시만 변경하고 새로고침은 하지 않습니다.
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-      }
-    };
+  const href = window.location.href;
+  if (href.includes("/#/#")) {
+    const newHref = href.replace("/#/#", "/#/");
+    window.history.replaceState(null, "", newHref);
+    // 원래대로 새로고침을 넣어 흐름을 확실히 정리합니다.
+    setTimeout(() => window.location.reload(), 300);
+  }
+};
 
     // 2. 약관 동의 내역 자동 저장 로직 (유지)
     const syncAgreements = async () => {
