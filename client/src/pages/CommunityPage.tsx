@@ -6,9 +6,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export default function CommunityPage() {
+  const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
   const [activeTab, setActiveTab] = useState<'my' | 'open'>('my');
   const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
@@ -36,15 +37,16 @@ export default function CommunityPage() {
   const [joiningGroup, setJoiningGroup] = useState<any | null>(null);
   const [inputPassword, setInputPassword] = useState("");
 
-  // --- AuthPage.tsx에서 이식한 로그인 관련 상태 ---
+  // --- AuthPage.tsx 원본에서 그대로 가져온 상태 변수들 ---
   const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [isManualLoginOpen, setIsManualLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [autoLogin, setAutoLogin] = useState(true);
-  const [loginId, setLoginId] = useState("");
-  const [loginPw, setLoginPw] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [autoLogin, setAutoLogin] = useState(true);
+
+  // 로그인 입력값 핸들링용 (AuthPage와 동일한 로직)
+  const [loginUsername, setLoginUsername] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -55,7 +57,6 @@ export default function CommunityPage() {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN') {
         setIsLoginOpen(false);
-        setIsManualLoginOpen(false);
       }
     });
 
@@ -103,6 +104,7 @@ export default function CommunityPage() {
     setFilteredGroups(result);
   }, [filters, searchQuery, allOpenGroups]);
 
+  // AuthPage.tsx의 handleKakaoLogin 그대로 이식
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -118,19 +120,23 @@ export default function CommunityPage() {
     }
   };
 
+  // AuthPage.tsx의 handleManualLogin 로직 그대로 이식 (연결 안되던 부분 수정)
   const handleManualLogin = async () => {
-    if (!loginId || !loginPw) {
+    if (!loginUsername || !loginPassword) {
       setErrorMsg("아이디와 비밀번호를 입력해주세요.");
       return;
     }
     setIsLoading(true);
     setErrorMsg("");
     try {
+      // 사용자님이 설계하신 방식대로 아이디(username)를 이메일 형식으로 변환하여 로그인
       const { error } = await supabase.auth.signInWithPassword({
-        email: `${loginId.trim()}@id.com`,
-        password: loginPw,
+        email: `${loginUsername.trim()}@id.com`,
+        password: loginPassword,
       });
       if (error) throw error;
+      
+      // 로그인 성공 시 팝업 닫기 및 유저 정보 업데이트는 useEffect의 onAuthStateChange에서 처리됨
     } catch (error: any) {
       setErrorMsg("로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.");
     } finally {
@@ -240,7 +246,7 @@ export default function CommunityPage() {
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
             {activeTab === 'my' ? (
               !user ? (
-                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 px-6">
+                <div className="text-center py-20 px-6">
                   <div className="w-20 h-20 bg-white rounded-[32px] shadow-sm flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Users size={32}/></div>
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
                   <p className="text-zinc-400 text-sm font-medium mb-10 leading-relaxed">로그인 후 모임을 개설하거나<br/>참여 중인 모임을 확인할 수 있습니다.</p>
@@ -248,11 +254,11 @@ export default function CommunityPage() {
                     <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all">
                       <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오로 시작하기
                     </button>
-                    <button onClick={() => setIsManualLoginOpen(true)} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
+                    <button onClick={() => setIsLoginOpen(true)} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
                       아이디 로그인
                     </button>
                   </div>
-                </motion.div>
+                </div>
               ) : (
                 <div className="space-y-1">
                   {loading ? <div className="py-20 text-center text-zinc-300 font-bold">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
@@ -279,6 +285,7 @@ export default function CommunityPage() {
           </motion.div>
         ) : (
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
+            {/* 개설 UI (원본 유지) */}
             <div className="flex justify-between items-center px-2">
                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
                <button onClick={() => setViewMode('list')} className="w-9 h-9 flex items-center justify-center bg-white rounded-full text-zinc-400 shadow-sm"><X size={20}/></button>
@@ -309,61 +316,30 @@ export default function CommunityPage() {
                 )}
                 <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">비밀번호 {type==='private'?'*':'(선택)'}</label><input className="w-full bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.password} onChange={(e)=>setFormData({...formData, password:e.target.value})} /></div>
               </div>
-              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg active:scale-95 transition-all">개설하기</button>
+              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg">개설하기</button>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* --- 로그인 선택 모달 --- */}
+      {/* --- AuthPage.tsx의 아이디 로그인 모달을 그대로 적용 --- */}
       <AnimatePresence>
         {isLoginOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-[340px] rounded-[32px] p-8 shadow-2xl flex flex-col items-center">
-              <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6 text-[#4A6741] shadow-sm"><Users size={32}/></div>
-              <h4 className="font-black text-zinc-900 mb-2 text-xl">로그인이 필요합니다</h4>
-              <p className="text-zinc-400 text-[14px] text-center mb-10 leading-relaxed font-medium">모든 기능을 이용하시려면<br/>로그인이 필요합니다.</p>
-              <div className="w-full space-y-3">
-                <button onClick={handleKakaoLogin} className="w-full h-[64px] bg-[#FEE500] text-[#191919] rounded-[20px] font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-[15px] shadow-sm">
-                  <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
-                </button>
-                <button onClick={() => { setIsLoginOpen(false); setIsManualLoginOpen(true); }} className="w-full h-[64px] bg-zinc-50 text-zinc-600 rounded-[20px] font-bold border border-zinc-100 active:scale-95 transition-all text-[15px]">
-                  아이디 로그인
-                </button>
-                <button onClick={() => setIsLoginOpen(false)} className="w-full py-3 text-zinc-300 font-bold text-[13px] mt-2">다음에 할게요</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- 아이디 로그인 입력 모달 (AuthPage 방식 완벽 이식 - 빌드 에러 수정) --- */}
-      <AnimatePresence>
-        {isManualLoginOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsManualLoginOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative bg-white w-full max-w-[360px] rounded-[40px] p-8 shadow-2xl overflow-hidden">
-              <button onClick={() => setIsManualLoginOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500 transition-colors">
-                <X size={24}/>
-              </button>
+              <button onClick={() => setIsLoginOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500 transition-colors"><X size={24}/></button>
               
               <h4 className="font-black text-zinc-900 text-[20px] mb-10 mt-2">아이디 로그인</h4>
 
               <div className="space-y-4 mb-6">
                 <div className="bg-zinc-50 rounded-[24px] p-5 focus-within:ring-2 focus-within:ring-[#4A6741]/20 transition-all">
                   <label className="block text-[11px] font-black text-[#4A6741] mb-1.5 uppercase tracking-wider">아이디</label>
-                  <input className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" placeholder="아이디 입력" value={loginId} onChange={(e) => setLoginId(e.target.value)} />
+                  <input className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" placeholder="아이디 입력" value={loginUsername} onChange={(e) => setLoginUsername(e.target.value)} />
                 </div>
                 <div className="bg-zinc-50 rounded-[24px] p-5 relative focus-within:ring-2 focus-within:ring-[#4A6741]/20 transition-all">
                   <label className="block text-[11px] font-black text-[#4A6741] mb-1.5 uppercase tracking-wider">비밀번호</label>
-                  <input 
-                    type={showPw ? "text" : "password"} 
-                    className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" 
-                    placeholder="비밀번호 입력" 
-                    value={loginPw} 
-                    onChange={(e) => setLoginPw(e.target.value)} 
-                  />
+                  <input type={showPw ? "text" : "password"} className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" placeholder="비밀번호 입력" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
                   <button onClick={() => setShowPw(!showPw)} className="absolute right-6 bottom-6 text-zinc-300 hover:text-[#4A6741] transition-colors">
                     {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
                   </button>
@@ -390,9 +366,11 @@ export default function CommunityPage() {
                 {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
               </button>
 
-              <button onClick={() => window.location.href = '#/register'} className="w-full text-center">
-                <span className="text-zinc-400 text-[13px] font-bold border-b border-zinc-200 pb-0.5 hover:text-zinc-600 transition-all">아직 회원이 아니신가요? 회원가입 하기</span>
-              </button>
+              <div className="w-full flex flex-col gap-3">
+                <button onClick={handleKakaoLogin} className="w-full h-[64px] bg-[#FEE500] text-[#191919] rounded-[20px] font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-[15px]">
+                  <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
@@ -416,7 +394,7 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      {/* 카테고리/지역/연령 필터 모달 */}
+      {/* 필터 모달 */}
       <AnimatePresence>
         {modalType && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6">
