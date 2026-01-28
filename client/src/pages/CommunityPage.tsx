@@ -36,19 +36,33 @@ export default function CommunityPage() {
   const [inputPassword, setInputPassword] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
+  // 초기 유저 확인 및 세션 리스너
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUser(user);
     });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === 'SIGNED_IN') {
+        setShowLoginPopup(false);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  // 탭이 바뀌거나 유저 상태가 바뀔 때 데이터 로드 (탭 고정 유지)
+  useEffect(() => {
     fetchGroups();
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   const fetchGroups = async () => {
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      // 오픈 모임은 로그인 여부 상관없이 항상 가져옴
+      // 1. 오픈 모임 데이터 로드 (항상 수행)
       const { data: openData, error: openErr } = await supabase
         .from('groups')
         .select('*')
@@ -56,14 +70,19 @@ export default function CommunityPage() {
         .order('created_at', { ascending: false });
       if (!openErr) setAllOpenGroups(openData || []);
 
+      // 2. 내 모임 데이터 로드 (로그인 시에만)
       if (user) {
         const { data, error } = await supabase
           .from('group_members')
           .select('groups(*)')
           .eq('user_id', user.id);
-        if (!error) setMyGroups(data.map(item => item.groups).sort((a: any, b: any) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        ));
+        if (!error) {
+          setMyGroups(data.map(item => item.groups).sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ));
+        }
+      } else {
+        setMyGroups([]);
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -183,7 +202,6 @@ export default function CommunityPage() {
           <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
             {activeTab === 'my' ? (
               !user ? (
-                /* 로그아웃 상태의 내 모임 탭 */
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 px-6">
                   <div className="w-20 h-20 bg-white rounded-[32px] shadow-sm flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Users size={32}/></div>
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
@@ -194,13 +212,11 @@ export default function CommunityPage() {
                   </div>
                 </motion.div>
               ) : (
-                /* 로그인 상태의 내 모임 리스트 */
                 <div className="space-y-1">
-                  {loading ? <div className="py-20 text-center animate-spin text-zinc-200">●</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
+                  {loading ? <div className="py-20 text-center animate-spin text-zinc-200 text-xs">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
                 </div>
               )
             ) : (
-              /* 오픈 모임 탭 (항상 리스트 노출) */
               <>
                 <div className="space-y-4 mb-6">
                   <div className="relative">
@@ -220,7 +236,6 @@ export default function CommunityPage() {
             <button onClick={() => user ? setViewMode('create') : setShowLoginPopup(true)} className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50"><Plus size={28} /></button>
           </motion.div>
         ) : (
-          /* 개설 폼 */
           <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
             <div className="flex justify-between items-center px-2">
                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
@@ -232,11 +247,11 @@ export default function CommunityPage() {
                 <button onClick={() => {setType('open'); setIsSlugVerified(false);}} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'open' ? 'bg-white text-[#4A6741] shadow-sm' : 'text-zinc-400'}`}>오픈 모임</button>
               </div>
               <div className="flex flex-col items-center">
-                <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden overflow-hidden transition-all hover:border-[#4A6741]">
+                <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#4A6741]">
                   {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <Camera size={28} className="text-zinc-300" />}
                 </div>
                 <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e)=>{const f=e.target.files?.[0]; if(f) setFormData({...formData, imageUrl:URL.createObjectURL(f), imageFile:f})}} />
-                <span className="text-[11px] font-bold text-zinc-400 mt-3">대표 이미지 설정 (선택)</span>
+                <span className="text-[11px] font-bold text-zinc-400 mt-3 text-center">대표 이미지 설정 (선택)</span>
               </div>
               <div className="space-y-6">
                 <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 *</label><input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} /></div>
