@@ -41,7 +41,7 @@ export default function CommunityPage() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
-        options: { redirectTo: window.location.origin }
+        options: { redirectTo: window.location.href }
       });
       if (error) throw error;
     } catch (err: any) {
