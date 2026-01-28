@@ -1,24 +1,109 @@
-import React, { useState } from "react";
-import { supabase } from "../lib/supabase";
-import { useLocation, Link } from "wouter";
+import React, { useState, useRef, useEffect } from "react";
+import { 
+  Users, Globe, Plus, X, Camera, ChevronRight, Search, MapPin, 
+  UserCircle, Hash, Lock, Unlock, Calendar, Filter, Tag, MessageSquare, Eye, EyeOff, Loader2, Check 
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, X, AlertCircle, Loader2, Check } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { Link } from "wouter";
 
-export default function AuthPage() {
-  const [, setLocation] = useLocation();
+export default function CommunityPage() {
   const { fontSize = 16 } = useDisplaySettings();
+  const [activeTab, setActiveTab] = useState<'my' | 'open'>('my');
+  const [viewMode, setViewMode] = useState<'list' | 'create'>('list');
+  const [loading, setLoading] = useState(false);
+  const [user, setUser] = useState<any>(null);
   
+  const [myGroups, setMyGroups] = useState<any[]>([]);
+  const [allOpenGroups, setAllOpenGroups] = useState<any[]>([]);
+  const [filteredGroups, setFilteredGroups] = useState<any[]>([]);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState({ location: "전국", age: "전체" });
+
+  const [type, setType] = useState<'private' | 'open'>('private');
+  const [formData, setFormData] = useState({
+    name: '', slug: '', password: '', category: '',
+    location: '', ageRange: '', tags: '', description: '',
+    imageUrl: '', imageFile: null as File | null
+  });
+
+  const [isSlugVerified, setIsSlugVerified] = useState(false);
+  const [modalType, setModalType] = useState<'category' | 'location' | 'age' | 'filter_loc' | 'filter_age' | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [joiningGroup, setJoiningGroup] = useState<any | null>(null);
+  const [inputPassword, setInputPassword] = useState("");
+
+  // --- AuthPage.tsx에서 이식한 로그인 관련 상태 ---
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isManualLoginOpen, setIsManualLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const [autoLogin, setAutoLogin] = useState(true);
+  const [loginId, setLoginId] = useState("");
+  const [loginPw, setLoginPw] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const { register, getValues } = useForm();
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUser(user);
+    });
 
-  // 카카오 로그인 로직
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      setUser(session?.user ?? null);
+      if (event === 'SIGNED_IN') {
+        setIsLoginOpen(false);
+        setIsManualLoginOpen(false);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    fetchGroups();
+  }, [activeTab, user]);
+
+  const fetchGroups = async () => {
+    setLoading(true);
+    try {
+      const { data: openData, error: openErr } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('is_open', true)
+        .order('created_at', { ascending: false });
+      if (!openErr) setAllOpenGroups(openData || []);
+
+      if (user) {
+        const { data, error } = await supabase
+          .from('group_members')
+          .select('groups(*)')
+          .eq('user_id', user.id);
+        if (!error) {
+          setMyGroups(data.map(item => item.groups).sort((a: any, b: any) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          ));
+        }
+      } else {
+        setMyGroups([]);
+      }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => {
+    let result = [...allOpenGroups];
+    if (filters.location !== "전국") result = result.filter(g => g.location === filters.location);
+    if (filters.age !== "전체") result = result.filter(g => g.age_range === filters.age);
+    if (searchQuery) result = result.filter(g => g.name.includes(searchQuery) || g.tags?.includes(searchQuery));
+    setFilteredGroups(result);
+  }, [filters, searchQuery, allOpenGroups]);
+
+  // 카카오 로그인 로직 (AuthPage 방식)
   const handleKakaoLogin = async () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -34,123 +119,319 @@ export default function AuthPage() {
     }
   };
 
+  // 일반 로그인 로직 (AuthPage 방식 - username@id.com)
   const handleManualLogin = async () => {
-    const values = getValues();
-    if (!values.username || !values.password) {
-      setErrorMsg("아이디와 비밀번호를 입력해 주세요.");
+    if (!loginId || !loginPw) {
+      setErrorMsg("아이디와 비밀번호를 입력해주세요.");
       return;
     }
     setIsLoading(true);
     setErrorMsg("");
     try {
-      const { data: profile } = await supabase.from("profiles").select("email").eq("username", values.username).maybeSingle();
-      if (!profile) throw new Error("아이디를 확인해 주세요.");
-      const { error: lErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: values.password });
-      if (lErr) throw new Error("비밀번호가 일치하지 않습니다.");
-      setLocation("/");
-    } catch (e: any) {
-      setErrorMsg(e.message);
+      const { error } = await supabase.auth.signInWithPassword({
+        email: `${loginId.trim()}@id.com`,
+        password: loginPw,
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setErrorMsg("로그인에 실패했습니다. 아이디와 비밀번호를 확인해주세요.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative text-left">
-      <style dangerouslySetInnerHTML={{ __html: `
-        input:-webkit-autofill {
-            -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
-            -webkit-text-fill-color: #18181b !important;
-        }
-      `}} />
-      
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
-        <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
-          QuietTime Diary
-        </span>
-        <h1 className="font-black text-zinc-900 leading-[1.3] tracking-tighter" style={{ fontSize: `${fontSize * 1.8}px` }}>
-          우리의 기도가<br />
-          <span className="text-[#4A6741]">기억되는 공간</span>
-        </h1>
-        <p className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep" style={{ fontSize: `${fontSize}px` }}>
-          매일의 묵상(QT)과 중보를<br />
-          음성으로 기록하고 보관하세요.
-        </p>
-      </motion.div>
+  const handleGroupClick = async (group: any) => {
+    if (!user) {
+      setIsLoginOpen(true);
+      return;
+    }
+    const isMember = myGroups.some(m => m.id === group.id);
+    if (isMember) {
+      alert(`${group.name} 모임으로 입장합니다.`);
+      return;
+    }
+    if (group.password) {
+      setJoiningGroup(group);
+      return;
+    }
+    joinGroup(group.id);
+  };
 
-      <div className="w-full max-w-sm mt-28 mb-auto flex flex-col items-center gap-6">
-        <button 
-          onClick={handleKakaoLogin} 
-          className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
-        >
-          <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="카카오" />
-          카카오로 시작하기
-        </button>
+  const joinGroup = async (groupId: string, password?: string) => {
+    if (password) {
+      const target = allOpenGroups.find(g => g.id === groupId);
+      if (target && target.password !== password) return alert("비밀번호가 틀렸습니다.");
+    }
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .insert([{ group_id: groupId, user_id: user.id, role: 'member' }]);
+      if (error) throw error;
+      alert("가입이 완료되었습니다!");
+      setJoiningGroup(null);
+      setInputPassword("");
+      fetchGroups();
+    } catch (err: any) { alert(err.message); }
+    finally { setLoading(false); }
+  };
 
-        <div className="flex items-center justify-center gap-5">
-          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
-          <span className="w-[1px] h-3 bg-zinc-300"></span>
-          <Link href="/register"><a className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
+  const handleCreateSubmit = async () => {
+    if (!user) return setIsLoginOpen(true);
+    if (!formData.name.trim() || !isSlugVerified) return alert("필수값을 확인해주세요.");
+    setLoading(true);
+    try {
+      let finalUrl = null;
+      if (formData.imageFile) {
+        const fileName = `${user.id}-${Date.now()}`;
+        await supabase.storage.from('avatars').upload(fileName, formData.imageFile);
+        finalUrl = supabase.storage.from('avatars').getPublicUrl(fileName).data.publicUrl;
+      }
+      const { data: group, error: gErr } = await supabase.from('groups').insert([{
+        name: formData.name, group_slug: formData.slug, password: formData.password,
+        category: type === 'private' ? formData.category : '오픈모임',
+        description: formData.description, owner_id: user.id, group_image: finalUrl,
+        is_open: type === 'open', location: type === 'open' ? formData.location : null,
+        age_range: type === 'open' ? formData.ageRange : null, tags: type === 'open' ? formData.tags : null
+      }]).select().single();
+      if (gErr) throw gErr;
+      await supabase.from('group_members').insert([{ group_id: group.id, user_id: user.id, role: 'leader' }]);
+      alert("개설 완료!");
+      setViewMode('list');
+      fetchGroups();
+    } catch (err: any) { alert(err.message); }
+    finally { setLoading(false); }
+  };
+
+  const GroupCard = ({ group, mode }: { group: any, mode: 'my' | 'open' }) => (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+      onClick={() => handleGroupClick(group)}
+      className="w-full bg-white rounded-[28px] p-5 shadow-sm border border-zinc-50 flex items-center gap-4 mb-3 cursor-pointer active:scale-[0.98] transition-all"
+    >
+      <div className="w-16 h-16 bg-zinc-50 rounded-[22px] overflow-hidden flex-shrink-0 border border-zinc-100">
+        {group.group_image ? <img src={group.group_image} className="w-full h-full object-cover" /> : <Users className="w-full h-full p-4 text-zinc-200" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <h4 className="font-bold text-zinc-900 truncate" style={{ fontSize: `${fontSize}px` }}>{group.name}</h4>
+          {mode === 'open' && myGroups.some(m => m.id === group.id) && <span className="px-2 py-0.5 bg-[#4A6741] text-white text-[9px] rounded-full font-bold">내 모임</span>}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-zinc-400 font-medium">
+          {group.is_open ? (
+            <><span className="flex items-center gap-0.5"><MapPin size={10}/> {group.location}</span><span className="flex items-center gap-0.5"><UserCircle size={10}/> {group.age_range}</span></>
+          ) : (
+            <span className="flex items-center gap-0.5"><Tag size={10}/> {group.category}</span>
+          )}
+          <span>{group.password ? <Lock size={10} className="text-zinc-400 opacity-80"/> : <Unlock size={10} className="text-zinc-200"/>}</span>
         </div>
       </div>
+      <ChevronRight size={18} className="text-zinc-200" />
+    </motion.div>
+  );
 
-      <AnimatePresence>
-        {isLoginOpen && (
-          <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm" />
-            <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[100] px-8 pt-10 pb-28 shadow-2xl"
-            >
-              <div className="flex justify-between items-center mb-8 px-2">
-                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
-                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24}/></button>
-              </div>
+  return (
+    <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] pt-24 pb-32 px-4 no-scrollbar">
+      
+      <div className="w-full max-w-md flex bg-white rounded-2xl p-1.5 shadow-sm border border-zinc-100 mb-6">
+        <button onClick={() => setActiveTab('my')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'my' ? 'bg-[#4A6741] text-white shadow-md' : 'text-zinc-400'}`}>내 모임</button>
+        <button onClick={() => setActiveTab('open')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'open' ? 'bg-[#4A6741] text-white shadow-md' : 'text-zinc-400'}`}>오픈 모임</button>
+      </div>
 
-              <div className="space-y-4 px-2">
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
-                  <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
-                  <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
-                </div>
-
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
-                  <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
-                  <div className="flex items-center">
-                    <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold w-full text-zinc-900 pr-10" placeholder="비밀번호 입력" />
-                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 absolute right-6">
-                      {showPw ? <EyeOff size={22}/> : <Eye size={22}/>}
+      <AnimatePresence mode="wait">
+        {viewMode === 'list' ? (
+          <motion.div key="list" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="w-full max-w-md">
+            {activeTab === 'my' ? (
+              !user ? (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20 px-6">
+                  <div className="w-20 h-20 bg-white rounded-[32px] shadow-sm flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Users size={32}/></div>
+                  <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
+                  <p className="text-zinc-400 text-sm font-medium mb-10 leading-relaxed">로그인 후 모임을 개설하거나<br/>참여 중인 모임을 확인할 수 있습니다.</p>
+                  <div className="space-y-3">
+                    <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all">
+                      <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오로 시작하기
+                    </button>
+                    <button onClick={() => setIsManualLoginOpen(true)} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
+                      아이디 로그인
                     </button>
                   </div>
+                </motion.div>
+              ) : (
+                <div className="space-y-1">
+                  {loading ? <div className="py-20 text-center text-zinc-300 font-bold">로딩 중...</div> : myGroups.length > 0 ? myGroups.map(g => <GroupCard key={g.id} group={g} mode="my" />) : <div className="text-center py-32 text-zinc-300 font-bold">참여 중인 모임이 없습니다.</div>}
                 </div>
-
-                <div className="flex items-center justify-between px-2 pt-1">
-                  <button type="button" onClick={() => setAutoLogin(!autoLogin)} className="flex items-center gap-2">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${autoLogin ? 'bg-[#4A6741]' : 'border-2 border-zinc-200'}`}>
-                      {autoLogin && <Check size={14} className="text-white" />}
-                    </div>
-                    <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400'}`}>로그인 유지</span>
-                  </button>
-                  
-                  {/* 핵심 수정 부분: 탭 신호를 포함한 링크 */}
-                  <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
-                    <Link href="/find-account?tab=id"><a>아이디 찾기</a></Link>
-                    <span className="text-zinc-200">|</span>
-                    <Link href="/find-account?tab=pw"><a>비밀번호 찾기</a></Link>
+              )
+            ) : (
+              <>
+                <div className="space-y-4 mb-6">
+                  <div className="relative">
+                    <input className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 shadow-sm border-none font-bold text-sm" placeholder="검색" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-300" size={20} />
+                  </div>
+                  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                    <button onClick={() => setModalType('filter_loc')} className="flex-shrink-0 px-4 py-2 bg-white rounded-full border border-zinc-100 text-[11px] font-bold flex items-center gap-1 shadow-sm text-zinc-500"><MapPin size={12} className="text-blue-400"/> {filters.location}</button>
+                    <button onClick={() => setModalType('filter_age')} className="flex-shrink-0 px-4 py-2 bg-white rounded-full border border-zinc-100 text-[11px] font-bold flex items-center gap-1 shadow-sm text-zinc-500"><UserCircle size={12} className="text-blue-400"/> {filters.age}</button>
                   </div>
                 </div>
+                <div className="space-y-1">
+                  {filteredGroups.length > 0 ? filteredGroups.map(g => <GroupCard key={g.id} group={g} mode="open" />) : <div className="text-center py-32 text-zinc-300 font-bold">오픈된 모임이 없습니다.</div>}
+                </div>
+              </>
+            )}
+            <button onClick={() => user ? setViewMode('create') : setIsLoginOpen(true)} className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50"><Plus size={28} /></button>
+          </motion.div>
+        ) : (
+          <motion.div key="create" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md space-y-5 pb-10">
+            <div className="flex justify-between items-center px-2">
+               <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>모임 개설</h3>
+               <button onClick={() => setViewMode('list')} className="w-9 h-9 flex items-center justify-center bg-white rounded-full text-zinc-400 shadow-sm"><X size={20}/></button>
+            </div>
+            <div className="bg-white rounded-[36px] p-8 shadow-sm border space-y-8 text-left">
+              <div className="flex bg-zinc-100 p-1 rounded-2xl">
+                <button onClick={() => {setType('private'); setIsSlugVerified(false);}} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'private' ? 'bg-white text-[#4A6741] shadow-sm' : 'text-zinc-400'}`}>내 모임</button>
+                <button onClick={() => {setType('open'); setIsSlugVerified(false);}} className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${type === 'open' ? 'bg-white text-[#4A6741] shadow-sm' : 'text-zinc-400'}`}>오픈 모임</button>
+              </div>
+              <div className="flex flex-col items-center">
+                <div onClick={() => fileInputRef.current?.click()} className="relative w-24 h-24 bg-zinc-50 rounded-[32px] border-2 border-dashed border-zinc-200 flex items-center justify-center cursor-pointer overflow-hidden transition-all hover:border-[#4A6741]">
+                  {formData.imageUrl ? <img src={formData.imageUrl} className="w-full h-full object-cover" /> : <Camera size={28} className="text-zinc-300" />}
+                </div>
+                <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e)=>{const f=e.target.files?.[0]; if(f) setFormData({...formData, imageUrl:URL.createObjectURL(f), imageFile:f})}} />
+                <span className="text-[11px] font-bold text-zinc-400 mt-3 text-center">대표 이미지 설정 (선택)</span>
+              </div>
+              <div className="space-y-6">
+                <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">모임 이름 *</label><input className="w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold" value={formData.name} onChange={(e)=>setFormData({...formData, name:e.target.value})} /></div>
+                <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">아이디 *</label><div className="flex gap-2"><input className="flex-1 bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.slug} onChange={(e)=>setFormData({...formData, slug:e.target.value, isSlugVerified:false})} /><button onClick={()=>{setIsSlugVerified(true); alert("확인 완료")}} className="w-20 bg-[#4A6741] text-white rounded-2xl font-bold text-xs">확인</button></div></div>
+                {type === 'private' ? (
+                  <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">유형 *</label><button onClick={()=>setModalType('category')} className="w-full bg-zinc-50 rounded-2xl p-4 flex justify-between font-bold text-zinc-800"><span>{formData.category || "선택"}</span><ChevronRight size={18}/></button></div>
+                ) : (
+                  <>
+                    <div className="space-y-1"><label className="text-[12px] font-black text-blue-500 ml-1">지역 *</label><button onClick={()=>setModalType('location')} className="w-full bg-blue-50/30 rounded-2xl p-4 flex justify-between font-bold text-zinc-800"><span>{formData.location || "선택"}</span><ChevronRight size={18}/></button></div>
+                    <div className="space-y-1"><label className="text-[12px] font-black text-blue-500 ml-1">연령대 *</label><button onClick={()=>setModalType('age')} className="w-full bg-blue-50/30 rounded-2xl p-4 flex justify-between font-bold text-zinc-800"><span>{formData.ageRange || "선택"}</span><ChevronRight size={18}/></button></div>
+                    <div className="space-y-1"><label className="text-[12px] font-black text-blue-500 ml-1">검색 키워드</label><input className="w-full bg-zinc-50 rounded-2xl p-4 font-bold" placeholder="#태그" value={formData.tags} onChange={(e)=>setFormData({...formData, tags:e.target.value})} /></div>
+                  </>
+                )}
+                <div className="space-y-1"><label className="text-[12px] font-black text-[#4A6741] ml-1">비밀번호 {type==='private'?'*':'(선택)'}</label><input className="w-full bg-zinc-50 rounded-2xl p-4 font-bold" value={formData.password} onChange={(e)=>setFormData({...formData, password:e.target.value})} /></div>
+              </div>
+              <button onClick={handleCreateSubmit} disabled={loading} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black shadow-lg">개설하기</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                {errorMsg && <p className="text-red-500 text-[12px] font-bold px-2">{errorMsg}</p>}
-
-                <button 
-                  disabled={isLoading} onClick={handleManualLogin}
-                  className="w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mt-6"
-                >
-                  {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
+      {/* --- 로그인 선택 모달 (AuthPage 방식) --- */}
+      <AnimatePresence>
+        {isLoginOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white w-full max-w-[340px] rounded-[32px] p-8 shadow-2xl flex flex-col items-center">
+              <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6 text-[#4A6741] shadow-sm"><Users size={32}/></div>
+              <h4 className="font-black text-zinc-900 mb-2 text-xl">로그인이 필요합니다</h4>
+              <p className="text-zinc-400 text-[14px] text-center mb-10 leading-relaxed font-medium">모든 기능을 이용하시려면<br/>로그인이 필요합니다.</p>
+              <div className="w-full space-y-3">
+                <button onClick={handleKakaoLogin} className="w-full h-[64px] bg-[#FEE500] text-[#191919] rounded-[20px] font-bold flex items-center justify-center gap-2 active:scale-95 transition-all text-[15px] shadow-sm">
+                  <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
                 </button>
+                <button onClick={() => { setIsLoginOpen(false); setIsManualLoginOpen(true); }} className="w-full h-[64px] bg-zinc-50 text-zinc-600 rounded-[20px] font-bold border border-zinc-100 active:scale-95 transition-all text-[15px]">
+                  아이디 로그인
+                </button>
+                <button onClick={() => setIsLoginOpen(false)} className="w-full py-3 text-zinc-300 font-bold text-[13px] mt-2">다음에 할게요</button>
               </div>
             </motion.div>
-          </>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* --- 아이디 로그인 입력 모달 (AuthPage 방식 완벽 이식) --- */}
+      <AnimatePresence>
+        {isManualLoginOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsManualLoginOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 50, opacity: 0 }} className="relative bg-white w-full max-w-[360px] rounded-[40px] p-8 shadow-2xl overflow-hidden">
+              <button onClick={() => setIsManualLoginOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500 transition-colors">
+                <X size={24}/>
+              </button>
+              
+              <h4 className="font-black text-zinc-900 text-[20px] mb-10 mt-2">아이디 로그인</h4>
+
+              <div className="space-y-4 mb-6">
+                <div className="bg-zinc-50 rounded-[24px] p-5 focus-within:ring-2 focus-within:ring-[#4A6741]/20 transition-all">
+                  <label className="block text-[11px] font-black text-[#4A6741] mb-1.5 uppercase tracking-wider">아이디</label>
+                  <input className="w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base" placeholder="아이디 입력" value={loginId} onChange={(e) => setLoginId(e.target.value)} />
+                </div>
+                <div className="bg-zinc-50 rounded-[24px] p-5 relative focus-within:ring-2 focus-within:ring-[#4A6741]/20 transition-all">
+                  <label className="block text-[11px] font-black text-[#4A6741] mb-1.5 uppercase tracking-wider">비밀번호</label>
+                  <input type={showPw ? \"text\" : \"password\"} className=\"w-full bg-transparent border-none p-0 font-bold text-zinc-900 focus:ring-0 placeholder-zinc-300 text-base\" placeholder=\"비밀번호 입력\" value={loginPw} onChange={(e) => setLoginPw(e.target.value)} />
+                  <button onClick={() => setShowPw(!showPw)} className=\"absolute right-6 bottom-6 text-zinc-300 hover:text-[#4A6741] transition-colors\">
+                    {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
+                  </button>
+                </div>
+              </div>
+
+              <div className=\"flex items-center justify-between px-1 mb-8\">
+                <button onClick={() => setAutoLogin(!autoLogin)} className=\"flex items-center gap-2 group\">
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${autoLogin ? 'bg-[#4A6741]' : 'border-2 border-zinc-200 group-hover:border-[#4A6741]'}`}>
+                    {autoLogin && <Check size={14} className=\"text-white\" />}
+                  </div>
+                  <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400 group-hover:text-[#4A6741]'}`}>로그인 유지</span>
+                </button>
+                <div className=\"flex gap-3 text-zinc-400 font-bold text-[13px]\">
+                  <Link href=\"/find-account?tab=id\"><a className=\"hover:text-zinc-600 transition-colors\">아이디 찾기</a></Link>
+                  <span className=\"text-zinc-200\">|</span>
+                  <Link href=\"/find-account?tab=pw\"><a className=\"hover:text-zinc-600 transition-colors\">비밀번호 찾기</a></Link>
+                </div>
+              </div>
+
+              {errorMsg && <p className=\"text-red-500 text-[12px] font-bold px-2 mb-4\">{errorMsg}</p>}
+
+              <button onClick={handleManualLogin} disabled={isLoading} className=\"w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mb-6\">
+                {isLoading ? <Loader2 className=\"animate-spin\" /> : \"로그인하기\"}
+              </button>
+
+              <button onClick={() => window.location.href = '#/register'} className=\"w-full text-center\">
+                <span className=\"text-zinc-400 text-[13px] font-bold border-b border-zinc-200 pb-0.5 hover:text-zinc-600 transition-all\">아직 회원이 아니신가요? 회원가입 하기</span>
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {joiningGroup && (
+          <div className=\"fixed inset-0 z-[110] flex items-center justify-center px-6\">
+            <div onClick={() => {setJoiningGroup(null); setInputPassword(\"\");}} className=\"absolute inset-0 bg-black/60 backdrop-blur-sm\" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className=\"relative bg-white w-full max-w-sm rounded-[32px] p-8 shadow-2xl\">
+              <h4 className=\"font-black text-zinc-900 mb-2 text-center text-lg\">비밀번호 입력</h4>
+              <p className=\"text-zinc-400 text-sm text-center mb-6\">모임 가입을 위해 비밀번호가 필요합니다.</p>
+              <input type=\"text\" className=\"w-full bg-zinc-50 border-none rounded-2xl p-4 font-bold text-center text-xl tracking-widest mb-4\" placeholder=\"••••\" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} autoFocus />
+              <div className=\"flex gap-3\">
+                <button onClick={() => {setJoiningGroup(null); setInputPassword(\"\");}} className=\"flex-1 py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-bold\">취소</button>
+                <button onClick={() => joinGroup(joiningGroup.id, inputPassword)} disabled={loading} className=\"flex-1 py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-lg disabled:opacity-50\">{loading ? \"처리중\" : \"확인\"}</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {modalType && (
+          <div className=\"fixed inset-0 z-[100] flex items-end justify-center px-4 pb-6\">
+            <div onClick={() => setModalType(null)} className=\"absolute inset-0 bg-black/40 backdrop-blur-sm\" />
+            <motion.div initial={{ y: \"100%\" }} animate={{ y: 0 }} exit={{ y: \"100%\" }} className=\"relative bg-white w-full max-w-md rounded-[40px] p-8 pb-14 shadow-2xl max-h-[70vh] overflow-y-auto no-scrollbar\">
+              <div className=\"grid grid-cols-2 gap-3\">
+                {(modalType.includes('loc') ? [\"전국\", \"서울\", \"경기\", \"인천\", \"부산\", \"대구\", \"광주\", \"대전\", \"울산\", \"강원\", \"충북\", \"충남\", \"전북\", \"전남\", \"경북\", \"경남\", \"제주\"] : 
+                  modalType.includes('age') ? [\"전체\", \"10대\", \"20대\", \"30대\", \"40대\", \"50대\", \"60대 이상\"] : 
+                  [\"가족\", \"교회\", \"학교\", \"직장\", \"기타\"]).map((item) => (
+                  <button key={item} onClick={() => {
+                      if(modalType === 'category') setFormData({...formData, category: item});
+                      else if(modalType === 'location') setFormData({...formData, location: item});
+                      else if(modalType === 'age') setFormData({...formData, ageRange: item});
+                      else if(modalType === 'filter_loc') setFilters({...filters, location: item});
+                      else if(modalType === 'filter_age') setFilters({...filters, age: item});
+                      setModalType(null);
+                    }} className=\"p-4 rounded-2xl font-bold bg-zinc-50 text-zinc-500 active:bg-[#4A6741] active:text-white transition-all\">{item}</button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
