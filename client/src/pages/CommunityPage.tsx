@@ -36,26 +36,17 @@ export default function CommunityPage() {
   const [inputPassword, setInputPassword] = useState("");
   const [showLoginPopup, setShowLoginPopup] = useState(false);
 
-  // 카카오 로그인 함수
+  // 카카오 로그인 핸들러 (리다이렉트는 안정적인 홈으로 유지)
   const handleKakaoLogin = async () => {
-  try {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: { 
-        // 가장 확실하게 작동했던 홈 주소로 리다이렉트
-        redirectTo: window.location.origin 
-      }
-    });
-    if (error) throw error;
-  } catch (err: any) {
-    alert("로그인 실패: " + err.message);
-  }
-};
-
-  // 일반 로그인 유도 (로그인 페이지로 이동하거나 모달 띄우기)
-  const handleEmailLogin = () => {
-    // 기존에 만드신 로그인 경로가 있다면 window.location.href = '/login' 등으로 연결 가능
-    alert("이메일 로그인 페이지로 이동합니다.");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'kakao',
+        options: { redirectTo: window.location.origin }
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      alert("카카오 로그인 실패: " + err.message);
+    }
   };
 
   useEffect(() => {
@@ -119,11 +110,13 @@ export default function CommunityPage() {
       setShowLoginPopup(true);
       return;
     }
+
     const isMember = myGroups.some(m => m.id === group.id);
     if (isMember) {
       alert(`${group.name} 모임으로 입장합니다.`);
       return;
     }
+
     if (group.password) {
       setJoiningGroup(group);
       return;
@@ -136,6 +129,7 @@ export default function CommunityPage() {
       const target = allOpenGroups.find(g => g.id === groupId);
       if (target && target.password !== password) return alert("비밀번호가 틀렸습니다.");
     }
+
     setLoading(true);
     try {
       const { error } = await supabase
@@ -222,8 +216,16 @@ export default function CommunityPage() {
                   <h3 className="font-black text-zinc-900 mb-2 text-lg">모임에 입장해보세요</h3>
                   <p className="text-zinc-400 text-sm font-medium mb-10 leading-relaxed">로그인 후 모임을 개설하거나<br/>초대받은 모임에 참여할 수 있습니다.</p>
                   <div className="space-y-3">
-                    <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all"><MessageSquare size={18} fill="currentColor"/> 카카오로 시작하기</button>
-                    <button onClick={handleEmailLogin} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">이메일 로그인</button>
+                    <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all">
+                      <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오로 시작하기
+                    </button>
+                    <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-white text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
+                      이메일 로그인
+                    </button>
+                    <div className="pt-2">
+                      <span className="text-zinc-400 text-xs font-medium">계정이 없으신가요? </span>
+                      <button onClick={() => window.location.href = '#/register'} className="text-[#4A6741] text-xs font-bold underline">회원가입</button>
+                    </div>
                   </div>
                 </motion.div>
               ) : (
@@ -316,8 +318,15 @@ export default function CommunityPage() {
               <h4 className="font-black text-zinc-900 mb-2 text-lg">로그인이 필요합니다</h4>
               <p className="text-zinc-400 text-sm mb-8 leading-relaxed">로그인 후 자유롭게 모임에 가입하고<br/>대화에 참여하실 수 있습니다.</p>
               <div className="space-y-3">
-                <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all"><MessageSquare size={18} fill="currentColor"/> 카카오 로그인</button>
-                <button onClick={handleEmailLogin} className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">일반 로그인</button>
+                <button onClick={handleKakaoLogin} className="w-full py-4 bg-[#FEE500] text-[#191919] rounded-2xl font-bold flex items-center justify-center gap-2 active:scale-95 transition-all">
+                  <MessageSquare size={18} fill="currentColor" stroke="none"/> 카카오 로그인
+                </button>
+                <button onClick={() => window.location.href = '#/login'} className="w-full py-4 bg-zinc-50 text-zinc-600 rounded-2xl font-bold border border-zinc-100 active:scale-95 transition-all">
+                  일반 로그인
+                </button>
+                <div className="pt-1">
+                  <button onClick={() => window.location.href = '#/register'} className="text-zinc-400 text-[11px] font-medium underline">회원가입하기</button>
+                </div>
                 <button onClick={() => setShowLoginPopup(false)} className="w-full py-3 text-zinc-300 font-bold text-sm mt-2">다음에 할게요</button>
               </div>
             </motion.div>
