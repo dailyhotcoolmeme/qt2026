@@ -11,7 +11,7 @@ import DailyWordPage from "./pages/DailyWordPage";
 import QTPage from "./pages/QTPage";
 import ReadingPage from "./pages/ReadingPage";
 import CommunityPage from "./pages/CommunityPage";
-[span_5](start_span)// [추가] 모임 대시보드 페이지 임포트[span_5](end_span)
+// [추가] 모임 대시보드 페이지 임포트
 import GroupDashboard from "./pages/GroupDashboard"; 
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
@@ -46,7 +46,7 @@ function AppContent() {
                   <Route path="/qt" component={QTPage} />
                   <Route path="/reading" component={ReadingPage} />
                   <Route path="/community" component={CommunityPage} />
-                  [span_6](start_span){/* [추가] 그룹 대시보드 라우터 경로 추가[span_6](end_span) */}
+                  {/* [추가] 마스터 설계도 1단계: 그룹 대시보드 경로 연결 */}
                   <Route path="/group/:id" component={GroupDashboard} />
                   <Route path="/archive" component={ArchivePage} />
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
@@ -65,6 +65,7 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
+    // 1. 카카오 로그인 특유의 /#/# 버그 수정
     const fixKakaoHash = () => {
       const href = window.location.href;
       if (href.includes("/#/#")) {
@@ -74,6 +75,7 @@ export default function App() {
       }
     };
 
+    // 2. 약관 동의 내역 자동 저장 로직
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -95,6 +97,7 @@ export default function App() {
     fixKakaoHash();
     syncAgreements();
 
+    // 인증 상태 변화 리스너
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
         syncAgreements();
