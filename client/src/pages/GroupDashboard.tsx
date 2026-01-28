@@ -5,13 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
-// 분리된 컴포넌트 임포트 (곧 만들 예정입니다)
-import GroupHome from "../components/group/GroupHome";
+// 분리될 컴포넌트들 (파일을 생성하기 전까지는 아래 하단에 정의된 더미를 사용합니다)
 import GroupIntercession from "../components/group/GroupIntercession";
-import GroupGrowth from "../components/group/GroupGrowth";
-import GroupSocial from "../components/group/GroupSocial";
 
 type GroupRole = 'owner' | 'leader' | 'member' | 'guest';
+
+// --- 아직 파일로 만들지 않은 임시 더미 컴포넌트들 ---
+const GroupHome = ({ group }: any) => (
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left">
+    <div className="bg-[#F1F3F0] rounded-[28px] p-6 border border-[#E2E6E1]">
+      <h3 className="font-black text-[#4A6741] mb-2">모임 공지</h3>
+      <p className="text-sm font-bold text-zinc-800">{group?.description || "등록된 공지가 없습니다."}</p>
+    </div>
+  </motion.div>
+);
+const GroupGrowth = () => <div className="py-20 text-center text-zinc-400 font-bold">신앙생활 모듈 준비 중</div>;
+const GroupSocial = () => <div className="py-20 text-center text-zinc-400 font-bold">교제나눔 모듈 준비 중</div>;
 
 export default function GroupDashboard() {
   const [, params] = useRoute("/group/:id");
@@ -43,17 +52,17 @@ export default function GroupDashboard() {
         }
       }
     } catch (err) {
+      console.error(err);
       setLocation("/community");
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-8 h-8 border-4 border-[#4A6741] border-t-transparent rounded-full" /></div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-white"><div className="w-8 h-8 border-4 border-[#4A6741] border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#FDFDFD] pb-32">
-      {/* 배너 및 상단 바 (공통) */}
       <div className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 h-16 pointer-events-none">
         <button onClick={() => setLocation("/community")} className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white pointer-events-auto"><ChevronLeft size={24} /></button>
         <div className="flex gap-2 pointer-events-auto">
@@ -70,7 +79,6 @@ export default function GroupDashboard() {
         </div>
       </div>
 
-      {/* 스티키 탭 (공통) */}
       <div className="sticky top-0 z-[90] bg-white border-b border-zinc-100 flex px-2 overflow-x-auto no-scrollbar shadow-sm">
         {[
           { id: 'home', label: '홈', icon: <Home size={18}/> },
@@ -85,13 +93,12 @@ export default function GroupDashboard() {
         ))}
       </div>
 
-      {/* 컨텐츠 분기 (컴포넌트 조립) */}
       <main className="flex-1 p-5">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && <GroupHome key="home" group={group} role={role} />}
           {activeTab === 'intercession' && <GroupIntercession key="inter" groupId={group.id} role={role} />}
-          {activeTab === 'growth' && <GroupGrowth key="growth" groupId={group.id} role={role} />}
-          {activeTab === 'social' && <GroupSocial key="social" groupId={group.id} role={role} />}
+          {activeTab === 'growth' && <GroupGrowth key="growth" />}
+          {activeTab === 'social' && <GroupSocial key="social" />}
         </AnimatePresence>
       </main>
     </div>
