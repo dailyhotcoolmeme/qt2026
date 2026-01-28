@@ -31,23 +31,22 @@ function AppContent() {
         <Switch>
           <Route path="/terms/:type" component={TermsPage} />
           <Route path="/auth" component={AuthPage} />
+          <Route path="/login" component={LoginPage} />
+          <Route path="/register" component={RegisterPage} />
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
-
           <Route>
             <Layout>
               <TopBar />
-              <main className="flex-1 flex flex-col relative overflow-hidden">
-                <Switch> 
+              <main className="flex-1 overflow-y-auto no-scrollbar">
+                <Switch>
                   <Route path="/" component={DailyWordPage} />
                   <Route path="/qt" component={QTPage} />
                   <Route path="/reading" component={ReadingPage} />
                   <Route path="/community" component={CommunityPage} />
                   <Route path="/archive" component={ArchivePage} />
-                  <Route path="/login" component={LoginPage} />
+                  <Route path="/bible/:book/:chapter" component={BibleViewPage} />
                   <Route path="/search" component={SearchPage} />
-                  <Route path="/register" component={RegisterPage} />
-                  <Route path="/view/:bookId/:chapter" component={BibleViewPage} />
                   <Route component={NotFound} />
                 </Switch>
               </main>
@@ -62,13 +61,13 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    // 1. 카카오 로그인 특유의 /#/# 버그 수정 (유지)
+    // 1. 카카오 로그인 특유의 /#/# 버그 수정 (새로고침 로직 제거)
     const fixKakaoHash = () => {
       const href = window.location.href;
       if (href.includes("/#/#")) {
+        // 주소창에서 잘못된 해시만 변경하고 새로고침은 하지 않습니다.
         const newHref = href.replace("/#/#", "/#/");
         window.history.replaceState(null, "", newHref);
-        setTimeout(() => window.location.reload(), 300);
       }
     };
 
@@ -94,7 +93,16 @@ export default function App() {
     fixKakaoHash();
     syncAgreements();
 
-    // 기존의 복잡한 checkAuthRedirect 및 PASSWORD_RECOVERY 이벤트 감시는 삭제했습니다.
+    // 인증 상태 변화 리스너
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        syncAgreements();
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   return (
