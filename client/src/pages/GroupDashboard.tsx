@@ -174,9 +174,9 @@ export default function GroupDashboard() {
       <main className="flex-1 p-5 max-w-2xl mx-auto w-full">
         <AnimatePresence mode="wait">
           {activeTab === 'home' && <GroupHome key="home" group={group} role={role} />}
-          {activeTab === 'intercession' && <GroupIntercession key="inter" groupId={group.id} role={role} />}
-          {activeTab === 'growth' && <GroupGrowth key="growth" groupId={group.id} role={role} />}
-          {activeTab === 'social' && <GroupSocial key="social" groupId={group.id} role={role} />}
+          {/activeTab === 'intercession' && <GroupIntercession key="inter" groupId={group.id} role={role} />*/}
+          {/activeTab === 'growth' && <GroupGrowth key="growth" groupId={group.id} role={role} />*/}
+          {/activeTab === 'social' && <GroupSocial key="social" groupId={group.id} role={role} />*/}
         </AnimatePresence>
       </main>
     </div>
