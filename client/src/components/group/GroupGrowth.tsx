@@ -2,20 +2,19 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, Mic, Calendar as CalIcon, BarChart3, 
-  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle2 
-} from "lucide-react"; 
-/* ✅ PrayingHand 대신 가장 안전한 'Users' 아이콘을 사용했습니다. */
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle
+} from "lucide-react";
 
 export default function GroupGrowth({ groupId, role }: any) {
   const [checked, setChecked] = useState<string[]>([]);
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [showBibleReader, setShowBibleReader] = useState(false);
 
-  // ✅ I항목: 주간 미션 데이터 (아이콘을 검증된 'Users'로 변경)
+  // ✅ I항목: 주간 미션 데이터 (검색 확인된 Users, CheckCircle 사용)
   const [missions] = useState([
     { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
-    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Users size={18} /> }, 
-    { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle2 size={18} /> },
+    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Users size={18} /> },
+    { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle size={18} /> },
   ]);
 
   const toggleCheck = (id: string) => {
@@ -36,10 +35,10 @@ export default function GroupGrowth({ groupId, role }: any) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-20">
       
-      {/* 1. 상단 성취 요약 (원본 보존) */}
+      {/* 1. 상단 성취 요약 */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="relative w-20 h-20 mb-3">
+        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden text-center">
+          <div className="relative w-20 h-20 mb-3 mx-auto">
             <svg className="w-full h-full transform -rotate-90">
               <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-zinc-100" />
               <motion.circle 
@@ -75,7 +74,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* ✅ I항목: 주간 공동체 미션 섹션 (원본 보존하며 추가) */}
+      {/* I항목: 주간 공동체 미션 섹션 */}
       <section className="space-y-4">
         <h4 className="font-black text-zinc-900 text-sm px-1">주간 공동체 미션</h4>
         <div className="space-y-3">
@@ -88,11 +87,11 @@ export default function GroupGrowth({ groupId, role }: any) {
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isCompleted ? 'bg-[#4A6741] text-white' : 'bg-zinc-50 text-zinc-400'}`}>
                     {mission.icon}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 text-left">
                     <div className="text-[13px] font-black text-zinc-800">{mission.title}</div>
                     <div className="text-[10px] font-bold text-zinc-400">{mission.count}/{mission.total} 완료</div>
                   </div>
-                  <CheckCircle2 size={20} className={isCompleted ? "text-[#4A6741]" : "text-zinc-200"} />
+                  <CheckCircle size={20} className={isCompleted ? "text-[#4A6741]" : "text-zinc-200"} />
                 </div>
                 <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
                   <motion.div initial={{ width: 0 }} animate={{ width: `${missionProgress}%` }} className={`h-full ${isCompleted ? 'bg-[#4A6741]' : 'bg-zinc-300'}`} />
@@ -103,7 +102,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </section>
 
-      {/* 2. 개인 경건 훈련 리스트 (원본 보존) */}
+      {/* 2. 개인 경건 훈련 리스트 */}
       <div className="bg-white rounded-[35px] p-8 shadow-sm border border-zinc-100">
         <div className="flex justify-between items-center mb-8">
           <div>
@@ -114,7 +113,6 @@ export default function GroupGrowth({ groupId, role }: any) {
             <CalIcon size={20} />
           </div>
         </div>
-        
         <div className="space-y-5">
           {[
             { id: 'bible', label: '성경 읽기 (3장)', sub: '마태복음 5-7장' },
@@ -150,7 +148,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* 통계 섹션 (원본 보존) */}
+      {/* 3. 하단 통계 */}
       <div className="bg-zinc-900 rounded-[30px] p-6 text-white flex justify-between items-center overflow-hidden relative">
         <div className="relative z-10 text-left">
           <div className="text-[10px] font-black text-white/40 uppercase mb-1">Community Stats</div>
@@ -159,7 +157,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         <BarChart3 className="absolute right-[-10px] bottom-[-10px] w-20 h-20 text-white/5" />
       </div>
 
-      {/* 성경 읽기 모달 (원본 보존) */}
+      {/* --- 생략 없이 제공하는 모달 로직 --- */}
       <AnimatePresence>
         {showBibleReader && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed inset-0 z-[200] bg-white p-6 pt-20">
@@ -183,7 +181,6 @@ export default function GroupGrowth({ groupId, role }: any) {
         )}
       </AnimatePresence>
 
-      {/* 음성 기록 모달 (원본 보존) */}
       <AnimatePresence>
         {activeRecording && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-x-4 bottom-24 z-[110] bg-white rounded-[35px] p-8 shadow-2xl border border-zinc-100">
