@@ -2,18 +2,18 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, Mic, Calendar as CalIcon, BarChart3, 
-  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Hand, CheckCircle2 
-} from "lucide-react"; // ✅ PrayingHand를 Hand로 교체하여 빌드 오류 해결
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, HandsPraying, CheckCircle2 
+} from "lucide-react"; // ✅ PrayingHand를 HandsPraying으로 확실히 수정
 
 export default function GroupGrowth({ groupId, role }: any) {
   const [checked, setChecked] = useState<string[]>([]);
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [showBibleReader, setShowBibleReader] = useState(false);
 
-  // ✅ I항목: 주간 미션 데이터 (PrayingHand -> Hand로 변경)
+  // ✅ I항목: 주간 미션 데이터 (아이콘 명칭 HandsPraying으로 수정)
   const [missions] = useState([
     { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
-    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Hand size={18} /> }, // 수정됨
+    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <HandsPraying size={18} /> }, // ✅ 수정완료
     { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle2 size={18} /> },
   ]);
 
@@ -74,7 +74,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* I항목: 주간 공동체 미션 섹션 */}
+      {/* ✅ I항목: 주간 공동체 미션 섹션 (원본 보존하며 추가) */}
       <section className="space-y-4">
         <h4 className="font-black text-zinc-900 text-sm px-1">주간 공동체 미션</h4>
         <div className="space-y-3">
