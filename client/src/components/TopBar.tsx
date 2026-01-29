@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
+import { Link } from "wouter";
 
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -126,6 +127,11 @@ export function TopBar() {
                 <span className="text-[10px] font-medium opacity-70">음성 기록 무제한 보관</span>
               </div>
             </button>
+            
+            {/* 내 기록함 이동 추가 */}
+            <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
+              <SidebarItem icon={<Lock className="w-5 h-5" />} label="내 기록함" />
+            </Link>
             
             <SidebarItem icon={<Settings className="w-5 h-5" />} label="서비스 설정" />
             <SidebarItem icon={<MessageCircle className="w-5 h-5" />} label="공지사항" />

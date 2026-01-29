@@ -238,10 +238,10 @@ export default function DailyWordPage() {
 </header>
 
       {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
-<div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
+      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
   
   {/* 왼쪽 힌트 카드 (어제) */}
-<div className="absolute left-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+<div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
   
   <AnimatePresence mode="wait">
     <motion.div 
@@ -270,24 +270,23 @@ export default function DailyWordPage() {
   </AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일) */}
-<div className="absolute right-[-75%] w-[80%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-</div>
+<div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+      </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-      <div className="flex items-center gap-8 mt-3 mb-14"> 
-        <button 
-  onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-  className="flex flex-col items-center gap-1.5 text-zinc-400">
-  <Headphones size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
-</button>
+  <div className="flex items-center gap-8 mt-3 mb-14"> 
+    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+              className="flex flex-col items-center gap-1.5 text-zinc-400">
+      <Headphones size={22} strokeWidth={1.5} />
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+    </button>
 
-        <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
-        </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
-      </div>
+    <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
+      <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+    </button>
+    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+  </div>
 
       {/* 4. 아멘 버튼 (동그란 원형 복구) */}
       <div className="flex flex-col items-center gap-3 pb-4">

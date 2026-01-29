@@ -22,9 +22,11 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage"; 
 import NotFound from "./pages/not-found";
+import PrayerPage from "./pages/PrayerPage";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
+
 
 function AppContent() {
   return (
@@ -44,6 +46,7 @@ function AppContent() {
                 <Switch>
                   <Route path="/" component={DailyWordPage} />
                   <Route path="/qt" component={QTPage} />
+                  <Route path="/prayer" component={PrayerPage} />
                   <Route path="/reading" component={ReadingPage} />
                   <Route path="/community" component={CommunityPage} />
                   {/* [추가] 마스터 설계도 1단계: 그룹 대시보드 경로 연결 */}

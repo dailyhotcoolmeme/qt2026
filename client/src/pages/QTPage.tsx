@@ -105,14 +105,15 @@ export default function QTPage() {
     <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] overflow-x-hidden pt-24 pb-32 no-scrollbar">
       
       {/* 1. 날짜 헤더 (DailyWord 스타일) */}
-      <header className="text-center mb-10 flex flex-col items-center relative z-20">
+      <header className="text-center mb-3 flex flex-col items-center relative">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
         <div className="flex items-center gap-2">
-          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.3}px` }}>
+          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
+          {/* 달력 버튼 */}
           <button onClick={() => dateInputRef.current?.showPicker()} className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-90 transition-transform">
             <CalendarIcon size={18} strokeWidth={2.5} />
           </button>
