@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { ChevronLeft, Settings, Share2, Users, Home, Mic, CheckCircle2, MessageCircle, ChevronRight, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
@@ -61,31 +61,13 @@ export default function GroupDashboard() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#FDFDFD] pb-32 text-left">
-      <motion.div 
-        style={{ backgroundColor: headerBg }}
-        className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 h-16"
-      >
-        <motion.button 
-          style={{ backgroundColor: iconBg, color: iconColor }}
-          onClick={() => setLocation("/community")} 
-          className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md"
-        >
-          <ChevronLeft size={24} />
-        </motion.button>
-        <motion.span 
-          style={{ opacity: useTransform(scrollY, [130, 160], [0, 1]) }}
-          className="absolute left-1/2 -translate-x-1/2 font-black text-sm text-zinc-800"
-        >
-          {group?.name}
-        </motion.span>
+      <motion.div style={{ backgroundColor: headerBg }} className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 h-16">
+        <motion.button style={{ backgroundColor: iconBg, color: iconColor }} onClick={() => setLocation("/community")} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all active:scale-90"><ChevronLeft size={24} /></motion.button>
+        <motion.span style={{ opacity: useTransform(scrollY, [130, 160], [0, 1]) }} className="absolute left-1/2 -translate-x-1/2 font-black text-sm text-zinc-800">{group?.name}</motion.span>
         <div className="flex gap-2">
-          <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md">
-            <Share2 size={18} />
-          </motion.button>
+          <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md active:scale-90 transition-all"><Share2 size={18} /></motion.button>
           {(role === 'owner' || role === 'leader') && (
-            <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md">
-              <Settings size={18} />
-            </motion.button>
+            <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md active:scale-90 transition-all"><Settings size={18} /></motion.button>
           )}
         </div>
       </motion.div>
@@ -95,26 +77,17 @@ export default function GroupDashboard() {
           {group?.group_image ? (
             <img src={group.group_image} className="w-full h-full object-cover" alt="Banner" />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#4A6741] to-[#2D3E27] flex items-center justify-center opacity-40">
-              <Users size={80} className="text-white" />
-            </div>
+            <div className="w-full h-full bg-gradient-to-br from-[#4A6741] to-[#2D3E27] flex items-center justify-center opacity-40"><Users size={80} className="text-white" /></div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-[#FDFDFD] via-black/10 to-black/30" />
         </motion.div>
-
         <div className="absolute bottom-10 left-6 right-6">
           <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[10px] font-black text-white/60 uppercase flex items-center gap-1">
-              <LayoutGrid size={10} /> {group?.location || "Global"}
-            </span>
+            <span className="text-[10px] font-black text-white/60 uppercase flex items-center gap-1"><LayoutGrid size={10} /> {group?.location || "Global"}</span>
             <ChevronRight size={10} className="text-white/40" />
-            <span className="text-[10px] font-black text-[#4A6741] bg-white/90 px-2 py-0.5 rounded-full">
-              {group?.category || "모임"}
-            </span>
+            <span className="text-[10px] font-black text-[#4A6741] bg-white/90 px-2 py-0.5 rounded-full shadow-sm">{group?.category || "모임"}</span>
           </div>
-          <h1 className="font-black leading-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.8}px` }}>
-            {group?.name}
-          </h1>
+          <h1 className="font-black leading-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.8}px` }}>{group?.name}</h1>
           <p className="text-zinc-500 text-xs font-bold mt-1 line-clamp-1">{group?.description}</p>
         </div>
       </div>
@@ -126,18 +99,10 @@ export default function GroupDashboard() {
           { id: 'growth', label: '신앙생활', icon: <CheckCircle2 size={18}/> },
           { id: 'social', label: '교제나눔', icon: <MessageCircle size={18}/> }
         ].map((tab) => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`flex-1 min-w-[85px] py-4 flex flex-col items-center gap-1.5 relative transition-all ${
-              activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-400 font-bold'
-            }`}
-          >
-            {tab.icon}
+          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 min-w-[85px] py-4 flex flex-col items-center gap-1.5 relative transition-all ${activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-400 font-bold'}`}>
+            <span className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'scale-100 opacity-60'}`}>{tab.icon}</span>
             <span className="text-[11px] uppercase tracking-tight">{tab.label}</span>
-            {activeTab === tab.id && (
-              <motion.div layoutId="activeTabBar" className="absolute bottom-0 left-4 right-4 h-0.5 bg-[#4A6741] rounded-full" />
-            )}
+            {activeTab === tab.id && <motion.div layoutId="activeTabBar" className="absolute bottom-0 left-4 right-4 h-0.5 bg-[#4A6741] rounded-full" />}
           </button>
         ))}
       </div>
