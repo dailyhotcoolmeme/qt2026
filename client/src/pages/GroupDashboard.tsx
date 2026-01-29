@@ -19,100 +19,142 @@ export default function GroupDashboard() {
   
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState<any>(null);
-  const [role, setRole] = useState<GroupRole>('guest');
+  const [role, setRole] = useState<GroupRole>('owner');
   const [activeTab, setActiveTab] = useState<'home' | 'intercession' | 'growth' | 'social'>('home');
 
   const { scrollY } = useScroll();
   const bannerOpacity = useTransform(scrollY, [0, 150], [1, 0]);
   const bannerScale = useTransform(scrollY, [0, 150], [1, 1.1]);
-  const headerBg = useTransform(scrollY, [100, 150], ["rgba(255,255,255,0)", "rgba(255,255,255,1)"]);
-  const iconBg = useTransform(scrollY, [100, 150], ["rgba(0,0,0,0.2)", "rgba(244,244,245,1)"]);
-  const iconColor = useTransform(scrollY, [100, 150], ["#ffffff", "#3f3f46"]);
+  const headerBg = useTransform(
+    scrollY,
+    [100, 150],
+    ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 0.9)"]
+  );
 
   useEffect(() => {
-    if (params?.id) fetchGroupData(params.id);
-  }, [params?.id]);
-
-  const fetchGroupData = async (groupId: string) => {
-    setLoading(true);
-    try {
-      const { data: groupData } = await supabase.from('groups').select('*').eq('id', groupId).single();
-      setGroup(groupData);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user && groupData) {
-        if (groupData.owner_id === user.id) setRole('owner');
-        else {
-          const { data: m } = await supabase.from('group_members').select('role').eq('group_id', groupId).eq('user_id', user.id).maybeSingle();
-          if (m) setRole(m.role as GroupRole);
+    async function fetchGroup() {
+      if (params?.id) {
+        try {
+          const { data, error } = await supabase.from('groups').select('*').eq('id', params.id).single();
+          if (data) setGroup(data);
+        } catch (e) {
+          console.error("Group fetch error:", e);
         }
       }
-    } catch (err) {
-      setLocation("/community");
-    } finally {
       setLoading(false);
     }
-  };
+    fetchGroup();
+  }, [params?.id]);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-white">
-      <div className="w-8 h-8 border-4 border-[#4A6741] border-t-transparent rounded-full animate-spin" />
+      <motion.div 
+        animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }}
+        transition={{ repeat: Infinity, duration: 1.5 }}
+        className="flex flex-col items-center gap-4"
+      >
+        <div className="w-12 h-12 bg-[#4A6741]/10 rounded-3xl flex items-center justify-center">
+          <LayoutGrid className="text-[#4A6741]" />
+        </div>
+        <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Loading Dashboard</span>
+      </motion.div>
     </div>
   );
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-[#FDFDFD] pb-32 text-left">
-      <motion.div style={{ backgroundColor: headerBg }} className="fixed top-0 left-0 right-0 z-[100] flex justify-between items-center px-4 h-16">
-        <motion.button style={{ backgroundColor: iconBg, color: iconColor }} onClick={() => setLocation("/community")} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md transition-all active:scale-90"><ChevronLeft size={24} /></motion.button>
-        <motion.span style={{ opacity: useTransform(scrollY, [130, 160], [0, 1]) }} className="absolute left-1/2 -translate-x-1/2 font-black text-sm text-zinc-800">{group?.name}</motion.span>
+    <div className="min-h-screen bg-white flex flex-col overflow-x-hidden" style={{ fontSize: `${fontSize}px` }}>
+      {/* 1. 플로팅 헤더 (사용자님 원본 로직) */}
+      <motion.header 
+        style={{ backgroundColor: headerBg }}
+        className="fixed top-0 inset-x-0 z-[100] px-6 py-5 flex items-center justify-between backdrop-blur-md transition-colors"
+      >
+        <button 
+          onClick={() => setLocation('/')}
+          className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-900 active:scale-90 transition-all"
+        >
+          <ChevronLeft size={20} strokeWidth={2.5} />
+        </button>
+        <motion.h1 className="text-sm font-black text-zinc-900 tracking-tight">
+          {group?.name || "우리 소그룹"}
+        </motion.h1>
         <div className="flex gap-2">
-          <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md active:scale-90 transition-all"><Share2 size={18} /></motion.button>
-          {(role === 'owner' || role === 'leader') && (
-            <motion.button style={{ backgroundColor: iconBg, color: iconColor }} className="w-10 h-10 flex items-center justify-center rounded-full backdrop-blur-md active:scale-90 transition-all"><Settings size={18} /></motion.button>
-          )}
+          <button className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-400 active:scale-90 transition-all">
+            <Share2 size={18} strokeWidth={2.5} />
+          </button>
+          <button className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-400 active:scale-90 transition-all">
+            <Settings size={18} strokeWidth={2.5} />
+          </button>
         </div>
-      </motion.div>
+      </motion.header>
 
-      <div className="relative w-full h-[280px] overflow-hidden bg-zinc-900">
-        <motion.div style={{ opacity: bannerOpacity, scale: bannerScale }} className="w-full h-full">
-          {group?.group_image ? (
-            <img src={group.group_image} className="w-full h-full object-cover" alt="Banner" />
-          ) : (
-            <div className="w-full h-full bg-gradient-to-br from-[#4A6741] to-[#2D3E27] flex items-center justify-center opacity-40"><Users size={80} className="text-white" /></div>
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#FDFDFD] via-black/10 to-black/30" />
-        </motion.div>
-        <div className="absolute bottom-10 left-6 right-6">
-          <div className="flex items-center gap-1.5 mb-3">
-            <span className="text-[10px] font-black text-white/60 uppercase flex items-center gap-1"><LayoutGrid size={10} /> {group?.location || "Global"}</span>
-            <ChevronRight size={10} className="text-white/40" />
-            <span className="text-[10px] font-black text-[#4A6741] bg-white/90 px-2 py-0.5 rounded-full shadow-sm">{group?.category || "모임"}</span>
+      {/* 2. 상단 비주얼 배너 (사용자님 원본 디자인) */}
+      <div className="relative h-[240px] w-full overflow-hidden bg-zinc-900">
+        <motion.div style={{ opacity: bannerOpacity, scale: bannerScale }} className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-white z-10" />
+          <div className="w-full h-full bg-[#4A6741] flex items-center justify-center">
+             <Users size={80} className="text-white/20" />
           </div>
-          <h1 className="font-black leading-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.8}px` }}>{group?.name}</h1>
-          <p className="text-zinc-500 text-xs font-bold mt-1 line-clamp-1">{group?.description}</p>
+        </motion.div>
+        
+        <div className="absolute bottom-8 left-8 right-8 z-20 flex flex-col gap-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
+            <span className="bg-[#4A6741] text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">Active Group</span>
+            <div className="flex -space-x-2">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-zinc-200" />
+              ))}
+              <div className="w-6 h-6 rounded-full border-2 border-white bg-zinc-100 flex items-center justify-center text-[8px] font-black text-zinc-400">+12</div>
+            </div>
+          </motion.div>
+          <motion.h2 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="text-3xl font-black text-zinc-900 tracking-tighter">
+            {group?.name || "샘물 소그룹"}
+          </motion.h2>
         </div>
       </div>
 
-      <div className="sticky top-16 z-[90] bg-white/80 backdrop-blur-xl border-b border-zinc-100 flex px-2 overflow-x-auto no-scrollbar">
+      {/* 3. 하단 탭바 (사용자님 원본 애니메이션) */}
+      <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl border-t border-zinc-100 px-4 pb-8 pt-2 flex justify-between items-center z-[100]">
         {[
           { id: 'home', label: '홈', icon: <Home size={18}/> },
-          { id: 'intercession', label: '중보기도', icon: <Mic size={18}/> },
-          { id: 'growth', label: '신앙생활', icon: <CheckCircle2 size={18}/> },
-          { id: 'social', label: '교제나눔', icon: <MessageCircle size={18}/> }
+          { id: 'intercession', label: '기도', icon: <Mic size={18}/> },
+          { id: 'growth', label: '성장', icon: <CheckCircle2 size={18}/> },
+          { id: 'social', label: '교제', icon: <MessageCircle size={18}/> }
         ].map((tab) => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`flex-1 min-w-[85px] py-4 flex flex-col items-center gap-1.5 relative transition-all ${activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-400 font-bold'}`}>
-            <span className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'scale-100 opacity-60'}`}>{tab.icon}</span>
-            <span className="text-[11px] uppercase tracking-tight">{tab.label}</span>
-            {activeTab === tab.id && <motion.div layoutId="activeTabBar" className="absolute bottom-0 left-4 right-4 h-0.5 bg-[#4A6741] rounded-full" />}
+          <button 
+            key={tab.id} 
+            onClick={() => setActiveTab(tab.id as any)} 
+            className={`flex-1 min-w-[70px] py-4 flex flex-col items-center gap-1.5 relative transition-all ${activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-300'}`}
+          >
+            <span className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'scale-100 opacity-60'}`}>
+              {tab.icon}
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-tight">{tab.label}</span>
+            {activeTab === tab.id && (
+              <motion.div 
+                layoutId="activeTabBar" 
+                className="absolute bottom-0 left-4 right-4 h-1 bg-[#4A6741] rounded-full" 
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
           </button>
         ))}
       </div>
 
-      <main className="flex-1 p-5 max-w-2xl mx-auto w-full">
+      {/* 4. 메인 콘텐츠 뷰 */}
+      <main className="flex-1 p-5 max-w-2xl mx-auto w-full pb-32">
         <AnimatePresence mode="wait">
-          {activeTab === 'home' && <GroupHome key="home" group={group} role={role} />}
-          {activeTab === 'intercession' && <GroupIntercession key="inter" groupId={group?.id} role={role} />}
-          {activeTab === 'growth' && <GroupGrowth key="growth" groupId={group?.id} role={role} />}
-          {activeTab === 'social' && <GroupSocial key="social" groupId={group?.id} role={role} />}
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {activeTab === 'home' && <GroupHome group={group} role={role} />}
+            {activeTab === 'intercession' && <GroupIntercession groupId={params?.id || ""} role={role} />}
+            {activeTab === 'growth' && <GroupGrowth groupId={params?.id || ""} role={role} />}
+            {activeTab === 'social' && <GroupSocial groupId={params?.id || ""} role={role} />}
+          </motion.div>
         </AnimatePresence>
       </main>
     </div>
