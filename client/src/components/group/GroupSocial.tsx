@@ -1,167 +1,201 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Image as ImageIcon, MoreHorizontal, Heart, MessageCircle, 
-  Send, Bookmark, Share2, Sparkles, Megaphone, ChevronRight, X 
-} from "lucide-react";
+  Check, Mic, Calendar as CalIcon, BarChart3, 
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Hand, CheckCircle2 
+} from "lucide-react"; // ✅ PrayingHand를 Hand로 교체하여 빌드 오류 해결
 
-export default function GroupSocial({ groupId, role }: any) {
-  const [selectedPost, setSelectedPost] = useState<any>(null);
+export default function GroupGrowth({ groupId, role }: any) {
+  const [checked, setChecked] = useState<string[]>([]);
+  const [activeRecording, setActiveRecording] = useState<string | null>(null);
+  const [showBibleReader, setShowBibleReader] = useState(false);
+
+  // ✅ I항목: 주간 미션 데이터 (PrayingHand -> Hand로 변경)
+  const [missions] = useState([
+    { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
+    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Hand size={18} /> }, // 수정됨
+    { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle2 size={18} /> },
+  ]);
+
+  const toggleCheck = (id: string) => {
+    setChecked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const progress = (checked.length / 3) * 100;
+
+  const todayPassage = {
+    ref: "마태복음 5:3-10",
+    verses: [
+      { no: 3, text: "심령이 가난한 자는 복이 있나니 천국이 그들의 것임이요" },
+      { no: 4, text: "애통하는 자는 복이 있나니 그들이 위로를 받을 것임이요" },
+      { no: 5, text: "온유한 자는 복이 있나니 그들이 땅을 기업으로 받을 것임이요" }
+    ]
+  };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-32">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-20">
       
-      {/* 1. 상단 하이라이트 공지 (Horizontal Scroll) */}
-      <div className="relative">
-        <div className="flex items-center justify-between px-1 mb-3">
-          <h4 className="font-black text-xs text-zinc-900 flex items-center gap-1.5">
-            <Megaphone size={14} className="text-[#4A6741]" /> 필독 공지
-          </h4>
-          <button className="text-[10px] font-black text-zinc-400 flex items-center">전체보기 <ChevronRight size={10}/></button>
+      {/* 1. 상단 성취 요약 (원본 보존) */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="relative w-20 h-20 mb-3">
+            <svg className="w-full h-full transform -rotate-90">
+              <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-zinc-100" />
+              <motion.circle 
+                cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="8" fill="transparent" 
+                strokeDasharray={213.6}
+                initial={{ strokeDashoffset: 213.6 }}
+                animate={{ strokeDashoffset: 213.6 - (213.6 * progress) / 100 }}
+                className="text-[#4A6741]"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-black text-zinc-800">{Math.round(progress)}%</span>
+            </div>
+          </div>
+          <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">오늘의 달성률</div>
         </div>
-        <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="min-w-[280px] bg-[#4A6741] rounded-[24px] p-5 text-white shadow-lg shadow-[#4A6741]/20 relative overflow-hidden">
-              <Sparkles className="absolute right-[-10px] top-[-10px] w-16 h-16 text-white/10" />
-              <div className="bg-white/20 w-fit px-2 py-0.5 rounded-full text-[9px] font-black mb-2 uppercase tracking-widest">Notice</div>
-              <p className="text-sm font-bold leading-snug line-clamp-2">이번 주 토요일 소그룹 아웃리치 장소가 변경되었습니다. 공지 확인 필수!</p>
+
+        <div className="space-y-3">
+          <div className="bg-[#4A6741] rounded-[24px] p-4 text-white shadow-lg shadow-[#4A6741]/20 flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-xl"><Flame size={18} className="text-orange-300" /></div>
+            <div>
+              <div className="text-[10px] font-bold opacity-70">연속 기록</div>
+              <div className="text-sm font-black">12일 달성 중</div>
+            </div>
+          </div>
+          <div className="bg-white rounded-[24px] p-4 border border-zinc-100 flex items-center gap-3">
+            <div className="bg-zinc-50 p-2 rounded-xl"><Trophy size={18} className="text-amber-400" /></div>
+            <div>
+              <div className="text-[10px] font-bold text-zinc-400">그룹 내 순위</div>
+              <div className="text-sm font-black text-zinc-800">상위 5%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* I항목: 주간 공동체 미션 섹션 */}
+      <section className="space-y-4">
+        <h4 className="font-black text-zinc-900 text-sm px-1">주간 공동체 미션</h4>
+        <div className="space-y-3">
+          {missions.map((mission) => {
+            const missionProgress = (mission.count / mission.total) * 100;
+            const isCompleted = mission.count === mission.total;
+            return (
+              <div key={mission.id} className="bg-white rounded-[28px] p-5 border border-zinc-100 shadow-sm">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isCompleted ? 'bg-[#4A6741] text-white' : 'bg-zinc-50 text-zinc-400'}`}>
+                    {mission.icon}
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-[13px] font-black text-zinc-800">{mission.title}</div>
+                    <div className="text-[10px] font-bold text-zinc-400">{mission.count}/{mission.total} 완료</div>
+                  </div>
+                  <CheckCircle2 size={20} className={isCompleted ? "text-[#4A6741]" : "text-zinc-200"} />
+                </div>
+                <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${missionProgress}%` }} className={`h-full ${isCompleted ? 'bg-[#4A6741]' : 'bg-zinc-300'}`} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* 2. 개인 경건 훈련 리스트 (원본 보존) */}
+      <div className="bg-white rounded-[35px] p-8 shadow-sm border border-zinc-100">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h3 className="font-black text-zinc-900 text-lg">경건 훈련</h3>
+            <p className="text-xs font-bold text-zinc-400">매일 조금씩 하나님께 가까이</p>
+          </div>
+          <div className="w-10 h-10 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-300">
+            <CalIcon size={20} />
+          </div>
+        </div>
+        
+        <div className="space-y-5">
+          {[
+            { id: 'bible', label: '성경 읽기 (3장)', sub: '마태복음 5-7장' },
+            { id: 'pray', label: '개인 기도 (20분)', sub: '오전 07:30 완료' },
+            { id: 'meditation', label: '오늘의 묵상', sub: '음성으로 기록 남기기' }
+          ].map((task) => (
+            <div key={task.id} className="relative">
+              <motion.div 
+                onClick={() => task.id === 'bible' ? setShowBibleReader(true) : toggleCheck(task.id)}
+                className={`p-5 rounded-[28px] border-2 transition-all flex items-center justify-between cursor-pointer ${
+                  checked.includes(task.id) ? 'bg-white border-[#4A6741] shadow-md' : 'bg-zinc-50 border-transparent text-zinc-400'
+                }`}
+              >
+                <div className="flex gap-4 items-center">
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
+                    checked.includes(task.id) ? 'bg-[#4A6741] text-white' : 'bg-white border border-zinc-200 text-transparent'
+                  }`}>
+                    <Check size={16} strokeWidth={4} />
+                  </div>
+                  <div>
+                    <div className={`text-sm font-black ${checked.includes(task.id) ? 'text-zinc-900' : 'text-zinc-400'}`}>{task.label}</div>
+                    <div className="text-[10px] font-bold opacity-60">{task.sub}</div>
+                  </div>
+                </div>
+                {task.id === 'meditation' && (
+                  <button onClick={(e) => { e.stopPropagation(); setActiveRecording(task.id); }} className={`p-2 rounded-full ${checked.includes(task.id) ? 'text-[#4A6741] bg-[#4A6741]/5' : 'text-zinc-300'}`}>
+                    <Mic size={20} />
+                  </button>
+                )}
+              </motion.div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 2. 글쓰기 바 */}
-      <div className="bg-white rounded-[28px] p-3 shadow-sm border border-zinc-100 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-200 flex items-center justify-center">
-           <ImageIcon size={18} className="text-zinc-400" />
+      {/* 통계 섹션 (원본 보존) */}
+      <div className="bg-zinc-900 rounded-[30px] p-6 text-white flex justify-between items-center overflow-hidden relative">
+        <div className="relative z-10">
+          <div className="text-[10px] font-black text-white/40 uppercase mb-1">Community Stats</div>
+          <div className="text-sm font-bold">우리 그룹은 지금 <span className="text-[#A2C098]">82%</span> 달성 중!</div>
         </div>
-        <div className="flex-1 text-xs font-bold text-zinc-400 pl-1">
-          오늘의 은혜를 기록해보세요...
-        </div>
-        <button className="bg-[#4A6741] text-white px-4 py-2.5 rounded-2xl text-xs font-black shadow-md shadow-[#4A6741]/10 active:scale-95 transition-all">
-          작성
-        </button>
+        <BarChart3 className="absolute right-[-10px] bottom-[-10px] w-20 h-20 text-white/5" />
       </div>
 
-      {/* 3. 피드 리스트 */}
-      {[1, 2].map((post) => (
-        <motion.div 
-          key={post}
-          initial={{ y: 20, opacity: 0 }}
-          whileInView={{ y: 0, opacity: 1 }}
-          viewport={{ once: true }}
-          onClick={() => setSelectedPost({ 
-            id: post, 
-            author: "김하늘 자매", 
-            content: "오늘 아침 큐티 중에 시편 23편 말씀이 너무 와닿았습니다. 내 잔이 넘치나이다... 우리 소그룹원분들도 오늘 하루 넘치는 은혜 누리시길! 🌿" 
-          })}
-          className="bg-white rounded-[35px] overflow-hidden shadow-sm border border-zinc-100 active:scale-[0.98] transition-transform cursor-pointer"
-        >
-          {/* 포스트 헤더 */}
-          <div className="p-5 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-[15px] bg-zinc-100 border border-zinc-50 overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-tr from-[#4A6741]/20 to-[#A2C098]/20" />
-              </div>
-              <div>
-                <div className="text-sm font-black text-zinc-800">김하늘 자매</div>
-                <div className="text-[10px] font-bold text-zinc-400">교제나눔 · 2시간 전</div>
-              </div>
-            </div>
-            <button className="w-8 h-8 flex items-center justify-center text-zinc-300 hover:bg-zinc-50 rounded-full transition-colors">
-              <MoreHorizontal size={20}/>
-            </button>
-          </div>
-          
-          {/* 포스트 이미지 영역 */}
-          <div className="px-5">
-            <div className="aspect-[4/3] bg-zinc-100 rounded-[28px] overflow-hidden relative">
-              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
-              <div className="w-full h-full flex items-center justify-center text-zinc-300">
-                <ImageIcon size={48} strokeWidth={1} />
-              </div>
-            </div>
-          </div>
-
-          {/* 포스트 본문 & 태그 */}
-          <div className="p-6">
-            <p className="text-sm font-bold text-zinc-700 leading-relaxed line-clamp-2">
-              오늘 아침 큐티 중에 시편 23편 말씀이 너무 와닿았습니다. 내 잔이 넘치나이다... 
-            </p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <span className="text-[10px] font-black text-[#4A6741] bg-[#4A6741]/5 px-2 py-1 rounded-md">#큐티나눔</span>
-              <span className="text-[10px] font-black text-[#4A6741] bg-[#4A6741]/5 px-2 py-1 rounded-md">#시편23편</span>
-            </div>
-          </div>
-
-          {/* 포스트 액션 (리액션) */}
-          <div className="px-6 py-5 bg-zinc-50/50 border-t border-zinc-50 flex items-center justify-between">
-            <div className="flex items-center gap-5">
-              <button className="flex items-center gap-1.5 text-rose-500 transition-transform active:scale-125">
-                <Heart size={20} fill={post === 1 ? "currentColor" : "none"} strokeWidth={2.5}/>
-                <span className="text-xs font-black">12</span>
-              </button>
-              <button className="flex items-center gap-1.5 text-zinc-400">
-                <MessageCircle size={20} strokeWidth={2.5}/>
-                <span className="text-xs font-black">4</span>
-              </button>
-            </div>
-            <button className="text-zinc-300"><Bookmark size={20} strokeWidth={2.5}/></button>
-          </div>
-        </motion.div>
-      ))}
-
-      {/* 4. 게시물 상세 모달 (AnimatePresence 적용) */}
+      {/* 성경 읽기 모달 (원본 보존) */}
       <AnimatePresence>
-        {selectedPost && (
-          <>
-            {/* Backdrop */}
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelectedPost(null)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[150]"
-            />
-            {/* Modal Content */}
-            <motion.div 
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-x-0 bottom-0 top-[10%] z-[200] bg-white rounded-t-[40px] shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="p-6 flex flex-col h-full">
-                <div className="flex justify-between items-center mb-8">
-                  <button onClick={() => setSelectedPost(null)} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-full">
-                    <X size={24} className="text-zinc-400" />
-                  </button>
-                  <h3 className="font-black text-zinc-800">게시물 상세</h3>
-                  <button className="text-zinc-400"><Share2 size={20}/></button>
+        {showBibleReader && (
+          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed inset-0 z-[200] bg-white p-6 pt-20">
+            <div className="flex items-center justify-between mb-8">
+              <button onClick={() => setShowBibleReader(false)} className="w-10 h-10 flex items-center justify-center bg-zinc-100 rounded-full"><X size={20}/></button>
+              <h2 className="font-black text-lg text-zinc-800">{todayPassage.ref}</h2>
+              <div className="w-10" />
+            </div>
+            <div className="space-y-8 overflow-y-auto max-h-[70vh] px-2">
+              {todayPassage.verses.map(v => (
+                <div key={v.no} className="flex gap-4 text-left">
+                  <span className="font-black text-[#4A6741] text-sm pt-1.5 opacity-60">{v.no}</span>
+                  <p className="text-lg font-bold text-zinc-700 leading-relaxed">{v.text}</p>
                 </div>
+              ))}
+            </div>
+            <div className="absolute bottom-10 left-6 right-6">
+              <button onClick={() => { toggleCheck('bible'); setShowBibleReader(false); }} className="w-full py-5 bg-[#4A6741] text-white rounded-[24px] font-black">말씀 읽기 완료</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-                <div className="flex items-center gap-3 mb-8">
-                  <div className="w-12 h-12 rounded-2xl bg-zinc-100" />
-                  <div>
-                    <h3 className="font-black text-zinc-800">{selectedPost.author}</h3>
-                    <p className="text-xs text-zinc-400 font-bold">교제나눔 · 지금</p>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto no-scrollbar">
-                  <p className="text-lg font-bold text-zinc-700 leading-relaxed mb-10">
-                    {selectedPost.content}
-                  </p>
-                </div>
-                
-                <div className="pt-4 pb-10 flex gap-3">
-                  <input 
-                    className="flex-1 bg-zinc-100 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#4A6741] outline-none" 
-                    placeholder="따뜻한 격려의 댓글을..." 
-                  />
-                  <button className="bg-[#4A6741] text-white p-4 rounded-2xl shadow-lg shadow-[#4A6741]/20">
-                    <Send size={20} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </>
+      {/* 음성 기록 모달 (원본 보존) */}
+      <AnimatePresence>
+        {activeRecording && (
+          <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-x-4 bottom-24 z-[110] bg-white rounded-[35px] p-8 shadow-2xl border border-zinc-100">
+            <div className="flex justify-between items-center mb-6">
+              <h4 className="font-black text-zinc-800">오늘의 묵상 기록</h4>
+              <button onClick={() => setActiveRecording(null)}><X size={20} className="text-zinc-400"/></button>
+            </div>
+            <div className="flex flex-col items-center py-6">
+               <div className="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mb-4"><Mic size={32} className="text-orange-500 animate-pulse" /></div>
+               <p className="text-xs font-bold text-zinc-400 text-center">말씀을 묵상하며 느낀 점을 들려주세요</p>
+            </div>
+            <button onClick={() => { toggleCheck('meditation'); setActiveRecording(null); }} className="w-full py-5 bg-orange-500 text-white rounded-2xl font-black">녹음 완료</button>
+          </motion.div>
         )}
       </AnimatePresence>
     </motion.div>
