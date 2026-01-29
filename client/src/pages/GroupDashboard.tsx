@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ChevronLeft, Settings, Share2, Users, Home, Mic, CheckCircle2, MessageCircle, ChevronRight } from "lucide-react";
+import { 
+  ChevronLeft, Settings, Share2, Users, Home, Mic, 
+  CheckCircle2, MessageCircle, ChevronRight, Plus, PenLine 
+} from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -65,7 +68,7 @@ export default function GroupDashboard() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#FDFDFD] pb-32">
-      {/* 1. 스크롤 시 나타나는 반전 헤더 (Topbar 아래 유지) */}
+      {/* 1. 스크롤 헤더 (Topbar 아래 유지) */}
       <motion.div 
         style={{ opacity: headerBgOpacity }}
         className="fixed top-14 left-0 right-0 z-[80] bg-white h-16 border-b border-zinc-100 flex items-center justify-center pointer-events-none"
@@ -75,7 +78,7 @@ export default function GroupDashboard() {
         </motion.span>
       </motion.div>
 
-      {/* 2. 플로팅 조작 버튼 (Topbar 아래 유지) */}
+      {/* 2. 조작 버튼 레이어 (Topbar 아래 유지) */}
       <div className="fixed top-14 left-0 right-0 z-[90] flex justify-between items-center px-4 h-16 pointer-events-none">
         <button 
           onClick={() => setLocation("/community")} 
@@ -96,7 +99,7 @@ export default function GroupDashboard() {
         </div>
       </div>
 
-      {/* 3. 메인 배너 및 F. 계층적 브레드크럼 */}
+      {/* 3. 메인 배너 및 F. 브레드크럼 */}
       <div className="relative w-full h-[260px] bg-zinc-200 overflow-hidden mt-14">
         <motion.div style={{ opacity: bannerOpacity, scale: bannerScale }} className="w-full h-full relative">
           {group?.group_image ? (
@@ -109,7 +112,7 @@ export default function GroupDashboard() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
           
           <div className="absolute bottom-8 left-6 right-6 text-white text-left space-y-2">
-            {/* ✅ F항목: 계층적 브레드크럼 추가 */}
+            {/* ✅ F항목: 계층적 브레드크럼 */}
             <div className="flex items-center gap-1.5 text-[10px] font-black text-white/60 uppercase tracking-tighter">
               <span>서울동부교회</span>
               <ChevronRight size={10} className="opacity-40" />
@@ -143,16 +146,13 @@ export default function GroupDashboard() {
             {tab.icon}
             <span className="text-[12px] font-bold">{tab.label}</span>
             {activeTab === tab.id && (
-              <motion.div 
-                layoutId="activeTab" 
-                className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#4A6741]" 
-              />
+              <motion.div layoutId="activeTab" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#4A6741]" />
             )}
           </button>
         ))}
       </div>
 
-      {/* 5. 탭별 콘텐츠 */}
+      {/* 5. 콘텐츠 영역 */}
       <main className="flex-1 p-5">
         <AnimatePresence mode="wait">
           <motion.div
@@ -169,6 +169,21 @@ export default function GroupDashboard() {
           </motion.div>
         </AnimatePresence>
       </main>
+
+      {/* ✅ G항목: 퀵 액션 플로팅 버튼 */}
+      <AnimatePresence>
+        {activeTab !== 'home' && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileTap={{ scale: 0.9 }}
+            className="fixed bottom-24 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-2xl shadow-2xl flex items-center justify-center z-[100]"
+          >
+            {activeTab === 'intercession' ? <Mic size={24} /> : <PenLine size={24} />}
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* 6. 설정 모달 */}
       <AnimatePresence>
