@@ -10,6 +10,7 @@ import GroupHome from "../components/group/GroupHome";
 import GroupIntercession from "../components/group/GroupIntercession";
 import GroupGrowth from "../components/group/GroupGrowth";
 import GroupSocial from "../components/group/GroupSocial";
+import GroupSettingsModal from "../components/group/GroupSettingsModal"; // 설정 모달 임포트
 
 type GroupRole = 'owner' | 'leader' | 'member' | 'guest';
 
@@ -23,7 +24,7 @@ export default function GroupDashboard() {
   const [role, setRole] = useState<GroupRole>('guest');
   const [activeTab, setActiveTab] = useState<'home' | 'intercession' | 'growth' | 'social'>('home');
 
-  // ✅ A. 배너 및 헤더 인터랙션을 위한 애니메이션 값 정의 (사용자 원본 보존하며 추가)
+  // ✅ A. 배너 및 헤더 인터랙션을 위한 애니메이션 값 정의
   const { scrollY } = useScroll();
   const bannerOpacity = useTransform(scrollY, [0, 150], [1, 0]);
   const bannerScale = useTransform(scrollY, [0, 150], [1, 1.1]);
@@ -65,7 +66,7 @@ export default function GroupDashboard() {
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-[#FDFDFD] pb-32">
-      {/* ✅ A. 헤더 반전 로직: 스크롤 시 나타나는 상단바 (원본 헤더 레이어 유지) */}
+      {/* A. 헤더 반전 로직: 스크롤 시 나타나는 상단바 */}
       <motion.div 
         style={{ opacity: headerBgOpacity }}
         className="fixed top-0 left-0 right-0 z-[101] bg-white h-16 border-b border-zinc-100 flex items-center justify-center pointer-events-none"
@@ -75,8 +76,8 @@ export default function GroupDashboard() {
         </motion.span>
       </motion.div>
 
-      {/* 1. 플로팅 상단 버튼 헤더 (디자인 및 줄 수 100% 유지) */}
-      <div className="fixed top-0 left-0 right-0 z-[105] flex justify-between items-center px-4 h-16 pointer-events-none">
+      {/* 1. 플로팅 상단 버튼 헤더 (✅ Topbar 위로 버튼을 올리기 위해 z-index 200으로 수정 및 조건 제거) */}
+      <div className="fixed top-0 left-0 right-0 z-[200] flex justify-between items-center px-4 h-16 pointer-events-none">
         <button 
           onClick={() => setLocation("/community")} 
           className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white pointer-events-auto active:scale-90 transition-all"
@@ -87,18 +88,16 @@ export default function GroupDashboard() {
           <button className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:scale-90 transition-all">
             <Share2 size={20} />
           </button>
-          {(role === 'owner' || role === 'leader') && (
-            <button
-              onClick={() => setShowSettings(true)} 
-              className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:scale-90 transition-all"
-            >
-              <Settings size={20} />
-            </button>
-          )}
+          <button 
+            onClick={() => setShowSettings(true)}
+            className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:scale-90 transition-all"
+          >
+            <Settings size={20} />
+          </button>
         </div>
       </div>
 
-      {/* 2. 메인 배너 (A. 인터랙션 애니메이션 적용하여 보존) */}
+      {/* 2. 메인 배너 */}
       <div className="relative w-full h-[240px] bg-zinc-200 overflow-hidden">
         <motion.div style={{ opacity: bannerOpacity, scale: bannerScale }} className="w-full h-full relative">
           {group?.group_image ? (
@@ -115,7 +114,7 @@ export default function GroupDashboard() {
         </motion.div>
       </div>
 
-      {/* 3. 상단 스티키 메뉴탭 (핵심 디자인 100% 보존) */}
+      {/* 3. 상단 스티키 메뉴탭 */}
       <div className="sticky top-0 z-[90] bg-white border-b border-zinc-100 flex px-2 overflow-x-auto no-scrollbar shadow-sm">
         {[
           { id: 'home', label: '홈', icon: <Home size={18}/> },
@@ -142,7 +141,7 @@ export default function GroupDashboard() {
         ))}
       </div>
 
-      {/* 4. 탭별 콘텐츠 (원본 분리 구조 유지) */}
+      {/* 4. 탭별 콘텐츠 */}
       <main className="flex-1 p-5">
         <AnimatePresence mode="wait">
           <motion.div
@@ -159,7 +158,9 @@ export default function GroupDashboard() {
           </motion.div>
         </AnimatePresence>
       </main>
-    <AnimatePresence>
+
+      {/* ✅ 대시보드 맨 하단 모달 추가 */}
+      <AnimatePresence>
         {showSettings && (
           <GroupSettingsModal 
             group={group} 
@@ -168,6 +169,6 @@ export default function GroupDashboard() {
           />
         )}
       </AnimatePresence>
-    </div> // 전체 컨테이너 div 닫힘
+    </div>
   );
-} // GroupDashboard 컴포넌트 닫힘
+}
