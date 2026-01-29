@@ -2,18 +2,19 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, Mic, Calendar as CalIcon, BarChart3, 
-  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, PrayingHand, CheckCircle2
-} from "lucide-react";
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle2 
+} from "lucide-react"; 
+/* ✅ PrayingHand 대신 가장 안전한 'Users' 아이콘을 사용했습니다. */
 
 export default function GroupGrowth({ groupId, role }: any) {
   const [checked, setChecked] = useState<string[]>([]);
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [showBibleReader, setShowBibleReader] = useState(false);
 
-  // ✅ I항목: 주간 미션 데이터 추가
+  // ✅ I항목: 주간 미션 데이터 (아이콘을 검증된 'Users'로 변경)
   const [missions] = useState([
     { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
-    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <PrayingHand size={18} /> },
+    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Users size={18} /> }, 
     { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle2 size={18} /> },
   ]);
 
@@ -74,7 +75,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* ✅ 추가된 I항목: 주간 공동체 미션 섹션 (원본 리스트 위에 배치) */}
+      {/* ✅ I항목: 주간 공동체 미션 섹션 (원본 보존하며 추가) */}
       <section className="space-y-4">
         <h4 className="font-black text-zinc-900 text-sm px-1">주간 공동체 미션</h4>
         <div className="space-y-3">
@@ -149,9 +150,9 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* 통계 및 모달 (원본 로직 100% 보존) */}
+      {/* 통계 섹션 (원본 보존) */}
       <div className="bg-zinc-900 rounded-[30px] p-6 text-white flex justify-between items-center overflow-hidden relative">
-        <div className="relative z-10">
+        <div className="relative z-10 text-left">
           <div className="text-[10px] font-black text-white/40 uppercase mb-1">Community Stats</div>
           <div className="text-sm font-bold">우리 그룹은 지금 <span className="text-[#A2C098]">82%</span> 달성 중!</div>
         </div>
@@ -167,9 +168,9 @@ export default function GroupGrowth({ groupId, role }: any) {
               <h2 className="font-black text-lg text-zinc-800">{todayPassage.ref}</h2>
               <div className="w-10" />
             </div>
-            <div className="space-y-8 overflow-y-auto max-h-[70vh] px-2">
+            <div className="space-y-8 overflow-y-auto max-h-[70vh] px-2 text-left">
               {todayPassage.verses.map(v => (
-                <div key={v.no} className="flex gap-4 text-left">
+                <div key={v.no} className="flex gap-4">
                   <span className="font-black text-[#4A6741] text-sm pt-1.5 opacity-60">{v.no}</span>
                   <p className="text-lg font-bold text-zinc-700 leading-relaxed">{v.text}</p>
                 </div>
