@@ -1,38 +1,51 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, Mic, Calendar as CalIcon, BarChart3, 
-  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle 
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle, Sparkles
 } from "lucide-react";
-import confetti from "canvas-confetti"; // ✅ 폭죽 효과 라이브러리 추가
 
 export default function GroupGrowth({ groupId, role }: any) {
   const [checked, setChecked] = useState<string[]>([]);
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [showBibleReader, setShowBibleReader] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // 100% 검증된 아이콘만 사용
-  const [missions] = useState([
-    { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
-    { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Users size={18} /> },
-    { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle size={18} /> },
-  ]);
-
-  // ✅ 폭죽 효과 함수
+  // ✅ [무설치 폭죽 로직] 
   const triggerConfetti = () => {
-    confetti({
-      particleCount: 150,
-      spread: 70,
-      origin: { y: 0.6 },
-      colors: ['#4A6741', '#A2C098', '#FFD700', '#FFFFFF']
-    });
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const particles: any[] = [];
+    const colors = ["#4A6741", "#A2C098", "#FFD700", "#FFFFFF"];
+    for (let i = 0; i < 100; i++) {
+      particles.push({
+        x: canvas.width / 2, y: canvas.height * 0.6,
+        radius: Math.random() * 4 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        velocity: { x: (Math.random() - 0.5) * 15, y: (Math.random() - 0.7) * 20 },
+        opacity: 1
+      });
+    }
+    const animate = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach((p, i) => {
+        p.velocity.y += 0.5; p.x += p.velocity.x; p.y += p.velocity.y; p.opacity -= 0.01;
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fillStyle = p.color; ctx.globalAlpha = p.opacity; ctx.fill();
+        if (p.opacity <= 0) particles.splice(i, 1);
+      });
+      if (particles.length > 0) requestAnimationFrame(animate);
+    };
+    animate();
   };
 
   const toggleCheck = (id: string) => {
-    const isAdding = !checked.includes(id);
-    if (isAdding) {
+    if (!checked.includes(id)) {
       setChecked([...checked, id]);
-      // 미션을 체크할 때마다 기분 좋은 폭죽 효과!
       triggerConfetti();
     } else {
       setChecked(checked.filter(i => i !== id));
@@ -51,8 +64,9 @@ export default function GroupGrowth({ groupId, role }: any) {
   };
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-20">
-      
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-20 relative">
+      <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[300]" />
+
       {/* 1. 상단 개인 성취 요약 */}
       <div className="grid grid-cols-2 gap-4">
         <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden">
@@ -74,45 +88,65 @@ export default function GroupGrowth({ groupId, role }: any) {
           <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">오늘의 달성률</div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 text-left">
           <div className="bg-[#4A6741] rounded-[24px] p-4 text-white shadow-lg shadow-[#4A6741]/20 flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-xl"><Flame size={18} className="text-orange-300" /></div>
             <div>
-              <div className="text-[10px] font-bold opacity-70 text-left">연속 기록</div>
-              <div className="text-sm font-black text-left">12일 달성 중</div>
+              <div className="text-[10px] font-bold opacity-70">연속 기록</div>
+              <div className="text-sm font-black">12일 달성 중</div>
             </div>
           </div>
           <div className="bg-white rounded-[24px] p-4 border border-zinc-100 flex items-center gap-3">
             <div className="bg-zinc-50 p-2 rounded-xl"><Trophy size={18} className="text-amber-400" /></div>
             <div>
-              <div className="text-[10px] font-bold text-zinc-400 text-left">그룹 내 순위</div>
-              <div className="text-sm font-black text-zinc-800 text-left">상위 5%</div>
+              <div className="text-[10px] font-bold text-zinc-400">그룹 내 순위</div>
+              <div className="text-sm font-black text-zinc-800">상위 5%</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 공동체 미션 섹션 */}
+      {/* 💡 마지막 제안: 주간 은혜 리포트 카드 */}
+      <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-[35px] p-6 text-white shadow-xl relative overflow-hidden">
+        <Sparkles className="absolute right-[-10px] top-[-10px] w-24 h-24 text-white/10" />
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="bg-white/20 p-1.5 rounded-lg"><BarChart3 size={16} /></div>
+            <span className="text-[10px] font-black uppercase tracking-widest opacity-80">Weekly Grace Report</span>
+          </div>
+          <h4 className="text-lg font-black mb-1">이번 주 우리 그룹은...</h4>
+          <p className="text-xs font-medium opacity-90 leading-relaxed">
+            총 <span className="font-black text-yellow-300">142장</span>의 말씀을 읽고,<br/>
+            <span className="font-black text-yellow-300">28개</span>의 감사 고백을 나눴습니다! 🌿
+          </p>
+          <button className="mt-4 flex items-center gap-1 text-[11px] font-black bg-white/20 hover:bg-white/30 px-3 py-2 rounded-xl transition-all">
+            리포트 자세히 보기 <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* 2. 공동체 미션 현황 */}
       <section className="space-y-4">
         <h4 className="font-black text-zinc-900 text-sm px-1 text-left">주간 공동체 미션</h4>
         <div className="space-y-3">
-          {missions.map((mission) => {
-            const missionProgress = (mission.count / mission.total) * 100;
-            const isCompleted = mission.count === mission.total;
+          {[
+            { id: 1, title: "매일 아침 말씀 묵상", count: 4, total: 7, icon: <BookOpen size={18} /> },
+            { id: 2, title: "공동체 중보기도 참여", count: 2, total: 3, icon: <Users size={18} /> },
+            { id: 3, title: "주일 예배 실황 인증", count: 0, total: 1, icon: <CheckCircle size={18} /> },
+          ].map((mission) => {
+            const mProgress = (mission.count / mission.total) * 100;
             return (
               <div key={mission.id} className="bg-white rounded-[28px] p-5 border border-zinc-100 shadow-sm">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isCompleted ? 'bg-[#4A6741] text-white' : 'bg-zinc-50 text-zinc-400'}`}>
-                    {mission.icon}
-                  </div>
+                  <div className="w-10 h-10 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-400">{mission.icon}</div>
                   <div className="flex-1 text-left">
                     <div className="text-[13px] font-black text-zinc-800">{mission.title}</div>
                     <div className="text-[10px] font-bold text-zinc-400">{mission.count}/{mission.total} 완료</div>
                   </div>
-                  <CheckCircle size={20} className={isCompleted ? "text-[#4A6741]" : "text-zinc-200"} />
+                  <CheckCircle size={20} className={mission.count === mission.total ? "text-[#4A6741]" : "text-zinc-200"} />
                 </div>
                 <div className="h-1.5 bg-zinc-100 rounded-full overflow-hidden">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${missionProgress}%` }} className={`h-full ${isCompleted ? 'bg-[#4A6741]' : 'bg-zinc-300'}`} />
+                  <div style={{ width: `${mProgress}%` }} className="h-full bg-zinc-300" />
                 </div>
               </div>
             );
@@ -120,16 +154,14 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </section>
 
-      {/* 2. 개인 경건 훈련 리스트 */}
+      {/* 3. 개인 경건 훈련 리스트 */}
       <div className="bg-white rounded-[35px] p-8 shadow-sm border border-zinc-100">
-        <div className="flex justify-between items-center mb-8">
-          <div className="text-left">
+        <div className="flex justify-between items-center mb-8 text-left">
+          <div>
             <h3 className="font-black text-zinc-900 text-lg">경건 훈련</h3>
             <p className="text-xs font-bold text-zinc-400">매일 조금씩 하나님께 가까이</p>
           </div>
-          <div className="w-10 h-10 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-300">
-            <CalIcon size={20} />
-          </div>
+          <div className="w-10 h-10 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-300"><CalIcon size={20} /></div>
         </div>
         <div className="space-y-5">
           {[
@@ -147,18 +179,14 @@ export default function GroupGrowth({ groupId, role }: any) {
                 <div className="flex gap-4 items-center">
                   <div className={`w-7 h-7 rounded-xl flex items-center justify-center transition-all ${
                     checked.includes(task.id) ? 'bg-[#4A6741] text-white' : 'bg-white border border-zinc-200 text-transparent'
-                  }`}>
-                    <Check size={16} strokeWidth={4} />
-                  </div>
+                  }`}><Check size={16} strokeWidth={4} /></div>
                   <div>
                     <div className={`text-sm font-black ${checked.includes(task.id) ? 'text-zinc-900' : 'text-zinc-400'}`}>{task.label}</div>
                     <div className="text-[10px] font-bold opacity-60">{task.sub}</div>
                   </div>
                 </div>
                 {task.id === 'meditation' && (
-                  <button onClick={(e) => { e.stopPropagation(); setActiveRecording(task.id); }} className={`p-2 rounded-full ${checked.includes(task.id) ? 'text-[#4A6741] bg-[#4A6741]/5' : 'text-zinc-300'}`}>
-                    <Mic size={20} />
-                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); setActiveRecording(task.id); }} className={`p-2 rounded-full ${checked.includes(task.id) ? 'text-[#4A6741] bg-[#4A6741]/5' : 'text-zinc-300'}`}><Mic size={20} /></button>
                 )}
               </motion.div>
             </div>
@@ -166,16 +194,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* 통계 섹션 */}
-      <div className="bg-zinc-900 rounded-[30px] p-6 text-white flex justify-between items-center overflow-hidden relative">
-        <div className="relative z-10 text-left">
-          <div className="text-[10px] font-black text-white/40 uppercase mb-1">Community Stats</div>
-          <div className="text-sm font-bold">우리 그룹은 지금 <span className="text-[#A2C098]">82%</span> 달성 중!</div>
-        </div>
-        <BarChart3 className="absolute right-[-10px] bottom-[-10px] w-20 h-20 text-white/5" />
-      </div>
-
-      {/* 모달: 성경 읽기 */}
+      {/* 모달 로직 */}
       <AnimatePresence>
         {showBibleReader && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed inset-0 z-[200] bg-white p-6 pt-20">
@@ -199,7 +218,6 @@ export default function GroupGrowth({ groupId, role }: any) {
         )}
       </AnimatePresence>
 
-      {/* 모달: 음성 녹음 */}
       <AnimatePresence>
         {activeRecording && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-x-4 bottom-24 z-[110] bg-white rounded-[35px] p-8 shadow-2xl border border-zinc-100">
