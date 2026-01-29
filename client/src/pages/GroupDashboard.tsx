@@ -17,7 +17,7 @@ export default function GroupDashboard() {
   const [, params] = useRoute("/group/:id");
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
-  
+  const [showSettings, setShowSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState<any>(null);
   const [role, setRole] = useState<GroupRole>('guest');
@@ -88,7 +88,8 @@ export default function GroupDashboard() {
             <Share2 size={20} />
           </button>
           {(role === 'owner' || role === 'leader') && (
-            <button 
+            <button
+              onClick={() => setShowSettings(true)} 
               className="w-10 h-10 flex items-center justify-center bg-black/20 backdrop-blur-md rounded-full text-white active:scale-90 transition-all"
             >
               <Settings size={20} />
@@ -158,6 +159,15 @@ export default function GroupDashboard() {
           </motion.div>
         </AnimatePresence>
       </main>
-    </div>
+    <AnimatePresence>
+        {showSettings && (
+          <GroupSettingsModal 
+            group={group} 
+            onClose={() => setShowSettings(false)} 
+            role={role}
+          />
+        )}
+      </AnimatePresence>
+    </div> // 전체 컨테이너 div 닫힘
   );
-}
+} // GroupDashboard 컴포넌트 닫힘
