@@ -11,7 +11,7 @@ export default function GroupSocial({ groupId, role }: any) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-32">
       
-      {/* 1. 상단 하이라이트 공지 */}
+      {/* 1. 상단 하이라이트 공지 (Horizontal Scroll) */}
       <div className="relative">
         <div className="flex items-center justify-between px-1 mb-3">
           <h4 className="font-black text-xs text-zinc-900 flex items-center gap-1.5">
@@ -30,7 +30,7 @@ export default function GroupSocial({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* 2. 감성적인 글쓰기 바 */}
+      {/* 2. 글쓰기 바 */}
       <div className="bg-white rounded-[28px] p-3 shadow-sm border border-zinc-100 flex items-center gap-3">
         <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-zinc-100 to-zinc-200 flex items-center justify-center">
            <ImageIcon size={18} className="text-zinc-400" />
@@ -43,16 +43,21 @@ export default function GroupSocial({ groupId, role }: any) {
         </button>
       </div>
 
-      {/* 3. 프리미엄 피드 리스트 */}
+      {/* 3. 피드 리스트 */}
       {[1, 2].map((post) => (
         <motion.div 
           key={post}
           initial={{ y: 20, opacity: 0 }}
           whileInView={{ y: 0, opacity: 1 }}
           viewport={{ once: true }}
-          onClick={() => setSelectedPost({ id: post, author: "김하늘 자매", content: "오늘 아침 큐티 중에 시편 23편 말씀이 너무 와닿았습니다. 내 잔이 넘치나이다... 우리 소그룹원분들도 오늘 하루 넘치는 은혜 누리시길! 🌿" })}
+          onClick={() => setSelectedPost({ 
+            id: post, 
+            author: "김하늘 자매", 
+            content: "오늘 아침 큐티 중에 시편 23편 말씀이 너무 와닿았습니다. 내 잔이 넘치나이다... 우리 소그룹원분들도 오늘 하루 넘치는 은혜 누리시길! 🌿" 
+          })}
           className="bg-white rounded-[35px] overflow-hidden shadow-sm border border-zinc-100 active:scale-[0.98] transition-transform cursor-pointer"
         >
+          {/* 포스트 헤더 */}
           <div className="p-5 flex justify-between items-center">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-[15px] bg-zinc-100 border border-zinc-50 overflow-hidden">
@@ -68,8 +73,9 @@ export default function GroupSocial({ groupId, role }: any) {
             </button>
           </div>
           
+          {/* 포스트 이미지 영역 */}
           <div className="px-5">
-            <div className="aspect-[4/3] bg-zinc-100 rounded-[28px] overflow-hidden relative group">
+            <div className="aspect-[4/3] bg-zinc-100 rounded-[28px] overflow-hidden relative">
               <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20" />
               <div className="w-full h-full flex items-center justify-center text-zinc-300">
                 <ImageIcon size={48} strokeWidth={1} />
@@ -77,12 +83,18 @@ export default function GroupSocial({ groupId, role }: any) {
             </div>
           </div>
 
+          {/* 포스트 본문 & 태그 */}
           <div className="p-6">
             <p className="text-sm font-bold text-zinc-700 leading-relaxed line-clamp-2">
               오늘 아침 큐티 중에 시편 23편 말씀이 너무 와닿았습니다. 내 잔이 넘치나이다... 
             </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="text-[10px] font-black text-[#4A6741] bg-[#4A6741]/5 px-2 py-1 rounded-md">#큐티나눔</span>
+              <span className="text-[10px] font-black text-[#4A6741] bg-[#4A6741]/5 px-2 py-1 rounded-md">#시편23편</span>
+            </div>
           </div>
 
+          {/* 포스트 액션 (리액션) */}
           <div className="px-6 py-5 bg-zinc-50/50 border-t border-zinc-50 flex items-center justify-between">
             <div className="flex items-center gap-5">
               <button className="flex items-center gap-1.5 text-rose-500 transition-transform active:scale-125">
@@ -99,38 +111,57 @@ export default function GroupSocial({ groupId, role }: any) {
         </motion.div>
       ))}
 
-      {/* 드릴다운: 포스트 상세 */}
+      {/* 4. 게시물 상세 모달 (AnimatePresence 적용) */}
       <AnimatePresence>
         {selectedPost && (
-          <motion.div 
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-[200] bg-white p-6 pt-16"
-          >
-            <div className="flex justify-between items-center mb-8">
-              <button onClick={() => setSelectedPost(null)} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-full"><X size={24} className="text-zinc-400" /></button>
-              <h3 className="font-black text-zinc-800">게시물 상세</h3>
-              <button className="text-zinc-400"><Share2 size={20}/></button>
-            </div>
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 rounded-2xl bg-zinc-100" />
-              <div>
-                <h3 className="font-black text-zinc-800">{selectedPost.author}</h3>
-                <p className="text-xs text-zinc-400 font-bold">교제나눔 · 지금</p>
+          <>
+            {/* Backdrop */}
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setSelectedPost(null)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[150]"
+            />
+            {/* Modal Content */}
+            <motion.div 
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-x-0 bottom-0 top-[10%] z-[200] bg-white rounded-t-[40px] shadow-2xl overflow-hidden flex flex-col"
+            >
+              <div className="p-6 flex flex-col h-full">
+                <div className="flex justify-between items-center mb-8">
+                  <button onClick={() => setSelectedPost(null)} className="w-10 h-10 flex items-center justify-center bg-zinc-50 rounded-full">
+                    <X size={24} className="text-zinc-400" />
+                  </button>
+                  <h3 className="font-black text-zinc-800">게시물 상세</h3>
+                  <button className="text-zinc-400"><Share2 size={20}/></button>
+                </div>
+
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 rounded-2xl bg-zinc-100" />
+                  <div>
+                    <h3 className="font-black text-zinc-800">{selectedPost.author}</h3>
+                    <p className="text-xs text-zinc-400 font-bold">교제나눔 · 지금</p>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <p className="text-lg font-bold text-zinc-700 leading-relaxed mb-10">
+                    {selectedPost.content}
+                  </p>
+                </div>
+                
+                <div className="pt-4 pb-10 flex gap-3">
+                  <input 
+                    className="flex-1 bg-zinc-100 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#4A6741] outline-none" 
+                    placeholder="따뜻한 격려의 댓글을..." 
+                  />
+                  <button className="bg-[#4A6741] text-white p-4 rounded-2xl shadow-lg shadow-[#4A6741]/20">
+                    <Send size={20} />
+                  </button>
+                </div>
               </div>
-            </div>
-            <p className="text-lg font-bold text-zinc-700 leading-relaxed mb-10">{selectedPost.content}</p>
-            
-            <div className="absolute bottom-10 left-6 right-6 flex gap-3">
-              <input 
-                className="flex-1 bg-zinc-100 border-none rounded-2xl px-5 py-4 text-sm font-bold focus:ring-2 focus:ring-[#4A6741] outline-none" 
-                placeholder="따뜻한 격려의 댓글을..." 
-              />
-              <button className="bg-[#4A6741] text-white p-4 rounded-2xl shadow-lg shadow-[#4A6741]/20">
-                <Send size={20} />
-              </button>
-            </div>
-          </motion.div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </motion.div>
