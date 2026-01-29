@@ -2,23 +2,41 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Check, Mic, Calendar as CalIcon, BarChart3, 
-  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle
+  Quote, Flame, Trophy, ChevronRight, Play, RotateCcw, X, BookOpen, Users, CheckCircle 
 } from "lucide-react";
+import confetti from "canvas-confetti"; // ✅ 폭죽 효과 라이브러리 추가
 
 export default function GroupGrowth({ groupId, role }: any) {
   const [checked, setChecked] = useState<string[]>([]);
   const [activeRecording, setActiveRecording] = useState<string | null>(null);
   const [showBibleReader, setShowBibleReader] = useState(false);
 
-  // ✅ I항목: 주간 미션 데이터 (검색 확인된 Users, CheckCircle 사용)
+  // 100% 검증된 아이콘만 사용
   const [missions] = useState([
     { id: 1, title: "매일 아침 말씀 묵상", type: "reading", count: 4, total: 7, icon: <BookOpen size={18} /> },
     { id: 2, title: "공동체 중보기도 참여", type: "prayer", count: 2, total: 3, icon: <Users size={18} /> },
     { id: 3, title: "주일 예배 실황 인증", type: "worship", count: 0, total: 1, icon: <CheckCircle size={18} /> },
   ]);
 
+  // ✅ 폭죽 효과 함수
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#4A6741', '#A2C098', '#FFD700', '#FFFFFF']
+    });
+  };
+
   const toggleCheck = (id: string) => {
-    setChecked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+    const isAdding = !checked.includes(id);
+    if (isAdding) {
+      setChecked([...checked, id]);
+      // 미션을 체크할 때마다 기분 좋은 폭죽 효과!
+      triggerConfetti();
+    } else {
+      setChecked(checked.filter(i => i !== id));
+    }
   };
 
   const progress = (checked.length / 3) * 100;
@@ -35,9 +53,9 @@ export default function GroupGrowth({ groupId, role }: any) {
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 text-left pb-20">
       
-      {/* 1. 상단 성취 요약 */}
+      {/* 1. 상단 개인 성취 요약 */}
       <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden text-center">
+        <div className="bg-white rounded-[32px] p-6 shadow-sm border border-zinc-100 flex flex-col items-center justify-center relative overflow-hidden">
           <div className="relative w-20 h-20 mb-3 mx-auto">
             <svg className="w-full h-full transform -rotate-90">
               <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-zinc-100" />
@@ -53,30 +71,30 @@ export default function GroupGrowth({ groupId, role }: any) {
               <span className="text-sm font-black text-zinc-800">{Math.round(progress)}%</span>
             </div>
           </div>
-          <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">오늘의 달성률</div>
+          <div className="text-[10px] font-black text-zinc-400 uppercase tracking-widest text-center">오늘의 달성률</div>
         </div>
 
         <div className="space-y-3">
           <div className="bg-[#4A6741] rounded-[24px] p-4 text-white shadow-lg shadow-[#4A6741]/20 flex items-center gap-3">
             <div className="bg-white/20 p-2 rounded-xl"><Flame size={18} className="text-orange-300" /></div>
             <div>
-              <div className="text-[10px] font-bold opacity-70">연속 기록</div>
-              <div className="text-sm font-black">12일 달성 중</div>
+              <div className="text-[10px] font-bold opacity-70 text-left">연속 기록</div>
+              <div className="text-sm font-black text-left">12일 달성 중</div>
             </div>
           </div>
           <div className="bg-white rounded-[24px] p-4 border border-zinc-100 flex items-center gap-3">
             <div className="bg-zinc-50 p-2 rounded-xl"><Trophy size={18} className="text-amber-400" /></div>
             <div>
-              <div className="text-[10px] font-bold text-zinc-400">그룹 내 순위</div>
-              <div className="text-sm font-black text-zinc-800">상위 5%</div>
+              <div className="text-[10px] font-bold text-zinc-400 text-left">그룹 내 순위</div>
+              <div className="text-sm font-black text-zinc-800 text-left">상위 5%</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* I항목: 주간 공동체 미션 섹션 */}
+      {/* 공동체 미션 섹션 */}
       <section className="space-y-4">
-        <h4 className="font-black text-zinc-900 text-sm px-1">주간 공동체 미션</h4>
+        <h4 className="font-black text-zinc-900 text-sm px-1 text-left">주간 공동체 미션</h4>
         <div className="space-y-3">
           {missions.map((mission) => {
             const missionProgress = (mission.count / mission.total) * 100;
@@ -105,7 +123,7 @@ export default function GroupGrowth({ groupId, role }: any) {
       {/* 2. 개인 경건 훈련 리스트 */}
       <div className="bg-white rounded-[35px] p-8 shadow-sm border border-zinc-100">
         <div className="flex justify-between items-center mb-8">
-          <div>
+          <div className="text-left">
             <h3 className="font-black text-zinc-900 text-lg">경건 훈련</h3>
             <p className="text-xs font-bold text-zinc-400">매일 조금씩 하나님께 가까이</p>
           </div>
@@ -119,7 +137,7 @@ export default function GroupGrowth({ groupId, role }: any) {
             { id: 'pray', label: '개인 기도 (20분)', sub: '오전 07:30 완료' },
             { id: 'meditation', label: '오늘의 묵상', sub: '음성으로 기록 남기기' }
           ].map((task) => (
-            <div key={task.id} className="relative">
+            <div key={task.id} className="relative text-left">
               <motion.div 
                 onClick={() => task.id === 'bible' ? setShowBibleReader(true) : toggleCheck(task.id)}
                 className={`p-5 rounded-[28px] border-2 transition-all flex items-center justify-between cursor-pointer ${
@@ -148,7 +166,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         </div>
       </div>
 
-      {/* 3. 하단 통계 */}
+      {/* 통계 섹션 */}
       <div className="bg-zinc-900 rounded-[30px] p-6 text-white flex justify-between items-center overflow-hidden relative">
         <div className="relative z-10 text-left">
           <div className="text-[10px] font-black text-white/40 uppercase mb-1">Community Stats</div>
@@ -157,7 +175,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         <BarChart3 className="absolute right-[-10px] bottom-[-10px] w-20 h-20 text-white/5" />
       </div>
 
-      {/* --- 생략 없이 제공하는 모달 로직 --- */}
+      {/* 모달: 성경 읽기 */}
       <AnimatePresence>
         {showBibleReader && (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="fixed inset-0 z-[200] bg-white p-6 pt-20">
@@ -181,6 +199,7 @@ export default function GroupGrowth({ groupId, role }: any) {
         )}
       </AnimatePresence>
 
+      {/* 모달: 음성 녹음 */}
       <AnimatePresence>
         {activeRecording && (
           <motion.div initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }} className="fixed inset-x-4 bottom-24 z-[110] bg-white rounded-[35px] p-8 shadow-2xl border border-zinc-100">
