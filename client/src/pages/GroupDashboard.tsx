@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ChevronLeft, Settings, Share2, Users, Home, Mic, CheckCircle2, MessageCircle, ChevronRight, LayoutGrid } from "lucide-react";
+import { ChevronLeft, Settings, Share2, Users, LayoutGrid } from "lucide-react";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -19,19 +19,14 @@ export default function GroupDashboard() {
   
   const [loading, setLoading] = useState(true);
   const [group, setGroup] = useState<any>(null);
-  const [role, setRole] = useState<GroupRole>('guest'); // 원본대로 guest 유지
+  const [role, setRole] = useState<GroupRole>('guest');
   const [activeTab, setActiveTab] = useState<'home' | 'intercession' | 'growth' | 'social'>('home');
 
   const { scrollY } = useScroll();
   
-  // ✅ 아침 첫 디자인 원본 로직 (배너 애니메이션)
+  // 아침 첫 버전의 상단 배너 애니메이션 로직
   const bannerOpacity = useTransform(scrollY, [0, 150], [1, 0]);
   const bannerScale = useTransform(scrollY, [0, 150], [1, 1.1]);
-  const headerBg = useTransform(
-    scrollY,
-    [100, 150],
-    ["rgba(255, 255, 255, 0)", "rgba(255, 255, 255, 0.9)"]
-  );
 
   useEffect(() => {
     async function fetchGroup() {
@@ -39,7 +34,7 @@ export default function GroupDashboard() {
         try {
           const { data } = await supabase.from('groups').select('*').eq('id', params.id).single();
           if (data) setGroup(data);
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Fetch error:", e); }
       }
       setLoading(false);
     }
@@ -47,97 +42,88 @@ export default function GroupDashboard() {
   }, [params?.id]);
 
   if (loading) return (
-    <div className="min-h-screen flex items-center justify-center bg-white">
-      <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.5, 1, 0.5] }} transition={{ repeat: Infinity, duration: 1.5 }} className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 bg-[#4A6741]/10 rounded-3xl flex items-center justify-center"><LayoutGrid className="text-[#4A6741]" /></div>
-        <span className="text-xs font-black text-zinc-400 uppercase tracking-widest">Loading Dashboard</span>
-      </motion.div>
-    </div>
+    <div className="min-h-screen flex items-center justify-center bg-white font-black text-zinc-400">Loading...</div>
   );
 
   return (
-    <div className="min-h-screen bg-white flex flex-col overflow-x-hidden relative" style={{ fontSize: `${fontSize}px` }}>
+    <div className="min-h-screen bg-white flex flex-col relative" style={{ fontSize: `${fontSize}px` }}>
       
-      {/* ✅ 1. 상단 플로팅 헤더 (사용자님 아침 원본 디자인 100%) */}
-      <motion.header 
-        style={{ backgroundColor: headerBg }}
-        className="fixed top-0 inset-x-0 z-[200] px-6 py-5 flex items-center justify-between backdrop-blur-md transition-colors"
-      >
-        <button onClick={() => setLocation('/')} className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-900 active:scale-90 transition-all">
-          <ChevronLeft size={20} strokeWidth={2.5} />
+      {/* 1. 상단 헤더 (아침 첫 버전: 그라데이션 없는 담백한 디자인) */}
+      <header className="fixed top-0 inset-x-0 z-[100] px-6 py-4 flex items-center justify-between bg-white/80 backdrop-blur-md border-b border-zinc-50">
+        <button onClick={() => setLocation('/')} className="p-2 -ml-2 text-zinc-900 active:scale-90 transition-all">
+          <ChevronLeft size={24} />
         </button>
-        <motion.h1 className="text-sm font-black text-zinc-900 tracking-tight">
+        <h1 className="text-base font-black text-zinc-900 tracking-tight">
           {group?.name || "우리 소그룹"}
-        </motion.h1>
-        <div className="flex gap-2">
-          <button className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-400 active:scale-90 transition-all"><Share2 size={18} strokeWidth={2.5} /></button>
-          <button className="w-10 h-10 bg-white shadow-lg shadow-zinc-200/50 rounded-2xl flex items-center justify-center text-zinc-400 active:scale-90 transition-all"><Settings size={18} strokeWidth={2.5} /></button>
+        </h1>
+        <div className="flex gap-1">
+          <button className="p-2 text-zinc-400 active:scale-90 transition-all"><Share2 size={20} /></button>
+          <button className="p-2 text-zinc-400 active:scale-90 transition-all"><Settings size={20} /></button>
         </div>
-      </motion.header>
+      </header>
 
-      {/* ✅ 2. 상단 비주얼 배너 (사용자님 아침 원본 디자인 100%) */}
-      <div className="relative h-[240px] w-full overflow-hidden bg-zinc-900">
-        <motion.div style={{ opacity: bannerOpacity, scale: bannerScale }} className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-white z-10" />
-          <div className="w-full h-full bg-[#4A6741] flex items-center justify-center">
-             <Users size={80} className="text-white/20" />
-          </div>
-        </motion.div>
-        <div className="absolute bottom-8 left-8 right-8 z-20 flex flex-col gap-2 text-left">
-          <div className="flex items-center gap-2">
-            <span className="bg-[#4A6741] text-white text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider">Active Group</span>
-            <div className="flex -space-x-2">
-              {[1, 2, 3].map(i => <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-zinc-200" />)}
+      {/* 2. 상단 메뉴 탭 (아침 첫 버전: 헤더 아래 위치) */}
+      <div className="fixed top-[60px] inset-x-0 z-[90] bg-white/80 backdrop-blur-md border-b border-zinc-100 overflow-x-auto no-scrollbar">
+        <div className="flex px-4 items-center">
+          {[
+            { id: 'home', label: '홈' },
+            { id: 'intercession', label: '기도' },
+            { id: 'growth', label: '성장' },
+            { id: 'social', label: '교제' }
+          ].map((tab) => (
+            <button 
+              key={tab.id} 
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex-none px-6 py-4 text-sm font-black transition-all relative ${
+                activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-300'
+              }`}
+            >
+              {tab.label}
+              {activeTab === tab.id && (
+                <motion.div 
+                  layoutId="activeTabUnderline" 
+                  className="absolute bottom-0 left-6 right-6 h-0.5 bg-[#4A6741] rounded-full" 
+                />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 3. 콘텐츠 영역 (배너 포함) */}
+      <main className="flex-1 pt-[120px] pb-10">
+        {/* 상단 배너 (아침 첫 버전 로직) */}
+        <div className="relative h-[200px] w-full overflow-hidden px-5 mb-6">
+          <motion.div 
+            style={{ opacity: bannerOpacity, scale: bannerScale }}
+            className="w-full h-full bg-[#4A6741] rounded-[32px] relative overflow-hidden flex items-center justify-center"
+          >
+            <Users size={60} className="text-white/20" />
+            <div className="absolute bottom-6 left-6 text-left">
+              <span className="bg-white/20 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest mb-2 inline-block">Premium Group</span>
+              <h2 className="text-2xl font-black text-white">{group?.name || "소그룹"}</h2>
             </div>
-          </div>
-          <h2 className="text-3xl font-black text-zinc-900 tracking-tighter">{group?.name || "샘물 소그룹"}</h2>
-        </div>
-      </div>
-
-      {/* ✅ 3. 메인 콘텐츠 뷰 영역 */}
-      <main className="flex-1 p-5 max-w-2xl mx-auto w-full pb-32 overflow-y-auto">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === 'home' && <GroupHome group={group} role={role} />}
-            {activeTab === 'intercession' && <GroupIntercession groupId={params?.id || ""} role={role} />}
-            {activeTab === 'growth' && <GroupGrowth groupId={params?.id || ""} role={role} />}
-            {activeTab === 'social' && <GroupSocial groupId={params?.id || ""} role={role} />}
           </motion.div>
-        </AnimatePresence>
-      </main>
+        </div>
 
-      {/* ✅ 4. 하단 탭바 (사라졌던 메뉴 - 레이어 최상단 고정) */}
-      <div className="fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur-xl border-t border-zinc-100 px-4 pb-10 pt-2 flex justify-between items-center z-[300]">
-        {[
-          { id: 'home', label: '홈', icon: <Home size={18}/> },
-          { id: 'intercession', label: '중보기도', icon: <Mic size={18}/> },
-          { id: 'growth', label: '신앙생활', icon: <CheckCircle2 size={18}/> },
-          { id: 'social', label: '교제나눔', icon: <MessageCircle size={18}/> }
-        ].map((tab) => (
-          <button 
-            key={tab.id} 
-            onClick={() => setActiveTab(tab.id as any)} 
-            className={`flex-1 min-w-[85px] py-4 flex flex-col items-center gap-1.5 relative transition-all ${activeTab === tab.id ? 'text-[#4A6741]' : 'text-zinc-400 font-bold'}`}
-          >
-            <span className={`transition-transform duration-300 ${activeTab === tab.id ? 'scale-110' : 'scale-100 opacity-60'}`}>
-              {tab.icon}
-            </span>
-            <span className="text-[11px] uppercase tracking-tight">{tab.label}</span>
-            {activeTab === tab.id && (
-              <motion.div 
-                layoutId="activeTabBar" 
-                className="absolute bottom-0 left-4 right-4 h-0.5 bg-[#4A6741] rounded-full" 
-              />
-            )}
-          </button>
-        ))}
-      </div>
+        {/* 탭별 컴포넌트 렌더링 (추가 기능 로직 유지) */}
+        <div className="px-5">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeTab === 'home' && <GroupHome group={group} role={role} />}
+              {activeTab === 'intercession' && <GroupIntercession groupId={params?.id || ""} role={role} />}
+              {activeTab === 'growth' && <GroupGrowth groupId={params?.id || ""} role={role} />}
+              {activeTab === 'social' && <GroupSocial groupId={params?.id || ""} role={role} />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+      </main>
     </div>
   );
 }
