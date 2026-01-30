@@ -112,7 +112,6 @@ export default function ReadingPage() {
     }
   };
 
-  // 스와이프 핸들러
   const handleDragEnd = (event: any, info: any) => {
     const threshold = 100;
     if (info.offset.x > threshold) {
@@ -123,7 +122,7 @@ export default function ReadingPage() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto pt-24 pb-4 px-4">
+    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto pt-24 pb-10 px-4">
       <header className="text-center mb-3 flex flex-col items-center">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -139,16 +138,16 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      <div className="relative w-full flex items-center justify-center overflow-visible">
-        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
+      <div className="relative w-full flex-1 flex items-center justify-center overflow-visible">
+        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
         <AnimatePresence mode="wait">
           <motion.div 
             key={`${currentBookName}-${currentReadChapter}`}
             drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.1}
             onDragEnd={handleDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 cursor-grab active:cursor-grabbing"
+            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 cursor-grab active:cursor-grabbing"
           >
             <div className="flex-1 w-full overflow-y-auto scrollbar-hide mb-4 text-left">
               {loading ? <div className="flex items-center justify-center h-full">로딩 중...</div> :
@@ -162,10 +161,10 @@ export default function ReadingPage() {
             <span className="font-bold text-[#4A6741] opacity-60 shrink-0" style={{ fontSize: `${fontSize * 0.9}px` }}>{currentBookName} {currentReadChapter}장</span>
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
       </div>
 
-      <div className="flex items-center gap-8 mt-6 mb-8"> 
+      <div className="flex items-center gap-8 mt-3 mb-14"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
@@ -176,7 +175,7 @@ export default function ReadingPage() {
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      <div className="flex items-center justify-center gap-6 pb-4">
+      <div className="flex items-center justify-center gap-6 pb-10">
         <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2"><ChevronLeft size={32} strokeWidth={1.5} /></button>
         <motion.button 
           whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
