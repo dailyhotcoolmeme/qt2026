@@ -20,7 +20,7 @@ export default function ReadingPage() {
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 애니메이션 방향 제어 (1: 다음장, -1: 이전장)
+  // 애니메이션 방향 제어 (장 이동 시 사용)
   const [direction, setDirection] = useState(0); 
 
   // TTS 관련 상태
@@ -51,7 +51,7 @@ export default function ReadingPage() {
     }
   };
 
-  // [장 이동 함수 - 슬라이드 방향 설정]
+  // [장 이동 함수 - 3D 효과를 위해 방향 설정]
   const paginateChapter = (newDirection: number) => {
     setDirection(newDirection);
     if (newDirection === 1) {
@@ -67,7 +67,7 @@ export default function ReadingPage() {
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
-      setDirection(0); // 스와이프 시에는 장 넘기기 효과 제외
+      setDirection(0); // 스와이프는 3D 효과 제외
     } else if (info.offset.x < -100) {
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
@@ -81,27 +81,23 @@ export default function ReadingPage() {
     setIsPlaying(true);
   };
 
-  // 부드러운 슬라이드 오버 애니메이션 설정
-  const slideVariants = {
+  // 3D 책장 넘기기 애니메이션 설정
+  const pageFlipVariants = {
     initial: (dir: number) => ({
-      x: dir > 0 ? "100%" : dir < 0 ? "-100%" : 0,
+      rotateY: dir > 0 ? 90 : -90,
       opacity: 0,
-      scale: 0.95
+      transformPerspective: 1000,
     }),
     animate: {
-      x: 0,
+      rotateY: 0,
       opacity: 1,
-      scale: 1,
-      transition: {
-        x: { type: "spring", stiffness: 300, damping: 30 },
-        opacity: { duration: 0.4 }
-      }
+      transition: { duration: 0.6, ease: "easeOut" }
     },
     exit: (dir: number) => ({
-      x: dir > 0 ? "-20%" : dir < 0 ? "20%" : 0, // 나가는 페이지는 살짝만 밀려남
+      rotateY: dir > 0 ? -90 : 90,
       opacity: 0,
-      scale: 0.95,
-      transition: { duration: 0.4 }
+      transformPerspective: 1000,
+      transition: { duration: 0.6, ease: "easeIn" }
     })
   };
 
@@ -132,21 +128,20 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (Slide Over 애니메이션 적용) */}
-      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        {/* 배경 장식용 가짜 카드 */}
-        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
+      {/* 2. 말씀 카드 (3D Page Flip 애니메이션 적용) */}
+      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible" style={{ perspective: "1200px" }}>
+        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-50" />
         
-        <AnimatePresence mode="popLayout" custom={direction}>
+        <AnimatePresence mode="wait" custom={direction}>
           <motion.div 
             key={currentReadChapter + currentDate.toISOString()}
             custom={direction}
-            variants={direction !== 0 ? slideVariants : {}} 
+            variants={direction !== 0 ? pageFlipVariants : {}} // 버튼 클릭시에만 3D 효과
             initial="initial"
             animate="animate"
             exit="exit"
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
-            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none"
+            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none origin-center"
           >
             <div className="flex-1 overflow-y-auto pr-1 text-center scrollbar-hide">
               {loading ? (
@@ -167,23 +162,23 @@ export default function ReadingPage() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-50" />
       </div>
 
       {/* 3. 도구 상자 */}
       <div className="flex items-center gap-8 mt-3 mb-12"> 
         <button onClick={handlePlayTTS} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
-          <span className="font-medium text-[11px]">음성 재생</span>
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>음성 재생</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">복사</span>
+          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>말씀 복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Bookmark size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">기록함</span>
+          <Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>기록함</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Share2 size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">공유</span>
+          <Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>공유</span>
         </button>
       </div>
 
