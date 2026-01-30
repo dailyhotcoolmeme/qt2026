@@ -116,7 +116,6 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* 디자인 유지: 고정 높이 450px */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible min-h-[480px]">
         <div className="absolute left-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
         <AnimatePresence mode="wait">
@@ -151,29 +150,37 @@ export default function ReadingPage() {
 
       <div className="flex items-center gap-8 mt-6 mb-10"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Headphones size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">음성 재생</span>
+          <Headphones size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
         <button onClick={() => { navigator.clipboard.writeText(bibleContent.map(v => v.content).join(' ')); alert("복사됨"); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">복사</span>
+          <Copy size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>복사</span>
         </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">기록함</span></button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">공유</span></button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Bookmark size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span>
+        </button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Share2 size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span>
+        </button>
       </div>
 
       <div className="flex items-center justify-center gap-6 pb-6">
-        <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2">
-          <ChevronLeft size={32} />
+        <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+          <ChevronLeft size={32} strokeWidth={1.5} />
         </button>
         <motion.button 
           whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
           className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all
             ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-zinc-100'}`}
         >
-          <Check className="w-6 h-6 mb-1" />
-          <span className="font-black text-xs">읽기완료</span>
+          <Check className="w-6 h-6 mb-1" strokeWidth={3} />
+          <span className="font-black text-xs leading-tight">읽기<br/>완료</span>
         </motion.button>
-        <button onClick={() => setCurrentReadChapter(c => c + 1)} className="text-zinc-300 p-2">
-          <ChevronRight size={32} />
+        <button onClick={() => setCurrentReadChapter(c => c + 1)} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+          <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
 
@@ -190,8 +197,8 @@ export default function ReadingPage() {
               <button onClick={() => { audioRef.current?.pause(); setShowAudioControl(false); }}><X size={20} /></button>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성 목소리</button>
-              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성 목소리</button>
+              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>여성 목소리</button>
+              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>남성 목소리</button>
             </div>
           </motion.div>
         )}
