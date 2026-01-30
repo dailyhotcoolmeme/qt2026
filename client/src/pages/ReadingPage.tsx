@@ -51,6 +51,7 @@ export default function ReadingPage() {
 
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (bibleContent.length === 0) return;
+    
     const targetVoice = selectedVoice || voiceType;
     if (selectedVoice) setVoiceType(selectedVoice);
 
@@ -72,6 +73,7 @@ export default function ReadingPage() {
       } else {
         const fullText = bibleContent.map(v => cleanContent(v.content)).join(". ");
         const textToSpeak = `${fullText}. ${currentBookName} ${currentReadChapter}장 말씀.`;
+        
         const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${import.meta.env.VITE_GOOGLE_TTS_API_KEY}`, {
           method: "POST",
           body: JSON.stringify({
@@ -81,10 +83,16 @@ export default function ReadingPage() {
           }),
         });
         const resData = await response.json();
+        
         if (resData.audioContent) {
           const base64Audio = resData.audioContent;
           const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
-          await supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { contentType: 'audio/mp3', upsert: true });
+          
+          await supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
+            contentType: 'audio/mp3',
+            upsert: true 
+          });
+          
           const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
           audioRef.current = audio;
           audio.onended = () => { setIsPlaying(false); setShowAudioControl(false); };
@@ -92,7 +100,9 @@ export default function ReadingPage() {
           audio.play();
         }
       }
-    } catch (error) { setIsPlaying(false); }
+    } catch (error) { 
+      setIsPlaying(false); 
+    }
   };
 
   const togglePlay = () => {
@@ -102,7 +112,16 @@ export default function ReadingPage() {
     }
   };
 
-  // [수정] min-h-full 적용
+  // 스와이프 핸들러
+  const handleDragEnd = (event: any, info: any) => {
+    const threshold = 100;
+    if (info.offset.x > threshold) {
+      setCurrentReadChapter(c => Math.max(1, c - 1));
+    } else if (info.offset.x < -threshold) {
+      setCurrentReadChapter(c => c + 1);
+    }
+  };
+
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto pt-24 pb-4 px-4">
       <header className="text-center mb-3 flex flex-col items-center">
@@ -120,14 +139,16 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* [수정] flex-1 삭제, h-[480px] 고정 */}
       <div className="relative w-full flex items-center justify-center overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
         <AnimatePresence mode="wait">
           <motion.div 
             key={`${currentBookName}-${currentReadChapter}`}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            onDragEnd={handleDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10"
+            className="w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 cursor-grab active:cursor-grabbing"
           >
             <div className="flex-1 w-full overflow-y-auto scrollbar-hide mb-4 text-left">
               {loading ? <div className="flex items-center justify-center h-full">로딩 중...</div> :
@@ -144,7 +165,6 @@ export default function ReadingPage() {
         <div className="absolute right-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
       </div>
 
-      {/* [수정] 간격 조정 (DailyWordPage 기준) */}
       <div className="flex items-center gap-8 mt-6 mb-8"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
@@ -156,7 +176,6 @@ export default function ReadingPage() {
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* [수정] pb-4로 바닥 일치 */}
       <div className="flex items-center justify-center gap-6 pb-4">
         <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2"><ChevronLeft size={32} strokeWidth={1.5} /></button>
         <motion.button 
@@ -180,7 +199,7 @@ export default function ReadingPage() {
                 </button>
                 <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
               </div>
-              <button onClick={() => { audioRef.current?.pause(); setShowAudioControl(false); }}><X size={20} /></button>
+              <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20} /></button>
             </div>
             <div className="flex gap-2">
               <button onClick={() => handlePlayTTS('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>여성 목소리</button>
