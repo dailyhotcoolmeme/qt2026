@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Check, Calendar as CalendarIcon 
+  Play, Pause, X, Check, Calendar as CalendarIcon,
+  ChevronLeft, ChevronRight 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -23,7 +24,7 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
-  const [isReadCompleted, setIsReadCompleted] = useState(false); // 읽기 완료 상태
+  const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -57,7 +58,7 @@ export default function ReadingPage() {
         .maybeSingle();
 
       setBibleData({ ...verse, bible_books: book });
-      setIsReadCompleted(false); // 날짜 바뀌면 초기화
+      setIsReadCompleted(false);
     }
   };
 
@@ -214,8 +215,13 @@ export default function ReadingPage() {
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* 아멘 버튼과 동일한 크기와 색상의 '읽기 완료' 버튼 추가 */}
-      <div className="flex flex-col items-center gap-3 pb-4">
+      {/* 읽기 완료 버튼 및 좌우 장 이동 버튼 (테두리 없음) */}
+      <div className="flex items-center justify-center gap-6 pb-4">
+        {/* 이전 장 버튼 */}
+        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
+          <ChevronLeft size={32} strokeWidth={1.5} />
+        </button>
+
         <motion.button 
           whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
           className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
@@ -224,6 +230,11 @@ export default function ReadingPage() {
           <Check className={`w-6 h-6 mb-1 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
           <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
         </motion.button>
+
+        {/* 다음 장 버튼 */}
+        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
+          <ChevronRight size={32} strokeWidth={1.5} />
+        </button>
       </div>
 
       <AnimatePresence>
