@@ -181,13 +181,13 @@ export default function ReadingPage() {
 
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         {/* 뒷배경 카드 고정 높이 적용 */}
-        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
         <AnimatePresence mode="wait">
           <motion.div 
             key={currentDate.toISOString()}
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
+            className="w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
             {bibleData ? (
               <>
@@ -204,7 +204,7 @@ export default function ReadingPage() {
             ) : <div className="animate-pulse text-zinc-200 m-auto">말씀을 불러오는 중...</div>}
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
       <div className="flex items-center gap-8 mt-3 mb-14"> 
