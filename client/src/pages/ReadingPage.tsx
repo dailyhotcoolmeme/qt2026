@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon 
+  Play, Pause, X, Check, Calendar as CalendarIcon 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -23,6 +23,7 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
+  const [isReadCompleted, setIsReadCompleted] = useState(false); // 읽기 완료 상태
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -56,6 +57,7 @@ export default function ReadingPage() {
         .maybeSingle();
 
       setBibleData({ ...verse, bible_books: book });
+      setIsReadCompleted(false); // 날짜 바뀌면 초기화
     }
   };
 
@@ -176,7 +178,6 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* flex-1 속성을 유지하되 하단 마진(py-4)을 조절하여 간격을 보존함 */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
         <AnimatePresence mode="wait">
@@ -201,7 +202,6 @@ export default function ReadingPage() {
         <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      {/* 하단 버튼 툴바 (mb-14를 통해 바닥과의 간격 유지) */}
       <div className="flex items-center gap-8 mt-3 mb-14"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
@@ -212,6 +212,18 @@ export default function ReadingPage() {
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+      </div>
+
+      {/* 아멘 버튼과 동일한 크기와 색상의 '읽기 완료' 버튼 추가 */}
+      <div className="flex flex-col items-center gap-3 pb-4">
+        <motion.button 
+          whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
+          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
+            ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
+        >
+          <Check className={`w-6 h-6 mb-1 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
+          <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
+        </motion.button>
       </div>
 
       <AnimatePresence>
