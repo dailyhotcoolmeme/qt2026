@@ -51,18 +51,15 @@ export default function ReadingPage() {
 
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (bibleContent.length === 0) return;
-    
     const targetVoice = selectedVoice || voiceType;
     if (selectedVoice) setVoiceType(selectedVoice);
 
-    // [수정] 실제 버킷 'bible-assets' 및 새 폴더 'reading' 경로 적용
     const fileName = `reading_${currentBookName}_${currentReadChapter}_${targetVoice}.mp3`;
     const storagePath = `reading/${fileName}`;
 
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
 
     try {
-      // 1. bible-assets 버킷에서 기존 파일 확인
       const { data: fileUrl } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
       const checkRes = await fetch(fileUrl.publicUrl, { method: 'HEAD' });
 
@@ -73,10 +70,8 @@ export default function ReadingPage() {
         setShowAudioControl(true); setIsPlaying(true);
         audio.play();
       } else {
-        // 2. 없으면 Google TTS 생성
         const fullText = bibleContent.map(v => cleanContent(v.content)).join(". ");
         const textToSpeak = `${fullText}. ${currentBookName} ${currentReadChapter}장 말씀.`;
-        
         const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${import.meta.env.VITE_GOOGLE_TTS_API_KEY}`, {
           method: "POST",
           body: JSON.stringify({
@@ -86,17 +81,10 @@ export default function ReadingPage() {
           }),
         });
         const resData = await response.json();
-        
         if (resData.audioContent) {
           const base64Audio = resData.audioContent;
           const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
-          
-          // 3. bible-assets/reading/ 경로로 업로드 (캐싱)
-          await supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-            contentType: 'audio/mp3',
-            upsert: true 
-          });
-          
+          await supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { contentType: 'audio/mp3', upsert: true });
           const audio = new Audio(`data:audio/mp3;base64,${base64Audio}`);
           audioRef.current = audio;
           audio.onended = () => { setIsPlaying(false); setShowAudioControl(false); };
@@ -104,10 +92,7 @@ export default function ReadingPage() {
           audio.play();
         }
       }
-    } catch (error) { 
-      console.error("TTS Error:", error);
-      setIsPlaying(false); 
-    }
+    } catch (error) { setIsPlaying(false); }
   };
 
   const togglePlay = () => {
@@ -117,8 +102,9 @@ export default function ReadingPage() {
     }
   };
 
+  // [수정] min-h-full 적용
   return (
-    <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] overflow-y-auto pt-24 pb-4 px-4">
+    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto pt-24 pb-4 px-4">
       <header className="text-center mb-3 flex flex-col items-center">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -134,7 +120,7 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* 카드 높이 480px 복구 및 불필요한 py-4 제거로 간격 최적화 */}
+      {/* [수정] flex-1 삭제, h-[480px] 고정 */}
       <div className="relative w-full flex items-center justify-center overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
         <AnimatePresence mode="wait">
@@ -158,7 +144,7 @@ export default function ReadingPage() {
         <div className="absolute right-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
       </div>
 
-      {/* 카드와 도구함 사이 mt-6으로 간격 밀착 */}
+      {/* [수정] 간격 조정 (DailyWordPage 기준) */}
       <div className="flex items-center gap-8 mt-6 mb-8"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
@@ -170,7 +156,7 @@ export default function ReadingPage() {
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* pb-4로 바닥 여백을 아멘 버튼과 동일하게 고정 */}
+      {/* [수정] pb-4로 바닥 일치 */}
       <div className="flex items-center justify-center gap-6 pb-4">
         <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2"><ChevronLeft size={32} strokeWidth={1.5} /></button>
         <motion.button 
