@@ -190,8 +190,8 @@ export default function ReadingPage() {
               <button onClick={() => { audioRef.current?.pause(); setShowAudioControl(false); }}><X size={20} /></button>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성 목소리</button>
-              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성 목소리</button>
+              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성</button>
+              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2 rounded-xl text-[11px] font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성</button>
             </div>
           </motion.div>
         )}
