@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Headphones, Share2, Copy, Bookmark, 
+  Heart, Headphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Check, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight 
 } from "lucide-react";
@@ -13,23 +13,6 @@ export default function ReadingPage() {
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null); 
 
-  // [로직 변경] 첨부 파일의 상태 관리 변수들을 가져옵니다.
-  const [bibleContent, setBibleContent] = useState<any[]>([]); [span_3](start_span)// 장 전체 말씀 저장[span_3](end_span)
-  const [loading, setLoading] = useState(false); [span_4](start_span)// 로딩 상태[span_4](end_span)
-  const [isReadCompleted, setIsReadCompleted] = useState(false);
-  
-  // 현재 읽고 있는 장 상태 (기본값 1장)
-  const [currentReadChapter, setCurrentReadChapter] = useState(1);
-  // 예시를 위해 '창세기'로 고정 (나중에 목표 설정 로직과 연결 가능)
-  const [currentBookName, setCurrentBookName] = useState("창세기");
-
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showAudioControl, setShowAudioControl] = useState(false);
-  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  const { fontSize = 16 } = useDisplaySettings();
-
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -40,37 +23,142 @@ export default function ReadingPage() {
       setCurrentDate(selectedDate);
     }
   };
+  const [bibleData, setBibleData] = useState<any>(null);
+  const [isReadCompleted, setIsReadCompleted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAudioControl, setShowAudioControl] = useState(false);
+  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  [span_5](start_span)// [로직 변경] 첨부 파일의 fetchBible 방식을 그대로 적용[span_5](end_span)
+  const { fontSize = 16 } = useDisplaySettings();
+
   useEffect(() => {
-    const fetchBible = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        [span_6](start_span).from('bible_verses') // 테이블명 변경[span_6](end_span)
-        .select('verse, content')
-        .eq('book_name', currentBookName)
-        .eq('chapter', currentReadChapter)
-        .order('verse', { ascending: true });
-   
-      if (data) {
-        setBibleContent(data);
-      }
-      setLoading(false);
-    };
-    fetchBible();
-    setIsReadCompleted(false); // 장이 바뀌면 완료 상태 초기화
-  }, [currentReadChapter, currentBookName]);
+    if (showAudioControl) {
+      handlePlayTTS();
+    }
+  }, [voiceType]);
+
+  useEffect(() => {
+    fetchVerse();
+  }, [currentDate]);
+  
+  const fetchVerse = async () => {
+    const formattedDate = currentDate.toISOString().split('T')[0];
+    const { data: verse } = await supabase
+      .from('daily_bible_verses')
+      .select('*')
+      .eq('display_date', formattedDate)
+      .maybeSingle();
+    
+    if (verse) {
+      const { data: book } = await supabase
+        .from('bible_books')
+        .select('book_order')
+        .eq('book_name', verse.bible_name)
+        .maybeSingle();
+
+      setBibleData({ ...verse, bible_books: book });
+      setIsReadCompleted(false);
+    }
+  };
 
   const cleanContent = (text: string) => {
     if (!text) return "";
-    return text.replace(/[."'“”‘’]/g, "").trim();
+    return text
+      .replace(/^[.\s]+/, "") 
+      .replace(/\d+절/g, "")
+      .replace(/\d+/g, "")
+      .replace(/[."'“”‘’]/g, "")
+      .replace(/\.$/, "")
+      .trim();
   };
 
-  // TTS 및 기타 핸들러는 기존 디자인 코드 유지 (생략 가능하나 기능 보존을 위해 유지)
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
       else { audioRef.current.play(); setIsPlaying(true); }
+    }
+  };
+
+  const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
+    audioRef.current = audio;
+    audio.currentTime = startTime;
+    audio.onended = () => {
+      setIsPlaying(false);
+      setShowAudioControl(false);
+      audioRef.current = null;
+    };
+    setShowAudioControl(true);
+    setIsPlaying(true);
+    audio.play().catch(e => console.log("재생 시작 오류:", e));
+  };
+
+  const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
+    if (!bibleData) return;
+    if (selectedVoice) {
+      setVoiceType(selectedVoice);
+      return;
+    }
+    const targetVoice = voiceType;
+    const currentSrc = audioRef.current?.src || "";
+    const isSameDate = currentSrc.includes(`daily_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
+    const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = ""; 
+      audioRef.current.load();
+      audioRef.current = null;
+    }
+
+    const bookOrder = bibleData.bible_books?.book_order || '0';
+    const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '_')}_${targetVoice}.mp3`;
+    const storagePath = `daily/${fileName}`;
+    const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+
+    try {
+      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      if (checkRes.ok) {
+        const savedAudio = new Audio(publicUrl);
+        setupAudioEvents(savedAudio, lastTime);
+        return;
+      }
+      const mainContent = cleanContent(bibleData.content);
+      const unit = bibleData.bible_name === "시편" ? "편" : "장";
+      const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+      const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${import.meta.env.VITE_GOOGLE_TTS_API_KEY}`, {
+        method: "POST",
+        body: JSON.stringify({
+          input: { text: textToSpeak },
+          voice: { languageCode: "ko-KR", name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" },
+          audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
+        }),
+      });
+      const resData = await response.json();
+      if (resData.audioContent) {
+        const ttsAudio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
+        setupAudioEvents(ttsAudio, lastTime);
+        const binary = atob(resData.audioContent);
+        const array = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
+        const blob = new Blob([array], { type: 'audio/mp3' });
+        supabase.storage.from('bible-assets').upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
+      }
+    } catch (error) {
+      console.error("TTS 에러:", error);
+      setIsPlaying(false);
+    }
+  };
+
+  const onDragEnd = (event: any, info: any) => {
+    if (info.offset.x > 100) {
+      const d = new Date(currentDate);
+      d.setDate(d.getDate() - 1);
+      setCurrentDate(d);
+    } else if (info.offset.x < -100) {
+      const d = new Date(currentDate);
+      d.setDate(d.getDate() + 1);
+      if (d <= today) setCurrentDate(d);
     }
   };
 
@@ -92,57 +180,47 @@ export default function ReadingPage() {
       </header>
 
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        {/* 디자인 유지: 고정 높이 450px */}
-        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        {/* 뒷배경 카드 고정 높이 적용 */}
+        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
         <AnimatePresence mode="wait">
           <motion.div 
-            key={`${currentBookName}-${currentReadChapter}`}
+            key={currentDate.toISOString()}
+            drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none"
+            className="w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
-            [span_7](start_span){/* [데이터 바뀜] 카드 내부 말씀 리스트 출력 디자인[span_7](end_span) */}
-            <div className="flex-1 w-full overflow-y-auto scrollbar-hide mb-4 text-left">
-              {loading ? (
-                <div className="flex items-center justify-center h-full animate-pulse text-zinc-200 font-black">말씀을 불러오는 중...</div>
-              ) : (
-                bibleContent.map((v, i) => (
-                  <div key={i} className="flex gap-3 mb-4 last:mb-0">
-                    <span className="font-bold opacity-30 text-[10px] pt-1 shrink-0">{v.verse}</span>
-                    <p className="text-zinc-800 leading-[1.8] break-keep font-medium" style={{ fontSize: `${fontSize}px` }}>
-                      {cleanContent(v.content)}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-            
-            <span className="font-bold text-[#4A6741] opacity-60 shrink-0" style={{ fontSize: `${fontSize * 0.9}px` }}>
-              {currentBookName} {currentReadChapter}장
-            </span>
+            {bibleData ? (
+              <>
+                {/* 텍스트 영역 고정 및 내부 스크롤 처리 */}
+                <div className="flex-1 w-full overflow-y-auto scrollbar-hide flex items-center justify-center mb-4">
+                  <p className="text-zinc-800 leading-[1.8] break-keep font-medium" style={{ fontSize: `${fontSize}px` }}>
+                    {cleanContent(bibleData.content)}
+                  </p>
+                </div>
+                <span className="font-bold text-[#4A6741] opacity-60 shrink-0" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+                </span>
+              </>
+            ) : <div className="animate-pulse text-zinc-200 m-auto">말씀을 불러오는 중...</div>}
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      {/* 하단 툴바 디자인 그대로 유지 */}
       <div className="flex items-center gap-8 mt-3 mb-14"> 
-        <button onClick={() => {}} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
-        <button onClick={() => { alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button onClick={() => { if(bibleData) { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); } }} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* 읽기 완료 및 장 이동 버튼 디자인 그대로 유지 */}
       <div className="flex items-center justify-center gap-6 pb-4">
-        <button 
-          onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))}
-          className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2"
-        >
+        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
           <ChevronLeft size={32} strokeWidth={1.5} />
         </button>
 
@@ -155,13 +233,32 @@ export default function ReadingPage() {
           <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
         </motion.button>
 
-        <button 
-          onClick={() => setCurrentReadChapter(c => c + 1)}
-          className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2"
-        >
+        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
+
+      <AnimatePresence>
+        {showAudioControl && (
+          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors">
+                    {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
+                  </button>
+                  <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
+                </div>
+                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20}/></button>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>여성 목소리</button>
+                <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>남성 목소리</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
