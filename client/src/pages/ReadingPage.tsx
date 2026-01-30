@@ -14,7 +14,6 @@ export default function ReadingPage() {
   const [bibleData, setBibleData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // 데이터 가져오기 및 텍스트 정제 로직 (DailyWordPage 복사)
   useEffect(() => {
     const fetchVerse = async () => {
       setLoading(true);
@@ -45,10 +44,7 @@ export default function ReadingPage() {
   };
 
   return (
-    [span_6](start_span)// 상단 여백 pt-24 적용[span_6](end_span)
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-      
-      [span_7](start_span){/* 날짜 영역: mb-3으로 카드와 밀착[span_7](end_span) */}
       <header className="text-center mb-3 flex flex-col items-center relative flex-none">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -64,10 +60,8 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      [span_8](start_span){/* 카드 영역: py-4 적용[span_8](end_span) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
-        
         <AnimatePresence mode="wait">
           <motion.div 
             key={currentDate.toISOString()}
@@ -87,7 +81,6 @@ export default function ReadingPage() {
             ) : <div className="animate-pulse text-zinc-200 font-bold">말씀을 불러오는 중...</div>}
           </motion.div>
         </AnimatePresence>
-
         <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
       </div>
     </div>
