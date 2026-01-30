@@ -230,7 +230,7 @@ export default function ReadingPage() {
             ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
         >
           <Check className={`w-6 h-6 mb-1 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
-          <span className="font-black text-zinc-400 leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
+          <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
         </motion.button>
 
         <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
