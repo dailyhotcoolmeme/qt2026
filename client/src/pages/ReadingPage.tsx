@@ -9,7 +9,7 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function ReadingPage() {
-  // [상태 관리] - DailyWordPage와 동일하게 유지
+  // [상태 관리]
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
@@ -20,11 +20,10 @@ export default function ReadingPage() {
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 애니메이션 제어용 상태
-  const [direction, setDirection] = useState(0); 
-  const [moveType, setMoveType] = useState<'chapter' | 'date'>('date');
+  // 애니메이션 제어용 상태 (0: 효과 없음, 1: 다음, -1: 이전)
+  const [direction, setDirection] = useState(0);
 
-  // TTS 관련 상태 (DailyWordPage 스타일)
+  // TTS 관련 상태
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -32,7 +31,7 @@ export default function ReadingPage() {
   // [데이터 로드]
   useEffect(() => {
     fetchBibleContent();
-  }, [currentReadChapter, currentDate]); // 날짜나 장이 바뀌면 호출
+  }, [currentReadChapter, currentDate]);
 
   const fetchBibleContent = async () => {
     setLoading(true);
@@ -52,10 +51,9 @@ export default function ReadingPage() {
     }
   };
 
-  // [장 이동 함수 - 버튼 전용 3D 효과]
+  // [장 이동 함수 - 버튼 클릭 시에만 3D 효과를 위한 direction 설정]
   const paginateChapter = (newDirection: number) => {
-    setMoveType('chapter'); 
-    setDirection(newDirection);
+    setDirection(newDirection); // 3D 효과 발생
     if (newDirection === 1) {
       setCurrentReadChapter(prev => prev + 1);
     } else {
@@ -63,41 +61,43 @@ export default function ReadingPage() {
     }
   };
 
-  // [날짜 이동 스와이프 - DailyWordPage 원본 코드 100% 동일 적용]
+  // [날짜 이동 스와이프 - DailyWordPage 원본 로직 100% 동일]
   const onDragEnd = (event: any, info: any) => {
-    setMoveType('date'); // 스와이프는 날짜 이동 모드
-    if (info.offset.x > 100) {
+    if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
-    } else if (info.offset.x < -100) {
+    } else if (info.offset.x < -100) { // 다음 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
-      if (d <= today) {
-        setCurrentDate(d);
-      } else {
-        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
-      }
+      if (d <= today) setCurrentDate(d);
     }
   };
 
-  // [애니메이션 Variants]
+  // [3D Flip 애니메이션 Variants]
   const pageFlipVariants = {
-    initial: (dir: number) => ({ rotateY: dir > 0 ? 90 : -90, opacity: 0, transformPerspective: 1000 }),
-    animate: { rotateY: 0, opacity: 1, transition: { duration: 0.6, ease: "easeOut" } },
-    exit: (dir: number) => ({ rotateY: dir > 0 ? -90 : 90, opacity: 0, transformPerspective: 1000, transition: { duration: 0.6, ease: "easeIn" } })
-  };
-
-  const dateSlideVariants = {
-    initial: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
-    animate: { x: 0, opacity: 1, transition: { type: "spring", stiffness: 300, damping: 30 } },
-    exit: (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0, transition: { duration: 0.2 } })
+    initial: (dir: number) => ({
+      rotateY: dir > 0 ? 90 : dir < 0 ? -90 : 0,
+      opacity: dir !== 0 ? 0 : 1,
+      transformPerspective: 1000,
+    }),
+    animate: {
+      rotateY: 0,
+      opacity: 1,
+      transition: { duration: 0.6, ease: "easeOut" }
+    },
+    exit: (dir: number) => ({
+      rotateY: dir > 0 ? -90 : dir < 0 ? 90 : 0,
+      opacity: dir !== 0 ? 0 : 1,
+      transformPerspective: 1000,
+      transition: { duration: 0.6, ease: "easeIn" }
+    })
   };
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* 1. 상단 날짜 영역 (DailyWordPage 디자인) */}
+      {/* 1. 상단 날짜 영역 */}
       <header className="text-center mb-3 flex flex-col items-center relative">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -114,24 +114,30 @@ export default function ReadingPage() {
           </button>
           <input 
             type="date" ref={dateInputRef} 
-            onChange={(e) => { setMoveType('date'); setCurrentDate(new Date(e.target.value)); }} 
+            onChange={(e) => { setDirection(0); setCurrentDate(new Date(e.target.value)); }} 
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none" 
           />
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (스와이프 100% 복구 + 버튼 클릭시 3D) */}
+      {/* 2. 말씀 카드 (스와이프 시에는 날짜 이동 / 버튼 클릭 시에는 3D 효과) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible" style={{ perspective: "1200px" }}>
+        {/* 양옆 배경 힌트 카드 */}
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
         
-        <AnimatePresence mode="wait" custom={direction}>
+        <AnimatePresence mode="wait" custom={direction} onExitComplete={() => setDirection(0)}>
           <motion.div 
-            key={moveType === 'chapter' ? `chapter-${currentReadChapter}` : `date-${currentDate.toISOString()}`}
+            key={currentDate.toISOString() + currentReadChapter}
             custom={direction}
-            variants={moveType === 'chapter' ? pageFlipVariants : dateSlideVariants}
-            initial="initial" animate="animate" exit="exit"
-            drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
+            variants={pageFlipVariants}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            drag="x" 
+            dragConstraints={{ left: 0, right: 0 }} 
+            dragElastic={0.2} 
+            onDragEnd={onDragEnd}
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none origin-center cursor-grab active:cursor-grabbing"
           >
             <div className="flex-1 overflow-y-auto pr-1 text-center scrollbar-hide">
@@ -161,7 +167,7 @@ export default function ReadingPage() {
         <button onClick={() => setShowAudioControl(true)} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">음성 재생</span>
         </button>
-        <button onClick={() => alert("복사되었습니다.")} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
@@ -172,9 +178,12 @@ export default function ReadingPage() {
         </button>
       </div>
 
-      {/* 4. 하단 원형 버튼 및 장 이동 */}
+      {/* 4. 하단 원형 버튼 및 장 이동 제어 */}
       <div className="flex items-center gap-7 pb-10">
-        <button onClick={() => paginateChapter(-1)} className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 border border-zinc-50">
+        <button 
+          onClick={() => paginateChapter(-1)}
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 border border-zinc-50"
+        >
           <ChevronLeft size={28} />
         </button>
 
@@ -189,12 +198,15 @@ export default function ReadingPage() {
           <span className="font-bold opacity-60 text-[10px]">READ</span>
         </motion.button>
 
-        <button onClick={() => paginateChapter(1)} className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 border border-zinc-50">
+        <button 
+          onClick={() => paginateChapter(1)}
+          className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 border border-zinc-50"
+        >
           <ChevronRight size={28} />
         </button>
       </div>
 
-      {/* 5. TTS 제어 팝업 */}
+      {/* 5. TTS 제어 (DailyWordPage 스타일) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
