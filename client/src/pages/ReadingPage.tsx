@@ -151,13 +151,13 @@ export default function ReadingPage() {
 
       <div className="flex items-center gap-8 mt-6 mb-10"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Headphones size={22} /><span className="text-[11px] font-bold">음성 재생</span>
+          <Headphones size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">음성 재생</span>
         </button>
         <button onClick={() => { navigator.clipboard.writeText(bibleContent.map(v => v.content).join(' ')); alert("복사됨"); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} /><span className="text-[11px] font-bold">복사</span>
+          <Copy size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">복사</span>
         </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} /><span className="text-[11px] font-bold">기록함</span></button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} /><span className="text-[11px] font-bold">공유</span></button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">기록함</span></button>
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5}/><span className="text-[11px] font-medium">공유</span></button>
       </div>
 
       <div className="flex items-center justify-center gap-6 pb-6">
