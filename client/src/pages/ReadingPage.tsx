@@ -148,7 +148,7 @@ export default function ReadingPage() {
         <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
       </div>
 
-      <div className="flex items-center gap-8 mt-3 mb-14"> 
+      <div className="flex items-center gap-8 mt-6 mb-10"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
