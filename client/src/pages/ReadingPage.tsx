@@ -14,29 +14,22 @@ export default function ReadingPage() {
   const [bibleData, setBibleData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // 1. 말씀 데이터 가져오기 로직 (DailyWordPage )
   useEffect(() => {
     const fetchVerse = async () => {
       setLoading(true);
-      try {
-        const formattedDate = currentDate.toISOString().split('T')[0];
-        const { data: verse } = await supabase
-          .from('daily_bible_verses')
-          .select('*')
-          .eq('display_date', formattedDate)
-          .maybeSingle();
-        
-        setBibleData(verse || null);
-      } catch (err) {
-        console.error("데이터 로드 실패:", err);
-      } finally {
-        setLoading(false);
-      }
+      const formattedDate = currentDate.toISOString().split('T')[0];
+      const { data: verse } = await supabase
+        .from('daily_bible_verses')
+        .select('*')
+        .eq('display_date', formattedDate)
+        .maybeSingle();
+      
+      setBibleData(verse || null);
+      setLoading(false);
     };
     fetchVerse();
   }, [currentDate]);
 
-  // 2. 텍스트 정제 함수 (DailyWordPage )
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
@@ -48,7 +41,6 @@ export default function ReadingPage() {
       .trim();
   };
 
-  // 3. 스와이프 로직 (DailyWordPage )
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) {
       const d = new Date(currentDate);
@@ -62,10 +54,11 @@ export default function ReadingPage() {
   };
 
   return (
+    [span_8](start_span)/* [수정] DailyWordPage와 동일하게 min-h-full 및 pt-24 적용[span_8](end_span) */
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* 1. 날짜 영역 (DailyWordPage와 100% 동일 수치 ) */}
-      <header className="text-center mb-3 flex flex-col items-center relative">
+      {/* [수정] mb-3 적용 (DailyWordPage ) */}
+      <header className="text-center mb-3 flex flex-col items-center relative flex-none">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
@@ -82,39 +75,32 @@ export default function ReadingPage() {
           <input 
             type="date"
             ref={dateInputRef}
-            onChange={(e) => {
-              const selectedDate = new Date(e.target.value);
-              if (selectedDate > today) {
-                alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
-              } else {
-                setCurrentDate(selectedDate);
-              }
-            }}
+            onChange={(e) => setCurrentDate(new Date(e.target.value))}
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none"
           />
         </div>
       </header>
 
-      {/* 2. 말씀 카드 영역 (DailyWordPage와 100% 동일 수치 ) */}
+      {/* [수정] py-4 적용 (DailyWordPage ) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        {/* 양옆 힌트 카드 */}
-        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
         
         <AnimatePresence mode="wait">
           <motion.div 
             key={currentDate.toISOString()}
             drag="x" 
             dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.2} 
+            dragElastic={0.2}
             onDragEnd={onDragEnd}
             initial={{ opacity: 0, x: 20 }} 
             animate={{ opacity: 1, x: 0 }} 
             exit={{ opacity: 0, x: -20 }}
+            [span_9](start_span)/* [원본 일치] w-[82%] rounded-[32px] p-10[span_9](end_span) */
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
             {loading ? (
-              <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>
+              <div className="animate-pulse text-zinc-200 font-bold">말씀을 불러오는 중...</div>
             ) : bibleData ? (
               <>
                 <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
@@ -130,7 +116,7 @@ export default function ReadingPage() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
       </div>
     </div>
   );
