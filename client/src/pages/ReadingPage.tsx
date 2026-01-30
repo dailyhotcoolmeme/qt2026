@@ -14,7 +14,7 @@ export default function ReadingPage() {
   const [bibleData, setBibleData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
-  // 1. 말씀 데이터 가져오기 로직 (DailyWordPage와 동일)
+  // 1. 말씀 데이터 가져오기 (DailyWordPage와 100% 동일 로직)
   useEffect(() => {
     const fetchVerse = async () => {
       setLoading(true);
@@ -37,7 +37,7 @@ export default function ReadingPage() {
     fetchVerse();
   }, [currentDate]);
 
-  // 2. 텍스트 정제 함수 (DailyWordPage 원본 100% 이식)
+  // 2. 텍스트 정제 함수 (DailyWordPage 원본 코드 복사)
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
@@ -49,7 +49,19 @@ export default function ReadingPage() {
       .trim();
   };
 
-  // 3. 스와이프 로직 (DailyWordPage와 동일)
+  // 3. 날짜 변경 핸들러 (DailyWordPage와 동일 문구 적용)
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = new Date(e.target.value);
+    if (!isNaN(selectedDate.getTime())) {
+      if (selectedDate > today) {
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+        return;
+      }
+      setCurrentDate(selectedDate);
+    }
+  };
+
+  // 4. 스와이프 로직 (DailyWordPage와 동일 숫자 적용)
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) {
       const d = new Date(currentDate);
@@ -69,8 +81,8 @@ export default function ReadingPage() {
   return (
     <div className="flex flex-col items-center w-full h-screen min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-4 px-4">
       
-      {/* 상단 날짜 영역 */}
-      <header className="text-center mb-6 flex flex-col items-center relative flex-none">
+      {/* [상단 날짜 영역] 글자크기, 간격, 문구 DailyWordPage와 동일 */}
+      <header className="text-center mb-3 flex flex-col items-center relative flex-none">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
@@ -87,23 +99,16 @@ export default function ReadingPage() {
           <input 
             type="date"
             ref={dateInputRef}
-            onChange={(e) => {
-              const selectedDate = new Date(e.target.value);
-              if (selectedDate > today) {
-                alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
-              } else {
-                setCurrentDate(selectedDate);
-              }
-            }}
+            onChange={handleDateChange}
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none"
           />
         </div>
       </header>
 
-      {/* 말씀 카드 영역 */}
+      {/* [말씀 카드 영역] 카드 크기, 그림자, 애니메이션 DailyWordPage와 동일 */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        {/* 장식용 카드 디자인 */}
+        {/* 장식용 카드 디자인 복구 */}
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
         <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
         
