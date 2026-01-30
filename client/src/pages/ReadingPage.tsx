@@ -20,8 +20,9 @@ export default function ReadingPage() {
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 애니메이션 제어용 상태 (0: 효과 없음, 1: 다음, -1: 이전)
+  // 애니메이션 제어용 상태 (0: 효과없음, 1: 다음, -1: 이전)
   const [direction, setDirection] = useState(0);
+  const [moveType, setMoveType] = useState<'chapter' | 'date'>('date');
 
   // TTS 관련 상태
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,9 +52,10 @@ export default function ReadingPage() {
     }
   };
 
-  // [장 이동 함수 - 버튼 클릭 시에만 3D 효과를 위한 direction 설정]
+  // [장 이동 함수 - 버튼 클릭 시 3D Flip]
   const paginateChapter = (newDirection: number) => {
-    setDirection(newDirection); // 3D 효과 발생
+    setMoveType('chapter');
+    setDirection(newDirection);
     if (newDirection === 1) {
       setCurrentReadChapter(prev => prev + 1);
     } else {
@@ -61,36 +63,68 @@ export default function ReadingPage() {
     }
   };
 
-  // [날짜 이동 스와이프 - DailyWordPage 원본 로직 100% 동일]
+  // [날짜 이동 스와이프 - DailyWordPage 원본 로직 100% 유지]
   const onDragEnd = (event: any, info: any) => {
+    setMoveType('date');
     if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
+      setDirection(-1);
     } else if (info.offset.x < -100) { // 다음 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
-      if (d <= today) setCurrentDate(d);
+      if (d <= today) {
+        setCurrentDate(d);
+        setDirection(1);
+      } else {
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+      }
     }
   };
 
-  // [3D Flip 애니메이션 Variants]
+  // [애니메이션 설정 - DailyWordPage 특유의 쫀득한 Spring 반영]
   const pageFlipVariants = {
     initial: (dir: number) => ({
       rotateY: dir > 0 ? 90 : dir < 0 ? -90 : 0,
-      opacity: dir !== 0 ? 0 : 1,
+      opacity: 0,
       transformPerspective: 1000,
     }),
     animate: {
       rotateY: 0,
       opacity: 1,
-      transition: { duration: 0.6, ease: "easeOut" }
+      transition: { 
+        type: "spring", 
+        stiffness: 260, 
+        damping: 25 
+      }
     },
     exit: (dir: number) => ({
       rotateY: dir > 0 ? -90 : dir < 0 ? 90 : 0,
-      opacity: dir !== 0 ? 0 : 1,
+      opacity: 0,
       transformPerspective: 1000,
-      transition: { duration: 0.6, ease: "easeIn" }
+      transition: { duration: 0.3 }
+    })
+  };
+
+  const dateSlideVariants = {
+    initial: (dir: number) => ({ 
+      x: dir > 0 ? 300 : -300, 
+      opacity: 0 
+    }),
+    animate: { 
+      x: 0, 
+      opacity: 1, 
+      transition: { 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 30 
+      } 
+    },
+    exit: (dir: number) => ({ 
+      x: dir > 0 ? -300 : 300, 
+      opacity: 0, 
+      transition: { duration: 0.2 } 
     })
   };
 
@@ -114,23 +148,22 @@ export default function ReadingPage() {
           </button>
           <input 
             type="date" ref={dateInputRef} 
-            onChange={(e) => { setDirection(0); setCurrentDate(new Date(e.target.value)); }} 
+            onChange={(e) => { setMoveType('date'); setCurrentDate(new Date(e.target.value)); }} 
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none" 
           />
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (스와이프 시에는 날짜 이동 / 버튼 클릭 시에는 3D 효과) */}
+      {/* 2. 말씀 카드 */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible" style={{ perspective: "1200px" }}>
-        {/* 양옆 배경 힌트 카드 */}
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
         
-        <AnimatePresence mode="wait" custom={direction} onExitComplete={() => setDirection(0)}>
+        <AnimatePresence mode="wait" custom={direction}>
           <motion.div 
-            key={currentDate.toISOString() + currentReadChapter}
+            key={moveType === 'chapter' ? `chap-${currentReadChapter}` : `date-${currentDate.toISOString()}`}
             custom={direction}
-            variants={pageFlipVariants}
+            variants={moveType === 'chapter' ? pageFlipVariants : dateSlideVariants}
             initial="initial"
             animate="animate"
             exit="exit"
@@ -178,7 +211,7 @@ export default function ReadingPage() {
         </button>
       </div>
 
-      {/* 4. 하단 원형 버튼 및 장 이동 제어 */}
+      {/* 4. 하단 버튼 영역 */}
       <div className="flex items-center gap-7 pb-10">
         <button 
           onClick={() => paginateChapter(-1)}
@@ -206,7 +239,7 @@ export default function ReadingPage() {
         </button>
       </div>
 
-      {/* 5. TTS 제어 (DailyWordPage 스타일) */}
+      {/* 5. TTS 제어 팝업 */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
