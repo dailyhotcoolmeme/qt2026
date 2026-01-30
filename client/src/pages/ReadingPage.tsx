@@ -20,8 +20,10 @@ export default function ReadingPage() {
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 애니메이션 방향 제어 (장 이동 시 사용)
+  // 애니메이션 방향 및 타입 제어
+  // direction: 1(다음), -1(이전) / moveType: 'chapter'(3D 효과), 'date'(스와이프 효과)
   const [direction, setDirection] = useState(0); 
+  const [moveType, setMoveType] = useState<'chapter' | 'date'>('chapter');
 
   // TTS 관련 상태
   const [isPlaying, setIsPlaying] = useState(false);
@@ -51,8 +53,9 @@ export default function ReadingPage() {
     }
   };
 
-  // [장 이동 함수 - 3D 효과를 위해 방향 설정]
+  // [장 이동 함수 - 3D 효과 적용]
   const paginateChapter = (newDirection: number) => {
+    setMoveType('chapter'); // 버튼 클릭은 장 이동(3D)
     setDirection(newDirection);
     if (newDirection === 1) {
       setCurrentReadChapter(prev => prev + 1);
@@ -61,27 +64,24 @@ export default function ReadingPage() {
     }
   };
 
-  // [날짜 스와이프 제어 - 기존 방식 유지]
+  // [날짜 스와이프 제어 - DailyWordPage 로직 복구]
   const onDragEnd = (event: any, info: any) => {
-    if (info.offset.x > 100) {
+    if (info.offset.x > 100) { // 오른쪽으로 스와이프 (이전 날짜)
+      setMoveType('date'); // 스와이프는 날짜 이동(슬라이드)
+      setDirection(-1);
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
-      setDirection(0); // 스와이프는 3D 효과 제외
-    } else if (info.offset.x < -100) {
+    } else if (info.offset.x < -100) { // 왼쪽으로 스와이프 (다음 날짜)
+      setMoveType('date');
+      setDirection(1);
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) setCurrentDate(d);
-      setDirection(0);
     }
   };
 
-  const handlePlayTTS = () => {
-    setShowAudioControl(true);
-    setIsPlaying(true);
-  };
-
-  // 3D 책장 넘기기 애니메이션 설정
+  // 애니메이션 Variants 정의
   const pageFlipVariants = {
     initial: (dir: number) => ({
       rotateY: dir > 0 ? 90 : -90,
@@ -99,6 +99,12 @@ export default function ReadingPage() {
       transformPerspective: 1000,
       transition: { duration: 0.6, ease: "easeIn" }
     })
+  };
+
+  const dateSlideVariants = {
+    initial: (dir: number) => ({ x: dir > 0 ? 100 : -100, opacity: 0 }),
+    animate: { x: 0, opacity: 1, transition: { duration: 0.3 } },
+    exit: (dir: number) => ({ x: dir > 0 ? -100 : 100, opacity: 0, transition: { duration: 0.3 } })
   };
 
   return (
@@ -121,27 +127,31 @@ export default function ReadingPage() {
           </button>
           <input 
             type="date" ref={dateInputRef} 
-            onChange={(e) => setCurrentDate(new Date(e.target.value))} 
+            onChange={(e) => { setMoveType('date'); setCurrentDate(new Date(e.target.value)); }} 
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none" 
           />
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (3D Page Flip 애니메이션 적용) */}
+      {/* 2. 말씀 카드 (스와이프 + 3D 효과 공존) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible" style={{ perspective: "1200px" }}>
-        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-50" />
+        {/* 양옆 배경 힌트 카드 */}
+        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
         
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div 
-            key={currentReadChapter + currentDate.toISOString()}
+            key={moveType === 'chapter' ? currentReadChapter : currentDate.toISOString()}
             custom={direction}
-            variants={direction !== 0 ? pageFlipVariants : {}} // 버튼 클릭시에만 3D 효과
+            variants={moveType === 'chapter' ? pageFlipVariants : dateSlideVariants}
             initial="initial"
             animate="animate"
             exit="exit"
-            drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
-            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none origin-center"
+            drag="x" 
+            dragConstraints={{ left: 0, right: 0 }} 
+            dragElastic={0.2} 
+            onDragEnd={onDragEnd}
+            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none origin-center cursor-grab active:cursor-grabbing"
           >
             <div className="flex-1 overflow-y-auto pr-1 text-center scrollbar-hide">
               {loading ? (
@@ -162,27 +172,27 @@ export default function ReadingPage() {
           </motion.div>
         </AnimatePresence>
 
-        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-50" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40" />
       </div>
 
       {/* 3. 도구 상자 */}
       <div className="flex items-center gap-8 mt-3 mb-12"> 
-        <button onClick={handlePlayTTS} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>음성 재생</span>
+          <span className="font-medium text-[11px]">음성 재생</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>말씀 복사</span>
+          <Copy size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>기록함</span>
+          <Bookmark size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">기록함</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.7}px` }}>공유</span>
+          <Share2 size={22} strokeWidth={1.5} /><span className="font-medium text-[11px]">공유</span>
         </button>
       </div>
 
-      {/* 4. 하단 원형 완료 버튼 및 이전/다음 이동 */}
+      {/* 4. 하단 원형 완료 버튼 및 이전/다음 이동 (여기 버튼들은 3D 효과 발생) */}
       <div className="flex items-center gap-7 pb-10">
         <button 
           onClick={() => paginateChapter(-1)}
@@ -209,29 +219,6 @@ export default function ReadingPage() {
           <ChevronRight size={28} />
         </button>
       </div>
-
-      {/* 5. TTS 제어 팝업 */}
-      <AnimatePresence>
-        {showAudioControl && (
-          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button onClick={() => setIsPlaying(!isPlaying)} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full">
-                    {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
-                  </button>
-                  <p className="text-[13px] font-bold">성경을 읽어드리고 있습니다</p>
-                </div>
-                <button onClick={() => setShowAudioControl(false)}><X size={20}/></button>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>여성</button>
-                <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10'}`}>남성</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
