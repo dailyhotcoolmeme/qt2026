@@ -19,7 +19,7 @@ export default function ReadingPage() {
   const [loading, setLoading] = useState(false); 
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 초기값 설정 (DB에 반드시 존재하는 값으로 시작)
+  // 초기값 설정
   const [currentBookName, setCurrentBookName] = useState("창세기");
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
 
@@ -29,7 +29,6 @@ export default function ReadingPage() {
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // [핵심] 말씀 데이터를 가져오는 함수 (첨부 파일 기반 로직)
   const fetchBible = async (book: string, chapter: number) => {
     setLoading(true);
     try {
@@ -110,7 +109,7 @@ export default function ReadingPage() {
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
           <button onClick={() => dateInputRef.current?.showPicker()} className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]">
-            <CalendarIcon size={18} />
+            <CalendarIcon size={18} strokeWidth={2.5} />
           </button>
           <input type="date" ref={dateInputRef} className="hidden" onChange={(e) => setCurrentDate(new Date(e.target.value))} />
         </div>
@@ -153,9 +152,9 @@ export default function ReadingPage() {
           <Headphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
-        <button onClick={() => { navigator.clipboard.writeText(bibleContent.map(v => v.content).join(' ')); alert("복사됨"); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button onClick={() => { navigator.clipboard.writeText(bibleContent.map(v => v.content).join(' ')); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>복사</span>
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Bookmark size={22} strokeWidth={1.5} />
@@ -168,7 +167,7 @@ export default function ReadingPage() {
       </div>
 
       <div className="flex items-center justify-center gap-6 pb-6">
-        <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+        <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2">
           <ChevronLeft size={32} strokeWidth={1.5} />
         </button>
         <motion.button 
@@ -179,7 +178,7 @@ export default function ReadingPage() {
           <Check className="w-6 h-6 mb-1" strokeWidth={3} />
           <span className="font-black text-xs leading-tight">읽기<br/>완료</span>
         </motion.button>
-        <button onClick={() => setCurrentReadChapter(c => c + 1)} className="text-zinc-300 p-2 hover:text-[#4A6741] transition-colors">
+        <button onClick={() => setCurrentReadChapter(c => c + 1)} className="text-zinc-300 p-2">
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
@@ -192,13 +191,13 @@ export default function ReadingPage() {
                 <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full">
                   {isPlaying ? <Pause size={14} fill="white" /> : <Play size={14} fill="white" />}
                 </button>
-                <p className="text-xs font-bold">{isPlaying ? "재생 중" : "일시 정지"}</p>
+                <p className="text-xs font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
               </div>
               <button onClick={() => { audioRef.current?.pause(); setShowAudioControl(false); }}><X size={20} /></button>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>여성 목소리</button>
-              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-[11px] font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>남성 목소리</button>
+              <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>여성 목소리</button>
+              <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>남성 목소리</button>
             </div>
           </motion.div>
         )}
