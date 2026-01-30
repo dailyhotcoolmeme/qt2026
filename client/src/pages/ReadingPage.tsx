@@ -55,12 +55,14 @@ export default function ReadingPage() {
     const targetVoice = selectedVoice || voiceType;
     if (selectedVoice) setVoiceType(selectedVoice);
 
+    // [수정] 실제 버킷 'bible-assets' 및 새 폴더 'reading' 경로 적용
     const fileName = `reading_${currentBookName}_${currentReadChapter}_${targetVoice}.mp3`;
     const storagePath = `reading/${fileName}`;
 
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
 
     try {
+      // 1. bible-assets 버킷에서 기존 파일 확인
       const { data: fileUrl } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
       const checkRes = await fetch(fileUrl.publicUrl, { method: 'HEAD' });
 
@@ -71,6 +73,7 @@ export default function ReadingPage() {
         setShowAudioControl(true); setIsPlaying(true);
         audio.play();
       } else {
+        // 2. 없으면 Google TTS 생성
         const fullText = bibleContent.map(v => cleanContent(v.content)).join(". ");
         const textToSpeak = `${fullText}. ${currentBookName} ${currentReadChapter}장 말씀.`;
         
@@ -88,6 +91,7 @@ export default function ReadingPage() {
           const base64Audio = resData.audioContent;
           const audioBlob = await (await fetch(`data:audio/mp3;base64,${base64Audio}`)).blob();
           
+          // 3. bible-assets/reading/ 경로로 업로드 (캐싱)
           await supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
             contentType: 'audio/mp3',
             upsert: true 
@@ -101,6 +105,7 @@ export default function ReadingPage() {
         }
       }
     } catch (error) { 
+      console.error("TTS Error:", error);
       setIsPlaying(false); 
     }
   };
@@ -112,17 +117,8 @@ export default function ReadingPage() {
     }
   };
 
-  const handleDragEnd = (event: any, info: any) => {
-    const threshold = 100;
-    if (info.offset.x > threshold) {
-      setCurrentReadChapter(c => Math.max(1, c - 1));
-    } else if (info.offset.x < -threshold) {
-      setCurrentReadChapter(c => c + 1);
-    }
-  };
-
   return (
-    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto pt-24 pb-10 px-4">
+    <div className="flex flex-col items-center w-full min-h-screen bg-[#F8F8F8] overflow-y-auto pt-24 pb-4 px-4">
       <header className="text-center mb-3 flex flex-col items-center">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -138,16 +134,14 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      <div className="relative w-full flex-1 flex items-center justify-center overflow-visible">
-        <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
+      {/* 카드 높이 480px 복구 및 불필요한 py-4 제거로 간격 최적화 */}
+      <div className="relative w-full flex items-center justify-center overflow-visible">
+        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
         <AnimatePresence mode="wait">
           <motion.div 
             key={`${currentBookName}-${currentReadChapter}`}
-            drag="x"
-            dragElastic={0.1}
-            onDragEnd={handleDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 cursor-grab active:cursor-grabbing"
+            className="w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10"
           >
             <div className="flex-1 w-full overflow-y-auto scrollbar-hide mb-4 text-left">
               {loading ? <div className="flex items-center justify-center h-full">로딩 중...</div> :
@@ -161,10 +155,11 @@ export default function ReadingPage() {
             <span className="font-bold text-[#4A6741] opacity-60 shrink-0" style={{ fontSize: `${fontSize * 0.9}px` }}>{currentBookName} {currentReadChapter}장</span>
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[480px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 shadow-sm" />
       </div>
 
-      <div className="flex items-center gap-8 mt-3 mb-14"> 
+      {/* 카드와 도구함 사이 mt-6으로 간격 밀착 */}
+      <div className="flex items-center gap-8 mt-6 mb-8"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
@@ -175,7 +170,8 @@ export default function ReadingPage() {
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      <div className="flex items-center justify-center gap-6 pb-10">
+      {/* pb-4로 바닥 여백을 아멘 버튼과 동일하게 고정 */}
+      <div className="flex items-center justify-center gap-6 pb-4">
         <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 p-2"><ChevronLeft size={32} strokeWidth={1.5} /></button>
         <motion.button 
           whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
@@ -198,7 +194,7 @@ export default function ReadingPage() {
                 </button>
                 <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
               </div>
-              <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20} /></button>
+              <button onClick={() => { audioRef.current?.pause(); setShowAudioControl(false); }}><X size={20} /></button>
             </div>
             <div className="flex gap-2">
               <button onClick={() => handlePlayTTS('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white'}`}>여성 목소리</button>
