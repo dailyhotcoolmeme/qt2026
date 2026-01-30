@@ -23,8 +23,6 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
-  const [hasAmened, setHasAmened] = useState(false);
-  const [amenCount, setAmenCount] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -58,8 +56,6 @@ export default function ReadingPage() {
         .maybeSingle();
 
       setBibleData({ ...verse, bible_books: book });
-      setAmenCount(verse.amen_count || 0);
-      setHasAmened(false);
     }
   };
 
@@ -73,13 +69,6 @@ export default function ReadingPage() {
       .replace(/\.$/, "")
       .trim();
   };
-
-  const handleAmenClick = async () => {
-    if (hasAmened || !bibleData) return;
-    setHasAmened(true);
-    setAmenCount(prev => prev + 1);
-    await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
-  }; 
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -221,18 +210,6 @@ export default function ReadingPage() {
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
-      </div>
-
-      <div className="flex flex-col items-center gap-3 pb-4">
-        <motion.button 
-          whileTap={{ scale: 0.9 }} onClick={handleAmenClick}
-          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
-            ${hasAmened ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
-        >
-          <Heart className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} strokeWidth={hasAmened ? 0 : 2} />
-          <span className="font-black" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
-          <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>{amenCount.toLocaleString()}</span>
-        </motion.button>
       </div>
 
       <AnimatePresence>
