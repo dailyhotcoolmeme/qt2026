@@ -13,24 +13,23 @@ export default function ReadingPage() {
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null); 
 
-  [span_4](start_span)[span_5](start_span)// [첨부 파일 로직] 장 전체 데이터 및 로딩 상태 관리[span_4](end_span)[span_5](end_span)
-  const [bibleContent, setBibleContent] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  [span_1](start_span)[span_2](start_span)// [첨부 파일 기반] 성경 데이터 및 로딩 상태 관리[span_1](end_span)[span_2](end_span)
+  const [bibleContent, setBibleContent] = useState<any[]>([]); 
+  const [loading, setLoading] = useState(false); 
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   
-  // 현재 읽고 있는 성경 권과 장 상태
+  [span_3](start_span)// 현재 읽고 있는 권과 장 (첨부 파일의 goal 기반 로직 반영 가능)[span_3](end_span)
   const [currentBookName, setCurrentBookName] = useState("창세기");
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
 
-  // TTS 및 오디오 관련 상태 (기능 유지)
+  // TTS 및 오디오 상태 유지
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  [span_6](start_span)const { fontSize = 16 } = useDisplaySettings();[span_6](end_span)
+  const { fontSize = 16 } = useDisplaySettings();
 
-  // 날짜 변경 핸들러
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -42,12 +41,12 @@ export default function ReadingPage() {
     }
   };
 
-  [span_7](start_span)// [첨부 파일 로직 적용] bible_verses 테이블에서 해당 장의 전체 절 로드[span_7](end_span)
+  [span_4](start_span)// [첨부 파일 로직] bible_verses 테이블에서 해당 장의 전체 구절 로드[span_4](end_span)
   useEffect(() => {
     const fetchBible = async () => {
       setLoading(true);
       const { data } = await supabase
-        .from('bible_verses')
+        .from('bible_verses') 
         .select('verse, content')
         .eq('book_name', currentBookName)
         .eq('chapter', currentReadChapter)
@@ -62,7 +61,6 @@ export default function ReadingPage() {
     setIsReadCompleted(false);
   }, [currentReadChapter, currentBookName]);
 
-  // 말씀 텍스트 정제 로직 (기능 유지)
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
@@ -74,7 +72,6 @@ export default function ReadingPage() {
       .trim();
   };
 
-  // TTS 재생 설정 및 이벤트 (기능 유지)
   const setupAudioEvents = (audio: HTMLAudioElement) => {
     audioRef.current = audio;
     audio.onended = () => {
@@ -87,7 +84,7 @@ export default function ReadingPage() {
     audio.play().catch(e => console.log("재생 오류:", e));
   };
 
-  // TTS 실행 로직 (시편/장/절 처리 및 맺음말 기능 유지)
+  // [기능 보존] 시편/장/절 구분 및 맺음말 포함 TTS 로직
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (bibleContent.length === 0) return;
     if (selectedVoice) {
@@ -100,11 +97,8 @@ export default function ReadingPage() {
       audioRef.current = null;
     }
 
-    // 장 전체 내용을 하나의 텍스트로 결합
     const fullText = bibleContent.map(v => cleanContent(v.content)).join(". ");
     const unit = currentBookName === "시편" ? "편" : "장";
-    
-    // 마지막 구절 번호 가져오기
     const lastVerse = bibleContent[bibleContent.length - 1].verse;
     const textToSpeak = `${fullText}. ${currentBookName} ${currentReadChapter}${unit} 1절부터 ${lastVerse}절까지 말씀.`;
 
@@ -161,7 +155,6 @@ export default function ReadingPage() {
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none"
           >
-            [span_8](start_span){/* 내부 스크롤 및 말씀 리스트 출력[span_8](end_span) */}
             <div className="flex-1 w-full overflow-y-auto scrollbar-hide mb-4 text-left">
               {loading ? (
                 <div className="flex items-center justify-center h-full animate-pulse text-zinc-200 font-black">말씀을 불러오는 중...</div>
@@ -185,7 +178,7 @@ export default function ReadingPage() {
         <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      {/* 하단 툴바 디자인 유지 */}
+      {/* 하단 툴바 및 버튼 레이아웃 유지 */}
       <div className="flex items-center gap-8 mt-3 mb-14"> 
         <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
@@ -194,20 +187,16 @@ export default function ReadingPage() {
         <button onClick={() => { 
           const text = bibleContent.map(v => `${v.verse}절 ${v.content}`).join('\n');
           navigator.clipboard.writeText(text); 
-          alert("장 전체가 복사되었습니다."); 
+          alert("복사되었습니다."); 
         }} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* 읽기 완료 및 장 이동 버튼 디자인 유지 */}
       <div className="flex items-center justify-center gap-6 pb-4">
-        <button 
-          onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))}
-          className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2"
-        >
+        <button onClick={() => setCurrentReadChapter(c => Math.max(1, c - 1))} className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
           <ChevronLeft size={32} strokeWidth={1.5} />
         </button>
 
@@ -220,15 +209,11 @@ export default function ReadingPage() {
           <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
         </motion.button>
 
-        <button 
-          onClick={() => setCurrentReadChapter(c => c + 1)}
-          className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2"
-        >
+        <button onClick={() => setCurrentReadChapter(c => c + 1)} className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
 
-      {/* TTS 제어 팝업 (기능 유지) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
@@ -238,13 +223,13 @@ export default function ReadingPage() {
                   <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors">
                     {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
                   </button>
-                  <p className="text-[13px] font-bold">{isPlaying ? "장 전체를 읽고 있습니다" : "일시 정지 상태입니다."}</p>
+                  <p className="text-[13px] font-bold">{isPlaying ? "장 전체를 읽고 있습니다" : "일시 정지"}</p>
                 </div>
                 <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20}/></button>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>여성 목소리</button>
-                <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>남성 목소리</button>
+                <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>여성</button>
+                <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>남성</button>
               </div>
             </div>
           </motion.div>
