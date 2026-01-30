@@ -19,8 +19,11 @@ export default function ReadingPage() {
   const [loading, setLoading] = useState(false);
   const [currentReadChapter, setCurrentReadChapter] = useState(1);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
+  
+  // 애니메이션 방향 제어 (장 이동 시 사용)
+  const [direction, setDirection] = useState(0); 
 
-  // TTS 관련 상태 (DailyWordPage 스타일)
+  // TTS 관련 상태
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -48,18 +51,28 @@ export default function ReadingPage() {
     }
   };
 
-  // [스와이프 제어]
+  // [장 이동 함수 - 3D 효과를 위해 방향 설정]
+  const paginateChapter = (newDirection: number) => {
+    setDirection(newDirection);
+    if (newDirection === 1) {
+      setCurrentReadChapter(prev => prev + 1);
+    } else {
+      setCurrentReadChapter(prev => Math.max(1, prev - 1));
+    }
+  };
+
+  // [날짜 스와이프 제어 - 기존 방식 유지]
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) {
-      // 이전 날짜 이동 로직 (DailyWordPage 차용)
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
+      setDirection(0); // 스와이프는 3D 효과 제외
     } else if (info.offset.x < -100) {
-      // 다음 날짜 이동 로직
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) setCurrentDate(d);
+      setDirection(0);
     }
   };
 
@@ -68,10 +81,30 @@ export default function ReadingPage() {
     setIsPlaying(true);
   };
 
+  // 3D 책장 넘기기 애니메이션 설정
+  const pageFlipVariants = {
+    initial: (dir: number) => ({
+      rotateY: dir > 0 ? 90 : -90,
+      opacity: 0,
+      transformPerspective: 1000,
+    }),
+    animate: {
+      rotateY: 0,
+      opacity: 1,
+      transition: { duration: 0.6, ease: "easeOut" }
+    },
+    exit: (dir: number) => ({
+      rotateY: dir > 0 ? -90 : 90,
+      opacity: 0,
+      transformPerspective: 1000,
+      transition: { duration: 0.6, ease: "easeIn" }
+    })
+  };
+
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* 1. 상단 날짜 영역 (#4A6741 적용) */}
+      {/* 1. 상단 날짜 영역 */}
       <header className="text-center mb-3 flex flex-col items-center relative">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -95,16 +128,20 @@ export default function ReadingPage() {
         </div>
       </header>
 
-      {/* 2. 말씀 카드 (가운데 정렬 및 스와이프) */}
-      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
+      {/* 2. 말씀 카드 (3D Page Flip 애니메이션 적용) */}
+      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible" style={{ perspective: "1200px" }}>
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-50" />
         
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={direction}>
           <motion.div 
-            key={currentDate.toISOString() + currentReadChapter}
+            key={currentReadChapter + currentDate.toISOString()}
+            custom={direction}
+            variants={direction !== 0 ? pageFlipVariants : {}} // 버튼 클릭시에만 3D 효과
+            initial="initial"
+            animate="animate"
+            exit="exit"
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
-            initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none"
+            className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col p-10 z-10 touch-none origin-center"
           >
             <div className="flex-1 overflow-y-auto pr-1 text-center scrollbar-hide">
               {loading ? (
@@ -117,7 +154,6 @@ export default function ReadingPage() {
                 ))
               )}
             </div>
-            {/* 하단 장 정보 가운데 정렬 */}
             <div className="mt-4 pt-4 border-t border-gray-50 text-center">
               <span className="font-bold text-[#4A6741] opacity-60 uppercase tracking-widest" style={{ fontSize: `${fontSize * 0.9}px` }}>
                 창세기 {currentReadChapter}장
@@ -149,7 +185,7 @@ export default function ReadingPage() {
       {/* 4. 하단 원형 완료 버튼 및 이전/다음 이동 */}
       <div className="flex items-center gap-7 pb-10">
         <button 
-          onClick={() => setCurrentReadChapter(prev => Math.max(1, prev - 1))}
+          onClick={() => paginateChapter(-1)}
           className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 transition-all border border-zinc-50"
         >
           <ChevronLeft size={28} />
@@ -167,14 +203,14 @@ export default function ReadingPage() {
         </motion.button>
 
         <button 
-          onClick={() => setCurrentReadChapter(prev => prev + 1)}
+          onClick={() => paginateChapter(1)}
           className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-md text-zinc-300 active:scale-90 transition-all border border-zinc-50"
         >
           <ChevronRight size={28} />
         </button>
       </div>
 
-      {/* 5. TTS 제어 팝업 (#4A6741 테마) */}
+      {/* 5. TTS 제어 팝업 */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
