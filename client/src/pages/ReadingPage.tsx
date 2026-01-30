@@ -17,15 +17,20 @@ export default function ReadingPage() {
   useEffect(() => {
     const fetchVerse = async () => {
       setLoading(true);
-      const formattedDate = currentDate.toISOString().split('T')[0];
-      const { data: verse } = await supabase
-        .from('daily_bible_verses')
-        .select('*')
-        .eq('display_date', formattedDate)
-        .maybeSingle();
-      
-      setBibleData(verse || null);
-      setLoading(false);
+      try {
+        const formattedDate = currentDate.toISOString().split('T')[0];
+        const { data: verse } = await supabase
+          .from('daily_bible_verses')
+          .select('*')
+          .eq('display_date', formattedDate)
+          .maybeSingle();
+        
+        setBibleData(verse || null);
+      } catch (err) {
+        console.error("로드 실패:", err);
+      } finally {
+        setLoading(false);
+      }
     };
     fetchVerse();
   }, [currentDate]);
@@ -54,10 +59,8 @@ export default function ReadingPage() {
   };
 
   return (
-    [span_8](start_span)/* [수정] DailyWordPage와 동일하게 min-h-full 및 pt-24 적용[span_8](end_span) */
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* [수정] mb-3 적용 (DailyWordPage ) */}
       <header className="text-center mb-3 flex flex-col items-center relative flex-none">
         <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -75,14 +78,20 @@ export default function ReadingPage() {
           <input 
             type="date"
             ref={dateInputRef}
-            onChange={(e) => setCurrentDate(new Date(e.target.value))}
+            onChange={(e) => {
+              const selectedDate = new Date(e.target.value);
+              if (selectedDate > today) {
+                alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+              } else {
+                setCurrentDate(selectedDate);
+              }
+            }}
             max={today.toISOString().split("T")[0]} 
             className="absolute opacity-0 pointer-events-none"
           />
         </div>
       </header>
 
-      {/* [수정] py-4 적용 (DailyWordPage ) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0 opacity-40 shadow-sm" />
         
@@ -96,7 +105,6 @@ export default function ReadingPage() {
             initial={{ opacity: 0, x: 20 }} 
             animate={{ opacity: 1, x: 0 }} 
             exit={{ opacity: 0, x: -20 }}
-            [span_9](start_span)/* [원본 일치] w-[82%] rounded-[32px] p-10[span_9](end_span) */
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
             {loading ? (
@@ -106,9 +114,9 @@ export default function ReadingPage() {
                 <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
                   {cleanContent(bibleData.content)}
                 </p>
-                <span className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                <div className="font-bold text-[#4A6741] opacity-60 uppercase tracking-widest" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-                </span>
+                </div>
               </>
             ) : (
               <div className="text-zinc-300 font-medium">해당 날짜의 말씀이 없습니다.</div>
