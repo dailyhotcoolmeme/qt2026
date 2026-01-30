@@ -23,11 +23,12 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
+  const [hasAmened, setHasAmened] = useState(false);
+  const [amenCount, setAmenCount] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [loading, setLoading] = useState(false);
 
   const { fontSize = 16 } = useDisplaySettings();
 
@@ -37,31 +38,30 @@ export default function ReadingPage() {
     }
   }, [voiceType]);
 
-  // [이 부분만 첨부파일의 fetchVerse 로직으로 교체함]
   useEffect(() => {
-    const fetchVerse = async () => {
-      setLoading(true);
-      const formattedDate = currentDate.toISOString().split('T')[0];
-      
-      const { data: verse } = await supabase
-        .from('daily_bible_verses')
-        .select('*')
-        .eq('display_date', formattedDate)
-        .maybeSingle();
-      
-      if (verse) {
-        const { data: book } = await supabase
-          .from('bible_books')
-          .select('book_order')
-          .eq('book_name', verse.bible_name)
-          .maybeSingle();
-
-        setBibleData({ ...verse, bible_books: book });
-      }
-      setLoading(false);
-    };
     fetchVerse();
   }, [currentDate]);
+  
+  const fetchVerse = async () => {
+    const formattedDate = currentDate.toISOString().split('T')[0];
+    const { data: verse } = await supabase
+      .from('daily_bible_verses')
+      .select('*')
+      .eq('display_date', formattedDate)
+      .maybeSingle();
+    
+    if (verse) {
+      const { data: book } = await supabase
+        .from('bible_books')
+        .select('book_order')
+        .eq('book_name', verse.bible_name)
+        .maybeSingle();
+
+      setBibleData({ ...verse, bible_books: book });
+      setAmenCount(verse.amen_count || 0);
+      setHasAmened(false);
+    }
+  };
 
   const cleanContent = (text: string) => {
     if (!text) return "";
@@ -73,6 +73,13 @@ export default function ReadingPage() {
       .replace(/\.$/, "")
       .trim();
   };
+
+  const handleAmenClick = async () => {
+    if (hasAmened || !bibleData) return;
+    setHasAmened(true);
+    setAmenCount(prev => prev + 1);
+    await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
+  }; 
 
   const togglePlay = () => {
     if (audioRef.current) {
@@ -189,9 +196,7 @@ export default function ReadingPage() {
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
-            {loading ? (
-              <div className="animate-pulse text-zinc-200">로딩 중...</div>
-            ) : bibleData ? (
+            {bibleData ? (
               <>
                 <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
                   {cleanContent(bibleData.content)}
@@ -200,7 +205,7 @@ export default function ReadingPage() {
                   {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
                 </span>
               </>
-            ) : <div className="text-zinc-300 font-bold">말씀이 없습니다.</div>}
+            ) : <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>}
           </motion.div>
         </AnimatePresence>
         <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
@@ -211,14 +216,24 @@ export default function ReadingPage() {
           <Headphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
-        <button onClick={() => { if(bibleData) { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); } }} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      {/* 아멘 버튼 영역 삭제됨 */}
+      <div className="flex flex-col items-center gap-3 pb-4">
+        <motion.button 
+          whileTap={{ scale: 0.9 }} onClick={handleAmenClick}
+          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
+            ${hasAmened ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
+        >
+          <Heart className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} strokeWidth={hasAmened ? 0 : 2} />
+          <span className="font-black" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
+          <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>{amenCount.toLocaleString()}</span>
+        </motion.button>
+      </div>
 
       <AnimatePresence>
         {showAudioControl && (
