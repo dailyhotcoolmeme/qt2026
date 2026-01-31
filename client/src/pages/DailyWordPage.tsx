@@ -309,7 +309,7 @@ export default function DailyWordPage() {
     {bibleData ? (
       <>
         {/* 말씀 본문 영역 */}
-        <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-6 w-full" style={{ fontSize: `${fontSize}px` }}>
+        <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-10 w-full" style={{ fontSize: `${fontSize}px` }}>
           {bibleData.content.split('\n').map((line: string, i: number) => {
             // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
             const match = line.match(/^(\d+)\.?\s*(.*)/);
