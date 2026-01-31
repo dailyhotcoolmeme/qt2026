@@ -403,15 +403,15 @@ const confirmDelete = () => {
 <div className="relative w-full flex flex-col items-center mt-6 mb-6">
   {/* 헤더 부분 */}
   <div className="w-[82%] max-w-sm mb-3 flex justify-between items-center px-1">
-    <div className="flex items-center gap-2">
-      <h3 className="font-medium text-zinc-400" style={{ fontSize: `${fontSize * 0.9}px` }}>묵상 나눔</h3>
+    <div className="flex items-center gap-4">
+      <h3 className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>묵상 나눔</h3>
       {/* 나눔 참여 버튼 */}
-      <button className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-lg active:scale-95 transition-all">
-        <PencilLine size={fontSize * 0.75} className="text-[#4A6741]" />
-        <span className="font-medium text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>참여</span>
+      <button className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-full active:scale-95 transition-all">
+        <PencilLine size={fontSize * 0.75} className="text-[#4A6741] opacity-60" />
+        <span className="font-medium text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.80}px` }}>참여</span>
       </button>
     </div>
-    <span className="font-medium text-zinc-300 opacity-50" style={{ fontSize: `${fontSize * 0.7}px` }}>
+    <span className="font-medium text-zinc-400 opacity-70" style={{ fontSize: `${fontSize * 0.7}px` }}>
       {notes.length > 0 ? `${noteIndex + 1} / ${notes.length}` : "0 / 0"}
     </span>
   </div>
@@ -452,7 +452,7 @@ const confirmDelete = () => {
             {notes[noteIndex].content.length > 70 && (
               <button 
                 onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
-                className="font-bold text-[#4A6741] opacity-50 mt-3 self-start"
+                className="font-medium text-[#4A6741] opacity-50 mt-3 self-start"
                 style={{ fontSize: `${fontSize * 0.8}px` }}
               >
                 {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
@@ -465,7 +465,7 @@ const confirmDelete = () => {
                 <span className="font-bold text-[#4A6741] opacity-50" style={{ fontSize: `${fontSize * 0.85}px` }}>
                   {notes[noteIndex].author}
                 </span>
-                <span className="text-zinc-300 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
+                <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
                   {notes[noteIndex].created_at || "2024.03.21 14:30"} 
                 </span>
               </div>
@@ -475,7 +475,7 @@ const confirmDelete = () => {
     e.stopPropagation(); 
     openDeleteConfirm(notes[noteIndex].id); // 바로 삭제가 아닌 확인창 열기
   }}
-  className="p-1.5 text-zinc-200 hover:text-red-400 transition-colors"
+  className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
 >
   <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
 </button>
