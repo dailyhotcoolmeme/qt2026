@@ -369,7 +369,7 @@ export default function ReadingPage() {
         <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      <div className="flex items-center justify-center gap-8 pb-4">
+      <div className="flex items-center justify-center gap-8 pb-6">
         <button 
           onClick={() => { if (rangePages.length > 0 && currentPageIdx > 0) { const newIdx = currentPageIdx - 1; setCurrentPageIdx(newIdx); setBibleData(rangePages[newIdx]); } }}
           className={`${rangePages.length > 0 && currentPageIdx > 0 ? 'text-[#4A6741]' : 'text-zinc-300'} transition-colors p-2`}

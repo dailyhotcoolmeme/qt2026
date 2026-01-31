@@ -364,7 +364,7 @@ export default function DailyWordPage() {
   </div>
 
 {/* 4. 아멘 버튼 영역 */}
-<div className="flex flex-col items-center gap-3 pb-4">
+<div className="flex flex-col items-center gap-3 pb-6">
   {/* 파동 레이어와 버튼을 겹치기 위해 relative 컨테이너 사용 */}
   <div className="relative w-24 h-24 flex items-center justify-center">
     

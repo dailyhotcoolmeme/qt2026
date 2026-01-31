@@ -400,15 +400,15 @@ const confirmDelete = () => {
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
 {/* 4. 묵상 카드 영역 */}
-<div className="relative w-full flex flex-col items-center mt-6 mb-12">
+<div className="relative w-full flex flex-col items-center mt-6 mb-6">
   {/* 헤더 부분 */}
   <div className="w-[82%] max-w-sm mb-3 flex justify-between items-center px-1">
     <div className="flex items-center gap-2">
-      <h3 className="font-bold text-zinc-400" style={{ fontSize: `${fontSize * 1.0}px` }}>묵상 나누기</h3>
+      <h3 className="font-medium text-zinc-400" style={{ fontSize: `${fontSize * 0.9}px` }}>묵상 나눔</h3>
       {/* 나눔 참여 버튼 */}
       <button className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-lg active:scale-95 transition-all">
         <PencilLine size={fontSize * 0.75} className="text-[#4A6741]" />
-        <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.85}px` }}>나눔 참여</span>
+        <span className="font-medium text-[#4A6741]" style={{ fontSize: `${fontSize * 0.9}px` }}>참여</span>
       </button>
     </div>
     <span className="font-medium text-zinc-300 opacity-50" style={{ fontSize: `${fontSize * 0.7}px` }}>
@@ -482,7 +482,7 @@ const confirmDelete = () => {
             </div>
           </>
         ) : (
-          <div className="py-10 text-center text-zinc-300 italic" style={{ fontSize: `${fontSize * 0.8}px` }}>첫 묵상을 남겨주세요.</div>
+          <div className="py-10 text-center text-zinc-300" style={{ fontSize: `${fontSize * 0.8}px` }}>첫 묵상을 남겨주세요.</div>
         )}
       </motion.div>
     </AnimatePresence>
