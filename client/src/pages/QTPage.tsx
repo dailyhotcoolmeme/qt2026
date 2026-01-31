@@ -23,8 +23,6 @@ export default function QTPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
-  const [hasAmened, setHasAmened] = useState(false);
-  const [amenCount, setAmenCount] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -64,8 +62,6 @@ export default function QTPage() {
 
     // 3. bible_books 데이터를 포함해서 상태 업데이트
     setBibleData({ ...verse, bible_books: book });
-    setAmenCount(verse.amen_count || 0);
-    setHasAmened(false);
   }
 };
 
@@ -78,18 +74,6 @@ export default function QTPage() {
       .replace(/[."'“”‘’]/g, "")
       .replace(/\.$/, "")
       .trim();
-  };
-
-  const handleAmenClick = async () => {
-    if (hasAmened || !bibleData) return;
-    // 햅틱 반응 추가 (Success 패턴: 툭, 툭 두 번 혹은 짧게 한 번)
-  if (window.navigator && window.navigator.vibrate) {
-    // 30ms 동안 아주 짧게 진동 (iOS는 브라우저 정책에 따라 제한적일 수 있음)
-    window.navigator.vibrate(30); 
-  }
-    setHasAmened(true);
-    setAmenCount(prev => prev + 1);
-    await supabase.from('daily_qt_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
   };
 
   const handleCopy = () => {
@@ -364,56 +348,6 @@ export default function QTPage() {
     <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
-
-{/* 4. 아멘 버튼 영역 */}
-<div className="flex flex-col items-center gap-3 pb-4">
-  {/* 파동 레이어와 버튼을 겹치기 위해 relative 컨테이너 사용 */}
-  <div className="relative w-24 h-24 flex items-center justify-center">
-    
-    {/* 빛의 파동 효과 (hasAmened가 true일 때만 실행) */}
-    <AnimatePresence>
-      {hasAmened && (
-        <>
-          <motion.div
-            initial={{ scale: 1, opacity: 0.5 }}
-            animate={{ scale: 1.5, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2.2, ease: "easeOut" }}
-            className="absolute inset-0 bg-[#4A6741] rounded-full"
-          />
-          <motion.div
-            initial={{ scale: 1, opacity: 0.4 }}
-            animate={{ scale: 1.2, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
-            className="absolute inset-0 bg-[#4A6741] rounded-full"
-          />
-        </>
-      )}
-    </AnimatePresence>
-
-    {/* 실제 버튼 (색상 로직 복구) */}
-    <motion.button 
-      whileTap={{ scale: 0.9 }} 
-      onClick={handleAmenClick}
-      className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-        ${hasAmened 
-          ? 'bg-[#4A6741] text-white border-none' 
-          : 'bg-white text-[#4A6741] border border-green-50'
-        }`}
-    >
-      <Heart 
-        className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} 
-        strokeWidth={hasAmened ? 0 : 2} 
-      />
-      <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
-      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>
-        {amenCount.toLocaleString()}
-      </span>
-    </motion.button>
-  </div>
-</div>
-
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
   {showAudioControl && (
