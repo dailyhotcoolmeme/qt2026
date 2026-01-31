@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import confetti from 'canvas-confetti';
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Check, Calendar as CalendarIcon,
-  ChevronLeft, ChevronRight 
+  ChevronLeft, ChevronRight, Pencil, NotebookPen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -24,6 +25,40 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
+  
+  const BIBLE_BOOKS = {
+    구약: [
+      "창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "루기", 
+      "사무엘상", "사무엘하", "열왕기상", "열왕기하", "역대상", "역대하", "에스라", 
+      "느헤미야", "에스더", "욥기", "시편", "잠언", "전도서", "아가", "이사야", 
+      "예레미야", "예레미야 애가", "에스겔", "다니엘", "호세아", "요엘", "아모스", 
+      "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기"
+    ],
+    신약: [
+      "마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", 
+      "고린도후서", "갈라디아서", "에베소서", "빌립보서", "골로새서", "데살로니가전서", 
+      "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", 
+      "야고보서", "베드로전서", "베드로후서", "요한일서", "요한이서", "요한삼서", 
+      "유다서", "요한계시록"
+    ]
+  };
+
+  // --- 🔥 범위 선택 전용 상태 (복구 및 강화) ---
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'start_chapter' | 'start_verse' | 'end_chapter' | 'end_verse'>('testament');
+  const [tempSelection, setTempSelection] = useState({
+    testament: '',
+    book_name: '',
+    start_chapter: 0,
+    start_verse: 0,
+    end_chapter: 0,
+    end_verse: 0
+  });
+  const [availableChapters, setAvailableChapters] = useState<number[]>([]);
+  const [availableVerses, setAvailableVerses] = useState<number[]>([]);
+  const [rangePages, setRangePages] = useState<any[]>([]); 
+  const [currentPageIdx, setCurrentPageIdx] = useState(0);
+
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -45,7 +80,7 @@ export default function ReadingPage() {
   const fetchVerse = async () => {
     const formattedDate = currentDate.toISOString().split('T')[0];
     const { data: verse } = await supabase
-      .from('daily_bible_verses')
+      .from('bible_verses')
       .select('*')
       .eq('display_date', formattedDate)
       .maybeSingle();
@@ -58,7 +93,68 @@ export default function ReadingPage() {
         .maybeSingle();
 
       setBibleData({ ...verse, bible_books: book });
+      setRangePages([]); // 범위 모드 초기화
       setIsReadCompleted(false);
+    }
+  };
+
+  // --- 🔥 [핵심] 단계별 데이터 로딩 로직 ---
+  const loadChapters = async (book: string) => {
+    setTempSelection(prev => ({ ...prev, book_name: book }));
+    const { data } = await supabase.from('bible_verses').select('chapter').eq('book_name', book).order('chapter', { ascending: true });
+    if (data) {
+      const chapters = Array.from(new Set(data.map(d => d.chapter)));
+      setAvailableChapters(chapters);
+      setSelectionStep('start_chapter');
+    }
+  };
+
+  const loadVerses = async (chapter: number, step: 'start_verse' | 'end_verse') => {
+    const { data } = await supabase.from('bible_verses').select('verse').eq('book_name', tempSelection.book_name).eq('chapter', chapter).order('verse', { ascending: true });
+    if (data) {
+      setAvailableVerses(data.map(d => d.verse));
+      setSelectionStep(step);
+    }
+  };
+
+  const handleFinalRangeSelection = async (endVerse: number) => {
+    const { data } = await supabase
+      .from('bible_verses')
+      .select('*, bible_books(book_order)')
+      .eq('book_name', tempSelection.book_name)
+      .gte('chapter', tempSelection.start_chapter)
+      .lte('chapter', tempSelection.end_chapter)
+      .order('chapter', { ascending: true })
+      .order('verse', { ascending: true });
+
+    if (data) {
+      // 시작 절과 끝 절 필터링 (복합 조건)
+      const filtered = data.filter(v => {
+        if (v.chapter === tempSelection.start_chapter && v.verse < tempSelection.start_verse) return false;
+        if (v.chapter === tempSelection.end_chapter && v.verse > endVerse) return false;
+        return true;
+      });
+
+      // 장별로 묶기
+      const groupedByChapter = filtered.reduce((acc: any[], curr: any) => {
+        let chapter = acc.find(c => c.chapter === curr.chapter);
+        if (!chapter) {
+          chapter = { 
+            ...curr, 
+            content: `${curr.verse}절 ${curr.content}`,
+            original_verses: [curr] 
+          };
+          acc.push(chapter);
+        } else {
+          chapter.content += ` ${curr.verse}절 ${curr.content}`;
+        }
+        return acc;
+      }, []);
+
+      setRangePages(groupedByChapter);
+      setCurrentPageIdx(0);
+      setBibleData(groupedByChapter[0]);
+      setIsEditModalOpen(false);
     }
   };
 
@@ -112,8 +208,8 @@ export default function ReadingPage() {
     }
 
     const bookOrder = bibleData.bible_books?.book_order || '0';
-    const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '_')}_${targetVoice}.mp3`;
-    const storagePath = `daily/${fileName}`;
+    const fileName = `reading_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse || 'range').replace(/:/g, '_')}_${targetVoice}.mp3`;
+    const storagePath = `reading/${fileName}`;
     const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
     try {
@@ -125,7 +221,7 @@ export default function ReadingPage() {
       }
       const mainContent = cleanContent(bibleData.content);
       const unit = bibleData.bible_name === "시편" ? "편" : "장";
-      const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+      const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} 말씀.`;
       const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${import.meta.env.VITE_GOOGLE_TTS_API_KEY}`, {
         method: "POST",
         body: JSON.stringify({
@@ -150,6 +246,41 @@ export default function ReadingPage() {
     }
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: '성경 말씀',
+      text: bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.',
+      url: window.location.href, 
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        alert("링크가 클립보드에 복사되었습니다.");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("공유 실패:", error);
+      }
+    }
+  };
+
+  const handleReadComplete = () => {
+    const nextState = !isReadCompleted;
+    setIsReadCompleted(nextState);
+
+    if (nextState) {
+      confetti({
+        particleCount: 100, 
+        spread: 70, 
+        origin: { y: 0.8 }, 
+        colors: ['#f897c4', '#88B04B', '#FFD700'] 
+      });
+    }
+  };
+
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) {
       const d = new Date(currentDate);
@@ -164,47 +295,66 @@ export default function ReadingPage() {
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-      <header className="text-center mb-3 flex flex-col items-center relative">
-        <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
+      <header className="text-center mb-3 flex flex-col items-center w-full relative">
+        <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
-        <div className="flex items-center gap-2">
-          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
+        <div className="flex items-center justify-center w-full">
+          <div className="flex-1 flex justify-end pr-3">
+            <button 
+              onClick={() => dateInputRef.current?.showPicker()} 
+              className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+            >
+              <CalendarIcon size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+          <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
-          <button onClick={() => dateInputRef.current?.showPicker()} className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform">
-            <CalendarIcon size={18} strokeWidth={2.5} />
-          </button>
+          <div className="flex-1 flex justify-start pl-3">      
+            <button 
+              onClick={() => {
+                setSelectionStep('testament');
+                setTempSelection({ testament: '', book_name: '', start_chapter: 0, start_verse: 0, end_chapter: 0, end_verse: 0 });
+                setIsEditModalOpen(true);
+              }}
+              className="relative flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+            >
+              <motion.span initial={{ scale: 1, opacity: 0.5 }}
+                animate={{ scale: 1.4, opacity: 0 }}
+                transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
+                className="absolute inset-0 rounded-full bg-[#4A6741]"/>
+              <NotebookPen size={16} strokeWidth={1.5} className="relative z-10" />
+            </button>
+          </div>
           <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
         </div>
       </header>
 
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-        {/* 뒷배경 카드 고정 높이 적용 */}
-        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
         <AnimatePresence mode="wait">
           <motion.div 
-            key={currentDate.toISOString()}
+            key={bibleData?.id || bibleData?.chapter || currentDate.toISOString()}
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
+            className="w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
           >
             {bibleData ? (
               <>
-                {/* 텍스트 영역 고정 및 내부 스크롤 처리 */}
-                <div className="flex-1 w-full overflow-y-auto scrollbar-hide flex items-center justify-center mb-4">
-                  <p className="text-zinc-800 leading-[1.8] break-keep font-medium" style={{ fontSize: `${fontSize}px` }}>
-                    {cleanContent(bibleData.content)}
+                <div className="flex-1 w-full overflow-y-auto scrollbar-hide flex items-center justify-center mb-4 text-left">
+                  <p className="text-zinc-800 leading-[1.8] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
+                    {bibleData.content}
                   </p>
                 </div>
                 <span className="font-bold text-[#4A6741] opacity-60 shrink-0" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse ? `${bibleData.verse}절` : ''}
                 </span>
               </>
             ) : <div className="animate-pulse text-zinc-200 m-auto">말씀을 불러오는 중...</div>}
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[420px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
       <div className="flex items-center gap-8 mt-3 mb-14"> 
@@ -216,28 +366,97 @@ export default function ReadingPage() {
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
         <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
-      <div className="flex items-center justify-center gap-6 pb-4">
-        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
+      <div className="flex items-center justify-center gap-8 pb-4">
+        <button 
+          onClick={() => { if (rangePages.length > 0 && currentPageIdx > 0) { const newIdx = currentPageIdx - 1; setCurrentPageIdx(newIdx); setBibleData(rangePages[newIdx]); } }}
+          className={`${rangePages.length > 0 && currentPageIdx > 0 ? 'text-[#4A6741]' : 'text-zinc-300'} transition-colors p-2`}
+        >
           <ChevronLeft size={32} strokeWidth={1.5} />
         </button>
 
         <motion.button 
-          whileTap={{ scale: 0.9 }} onClick={() => setIsReadCompleted(!isReadCompleted)}
+          whileTap={{ scale: 0.9 }} onClick={handleReadComplete}
           className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
-            ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
+            ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
         >
           <Check className={`w-6 h-6 mb-1 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
-          <span className="font-black leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
+          <span className="font-bold leading-tight" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기<br/>완료</span>
         </motion.button>
 
-        <button className="text-zinc-300 hover:text-[#4A6741] transition-colors p-2">
+        <button 
+          onClick={() => { if (rangePages.length > 0 && currentPageIdx < rangePages.length - 1) { const newIdx = currentPageIdx + 1; setCurrentPageIdx(newIdx); setBibleData(rangePages[newIdx]); } }}
+          className={`${rangePages.length > 0 && currentPageIdx < rangePages.length - 1 ? 'text-[#4A6741]' : 'text-zinc-300'} transition-colors p-2`}
+        >
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
 
+      {/* 🔥 범위 선택 모달 (복구 및 기능 수정) */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center" onClick={() => setIsEditModalOpen(false)}>
+            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} className="bg-white w-full max-md rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              
+              {/* 상단 현재 선택 경로 표시 */}
+              <div className="flex flex-wrap items-center gap-1 mb-6 bg-green-50 py-2 px-4 rounded-full w-fit text-[10px] font-bold text-[#4A6741]">
+                <span>{tempSelection.testament || "성경"}</span>
+                {tempSelection.book_name && <>〉<span>{tempSelection.book_name}</span></>}
+                {tempSelection.start_chapter > 0 && <>〉<span>시작 {tempSelection.start_chapter}장</span></>}
+                {tempSelection.start_verse > 0 && <>〉<span>{tempSelection.start_verse}절</span></>}
+              </div>
+
+              <h3 className="text-xl font-black mb-6 text-zinc-900">
+                {selectionStep === 'testament' && "어디를 읽으실까요?"}
+                {selectionStep === 'book' && "권 선택"}
+                {selectionStep === 'start_chapter' && "시작 장 선택"}
+                {selectionStep === 'start_verse' && "시작 절 선택"}
+                {selectionStep === 'end_chapter' && "종료 장 선택"}
+                {selectionStep === 'end_verse' && "종료 절 선택"}
+              </h3>
+
+              <div className="grid grid-cols-4 gap-2">
+                {selectionStep === 'testament' && ['구약', '신약'].map(t => (
+                  <button key={t} onClick={() => { setTempSelection(p => ({...p, testament: t})); setSelectionStep('book'); }} className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg">{t}</button>
+                ))}
+
+                {selectionStep === 'book' && BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
+                  <button key={b} onClick={() => loadChapters(b)} className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600">{b}</button>
+                ))}
+
+                {(selectionStep === 'start_chapter' || selectionStep === 'end_chapter') && availableChapters.map(ch => (
+                  <button 
+                    key={ch} 
+                    disabled={selectionStep === 'end_chapter' && ch < tempSelection.start_chapter}
+                    onClick={() => {
+                      if (selectionStep === 'start_chapter') { setTempSelection(p => ({...p, start_chapter: ch})); loadVerses(ch, 'start_verse'); }
+                      else { setTempSelection(p => ({...p, end_chapter: ch})); loadVerses(ch, 'end_verse'); }
+                    }}
+                    className={`py-3 rounded-xl font-bold ${selectionStep === 'end_chapter' && ch < tempSelection.start_chapter ? 'bg-zinc-100 text-zinc-300' : 'bg-zinc-50 text-zinc-700'}`}
+                  >{ch}</button>
+                ))}
+
+                {(selectionStep === 'start_verse' || selectionStep === 'end_verse') && availableVerses.map(v => (
+                  <button 
+                    key={v} 
+                    disabled={selectionStep === 'end_verse' && tempSelection.start_chapter === tempSelection.end_chapter && v < tempSelection.start_verse}
+                    onClick={() => {
+                      if (selectionStep === 'start_verse') { setTempSelection(p => ({...p, start_verse: v})); setSelectionStep('end_chapter'); }
+                      else { handleFinalRangeSelection(v); }
+                    }}
+                    className={`py-3 rounded-xl font-bold ${selectionStep === 'end_verse' && tempSelection.start_chapter === tempSelection.end_chapter && v < tempSelection.start_verse ? 'bg-zinc-100 text-zinc-300' : 'bg-zinc-50 text-zinc-700'}`}
+                  >{v}</button>
+                ))}
+              </div>
+              <button onClick={() => setIsEditModalOpen(false)} className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm">닫기</button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* TTS 컨트롤 (완벽 복구) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">

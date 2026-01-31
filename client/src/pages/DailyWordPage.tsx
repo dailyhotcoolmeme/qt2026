@@ -28,6 +28,7 @@ export default function DailyWordPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
@@ -81,10 +82,29 @@ export default function DailyWordPage() {
 
   const handleAmenClick = async () => {
     if (hasAmened || !bibleData) return;
+    // 햅틱 반응 추가 (Success 패턴: 툭, 툭 두 번 혹은 짧게 한 번)
+  if (window.navigator && window.navigator.vibrate) {
+    // 30ms 동안 아주 짧게 진동 (iOS는 브라우저 정책에 따라 제한적일 수 있음)
+    window.navigator.vibrate(30); 
+  }
     setHasAmened(true);
     setAmenCount(prev => prev + 1);
     await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
-  }; 
+  };
+
+  const handleCopy = () => {
+  if (bibleData) {
+    // 실제 복사 로직
+    navigator.clipboard.writeText(cleanContent(bibleData.content));
+    
+    // 토스트 켜고 2초 뒤 끄기
+    setShowCopyToast(true);
+    setTimeout(() => setShowCopyToast(false), 2000);
+    
+    // 햅틱 반응 (선택)
+    if (window.navigator?.vibrate) window.navigator.vibrate(20);
+  }
+};
 
 // 1. 재생/일시정지 토글
   const togglePlay = () => {
@@ -113,6 +133,8 @@ export default function DailyWordPage() {
   // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (!bibleData) return;
+    // 햅틱 반응 추가
+  if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
     // 1. 목소리 변경 시 상태 업데이트 후 종료 (useEffect가 바통을 이어받음)
     if (selectedVoice) {
@@ -190,7 +212,28 @@ export default function DailyWordPage() {
       setIsPlaying(false);
     }
   };
+  const handleShare = async () => {
+    // 햅틱 반응 추가
+  if (window.navigator?.vibrate) window.navigator.vibrate(20);
+    const shareData = {
+      title: '성경 말씀',
+      text: bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.',
+      url: window.location.href, 
+    };
 
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        alert("링크가 클립보드에 복사되었습니다.");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("공유 실패:", error);
+      }
+    }
+  };
   // 날려먹었던 스와이프 로직 복구
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
@@ -207,25 +250,33 @@ export default function DailyWordPage() {
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* 1. 날짜 영역 전체를 아래 내용으로 싹 지우고 덮어쓰세요 */}
-<header className="text-center mb-3 flex flex-col items-center relative">
-  <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
-    {currentDate.getFullYear()}
-  </p>
-  
-  <div className="flex items-center gap-2">
-    <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
-      {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-    </h2>
-    
-    {/* 달력 버튼 */}
-    <button 
-      onClick={() => dateInputRef.current?.showPicker()} 
-      className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
-    >
-      <CalendarIcon size={18} strokeWidth={2.5} />
-    </button>
-
+      {/* 상단 날짜 영역 */}
+            <header className="text-center mb-3 flex flex-col items-center w-full relative">
+              <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
+                {currentDate.getFullYear()}
+              </p>
+               {/* 날짜 정렬 영역 */}
+              <div className="flex items-center justify-center w-full">
+              {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
+          <div className="flex-1 flex justify-end pr-3">
+            <button 
+              onClick={() => dateInputRef.current?.showPicker()} 
+              className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+            >
+              <CalendarIcon size={16} strokeWidth={1.5} />
+            </button>
+          </div>
+          {/* 2. 중앙 날짜 (고정석) */}
+          <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
+            {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+          </h2>
+           {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
+    <div className="flex-1 flex justify-start pl-3">
+      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
+          투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
+      */}
+      <div className="w-[28px] h-[28px]" aria-hidden="true" />
+    </div>
     {/* 숨겨진 날짜 입력 input */}
     <input 
       type="date"
@@ -244,30 +295,53 @@ export default function DailyWordPage() {
 <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
   
   <AnimatePresence mode="wait">
-    <motion.div 
-      key={currentDate.toISOString()}
-      drag="x" 
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.2} // 드래그 시 탄성 추가
-      onDragEnd={onDragEnd}
-      initial={{ opacity: 0, x: 20 }} 
-      animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: -20 }}
-      // 중앙 카드가 양옆을 너무 가리지 않게 너비를 w-[82%]로 살짝 줄임
-      className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
-    >
-      {bibleData ? (
-        <>
-          <p className="text-zinc-800 leading-[1.7] break-keep font-medium mb-6" style={{ fontSize: `${fontSize}px` }}>
-            {cleanContent(bibleData.content)}
-          </p>
-          <span className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
-            {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-          </span>
-        </>
-      ) : <div className="animate-pulse text-zinc-200">말씀을 불러오는 중...</div>}
-    </motion.div>
-  </AnimatePresence>
+  <motion.div 
+    key={currentDate.toISOString()}
+    drag="x" 
+    dragConstraints={{ left: 0, right: 0 }}
+    dragElastic={0.2}
+    onDragEnd={onDragEnd}
+    initial={{ opacity: 0, x: 20 }} 
+    animate={{ opacity: 1, x: 0 }} 
+    exit={{ opacity: 0, x: -20 }}
+    className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center p-10 pb-8 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+  >
+    {bibleData ? (
+      <>
+        {/* 말씀 본문 영역 */}
+        <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-6 w-full" style={{ fontSize: `${fontSize}px` }}>
+          {bibleData.content.split('\n').map((line: string, i: number) => {
+            // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
+            const match = line.match(/^(\d+)\.?\s*(.*)/);
+            
+            if (match) {
+              const [_, verseNum, textContent] = match;
+              return (
+                <p key={i} className="flex items-start gap-2">
+                  {/* 점 없이 숫자만 출력 */}
+                  <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
+                    {verseNum}
+                  </span>
+                  <span className="flex-1">{textContent}</span>
+                </p>
+              );
+            }
+            return <p key={i}>{line}</p>;
+          })}
+        </div>
+
+        {/* 출처 영역 */}
+        <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+        </span>
+      </>
+    ) : (
+      <div className="animate-pulse text-zinc-200 w-full text-center">
+        말씀을 불러오는 중...
+      </div>
+    )}
+  </motion.div>
+</AnimatePresence>
 
   {/* 오른쪽 힌트 카드 (내일) */}
 <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
@@ -278,28 +352,65 @@ export default function DailyWordPage() {
     <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 재생</span>
     </button>
-
-    <button onClick={() => { navigator.clipboard.writeText(cleanContent(bibleData.content)); alert("복사되었습니다."); }} className="flex flex-col items-center gap-1.5 text-zinc-400">
-      <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
-    </button>
+{/* 말씀 복사 버튼 찾아서 수정 */}
+<button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
+  <Copy size={22} strokeWidth={1.5} />
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+</button>
     <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
 
-      {/* 4. 아멘 버튼 (동그란 원형 복구) */}
-      <div className="flex flex-col items-center gap-3 pb-4">
-        <motion.button 
-          whileTap={{ scale: 0.9 }} onClick={handleAmenClick}
-          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
-            ${hasAmened ? 'bg-[#4A6741] text-white' : 'bg-white text-[#4A6741] border border-green-50'}`}
-        >
-          <Heart className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} strokeWidth={hasAmened ? 0 : 2} />
-          <span className="font-black" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
-          <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>{amenCount.toLocaleString()}</span>
-        </motion.button>
-      </div>
+{/* 4. 아멘 버튼 영역 */}
+<div className="flex flex-col items-center gap-3 pb-4">
+  {/* 파동 레이어와 버튼을 겹치기 위해 relative 컨테이너 사용 */}
+  <div className="relative w-24 h-24 flex items-center justify-center">
+    
+    {/* 빛의 파동 효과 (hasAmened가 true일 때만 실행) */}
+    <AnimatePresence>
+      {hasAmened && (
+        <>
+          <motion.div
+            initial={{ scale: 1, opacity: 0.5 }}
+            animate={{ scale: 1.5, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 2.2, ease: "easeOut" }}
+            className="absolute inset-0 bg-[#4A6741] rounded-full"
+          />
+          <motion.div
+            initial={{ scale: 1, opacity: 0.4 }}
+            animate={{ scale: 1.2, opacity: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+            className="absolute inset-0 bg-[#4A6741] rounded-full"
+          />
+        </>
+      )}
+    </AnimatePresence>
+
+    {/* 실제 버튼 (색상 로직 복구) */}
+    <motion.button 
+      whileTap={{ scale: 0.9 }} 
+      onClick={handleAmenClick}
+      className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
+        ${hasAmened 
+          ? 'bg-[#4A6741] text-white border-none' 
+          : 'bg-white text-[#4A6741] border border-green-50'
+        }`}
+    >
+      <Heart 
+        className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} 
+        strokeWidth={hasAmened ? 0 : 2} 
+      />
+      <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
+      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>
+        {amenCount.toLocaleString()}
+      </span>
+    </motion.button>
+  </div>
+</div>
 
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
@@ -349,6 +460,20 @@ export default function DailyWordPage() {
           </button>
         </div>
       </div>
+    </motion.div>
+  )}
+</AnimatePresence>
+<AnimatePresence>
+  {showCopyToast && (
+    <motion.div 
+      initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
+      animate={{ opacity: 1, x: "-50%", y: 0 }} 
+      exit={{ opacity: 0, x: "-50%", y: 20 }} 
+      transition={{ duration: 0.3 }}
+      className="fixed bottom-48 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
+      style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
+    >
+      말씀이 복사되었습니다
     </motion.div>
   )}
 </AnimatePresence>

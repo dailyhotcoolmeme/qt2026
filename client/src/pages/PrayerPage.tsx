@@ -52,24 +52,33 @@ export default function KneesPage() {
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
       
-      {/* [대원칙] 1. 상단 날짜 영역 (DailyWordPage 100% 복사) */}
-      <header className="text-center mb-3 flex flex-col items-center relative">
-        <p className="font-bold text-[#4A6741] tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
+      {/* 상단 날짜 영역 */}
+      <header className="text-center mb-3 flex flex-col items-center w-full relative">
+        <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
         </p>
-        
-        <div className="flex items-center gap-2">
-          <h2 className="font-black text-zinc-900 tracking-tighter" style={{ fontSize: `${fontSize * 1.25}px` }}>
-            {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
-          </h2>
-          
-          <button 
-            onClick={() => dateInputRef.current?.showPicker()} 
-            className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
-          >
-            <CalendarIcon size={18} strokeWidth={2.5} />
-          </button>
-
+         {/* 날짜 정렬 영역 */}
+        <div className="flex items-center justify-center w-full">
+        {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
+    <div className="flex-1 flex justify-end pr-3">
+      <button 
+        onClick={() => dateInputRef.current?.showPicker()} 
+        className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+      >
+        <CalendarIcon size={16} strokeWidth={1.5} />
+      </button>
+    </div>
+    {/* 2. 중앙 날짜 (고정석) */}
+    <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
+      {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+    </h2>
+      {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
+    <div className="flex-1 flex justify-start pl-3">
+      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
+          투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
+      */}
+      <div className="w-[28px] h-[28px]" aria-hidden="true" />
+    </div>
           <input 
             type="date"
             ref={dateInputRef}

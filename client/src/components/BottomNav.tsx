@@ -1,7 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 // HandsPraying 대신 확실히 존재하는 아이콘들로 대체
-import { Sun, Sparkles, Book, Users2, Mic } from "lucide-react";
+import { Sun, Sparkles, Book, Users2, Mic, BookHeart, BookOpenCheck, BookHeadphones, Church, HandHeart } from "lucide-react";
 
 export function BottomNav() {
   const [location] = useLocation();
@@ -12,16 +12,16 @@ export function BottomNav() {
       <NavItem href="/" icon={<Sun />} label="오늘말씀" active={location === "/"} />
       
       {/* 오늘묵상: Sparkles (기도의 영성을 상징하는 반짝임) */}
-      <NavItem href="/qt" icon={<Sparkles />} label="묵상일기" active={location === "/qt"} />
+      <NavItem href="/qt" icon={<BookHeart />} label="묵상일기" active={location === "/qt"} />
 
       {/* 성경읽기: Book */}
-      <NavItem href="/reading" icon={<Book />} label="성경듣기" active={location === "/reading"} />
+      <NavItem href="/reading" icon={<BookHeadphones />} label="성경듣기" active={location === "/reading"} />
 
       {/* 낙타무릎: Mic (음성 기도 중심) */}
-      <NavItem href="/prayer" icon={<Mic />} label="낙타무릎" active={location === "/prayer"} />
+      <NavItem href="/prayer" icon={<HandHeart />} label="낙타무릎" active={location === "/prayer"} />
       
       {/* 중보모임: Users2 */}
-      <NavItem href="/community" icon={<Users2 />} label="중보모임" active={location === "/community"} />
+      <NavItem href="/community" icon={<Church />} label="중보모임" active={location === "/community"} />
     </nav>
   );
 }
