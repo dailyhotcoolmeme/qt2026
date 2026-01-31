@@ -116,19 +116,23 @@ export default function QTPage() {
 // 1. 상태 추가
 const [notes, setNotes] = useState([
   { id: 1, content: "오늘 말씀이 너무 큰 위로가 됩니다...", author: "익명의 묵상가" },
-  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다. 감사합니다.", author: "빛의 자녀" }
+  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다.이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다 감사합니다.", author: "빛의 자녀" }
 ]);
 const [expandedId, setExpandedId] = useState<number | null>(null); // 더보기 상태
 const [noteIndex, setNoteIndex] = useState(0); // 현재 보고 있는 묵상 인덱스
 
-// 2. 스와이프 시 높이 초기화 로직
+// 말씀 카드 스와이프와 동일한 로직 적용
 const onNoteDragEnd = (event: any, info: any) => {
-  if (info.offset.x > 50 && noteIndex > 0) {
-    setNoteIndex(prev => prev - 1);
-    setExpandedId(null); // 높이 초기화
-  } else if (info.offset.x < -50 && noteIndex < notes.length - 1) {
-    setNoteIndex(prev => prev + 1);
-    setExpandedId(null); // 높이 초기화
+  if (info.offset.x > 100) { // 오른쪽으로 밀기 (이전 묵상)
+    if (noteIndex > 0) {
+      setNoteIndex(prev => prev - 1);
+      setExpandedId(null); // 다음 카드로 가면 높이 초기화
+    }
+  } else if (info.offset.x < -100) { // 왼쪽으로 밀기 (다음 묵상)
+    if (noteIndex < (notes?.length || 0) - 1) {
+      setNoteIndex(prev => prev + 1);
+      setExpandedId(null); // 다음 카드로 가면 높이 초기화
+    }
   }
 };
   // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
@@ -365,48 +369,58 @@ const onNoteDragEnd = (event: any, info: any) => {
     <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
-{/* 4. 묵상 카드 스와이퍼 영역 */}
-<div className="w-full flex flex-col items-center mt-6 mb-4 overflow-visible">
+{/* 4. 묵상 카드 영역 */}
+<div className="relative w-full flex flex-col items-center mt-6 mb-4 overflow-visible">
+  {/* 헤더 부분 */}
   <div className="w-[82%] max-w-sm mb-3 flex justify-between items-end px-1">
     <h3 className="text-xs font-bold text-zinc-400">묵상 나누기</h3>
-    <span className="text-[10px] text-zinc-300 font-medium">{noteIndex + 1} / {notes.length}</span>
+    <span className="text-[10px] text-zinc-300 font-medium">
+      {notes.length > 0 ? `${noteIndex + 1} / ${notes.length}` : "0 / 0"}
+    </span>
   </div>
 
-  <div className="relative w-full flex justify-center items-start">
-    <AnimatePresence mode="none">
-      <motion.div
-        key={notes[noteIndex].id}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        onDragEnd={onNoteDragEnd}
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="w-[82%] max-w-sm bg-white rounded-[24px] p-6 shadow-sm border border-white flex flex-col touch-none"
-      >
-        {/* 본문 텍스트: expandedId에 따라 높이가 늘어남 */}
-        <div className={`text-sm text-zinc-600 leading-relaxed break-keep transition-all duration-300 ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-5'}`}>
-          {notes[noteIndex].content}
-        </div>
+  {/* 카드 본체 */}
+  <AnimatePresence mode="wait">
+    <motion.div
+      key={`note-${noteIndex}`} // 인덱스가 바뀔 때마다 애니메이션 실행
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2}
+      onDragEnd={onNoteDragEnd}
+      /* 말씀 카드와 동일한 애니메이션 값 */
+      initial={{ opacity: 0, x: 20 }} 
+      animate={{ opacity: 1, x: 0 }} 
+      exit={{ opacity: 0, x: -20 }}
+      transition={{ duration: 0.2 }}
+      className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-white flex flex-col p-7 touch-none cursor-grab active:cursor-grabbing"
+    >
+      {notes.length > 0 ? (
+        <>
+          <div className={`text-[14px] text-zinc-600 leading-[1.7] break-keep ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-3'}`}>
+            {notes[noteIndex].content}
+          </div>
 
-        {/* 더보기 버튼 */}
-        {notes[noteIndex].content.length > 100 && (
-          <button 
-            onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
-            className="text-[11px] font-bold text-[#4A6741] mt-2 self-start opacity-60"
-          >
-            {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
-          </button>
-        )}
+          {notes[noteIndex].content.length > 120 && (
+            <button 
+              onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
+              className="text-[11px] font-bold text-[#4A6741] mt-3 self-start opacity-50"
+            >
+              {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
+            </button>
+          )}
 
-        <div className="mt-4 pt-4 border-t border-zinc-50 flex justify-between items-center">
-          <span className="text-[11px] font-bold text-[#4A6741] opacity-40">{notes[noteIndex].author}</span>
-          <button className="text-[11px] font-medium text-zinc-300">공감 0</button>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  </div>
-</div>  
+          <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
+            <span className="text-[11px] font-bold text-[#4A6741] opacity-40">
+              {notes[noteIndex].author}
+            </span>
+          </div>
+        </>
+      ) : (
+        <div className="py-10 text-center text-zinc-300 text-xs">첫 번째 묵상을 남겨주세요.</div>
+      )}
+    </motion.div>
+  </AnimatePresence>
+</div>
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
   {showAudioControl && (
