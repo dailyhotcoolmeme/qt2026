@@ -27,6 +27,9 @@ export default function QTPage() {
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [targetDeleteId, setTargetDeleteId] = useState<number | null>(null);
+  const [showDeleteToast, setShowDeleteToast] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
@@ -116,7 +119,8 @@ export default function QTPage() {
 // 1. 상태 추가
 const [notes, setNotes] = useState([
   { id: 1, content: "오늘 말씀이 너무 큰 위로가 됩니다...", author: "익명의 묵상가", created_at: "2024.03.20 09:15" },
-  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다.이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다 감사합니다.", author: "빛의 자녀", created_at: "2024.03.20 11:30" }
+  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다.이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다 감사합니다.", author: "빛의 자녀", created_at: "2024.03.20 11:30" },
+  { id: 3, content: "이 말씀 테스트있습니다. 감사합니다 말씀 테스트있습니다. 감사합 말씀 테스트있습니다. 감사합.", author: "성도", created_at: "2024.03.20 14:00" }
 ]);
 const [expandedId, setExpandedId] = useState<number | null>(null); // 더보기 상태
 const [noteIndex, setNoteIndex] = useState(0); // 현재 보고 있는 묵상 인덱스
@@ -135,12 +139,27 @@ const onNoteDragEnd = (event: any, info: any) => {
     }
   }
 };
-// QTPage 함수 안쪽, return문 이전에 배치
-const [showDeleteToast, setShowDeleteToast] = useState(false);
+// 2. 삭제 버튼 클릭 시 바로 지우지 않고 확인창을 띄우는 함수
+const openDeleteConfirm = (id: number) => {
+  setTargetDeleteId(id);
+  setShowDeleteConfirm(true);
+  if (window.navigator?.vibrate) window.navigator.vibrate(10); // 살짝 진동
+};
 
-const handleDelete = (id: number) => {
-  if (window.confirm("이 묵상을 삭제하시겠습니까?")) { // 우선 확인용
-    setNotes(prev => prev.filter(n => n.id !== id));
+// 3. 확인창에서 '삭제'를 눌렀을 때 진짜 실행되는 함수
+const confirmDelete = () => {
+  if (targetDeleteId !== null) {
+    setNotes(prev => prev.filter(n => n.id !== targetDeleteId));
+    
+    // 인덱스 보정
+    if (noteIndex >= notes.length - 1 && noteIndex > 0) {
+      setNoteIndex(prev => prev - 1);
+    }
+
+    setShowDeleteConfirm(false);
+    setTargetDeleteId(null);
+    
+    // 삭제 완료 토스트
     setShowDeleteToast(true);
     setTimeout(() => setShowDeleteToast(false), 2000);
     if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
@@ -452,11 +471,14 @@ const handleDelete = (id: number) => {
               </div>
 
               <button 
-                onClick={(e) => { e.stopPropagation(); handleDelete(notes[noteIndex].id); }}
-                className="p-1.5 text-zinc-200 hover:text-red-400 transition-colors"
-              >
-                <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
-              </button>
+  onClick={(e) => { 
+    e.stopPropagation(); 
+    openDeleteConfirm(notes[noteIndex].id); // 바로 삭제가 아닌 확인창 열기
+  }}
+  className="p-1.5 text-zinc-200 hover:text-red-400 transition-colors"
+>
+  <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
+</button>
             </div>
           </>
         ) : (
@@ -477,6 +499,49 @@ const handleDelete = (id: number) => {
     </div>
   </div>
 </div>
+{/* 삭제 확인 커스텀 모달 */}
+<AnimatePresence>
+  {showDeleteConfirm && (
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+      {/* 배경 흐리게 */}
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => setShowDeleteConfirm(false)}
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+      />
+      
+      {/* 모달 본체 */}
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+        className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
+      >
+        <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
+          묵상을 삭제할까요?
+        </h4>
+        <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
+          삭제된 묵상은 복구할 수 없습니다.
+        </p>
+        
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowDeleteConfirm(false)}
+            className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            취소
+          </button>
+          <button 
+            onClick={confirmDelete}
+            className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-active active:scale-95 shadow-lg shadow-red-200"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            삭제
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
   {showAudioControl && (
