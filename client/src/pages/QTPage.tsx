@@ -113,7 +113,24 @@ export default function QTPage() {
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
+// 1. 상태 추가
+const [notes, setNotes] = useState([
+  { id: 1, content: "오늘 말씀이 너무 큰 위로가 됩니다...", author: "익명의 묵상가" },
+  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다. 감사합니다.", author: "빛의 자녀" }
+]);
+const [expandedId, setExpandedId] = useState<number | null>(null); // 더보기 상태
+const [noteIndex, setNoteIndex] = useState(0); // 현재 보고 있는 묵상 인덱스
 
+// 2. 스와이프 시 높이 초기화 로직
+const onNoteDragEnd = (event: any, info: any) => {
+  if (info.offset.x > 50 && noteIndex > 0) {
+    setNoteIndex(prev => prev - 1);
+    setExpandedId(null); // 높이 초기화
+  } else if (info.offset.x < -50 && noteIndex < notes.length - 1) {
+    setNoteIndex(prev => prev + 1);
+    setExpandedId(null); // 높이 초기화
+  }
+};
   // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     if (!bibleData) return;
@@ -348,6 +365,48 @@ export default function QTPage() {
     <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
+{/* 4. 묵상 카드 스와이퍼 영역 */}
+<div className="w-full flex flex-col items-center mt-6 mb-4 overflow-visible">
+  <div className="w-[82%] max-w-sm mb-3 flex justify-between items-end px-1">
+    <h3 className="text-xs font-bold text-zinc-400">묵상 나누기</h3>
+    <span className="text-[10px] text-zinc-300 font-medium">{noteIndex + 1} / {notes.length}</span>
+  </div>
+
+  <div className="relative w-full flex justify-center items-start">
+    <AnimatePresence mode="none">
+      <motion.div
+        key={notes[noteIndex].id}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        onDragEnd={onNoteDragEnd}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-[82%] max-w-sm bg-white rounded-[24px] p-6 shadow-sm border border-white flex flex-col touch-none"
+      >
+        {/* 본문 텍스트: expandedId에 따라 높이가 늘어남 */}
+        <div className={`text-sm text-zinc-600 leading-relaxed break-keep transition-all duration-300 ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-5'}`}>
+          {notes[noteIndex].content}
+        </div>
+
+        {/* 더보기 버튼 */}
+        {notes[noteIndex].content.length > 100 && (
+          <button 
+            onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
+            className="text-[11px] font-bold text-[#4A6741] mt-2 self-start opacity-60"
+          >
+            {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
+          </button>
+        )}
+
+        <div className="mt-4 pt-4 border-t border-zinc-50 flex justify-between items-center">
+          <span className="text-[11px] font-bold text-[#4A6741] opacity-40">{notes[noteIndex].author}</span>
+          <button className="text-[11px] font-medium text-zinc-300">공감 0</button>
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  </div>
+</div>  
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
   {showAudioControl && (
