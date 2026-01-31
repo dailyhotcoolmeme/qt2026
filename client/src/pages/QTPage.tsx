@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon 
+  Play, Pause, X, Calendar as CalendarIcon, ChevronRight, ChevronLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -370,56 +370,81 @@ const onNoteDragEnd = (event: any, info: any) => {
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
 {/* 4. 묵상 카드 영역 */}
-<div className="relative w-full flex flex-col items-center mt-6 mb-4 overflow-visible">
+<div className="relative w-full flex flex-col items-center mt-6 mb-12">
   {/* 헤더 부분 */}
   <div className="w-[82%] max-w-sm mb-3 flex justify-between items-end px-1">
     <h3 className="text-xs font-bold text-zinc-400">묵상 나누기</h3>
-    <span className="text-[10px] text-zinc-300 font-medium">
+    <span className="text-[10px] text-zinc-300 font-medium opacity-50">
       {notes.length > 0 ? `${noteIndex + 1} / ${notes.length}` : "0 / 0"}
     </span>
   </div>
 
-  {/* 카드 본체 */}
-  <AnimatePresence mode="wait">
-    <motion.div
-      key={`note-${noteIndex}`} // 인덱스가 바뀔 때마다 애니메이션 실행
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      dragElastic={0.2}
-      onDragEnd={onNoteDragEnd}
-      /* 말씀 카드와 동일한 애니메이션 값 */
-      initial={{ opacity: 0, x: 20 }} 
-      animate={{ opacity: 1, x: 0 }} 
-      exit={{ opacity: 0, x: -20 }}
-      transition={{ duration: 0.2 }}
-      className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_10px_30px_rgba(0,0,0,0.04)] border border-white flex flex-col p-7 touch-none cursor-grab active:cursor-grabbing"
-    >
-      {notes.length > 0 ? (
-        <>
-          <div className={`text-[14px] text-zinc-600 leading-[1.7] break-keep ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-3'}`}>
-            {notes[noteIndex].content}
-          </div>
+  {/* 카드 및 화살표 레이아웃 */}
+  <div className="relative w-full flex items-center justify-center">
+    
+    {/* 왼쪽 화살표: 왼쪽 여백(9%)의 정중앙 배치 */}
+    <div className="absolute left-[4.5%] -translate-x-1/2 z-20">
+      <button 
+        onClick={() => noteIndex > 0 && setNoteIndex(prev => prev - 1)}
+        disabled={noteIndex === 0}
+        className={`p-2 transition-all duration-300 ${noteIndex === 0 ? 'opacity-0' : 'opacity-20 active:scale-75 hover:opacity-40'}`}
+      >
+        <ChevronLeft size={24} strokeWidth={1.2} className="text-zinc-900" />
+      </button>
+    </div>
 
-          {notes[noteIndex].content.length > 120 && (
-            <button 
-              onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
-              className="text-[11px] font-bold text-[#4A6741] mt-3 self-start opacity-50"
-            >
-              {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
-            </button>
-          )}
+    {/* 묵상 카드 본체 (w-[82%]) */}
+    <AnimatePresence mode="wait">
+      <motion.div
+        key={`note-${noteIndex}`}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.2}
+        onDragEnd={onNoteDragEnd}
+        initial={{ opacity: 0, x: 10 }} 
+        animate={{ opacity: 1, x: 0 }} 
+        exit={{ opacity: 0, x: -10 }}
+        transition={{ duration: 0.2 }}
+        className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-white flex flex-col p-7 touch-none cursor-grab active:cursor-grabbing relative z-10"
+      >
+        {notes.length > 0 ? (
+          <>
+            <div className={`text-[14px] text-zinc-600 leading-[1.7] break-keep transition-all duration-300 ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-3'}`}>
+              {notes[noteIndex].content}
+            </div>
 
-          <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
-            <span className="text-[11px] font-bold text-[#4A6741] opacity-40">
-              {notes[noteIndex].author}
-            </span>
-          </div>
-        </>
-      ) : (
-        <div className="py-10 text-center text-zinc-300 text-xs">첫 번째 묵상을 남겨주세요.</div>
-      )}
-    </motion.div>
-  </AnimatePresence>
+            {notes[noteIndex].content.length > 70 && (
+              <button 
+                onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
+                className="text-[11px] font-bold text-[#4A6741] mt-3 self-start opacity-50"
+              >
+                {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
+              </button>
+            )}
+
+            <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
+              <span className="text-[11px] font-bold text-[#4A6741] opacity-40">
+                {notes[noteIndex].author}
+              </span>
+            </div>
+          </>
+        ) : (
+          <div className="py-10 text-center text-zinc-300 text-xs italic">첫 묵상의 주인공이 되어보세요.</div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+
+    {/* 오른쪽 화살표: 오른쪽 여백(9%)의 정중앙 배치 */}
+    <div className="absolute right-[4.5%] translate-x-1/2 z-20">
+      <button 
+        onClick={() => noteIndex < notes.length - 1 && setNoteIndex(prev => prev + 1)}
+        disabled={noteIndex >= notes.length - 1}
+        className={`p-2 transition-all duration-300 ${noteIndex >= notes.length - 1 ? 'opacity-0' : 'opacity-20 active:scale-75 hover:opacity-40'}`}
+      >
+        <ChevronRight size={24} strokeWidth={1.2} className="text-zinc-900" />
+      </button>
+    </div>
+  </div>
 </div>
       {/* 5. TTS 제어 팝업 부분 */}
 <AnimatePresence>
