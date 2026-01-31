@@ -470,7 +470,7 @@ export default function DailyWordPage() {
       animate={{ opacity: 1, x: "-50%", y: 0 }} 
       exit={{ opacity: 0, x: "-50%", y: 20 }} 
       transition={{ duration: 0.3 }}
-      className="fixed bottom-48 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
+      className="fixed bottom-40 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
       style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
     >
       말씀이 복사되었습니다
