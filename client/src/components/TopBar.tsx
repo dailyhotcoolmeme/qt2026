@@ -39,12 +39,19 @@ export function TopBar() {
           </button>
         </div>
 
-        {/* 글자 크기 조절 슬라이더 팝업 */}
+        {/* 1. 슬라이더 외부 클릭 감지를 위한 투명 오버레이 */}
+{showFontSizeSlider && (
+  <div 
+    className="fixed inset-0 z-[155]" 
+    onClick={() => setShowFontSizeSlider(false)} 
+  />
+)}
+
+{/* 2. 글자 크기 조절 슬라이더 팝업 */}
 {showFontSizeSlider && (
   <div className="absolute top-16 right-4 w-60 bg-white shadow-2xl border border-zinc-100 rounded-2xl p-5 z-[160] animate-in fade-in slide-in-from-top-2 duration-200">
-    <div className="relative pt-7 pb-2 px-1"> {/* px-1로 슬라이더와 숫자의 시작점 통일 */}
-      
-      {/* 1. 점 위에 숫자 표시 (Flex 중심 정렬) */}
+    <div className="relative pt-7 pb-2 px-1">
+      {/* ... 슬라이더 내부 코드는 동일 ... */}
       <div className="absolute top-0 left-0 right-0 flex justify-between px-1">
         {[14, 16, 18, 20, 22, 24].map((step) => (
           <span 
@@ -58,9 +65,7 @@ export function TopBar() {
         ))}
       </div>
 
-      {/* 2. 슬라이더 트랙과 가이드 점 */}
       <div className="relative flex items-center h-6">
-        {/* 뒷배경 가이드 점들 (숫자 위치와 정확히 일치) */}
         <div className="absolute left-0 right-0 flex justify-between px-[6px]">
           {[14, 16, 18, 20, 22, 24].map((step) => (
             <div 
@@ -72,7 +77,6 @@ export function TopBar() {
           ))}
         </div>
         
-        {/* 실제 조절 레버 (가이드 점 위를 지나가도록 설정) */}
         <input 
           type="range" 
           min="14" 
