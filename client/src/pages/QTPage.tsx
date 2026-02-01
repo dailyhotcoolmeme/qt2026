@@ -81,63 +81,58 @@ export default function QTPage() {
     }
   }, []);
   const startRecordingWithSTT = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    const chunks: Blob[] = [];
-
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-      setAudioBlob(blob);
-    };
-
-    if (recognitionRef.current) {
-      recognitionRef.current.onresult = null; 
+    try {
+      // 1. 모바일에서는 오디오 컨텍스트와 권한을 가장 먼저 활성화해야 합니다.
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // 녹음 시작 시점의 텍스트를 고정합니다.
-      const initialText = textContent;
-
-      recognitionRef.current.onresult = (event: any) => {
-        let interimTranscript = ""; 
-        let finalTranscript = "";   
-
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + " ";
-          } else {
-            interimTranscript += transcript;
-          }
+      // 2. 음성 인식 객체가 있는지 다시 한번 체크 (모바일 브라우저 대응)
+      if (!recognitionRef.current) {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (SpeechRecognition) {
+          recognitionRef.current = new SpeechRecognition();
+          recognitionRef.current.continuous = true;
+          recognitionRef.current.interimResults = true;
+          recognitionRef.current.lang = 'ko-KR';
         }
-        
-        // [수정 핵심] 
-        // 1. 지금까지 확정된(final) 텍스트를 계속 누적하여 보관합니다.
-        if (finalTranscript) {
-          // 이 함수 밖의 textContent가 아니라, 이 이벤트 루프 내에서 처리합니다.
-        }
+      }
 
-        // 2. [실시간 반영] 초기 텍스트 + 이번 녹음 중 확정된 것 + 현재 말하는 중인 것
-        // 복잡한 prev 함수 대신 가장 직관적인 결합 방식을 사용합니다.
-        const currentSessionText = Array.from(event.results)
-          .map((res: any) => res[0].transcript)
-          .join(" ");
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
 
-        setTextContent(initialText + currentSessionText);
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+        setAudioBlob(blob);
       };
 
-      recognitionRef.current.start();
-    }
+      // 3. STT 로직 실행
+      if (recognitionRef.current) {
+        const initialText = textContent;
 
-    recorder.start();
-    setMediaRecorder(recorder);
-    setIsListening(true);
-    setIsRecording(true);
-  } catch (err) {
-    console.error(err);
-    alert("마이크 사용을 허용해 주세요.");
-  }
-};
+        recognitionRef.current.onresult = (event: any) => {
+          let sessionText = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            sessionText += event.results[i][0].transcript;
+          }
+          // 모바일에서 상태 업데이트가 씹히지 않도록 직접 결합
+          setTextContent(initialText + sessionText);
+        };
+
+        // 중요: 에러 발생 시 자동 재시작 로직 방지 (모바일 무한루프 방지)
+        recognitionRef.current.onerror = (e: any) => console.error("STT Error:", e.error);
+        
+        recognitionRef.current.start();
+      }
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsListening(true);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Mobile Access Error:", err);
+      alert("마이크 사용 권한을 허용해 주세요.");
+    }
+  };
 
   // 4. 녹음 및 인식 중지 함수 (가장 중요한 수정 부분)
   const stopRecordingWithSTT = () => {
