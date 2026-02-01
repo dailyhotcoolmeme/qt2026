@@ -112,6 +112,9 @@ export async function setupAuth(app: Express) {
       // @ts-ignore
       req.session.returnTo = returnTo;
     }
+    // Debug: log login entry and stored returnTo
+    // eslint-disable-next-line no-console
+    console.log('[auth] /api/login invoked', { hostname: req.hostname, originalUrl: req.originalUrl, returnTo: req.session?.returnTo });
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
@@ -120,6 +123,9 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/callback", (req, res, next) => {
     ensureStrategy(req.hostname);
+    // Debug: log callback arrival and session.returnTo before passport handling
+    // eslint-disable-next-line no-console
+    console.log('[auth] /api/callback invoked', { hostname: req.hostname, originalUrl: req.originalUrl, query: req.query, sessionReturnTo: req.session?.returnTo });
     passport.authenticate(`replitauth:${req.hostname}`, {
       successReturnToOrRedirect: "/",
       failureRedirect: "/api/login",
