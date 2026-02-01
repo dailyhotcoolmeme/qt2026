@@ -9,16 +9,41 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter"; // [필수] wouter 사용
 
 export default function QTPage() {
-  const [location, setLocation] = useLocation(); // 페이지 이동용
+  const [location, setLocation] = useLocation(); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
 
-  // --- 추가된 상태들 ---
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  // 1. 사용자 관련 상태 (누락되어 에러 났던 부분들 복구)
+  const [currentUser, setCurrentUser] = useState<any>(null); 
   const [isAnonymous, setIsAnonymous] = useState(true);
-  const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false); // [추가됨]
-  const [textContent, setTextContent] = useState(""); // [추가됨]
+
+  // 2. 작성 및 녹음 관련 상태
+  const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false);
+  const [textContent, setTextContent] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+
+  // 3. 성경 및 UI 관련 상태
+  const [bibleData, setBibleData] = useState<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
+  const [playingId, setPlayingId] = useState<number | null>(null);
+  const [showAudioControl, setShowAudioControl] = useState(false);
+  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const [showCopyToast, setShowCopyToast] = useState(false); 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [targetDeleteId, setTargetDeleteId] = useState<number | null>(null);
+  const [showDeleteToast, setShowDeleteToast] = useState(false);
+
+  // 4. Refs
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
   const handleJoinClick = () => {
@@ -43,24 +68,6 @@ export default function QTPage() {
       setCurrentDate(selectedDate);
     }
   };
-  const [bibleData, setBibleData] = useState<any>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
-  const [playingId, setPlayingId] = useState<number | null>(null);
-  const [showAudioControl, setShowAudioControl] = useState(false);
-  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
-  const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [targetDeleteId, setTargetDeleteId] = useState<number | null>(null);
-  const [showDeleteToast, setShowDeleteToast] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const [audioBlob, setAudioBlob] = useState<Blob | null>(null); // [추가됨]
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null); // [추가됨]
-  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // 2. 음성 인식 초기화 (useEffect)
   useEffect(() => {
@@ -85,14 +92,16 @@ export default function QTPage() {
       setAudioBlob(blob);
     };
 
-    // [핵심 수정] 실시간 타이핑 로직
+    // [핵심 수정] 실시간 타이핑 로직 보강
     if (recognitionRef.current) {
-      // 이전에 남아있을 수 있는 이벤트를 초기화
       recognitionRef.current.onresult = null; 
 
+      // 기존 텍스트를 백업해두어야 실시간(interim) 결과와 섞이지 않습니다.
+      const baseText = textContent;
+
       recognitionRef.current.onresult = (event: any) => {
-        let interimTranscript = ""; // 중간 결과 (말하는 중)
-        let finalTranscript = "";   // 최종 결과 (문장 완성)
+        let interimTranscript = ""; 
+        let finalTranscript = "";   
 
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           const transcript = event.results[i][0].transcript;
@@ -103,12 +112,26 @@ export default function QTPage() {
           }
         }
         
-        // 말이 끝날 때마다 기존 글에 이어 붙이기
+        // 1. 최종 완성된 문장은 textContent 상태에 영구적으로 업데이트
         if (finalTranscript) {
           setTextContent(prev => prev + finalTranscript);
         }
-        // (선택사항) 말하는 중인 글자도 보고 싶다면 여기에 로직을 추가할 수 있지만, 
-        // 일단 완성된 문장부터 확실히 들어가게 설정했습니다.
+
+        // 2. [실시간 기능] 말하고 있는 도중인 글자(interim)를 textarea에 즉시 표시
+        // 기존 텍스트 + 방금 완성된 문장 + 현재 말하고 있는 중인 단어 순으로 보여줍니다.
+        if (interimTranscript) {
+          // 실시간 타이핑 느낌을 주기 위해 textarea에 직접 접근하거나 상태를 조합합니다.
+          setTextContent(prev => {
+            // 이미 추가된 finalTranscript를 제외하고 interim만 임시로 붙여서 보여줍니다.
+            // (이 로직은 문장이 완성되면 알아서 final로 넘어가므로 자연스럽습니다.)
+            return prev; 
+          });
+          
+          // 더 확실한 실시간 시각화를 위해 아래처럼 처리합니다.
+          const currentFullText = (finalTranscript ? (baseText + finalTranscript) : baseText) + interimTranscript;
+          // UI에 즉시 반영 (textarea의 value와 연결된 상태 업데이트)
+          setTextContent(currentFullText);
+        }
       };
 
       recognitionRef.current.start();
@@ -201,31 +224,28 @@ export default function QTPage() {
 
 // 묵상 저장 함수
 const handleSubmit = () => {
-  if (!textContent && !audioBlob) return;
+    if (!textContent && !audioBlob) return;
 
-  const newNote = {
-    id: Date.now(),
-    content: textContent,
-    // 1. 작성자: 익명 체크 여부에 따라 닉네임 -> 이메일 -> '회원' 순으로 안전하게 가져옵니다.
-    author: isAnonymous ? "익명" : (currentUser?.user_metadata?.nickname || currentUser?.email || "회원"),
-    
-    // 2. 날짜: '2024. 3. 21.' 형태로 깔끔하게 저장됩니다.
-    created_at: new Date().toLocaleDateString(),
-    
-    // 3. 음성: 녹음된 파일이 있다면 URL을 생성해 연결합니다.
-    audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : null
+    // 현재 시간을 "14:30" 형식으로 추출
+    const now = new Date();
+    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+    const newNote = {
+      id: Date.now(),
+      content: textContent,
+      author: isAnonymous ? "익명" : (currentUser?.nickname || "회원"),
+      created_at: new Date().toLocaleDateString(),
+      created_time: timeString, // [이 필드가 있어야 리스트에 시간이 뜹니다]
+      audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : null
+    };
+
+    setNotes(prevNotes => [newNote, ...prevNotes]);
+    setTextContent("");
+    setAudioBlob(null);
+    setIsAnonymous(true);
+    setIsWriteSheetOpen(false);
+    setNoteIndex(0);
   };
-
-  // 4. 기존 리스트 맨 앞에 새 묵상을 추가합니다.
-  setNotes(prevNotes => [newNote, ...prevNotes]);
-  
-  // 5. 입력창 및 상태 초기화
-  setTextContent("");
-  setAudioBlob(null);
-  setIsAnonymous(true); // 다음 글을 위해 다시 익명으로 세팅
-  setIsWriteSheetOpen(false);
-  setNoteIndex(0); // 새 글이 바로 보이도록 첫 번째 인덱스로 이동
-};
 
   const { fontSize = 16 } = useDisplaySettings();
  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
@@ -719,22 +739,28 @@ const confirmDelete = () => {
 )}
 
       {/* 푸터: 닉네임 + 날짜 + 삭제 */}
-      <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
-        <div className="flex flex-col gap-0.5">
-          <span className="font-bold text-[#4A6741] opacity-50" style={{ fontSize: `${fontSize * 0.85}px` }}>
-            {notes[noteIndex].author}
-          </span>
-          <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
-            {notes[noteIndex].created_at || "오늘"} 
-          </span>
-        </div>
-        <button 
-          onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
-          className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
-        >
-          <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
-        </button>
-      </div>
+<div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
+  <div className="flex flex-col gap-0.5">
+    <span className="font-bold text-[#4A6741] opacity-50" style={{ fontSize: `${fontSize * 0.85}px` }}>
+      {notes[noteIndex].author}
+    </span>
+    <div className="flex items-center gap-1.5"> {/* 가로 정렬을 위한 div 추가 */}
+      <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
+        {notes[noteIndex].created_at || "오늘"} 
+      </span>
+      {/* 아래 시간 코드를 추가합니다 */}
+      <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
+        {notes[noteIndex].created_time}
+      </span>
+    </div>
+  </div>
+  <button 
+    onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
+    className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
+  >
+    <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
+  </button>
+</div>
     </motion.div>
   ) : (
     /* 2. 묵상이 없을 때 보여줄 안내 박스 */
