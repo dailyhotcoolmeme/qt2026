@@ -92,12 +92,11 @@ export default function QTPage() {
       setAudioBlob(blob);
     };
 
-    // [핵심 수정] 실시간 타이핑 로직 보강
     if (recognitionRef.current) {
       recognitionRef.current.onresult = null; 
-
-      // 기존 텍스트를 백업해두어야 실시간(interim) 결과와 섞이지 않습니다.
-      const baseText = textContent;
+      
+      // 녹음 시작 시점의 텍스트를 고정합니다.
+      const initialText = textContent;
 
       recognitionRef.current.onresult = (event: any) => {
         let interimTranscript = ""; 
@@ -112,26 +111,19 @@ export default function QTPage() {
           }
         }
         
-        // 1. 최종 완성된 문장은 textContent 상태에 영구적으로 업데이트
+        // [수정 핵심] 
+        // 1. 지금까지 확정된(final) 텍스트를 계속 누적하여 보관합니다.
         if (finalTranscript) {
-          setTextContent(prev => prev + finalTranscript);
+          // 이 함수 밖의 textContent가 아니라, 이 이벤트 루프 내에서 처리합니다.
         }
 
-        // 2. [실시간 기능] 말하고 있는 도중인 글자(interim)를 textarea에 즉시 표시
-        // 기존 텍스트 + 방금 완성된 문장 + 현재 말하고 있는 중인 단어 순으로 보여줍니다.
-        if (interimTranscript) {
-          // 실시간 타이핑 느낌을 주기 위해 textarea에 직접 접근하거나 상태를 조합합니다.
-          setTextContent(prev => {
-            // 이미 추가된 finalTranscript를 제외하고 interim만 임시로 붙여서 보여줍니다.
-            // (이 로직은 문장이 완성되면 알아서 final로 넘어가므로 자연스럽습니다.)
-            return prev; 
-          });
-          
-          // 더 확실한 실시간 시각화를 위해 아래처럼 처리합니다.
-          const currentFullText = (finalTranscript ? (baseText + finalTranscript) : baseText) + interimTranscript;
-          // UI에 즉시 반영 (textarea의 value와 연결된 상태 업데이트)
-          setTextContent(currentFullText);
-        }
+        // 2. [실시간 반영] 초기 텍스트 + 이번 녹음 중 확정된 것 + 현재 말하는 중인 것
+        // 복잡한 prev 함수 대신 가장 직관적인 결합 방식을 사용합니다.
+        const currentSessionText = Array.from(event.results)
+          .map((res: any) => res[0].transcript)
+          .join(" ");
+
+        setTextContent(initialText + currentSessionText);
       };
 
       recognitionRef.current.start();
