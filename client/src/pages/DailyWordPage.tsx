@@ -149,35 +149,37 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   if (audioRef.current) {
     audioRef.current.pause();
-    audioRef.current.src = ""; 
+    audioRef.current.src = "";
     audioRef.current.load();
     audioRef.current = null;
   }
 
   const bookOrder = bibleData.bible_books?.book_order || '0';
-  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '_')}_${targetVoice}.mp3`;
+  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '-')}_${targetVoice}.mp3`;
   const storagePath = `daily/${fileName}`;
   
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
-    // 1. 스토리지 캐시 확인
+    // 1. 서버 캐시 확인 (파일이 있으면 API 호출 없이 즉시 종료)
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
       setupAudioEvents(savedAudio, lastTime);
-      return;
+      return; 
     }
 
-    // 2. Azure TTS 호출 시작
+    // 2. Azure TTS 호출 및 읽기 교정
     const mainContent = cleanContent(bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
+    
+    // "1:3" -> "1절에서 3절"로 변환하여 숫자 읽기 오류 수정
+    const verseText = String(bibleData.verse).replace(':', '절에서 ');
+    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${verseText}절 말씀.`;
 
-    // Azure 설정
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-    const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural"; // Azure 대표 목소리
+    const azureVoice = targetVoice === 'F' ? "ko-KR-SunHiNeural" : "ko-KR-InJoonNeural";
 
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: "POST",
@@ -188,7 +190,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       },
       body: `
         <speak version='1.0' xml:lang='ko-KR'>
-          <voice xml:lang='ko-KR' xml:gender='${targetVoice === 'F' ? 'Female' : 'Male'}' name='${azureVoice}'>
+          <voice xml:lang='ko-KR' name='${azureVoice}'>
             <prosody rate="0.95">
               ${textToSpeak}
             </prosody>
@@ -197,15 +199,14 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       `,
     });
 
-    if (!response.ok) throw new Error("Azure TTS 요청 실패");
+    if (!response.ok) throw new Error("TTS 호출 실패");
 
-    // Azure는 결과를 바로 binary(blob)로 줍니다. (base64 아님)
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    // 3. 스토리지 저장 (백그라운드)
+    // 3. 생성된 파일 스토리지 업로드 (백그라운드)
     supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
       contentType: 'audio/mp3', 
       upsert: true 
@@ -216,6 +217,9 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     setIsPlaying(false);
   }
 };
+
+
+
   const handleShare = async () => {
     // 햅틱 반응 추가
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
