@@ -161,7 +161,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
-    // 1. 서버 캐시 확인 (있으면 API 호출 안 함)
+    // 1. 서버 캐시 확인
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
@@ -169,18 +169,40 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return; 
     }
 
-    // 2. 발음 및 목소리 설정
+    // 2. [완벽 발음 교정] 숫자를 한글 발음으로 변환하는 함수
+    const toKoreanNumber = (num: number | string) => {
+      const n = Number(num);
+      if (isNaN(n)) return String(num);
+      const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+      const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
+      
+      if (n === 0) return "영";
+      if (n < 10) return units[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+      return String(n);
+    };
+
     const mainContent = cleanContent(bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     
-    // "1:3" -> "1절에서 3절"로 텍스트 치환 (기호 읽기 방지)
-    const verseText = String(bibleData.verse).replace(':', '절에서 ');
-    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${verseText}절 말씀.`;
+    // [핵심 수정] 1:3 -> "일 절에서 삼"으로 글자를 직접 바꿈
+    const chapterKor = souligne(toKoreanNumber(bibleData.chapter)); // "십삼"
+    const verseRaw = String(bibleData.verse);
+    let verseKor = "";
+
+    if (verseRaw.includes(':')) {
+      const [vStart, vEnd] = verseRaw.split(':');
+      // "삼절에서 칠" 형식으로 만들어 "대" 발음 원천 차단
+      verseKor = `${toKoreanNumber(vStart)}절에서 ${toKoreanNumber(vEnd)}`;
+    } else {
+      verseKor = toKoreanNumber(verseRaw);
+    }
+
+    // 최종 문장 구성: 엔진에 "13장 3:7" 대신 "십삼장 삼절에서 칠절"을 보냄
+    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
 
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-    
-    // 요청하신 BongJin, SoonBok 목소리로 변경
     const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
@@ -193,10 +215,8 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       body: `
         <speak version='1.0' xml:lang='ko-KR'>
           <voice xml:lang='ko-KR' name='${azureVoice}'>
-            <prosody rate="0.95">
-              <say-as interpret-as="number">
-                ${textToSpeak}
-              </say-as>
+            <prosody rate="1.0">
+              ${textToSpeak}
             </prosody>
           </voice>
         </speak>
@@ -210,7 +230,6 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    // 3. 파일 저장 (다음번엔 캐시에서 사용)
     supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
       contentType: 'audio/mp3', 
       upsert: true 
