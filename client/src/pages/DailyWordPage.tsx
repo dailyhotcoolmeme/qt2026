@@ -161,7 +161,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
-    // 1. 서버 캐시 확인 (파일이 있으면 API 호출 없이 즉시 종료)
+    // 1. 서버 캐시 확인 (있으면 API 호출 안 함)
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
@@ -169,16 +169,18 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return; 
     }
 
-    // 2. Azure TTS 호출 및 읽기 교정
+    // 2. 발음 및 목소리 설정
     const mainContent = cleanContent(bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     
-    // "1:3" -> "1절에서 3절"로 변환하여 숫자 읽기 오류 수정
+    // "1:3" -> "1절에서 3절"로 텍스트 치환 (기호 읽기 방지)
     const verseText = String(bibleData.verse).replace(':', '절에서 ');
     const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${verseText}절 말씀.`;
 
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
+    
+    // 요청하신 BongJin, SoonBok 목소리로 변경
     const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
@@ -192,7 +194,9 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         <speak version='1.0' xml:lang='ko-KR'>
           <voice xml:lang='ko-KR' name='${azureVoice}'>
             <prosody rate="0.95">
-              ${textToSpeak}
+              <say-as interpret-as="number">
+                ${textToSpeak}
+              </say-as>
             </prosody>
           </voice>
         </speak>
@@ -206,7 +210,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    // 3. 생성된 파일 스토리지 업로드 (백그라운드)
+    // 3. 파일 저장 (다음번엔 캐시에서 사용)
     supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
       contentType: 'audio/mp3', 
       upsert: true 
@@ -217,6 +221,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     setIsPlaying(false);
   }
 };
+
 
 
 
