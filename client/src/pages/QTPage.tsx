@@ -138,6 +138,7 @@ export default function QTPage() {
     alert("마이크 사용을 허용해 주세요.");
   }
 };
+
   // 4. 녹음 및 인식 중지 함수 (가장 중요한 수정 부분)
   const stopRecordingWithSTT = () => {
     // 오디오 녹음 중지
