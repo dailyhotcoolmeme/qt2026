@@ -75,6 +75,40 @@ export default function App() {
       }
     };
 
+    // Handle Supabase OAuth responses that return tokens in the URL hash
+    const handleSupabaseHash = async () => {
+      const hash = window.location.hash || "";
+      if (hash.includes("access_token") || hash.includes("error") || hash.includes("provider_token")) {
+        try {
+          // Prefer SDK helpers if available
+          // supabase-js v2 exposes getSessionFromUrl or exchangeCodeForSession in some installs
+          const authAny: any = supabase.auth as any;
+          if (typeof authAny.getSessionFromUrl === "function") {
+            await authAny.getSessionFromUrl();
+          } else if (typeof authAny.exchangeCodeForSession === "function") {
+            await authAny.exchangeCodeForSession();
+          } else {
+            // Last resort: call onAuthStateChange listener will pick up session if SDK already parsed it.
+          }
+        } catch (e) {
+          // swallow; we'll still try to clean URL
+          // eslint-disable-next-line no-console
+          console.error("Error handling Supabase auth hash:", e);
+        }
+
+        // If a returnTo query param was preserved, use it. Otherwise remove the token fragment to avoid routing issues.
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = params.get("returnTo");
+        if (returnTo) {
+          window.location.href = returnTo;
+        } else {
+          // Remove fragment while preserving path and search
+          const clean = window.location.origin + window.location.pathname + window.location.search;
+          window.history.replaceState(null, "", clean);
+        }
+      }
+    };
+
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -95,6 +129,7 @@ export default function App() {
 
     fixKakaoHash();
     syncAgreements();
+    handleSupabaseHash();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
