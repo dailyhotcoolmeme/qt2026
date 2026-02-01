@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import type { User } from "@shared/models/auth";
 
@@ -41,12 +42,26 @@ async function logout(): Promise<void> {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<User | null>({
+  const { data: user, isLoading, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Always refetch on mount/focus to catch OAuth login
   });
+
+  // Refetch user when auth state changes (e.g., after OAuth redirect)
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+        // Invalidate query cache so next mount will refetch user
+        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [queryClient]);
 
   const logoutMutation = useMutation({
     mutationFn: logout,
