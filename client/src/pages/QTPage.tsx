@@ -62,42 +62,56 @@ const recognition = SpeechRecognition ? new SpeechRecognition() : null;
     }
   }, []);
 
-  // 3. 녹음 및 인식 시작 함수
   const startRecordingWithSTT = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
 
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-        setAudioBlob(blob);
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+      setAudioBlob(blob);
+    };
+
+    // [핵심 수정] 실시간 타이핑 로직
+    if (recognitionRef.current) {
+      // 이전에 남아있을 수 있는 이벤트를 초기화
+      recognitionRef.current.onresult = null; 
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = ""; // 중간 결과 (말하는 중)
+        let finalTranscript = "";   // 최종 결과 (문장 완성)
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+        
+        // 말이 끝날 때마다 기존 글에 이어 붙이기
+        if (finalTranscript) {
+          setTextContent(prev => prev + finalTranscript);
+        }
+        // (선택사항) 말하는 중인 글자도 보고 싶다면 여기에 로직을 추가할 수 있지만, 
+        // 일단 완성된 문장부터 확실히 들어가게 설정했습니다.
       };
 
-      // 실시간 타이핑 로직
-      if (recognitionRef.current) {
-        recognitionRef.current.onresult = (event: any) => {
-          let finalTranscript = "";
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            if (event.results[i].isFinal) {
-              finalTranscript += event.results[i][0].transcript + " ";
-            }
-          }
-          if (finalTranscript) setTextContent(prev => prev + finalTranscript);
-        };
-        recognitionRef.current.start();
-      }
-
-      recorder.start();
-      setMediaRecorder(recorder);
-      setIsListening(true);
-      setIsRecording(true);
-    } catch (err) {
-      alert("마이크 권한이 필요합니다.");
+      recognitionRef.current.start();
     }
-  };
 
+    recorder.start();
+    setMediaRecorder(recorder);
+    setIsListening(true);
+    setIsRecording(true);
+  } catch (err) {
+    console.error(err);
+    alert("마이크 사용을 허용해 주세요.");
+  }
+};
   // 4. 녹음 및 인식 중지 함수 (가장 중요한 수정 부분)
   const stopRecordingWithSTT = () => {
     // 오디오 녹음 중지
@@ -279,15 +293,16 @@ const handleSubmit = () => {
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
-// 1. 상태 추가
-const [notes, setNotes] = useState([
-  { id: 1, content: "오늘 말씀이 너무 큰 위로가 됩니다...", author: "익명의 묵상가", created_at: "2024.03.20 09:15" },
-  { id: 2, content: "이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다.이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다이 구절을 통해 제 삶의 방향을 다시 정하게 되었습니다 감사합니다.", author: "빛의 자녀", created_at: "2024.03.20 11:30" },
-  { id: 3, content: "이 말씀 테스트있습니다. 감사합니다 말씀 테스트있습니다. 감사합 말씀 테스트있습니다. 감사합.", author: "성도", created_at: "2024.03.20 14:00" }
-]);
-const [expandedId, setExpandedId] = useState<number | null>(null); // 더보기 상태
-const [noteIndex, setNoteIndex] = useState(0); // 현재 보고 있는 묵상 인덱스
-
+// 1. 테스트 데이터 삭제 및 빈 배열로 시작
+const [notes, setNotes] = useState<any[]>([]); 
+const [expandedId, setExpandedId] = useState<number | null>(null);
+const [noteIndex, setNoteIndex] = useState(0);
+useEffect(() => {
+  // 마지막 묵상을 삭제했을 때 인덱스가 꼬여서 화면이 멈추는 것을 방지합니다.
+  if (notes.length > 0 && noteIndex >= notes.length) {
+    setNoteIndex(notes.length - 1);
+  }
+}, [notes.length, noteIndex]);
 // 말씀 카드 스와이프와 동일한 로직 적용
 const onNoteDragEnd = (event: any, info: any) => {
   if (info.offset.x > 100) { // 오른쪽으로 밀기 (이전 묵상)
@@ -594,42 +609,49 @@ const confirmDelete = () => {
     </div>
 
     {/* 묵상 카드 본체 */}
-    <AnimatePresence mode="wait">
-      <motion.div
-        key={`note-${noteIndex}`}
-        drag="x"
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.2}
-        onDragEnd={onNoteDragEnd}
-        initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }}
-        transition={{ duration: 0.2 }}
-        className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-white flex flex-col p-7 touch-none cursor-grab active:cursor-grabbing relative z-10"
+<AnimatePresence mode="wait">
+  {notes.length > 0 && notes[noteIndex] ? (
+    /* 1. 묵상이 있을 때 보여줄 카드 */
+    <motion.div
+      key={`note-${notes[noteIndex].id}`}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.2}
+      onDragEnd={onNoteDragEnd}
+      initial={{ opacity: 0, x: 10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      transition={{ duration: 0.2 }}
+      className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-white flex flex-col p-7 touch-none cursor-grab active:cursor-grabbing relative z-10"
+    >
+      {/* 본문 */}
+      <div 
+        className={`text-zinc-600 leading-[1.7] break-keep transition-all duration-300 ${
+          expandedId === notes[noteIndex].id ? '' : 'line-clamp-3'
+        } whitespace-pre-wrap`} 
+        style={{ fontSize: `${fontSize * 0.9}px` }}
       >
-        {notes.length > 0 ? (
-          <>
-            {/* 본문 */}
-            <div className={`text-zinc-600 leading-[1.7] break-keep transition-all duration-300 ${expandedId === notes[noteIndex].id ? '' : 'line-clamp-3'}`}
-                 style={{ fontSize: `${fontSize * 0.9}px` }}>
-              {notes[noteIndex].content}
-            </div>
+        {notes[noteIndex].content}
+      </div>
 
-            {/* 더보기 버튼 (본문 바로 아래) */}
-            {notes[noteIndex].content.length > 70 && (
-              <button 
-                onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
-                className="font-medium text-[#4A6741] opacity-50 mt-3 self-start"
-                style={{ fontSize: `${fontSize * 0.8}px` }}
-              >
-                {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
-              </button>
-            )}
-{/* 묵상 카드 내부 - 음성 재생 바 */}
+      {/* 더보기 버튼 */}
+      {(notes[noteIndex].content.length > 60 || notes[noteIndex].content.includes('\n')) && (
+        <button 
+          onClick={() => setExpandedId(expandedId === notes[noteIndex].id ? null : notes[noteIndex].id)}
+          className="font-medium text-[#4A6741] opacity-50 mt-3 self-start px-1"
+          style={{ fontSize: `${fontSize * 0.8}px` }}
+        >
+          {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
+        </button>
+      )}
+
+      {/* 음성 재생 바 */}
 {notes[noteIndex]?.audioUrl && (
   <div className="mt-5 p-4 bg-[#4A6741]/5 rounded-[20px] border border-[#4A6741]/10 flex items-center gap-4">
-    {/* 재생 / 일시정지 버튼 (함수 호출로 변경) */}
+    {/* 재생 버튼 */}
     <button 
       onClick={() => handleNoteAudioPlay(notes[noteIndex].audioUrl, notes[noteIndex].id)}
-      className="w-10 h-10 bg-[#4A6741] rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all"
+      className="w-10 h-10 bg-[#4A6741] rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all flex-shrink-0"
     >
       {playingId === notes[noteIndex].id && isPlaying ? (
         <Pause size={18} fill="white" />
@@ -638,70 +660,82 @@ const confirmDelete = () => {
       )}
     </button>
 
-    <div className="flex-1 flex flex-col gap-1">
-      <div className="flex justify-between items-center">
-        <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.8}px` }}>
+    {/* 정보 및 재생바 영역 */}
+    <div className="flex-1 flex flex-col min-w-0"> 
+      <div className="flex justify-between items-center h-6"> {/* h-6으로 높이 고정 */}
+        <span className="font-bold text-[#4A6741] truncate" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {playingId === notes[noteIndex].id && isPlaying ? "묵상 재생 중" : "음성 묵상 듣기"}
         </span>
         
-        {/* 정지(종료) 버튼 (함수 호출로 변경) */}
-        {playingId === notes[noteIndex].id && (
-          <button 
-            onClick={handleNoteAudioStop}
-            className="text-zinc-400 hover:text-zinc-600 p-1"
-          >
-            <RotateCcw size={14} />
-          </button>
-        )}
+        {/* 버튼 자리를 고정 너비(w-8)로 미리 확보하여 텍스트 밀림 방지 */}
+        <div className="w-8 h-8 flex items-center justify-end">
+          {playingId === notes[noteIndex].id && (
+            <button 
+              onClick={handleNoteAudioStop} 
+              className="text-zinc-400 p-1 hover:text-[#4A6741] transition-colors"
+            >
+              <RotateCcw size={14} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* 진행바 (이제 audioCurrentTime 값에 따라 정확히 움직입니다) */}
-      <div className="w-full h-1 bg-zinc-200 rounded-full overflow-hidden mt-2">
+      {/* 진행바 배경 부모 div */}
+      <div className="w-full h-1 bg-zinc-200 rounded-full overflow-hidden mt-1 relative">
         <motion.div 
-  className="h-full bg-[#4A6741] origin-left" 
-  initial={false}
-  animate={{ 
-    width: playingId === notes[noteIndex].id && audioDuration > 0
-      ? `${(audioCurrentTime / audioDuration) * 100}%` 
-      : "0%"
-  }}
-  transition={{ 
-    // 재생 중일 때만 0.1초 애니메이션을 주고, 멈추거나 리셋할 땐 0초(즉시)로 설정
-    duration: isPlaying ? 0.1 : 0, 
-    ease: "linear" 
-  }}
-/>
+          className="absolute top-0 left-0 h-full bg-[#4A6741] origin-left"
+          initial={false}
+          animate={{ 
+            width: playingId === notes[noteIndex].id && audioDuration > 0
+              ? `${(audioCurrentTime / audioDuration) * 100}%` 
+              : "0%"
+          }}
+          transition={{ 
+            duration: isPlaying ? 0.1 : 0, 
+            ease: "linear" 
+          }}
+        />
       </div>
     </div>
   </div>
 )}
-            {/* 푸터: 닉네임 + 날짜 + 삭제 */}
-            <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-bold text-[#4A6741] opacity-50" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                  {notes[noteIndex].author}
-                </span>
-                <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
-                  {notes[noteIndex].created_at || "2024.03.21 14:30"} 
-                </span>
-              </div>
 
-              <button 
-  onClick={(e) => { 
-    e.stopPropagation(); 
-    openDeleteConfirm(notes[noteIndex].id); // 바로 삭제가 아닌 확인창 열기
-  }}
-  className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
->
-  <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
-</button>
-            </div>
-          </>
-        ) : (
-          <div className="py-10 text-center text-zinc-300" style={{ fontSize: `${fontSize * 0.8}px` }}>첫 묵상을 남겨주세요.</div>
-        )}
-      </motion.div>
-    </AnimatePresence>
+      {/* 푸터: 닉네임 + 날짜 + 삭제 */}
+      <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
+        <div className="flex flex-col gap-0.5">
+          <span className="font-bold text-[#4A6741] opacity-50" style={{ fontSize: `${fontSize * 0.85}px` }}>
+            {notes[noteIndex].author}
+          </span>
+          <span className="text-zinc-400 font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>
+            {notes[noteIndex].created_at || "오늘"} 
+          </span>
+        </div>
+        <button 
+          onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
+          className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
+        >
+          <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
+        </button>
+      </div>
+    </motion.div>
+  ) : (
+    /* 2. 묵상이 없을 때 보여줄 안내 박스 */
+    <motion.div 
+      key="empty-box"
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      // 기존 카드와 동일한 className을 사용하고 py(상하 여백)만 조절해서 3줄 높이로 맞춤
+      className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-white flex flex-col items-center justify-center py-12 relative z-10"
+    >
+      <p 
+        className="text-zinc-400 font-medium" 
+        style={{ fontSize: `${fontSize * 0.85}px` }}
+      >
+        묵상 기록을 나눠보세요.
+      </p>
+    </motion.div>
+  )}
+</AnimatePresence>
 
     {/* 오른쪽 화살표 */}
     <div className="absolute right-[3%] translate-x-1/2 z-20">
@@ -842,18 +876,18 @@ const confirmDelete = () => {
         <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
         
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>묵상 남기기</h3>
+          <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>묵상 남기기</h3>
           <button onClick={handleSubmit} className="text-[#4A6741] font-bold" style={{ fontSize: `${fontSize}px` }}>등록</button>
         </div>
 
         {/* 텍스트 입력 영역 */}
         <textarea 
-          value={textContent}
-          onChange={(e) => setTextContent(e.target.value)}
-          placeholder="오늘의 묵상을 기록하세요..."
-          className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
-          style={{ fontSize: `${fontSize * 0.9}px` }}
-        />
+  value={textContent}
+  onChange={(e) => setTextContent(e.target.value)}
+  placeholder="오늘 말씀과 묵상에 대해 기록해보세요"
+  className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
+  style={{ fontSize: `${fontSize * 0.9}px` }}
+/>
 
         {/* 음성 녹음 및 실시간 타이핑 영역 */}
 <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${isListening ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white shadow-sm'}`}>
@@ -872,10 +906,10 @@ const confirmDelete = () => {
   
   <div className="flex-1">
     <p className="font-bold text-zinc-800" style={{ fontSize: `${fontSize * 0.9}px` }}>
-      {isListening ? "말씀하시는 대로 적고 있어요..." : audioBlob ? "음성 기록 완료" : "음성으로 남기기"}
+      {isListening ? "음성을 글자로 적고 있어요..." : audioBlob ? "기록 완료" : "음성으로 남기기"}
     </p>
     <p className="text-zinc-400" style={{ fontSize: `${fontSize * 0.75}px` }}>
-      {isListening ? "말을 멈추면 녹음이 완료됩니다" : "버튼을 눌러 음성 인식을 시작하세요"}
+      {isListening ? "음성을 멈추면 녹음이 완료됩니다" : "버튼을 눌러 녹음을 시작하세요"}
     </p>
   </div>
 </div>
