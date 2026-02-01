@@ -8,11 +8,22 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter"; // [필수] wouter 사용
 
+// 사용자 세션 ID 생성 (익명 사용자 추적)
+const getSessionId = () => {
+  let sessionId = localStorage.getItem('qt_session_id');
+  if (!sessionId) {
+    sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    localStorage.setItem('qt_session_id', sessionId);
+  }
+  return sessionId;
+};
+
 export default function QTPage() {
   const [location, setLocation] = useLocation(); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
+  const sessionIdRef = useRef(getSessionId());
 
   // 1. 사용자 관련 상태 (누락되어 에러 났던 부분들 복구)
   const [currentUser, setCurrentUser] = useState<any>(null); 
@@ -76,7 +87,8 @@ export default function QTPage() {
       content: textContent,
       author: isAnonymous ? "익명" : (currentUser?.nickname || "회원"),
       created_at: new Date().toLocaleDateString(),
-      created_time: timeString, // [이 필드가 있어야 리스트에 시간이 뜹니다]
+      created_time: timeString,
+      authorId: isAnonymous ? sessionIdRef.current : (currentUser?.id || sessionIdRef.current), // 글 작성자 ID (로그인 사용자면 userId, 익명이면 sessionId)
     };
 
     setNotes(prevNotes => [newNote, ...prevNotes]);
@@ -170,10 +182,19 @@ export default function QTPage() {
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
-// 1. 테스트 데이터 삭제 및 빈 배열로 시작
-const [notes, setNotes] = useState<any[]>([]); 
+// 1. localStorage에서 저장된 묵상들 로드
+const [notes, setNotes] = useState<any[]>(() => {
+  const saved = localStorage.getItem('qt_notes')
+  return saved ? JSON.parse(saved) : []
+});
 const [expandedId, setExpandedId] = useState<number | null>(null);
 const [noteIndex, setNoteIndex] = useState(0);
+
+// notes가 변경될 때마다 localStorage에 저장
+useEffect(() => {
+  localStorage.setItem('qt_notes', JSON.stringify(notes));
+}, [notes]);
+
 useEffect(() => {
   // 마지막 묵상을 삭제했을 때 인덱스가 꼬여서 화면이 멈추는 것을 방지합니다.
   if (notes.length > 0 && noteIndex >= notes.length) {
@@ -204,20 +225,30 @@ const openDeleteConfirm = (id: number) => {
 // 3. 확인창에서 '삭제'를 눌렀을 때 진짜 실행되는 함수
 const confirmDelete = () => {
   if (targetDeleteId !== null) {
-    setNotes(prev => prev.filter(n => n.id !== targetDeleteId));
+    const noteToDelete = notes.find(n => n.id === targetDeleteId);
+    // 현재 사용자가 글의 작성자인지 확인
+    const currentAuthorId = currentUser?.id || sessionIdRef.current;
     
-    // 인덱스 보정
-    if (noteIndex >= notes.length - 1 && noteIndex > 0) {
-      setNoteIndex(prev => prev - 1);
-    }
+    if (noteToDelete?.authorId === currentAuthorId) {
+      setNotes(prev => prev.filter(n => n.id !== targetDeleteId));
+      
+      // 인덱스 보정
+      if (noteIndex >= notes.length - 1 && noteIndex > 0) {
+        setNoteIndex(prev => prev - 1);
+      }
 
-    setShowDeleteConfirm(false);
-    setTargetDeleteId(null);
-    
-    // 삭제 완료 토스트
-    setShowDeleteToast(true);
-    setTimeout(() => setShowDeleteToast(false), 2000);
-    if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
+      setShowDeleteConfirm(false);
+      setTargetDeleteId(null);
+      
+      // 삭제 완료 토스트
+      setShowDeleteToast(true);
+      setTimeout(() => setShowDeleteToast(false), 2000);
+      if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
+    } else {
+      alert("자신이 작성한 글만 삭제할 수 있습니다.");
+      setShowDeleteConfirm(false);
+      setTargetDeleteId(null);
+    }
   }
 };
   // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
@@ -540,12 +571,14 @@ const confirmDelete = () => {
       </span>
     </div>
   </div>
-  <button 
-    onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
-    className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
-  >
-    <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
-  </button>
+  {notes[noteIndex]?.authorId === (currentUser?.id || sessionIdRef.current) && (
+    <button 
+      onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
+      className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
+    >
+      <Trash2 size={fontSize * 1.1} strokeWidth={1.5} />
+    </button>
+  )}
 </div>
     </motion.div>
   ) : (
