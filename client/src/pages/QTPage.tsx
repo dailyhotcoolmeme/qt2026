@@ -50,32 +50,65 @@ if (recognition) {
   recognition.interimResults = true;
   recognition.lang = 'ko-KR';
 }
-// 녹음 및 인식 시작
+// 1. 녹음 및 음성 인식 시작 함수
 const startRecordingWithSTT = async () => {
-  // 오디오 녹음 시작 (기존 로직)
-  await startRecording(); 
-  
-  if (recognition) {
-    setIsListening(true);
-    recognition.start();
-    recognition.onresult = (event) => {
-      let interimTranscript = '';
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          setTextContent(prev => prev + event.results[i][0].transcript + " ");
-        }
-      }
+  try {
+    // A. 마이크 권한 요청 및 오디오 녹음 준비
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    const chunks: Blob[] = [];
+
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
     };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+      setAudioBlob(blob); // 녹음된 파일 저장
+    };
+
+    // B. 음성 인식(STT) 설정
+    if (recognition) {
+      recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            // 말이 끝날 때마다 기존 텍스트에 이어붙이기
+            setTextContent(prev => prev + event.results[i][0].transcript + " ");
+          }
+        }
+      };
+      recognition.start(); // 음성 인식 시작
+    }
+
+    // C. 오디오 녹음 시작 및 상태 업데이트
+    recorder.start();
+    setMediaRecorder(recorder);
+    setIsListening(true); // UI를 '녹음 중' 상태로 변경
+    setIsRecording(true);
+
+  } catch (err) {
+    console.error("녹음 시작 실패:", err);
+    alert("마이크 권한이 거부되었거나 마이크를 찾을 수 없습니다.");
   }
 };
 
-// 녹음 및 인식 중지
+// 2. 녹음 및 인식 중지 함수
 const stopRecordingWithSTT = () => {
-  stopRecording(); // 오디오 녹음 중지
+  // A. 오디오 녹음 중지
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+
+  // B. 음성 인식 중지
   if (recognition) {
     recognition.stop();
-    setIsListening(false);
   }
+
+  // C. 상태 업데이트
+  setIsListening(false);
+  setIsRecording(false);
+  
+  if (window.navigator?.vibrate) window.navigator.vibrate(30); // 약한 진동 피드백
 };
 
 // 묵상 저장 함수
@@ -766,11 +799,17 @@ const confirmDelete = () => {
         {/* 음성 녹음 및 실시간 타이핑 영역 */}
 <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${isListening ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white shadow-sm'}`}>
   <button 
-    onClick={isListening ? stopRecordingWithSTT : startRecordingWithSTT}
-    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 shadow-lg shadow-red-200 animate-pulse' : 'bg-zinc-100'}`}
-  >
-    {isListening ? <Square size={22} className="text-white" fill="white" /> : <Mic size={22} className="text-zinc-600" />}
-  </button>
+  onClick={isListening ? stopRecordingWithSTT : startRecordingWithSTT}
+  className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${
+    isListening ? 'bg-red-500 shadow-lg animate-pulse' : 'bg-zinc-100'
+  }`}
+>
+  {isListening ? (
+    <Square size={22} className="text-white" fill="white" />
+  ) : (
+    <Mic size={22} className="text-zinc-600" />
+  )}
+</button>
   
   <div className="flex-1">
     <p className="font-bold text-zinc-800" style={{ fontSize: `${fontSize * 0.9}px` }}>
