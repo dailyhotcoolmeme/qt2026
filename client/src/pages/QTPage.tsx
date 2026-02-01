@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter"; // [필수] wouter 사용
+import { useAuth } from "../hooks/use-auth";
 
 // 사용자 세션 ID 생성 (익명 사용자 추적)
 const getSessionId = () => {
@@ -24,10 +25,12 @@ export default function QTPage() {
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const sessionIdRef = useRef(getSessionId());
+  const { user } = useAuth();
 
-  // 1. 사용자 관련 상태 (누락되어 에러 났던 부분들 복구)
-  const [currentUser, setCurrentUser] = useState<any>(null); 
+  // 1. 사용자 관련 상태
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [shouldOpenWriteSheet, setShouldOpenWriteSheet] = useState(false);
 
   // 2. 작성 및 녹음 관련 상태
   const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false);
@@ -49,16 +52,25 @@ export default function QTPage() {
 
   // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
   const handleJoinClick = () => {
-    // 1-1. 로그인이 안 되어 있다면 (currentUser가 null인 경우)
-    if (!currentUser) {
-      if (window.confirm("로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?")) {
-        setLocation('/auth'); // AuthPage로 이동
-      }
-      return; // 함수 종료
+    // 로그인 여부 확인
+    if (!user?.id) {
+      // 로그인 모달 띄우기
+      setShowLoginModal(true);
+      // 로그인 후 작성창을 자동으로 열기 위한 플래그
+      setShouldOpenWriteSheet(true);
+      return;
     }
-    // 1-2. 로그인 되어 있다면 글쓰기 시트 열기
+    // 로그인 되어 있으면 글쓰기 시트 열기
     setIsWriteSheetOpen(true);
   };
+
+  // 로그인 후 돌아오면 자동으로 작성창 열기
+  useEffect(() => {
+    if (user?.id && shouldOpenWriteSheet && !showLoginModal) {
+      setIsWriteSheetOpen(true);
+      setShouldOpenWriteSheet(false);
+    }
+  }, [user?.id, shouldOpenWriteSheet, showLoginModal]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
@@ -75,27 +87,54 @@ export default function QTPage() {
   const [showAudioControl, setShowAudioControl] = useState(false);
 
   // 묵상 저장 함수
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!textContent) return;
 
-    // 현재 시간을 "14:30" 형식으로 추출
-    const now = new Date();
-    const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    try {
+      // 로그인 사용자만 저장 가능
+      if (!user?.id) {
+        alert("로그인 후 글을 남길 수 있습니다.");
+        return;
+      }
 
-    const newNote = {
-      id: Date.now(),
-      content: textContent,
-      author: isAnonymous ? "익명" : (currentUser?.nickname || "회원"),
-      created_at: new Date().toLocaleDateString(),
-      created_time: timeString,
-      authorId: isAnonymous ? sessionIdRef.current : (currentUser?.id || sessionIdRef.current), // 글 작성자 ID (로그인 사용자면 userId, 익명이면 sessionId)
-    };
+      const { data, error } = await supabase
+        .from('meditations')
+        .insert({
+          user_id: user.id,
+          content: textContent,
+          content_type: 'record',
+          is_public: true,
+          is_anonymous: isAnonymous,
+        })
+        .select()
+        .single();
 
-    setNotes(prevNotes => [newNote, ...prevNotes]);
-    setTextContent("");
-    setIsAnonymous(true);
-    setIsWriteSheetOpen(false);
-    setNoteIndex(0);
+      if (error) {
+        console.error('Error creating meditation:', error);
+        alert("글 저장 중 오류가 발생했습니다.");
+        return;
+      }
+
+      // UI 업데이트
+      const newNote = {
+        id: data.id,
+        user_id: data.user_id,
+        content: textContent,
+        author: isAnonymous ? "익명" : (user?.nickname || "회원"),
+        created_at: new Date().toLocaleDateString(),
+        created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+        authorId: user.id,
+      };
+
+      setNotes(prevNotes => [newNote, ...prevNotes]);
+      setTextContent("");
+      setIsAnonymous(true);
+      setIsWriteSheetOpen(false);
+      setNoteIndex(0);
+    } catch (err) {
+      console.error('Error in handleSubmit:', err);
+      alert("글 저장 중 오류가 발생했습니다.");
+    }
   };
 
   const { fontSize = 16 } = useDisplaySettings();
@@ -182,15 +221,60 @@ export default function QTPage() {
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
-// 1. localStorage에서 저장된 묵상들 로드
+  // 1. localStorage에서 저장된 묵상들 로드
 const [notes, setNotes] = useState<any[]>(() => {
   const saved = localStorage.getItem('qt_notes')
   return saved ? JSON.parse(saved) : []
 });
 const [expandedId, setExpandedId] = useState<number | null>(null);
 const [noteIndex, setNoteIndex] = useState(0);
+const [isLoadingNotes, setIsLoadingNotes] = useState(true);
 
-// notes가 변경될 때마다 localStorage에 저장
+// Supabase에서 오늘의 묵상들 로드
+useEffect(() => {
+  const loadNotes = async () => {
+    setIsLoadingNotes(true);
+    const today = new Date().toISOString().split('T')[0];
+    const { data, error } = await supabase
+      .from('meditations')
+      .select(`
+        id,
+        user_id,
+        content,
+        is_anonymous,
+        created_at,
+        users:user_id (nickname)
+      `)
+      .eq('content_type', 'record')
+      .eq('is_public', true)
+      .gte('created_at', `${today}T00:00:00`)
+      .lt('created_at', `${today}T23:59:59`)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading notes:', error);
+      setIsLoadingNotes(false);
+      return;
+    }
+
+    const loadedNotes = (data || []).map((item: any) => ({
+      id: item.id,
+      user_id: item.user_id,
+      content: item.content,
+      author: item.is_anonymous ? '익명' : (item.users?.nickname || '익명'),
+      created_at: new Date(item.created_at).toLocaleDateString(),
+      created_time: new Date(item.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      authorId: item.user_id,
+    }));
+
+    setNotes(loadedNotes);
+    setIsLoadingNotes(false);
+  };
+
+  loadNotes();
+}, [currentDate]);
+
+// notes가 변경될 때마다 localStorage에 저장 (백업용)
 useEffect(() => {
   localStorage.setItem('qt_notes', JSON.stringify(notes));
 }, [notes]);
@@ -223,27 +307,44 @@ const openDeleteConfirm = (id: number) => {
 };
 
 // 3. 확인창에서 '삭제'를 눌렀을 때 진짜 실행되는 함수
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (targetDeleteId !== null) {
     const noteToDelete = notes.find(n => n.id === targetDeleteId);
     // 현재 사용자가 글의 작성자인지 확인
-    const currentAuthorId = currentUser?.id || sessionIdRef.current;
+    const currentAuthorId = user?.id;
     
     if (noteToDelete?.authorId === currentAuthorId) {
-      setNotes(prev => prev.filter(n => n.id !== targetDeleteId));
-      
-      // 인덱스 보정
-      if (noteIndex >= notes.length - 1 && noteIndex > 0) {
-        setNoteIndex(prev => prev - 1);
-      }
+      try {
+        const { error } = await supabase
+          .from('meditations')
+          .delete()
+          .eq('id', targetDeleteId)
+          .eq('user_id', currentAuthorId);
 
-      setShowDeleteConfirm(false);
-      setTargetDeleteId(null);
-      
-      // 삭제 완료 토스트
-      setShowDeleteToast(true);
-      setTimeout(() => setShowDeleteToast(false), 2000);
-      if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
+        if (error) {
+          console.error('Error deleting meditation:', error);
+          alert("글 삭제 중 오류가 발생했습니다.");
+          return;
+        }
+
+        setNotes(prev => prev.filter(n => n.id !== targetDeleteId));
+        
+        // 인덱스 보정
+        if (noteIndex >= notes.length - 1 && noteIndex > 0) {
+          setNoteIndex(prev => prev - 1);
+        }
+
+        setShowDeleteConfirm(false);
+        setTargetDeleteId(null);
+        
+        // 삭제 완료 토스트
+        setShowDeleteToast(true);
+        setTimeout(() => setShowDeleteToast(false), 2000);
+        if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
+      } catch (err) {
+        console.error('Error in confirmDelete:', err);
+        alert("글 삭제 중 오류가 발생했습니다.");
+      }
     } else {
       alert("자신이 작성한 글만 삭제할 수 있습니다.");
       setShowDeleteConfirm(false);
@@ -518,7 +619,21 @@ const confirmDelete = () => {
 
     {/* 묵상 카드 본체 */}
 <AnimatePresence mode="wait">
-  {notes.length > 0 && notes[noteIndex] ? (
+  {isLoadingNotes ? (
+    <motion.div 
+      key="loading"
+      initial={{ opacity: 0 }} 
+      animate={{ opacity: 1 }} 
+      className="w-[82%] max-w-sm bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.02)] border border-white flex flex-col items-center justify-center py-12 relative z-10"
+    >
+      <p 
+        className="text-zinc-400 font-medium" 
+        style={{ fontSize: `${fontSize * 0.85}px` }}
+      >
+        묵상들을 불러오는 중...
+      </p>
+    </motion.div>
+  ) : notes.length > 0 && notes[noteIndex] ? (
     /* 1. 묵상이 있을 때 보여줄 카드 */
     <motion.div
       key={`note-${notes[noteIndex].id}`}
@@ -571,7 +686,7 @@ const confirmDelete = () => {
       </span>
     </div>
   </div>
-  {notes[noteIndex]?.authorId === (currentUser?.id || sessionIdRef.current) && (
+  {notes[noteIndex]?.authorId === (user?.id) && (
     <button 
       onClick={(e) => { e.stopPropagation(); openDeleteConfirm(notes[noteIndex].id); }}
       className="p-1.5 text-zinc-300 hover:text-red-400 transition-colors"
@@ -768,11 +883,58 @@ const confirmDelete = () => {
 {/* 작성자 정보 표시 (미리보기 느낌) */}
 <div className="text-xs text-zinc-400 mb-4 px-1">
   작성자: <span className="text-[#4A6741] font-bold">
-    {isAnonymous ? "익명" : (currentUser?.nickname || "회원")}
+    {isAnonymous ? "익명" : (user?.nickname || "회원")}
   </span>
 </div>
         {/* 음성 녹음 기능 제거: 텍스트 입력만 사용합니다 */}
         <div className="p-2" />
+      </motion.div>
+    </>
+  )}
+</AnimatePresence>
+
+{/* 5. 로그인 필수 모달 */}
+<AnimatePresence>
+  {showLoginModal && (
+    <>
+      {/* 배경 흐리게 */}
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => setShowLoginModal(false)}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[450]"
+      />
+      
+      {/* 모달 본체 */}
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-[32px] p-8 w-[90%] max-w-sm shadow-2xl z-[451]"
+      >
+        <h4 className="font-bold text-zinc-900 text-center mb-3" style={{ fontSize: `${fontSize}px` }}>
+          로그인이 필요합니다
+        </h4>
+        <p className="text-center text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          묵상을 나눔하려면 먼저 로그인해주세요.
+        </p>
+        
+        <div className="flex gap-3">
+          <button 
+            onClick={() => setShowLoginModal(false)}
+            className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-all active:scale-95"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            취소
+          </button>
+          <button 
+            onClick={() => {
+              setShowLoginModal(false);
+              setLocation('/auth');
+            }}
+            className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-all active:scale-95 shadow-lg"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            로그인하러가기
+          </button>
+        </div>
       </motion.div>
     </>
   )}

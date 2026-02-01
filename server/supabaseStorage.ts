@@ -189,6 +189,20 @@ export class SupabaseStorage {
     return data;
   }
 
+  async deleteMeditation(id: number, userId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('meditations')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) {
+      console.error('Error deleting meditation:', error);
+      return false;
+    }
+    return true;
+  }
+
   async getBibleProgress(userId: string): Promise<BibleProgress[]> {
     const { data, error } = await supabase
       .from('bible_progress')
