@@ -129,89 +129,93 @@ export default function DailyWordPage() {
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
-
-  // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
-  const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
-    if (!bibleData) return;
-    // 햅틱 반응 추가
+  
+  // 3. TTS 실행 함수
+const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
+  if (!bibleData) return;
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
-    // 1. 목소리 변경 시 상태 업데이트 후 종료 (useEffect가 바통을 이어받음)
-    if (selectedVoice) {
-      setVoiceType(selectedVoice);
+  if (selectedVoice) {
+    setVoiceType(selectedVoice);
+    return;
+  }
+
+  const targetVoice = voiceType;
+  const currentSrc = audioRef.current?.src || "";
+  const isSameDate = currentSrc.includes(`daily_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
+  const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
+
+  setShowAudioControl(true);
+
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.src = ""; 
+    audioRef.current.load();
+    audioRef.current = null;
+  }
+
+  const bookOrder = bibleData.bible_books?.book_order || '0';
+  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '_')}_${targetVoice}.mp3`;
+  const storagePath = `daily/${fileName}`;
+  
+  const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+
+  try {
+    // 1. 스토리지 캐시 확인
+    const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+    if (checkRes.ok) {
+      const savedAudio = new Audio(publicUrl);
+      setupAudioEvents(savedAudio, lastTime);
       return;
     }
 
-    const targetVoice = voiceType;
-    // 현재 재생 중인 파일이 오늘 날짜의 말씀인지 아주 확실하게 체크
-    const currentSrc = audioRef.current?.src || "";
-    const isSameDate = currentSrc.includes(`daily_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
-    
-    // 같은 날짜면 이어듣고(lastTime 유지), 날짜가 바뀌었으면 처음부터(0)
-    const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
+    // 2. Azure TTS 호출 시작
+    const mainContent = cleanContent(bibleData.content);
+    const unit = bibleData.bible_name === "시편" ? "편" : "장";
+    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
 
-    setShowAudioControl(true);
+    // Azure 설정
+    const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
+    const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
+    const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural"; // Azure 대표 목소리
 
+    const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+      method: "POST",
+      headers: {
+        "Ocp-Apim-Subscription-Key": AZURE_KEY,
+        "Content-Type": "application/ssml+xml",
+        "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+      },
+      body: `
+        <speak version='1.0' xml:lang='ko-KR'>
+          <voice xml:lang='ko-KR' xml:gender='${targetVoice === 'F' ? 'Female' : 'Male'}' name='${azureVoice}'>
+            <prosody rate="0.95">
+              ${textToSpeak}
+            </prosody>
+          </voice>
+        </speak>
+      `,
+    });
 
-    // 2. [핵심] 기존 오디오 완전 파괴 및 괄호 정리
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = ""; 
-      audioRef.current.load();
-      audioRef.current = null;
-    }
+    if (!response.ok) throw new Error("Azure TTS 요청 실패");
 
-    const bookOrder = bibleData.bible_books?.book_order || '0';
-    const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '_')}_${targetVoice}.mp3`;
-    const storagePath = `daily/${fileName}`;
-    
-    const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+    // Azure는 결과를 바로 binary(blob)로 줍니다. (base64 아님)
+    const audioBlob = await response.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const ttsAudio = new Audio(audioUrl);
+    setupAudioEvents(ttsAudio, lastTime);
 
-    try {
-      // 서버 캐시 확인
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+    // 3. 스토리지 저장 (백그라운드)
+    supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
+      contentType: 'audio/mp3', 
+      upsert: true 
+    });
 
-      if (checkRes.ok) {
-        const savedAudio = new Audio(publicUrl);
-        setupAudioEvents(savedAudio, lastTime);
-        return;
-      }
-
-      // 서버에 없을 때 구글 TTS 호출
-      const mainContent = cleanContent(bibleData.content);
-      const unit = bibleData.bible_name === "시편" ? "편" : "장";
-      const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절 말씀.`;
-
-      const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${import.meta.env.VITE_GOOGLE_TTS_API_KEY}`, {
-        method: "POST",
-        body: JSON.stringify({
-          input: { text: textToSpeak },
-          voice: { 
-            languageCode: "ko-KR", 
-            name: targetVoice === 'F' ? "ko-KR-Neural2-B" : "ko-KR-Neural2-C" 
-          },
-          audioConfig: { audioEncoding: "MP3", speakingRate: 0.95 },
-        }),
-      });
-
-      const resData = await response.json();
-      if (resData.audioContent) {
-        // 즉시 재생
-        const ttsAudio = new Audio(`data:audio/mp3;base64,${resData.audioContent}`);
-        setupAudioEvents(ttsAudio, lastTime);
-
-        // [복구 완료] 스토리지 저장 (백그라운드)
-        const binary = atob(resData.audioContent);
-        const array = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) array[i] = binary.charCodeAt(i);
-        const blob = new Blob([array], { type: 'audio/mp3' });
-        supabase.storage.from('bible-assets').upload(storagePath, blob, { contentType: 'audio/mp3', upsert: true });
-      }
-    } catch (error) {
-      console.error("TTS 에러:", error);
-      setIsPlaying(false);
-    }
-  };
+  } catch (error) {
+    console.error("TTS 에러:", error);
+    setIsPlaying(false);
+  }
+};
   const handleShare = async () => {
     // 햅틱 반응 추가
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
