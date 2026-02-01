@@ -179,7 +179,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-    const azureVoice = targetVoice === 'F' ? "ko-KR-SunHiNeural" : "ko-KR-InJoonNeural";
+    const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: "POST",
