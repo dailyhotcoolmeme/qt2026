@@ -7,12 +7,11 @@ async function fetchUser(): Promise<User | null> {
     credentials: "include",
   });
 
-  if (response.status === 401) {
-    // Server session not present — try Supabase client session as a fallback
+  // If server reports unauthorized or the route is missing (404), fall back to Supabase client session
+  if (response.status === 401 || response.status === 404) {
     try {
       const { data } = await supabase.auth.getUser();
       if (data?.user) {
-        // Map Supabase user shape into server User model minimally
         return {
           id: data.user.id,
           nickname: (data.user.user_metadata as any)?.nickname ?? null,

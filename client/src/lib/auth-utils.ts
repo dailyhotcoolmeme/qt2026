@@ -13,6 +13,7 @@ export function redirectToLogin(toast?: (options: { title: string; description: 
   }
   setTimeout(() => {
     const returnTo = encodeURIComponent(window.location.href);
-    window.location.href = `/api/login?returnTo=${returnTo}`;
+    // redirect to client-side auth page which starts Supabase OAuth or manual login
+    window.location.href = `/auth?returnTo=${returnTo}`;
   }, 500);
 }

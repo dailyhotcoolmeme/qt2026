@@ -21,8 +21,22 @@ export default function AuthPage() {
 
   // 카카오 로그인 로직
   const handleKakaoLogin = async () => {
-    const returnTo = encodeURIComponent(window.location.href);
-    window.location.href = `/api/login?returnTo=${returnTo}`;
+    try {
+      const returnTo = encodeURIComponent(window.location.href);
+      const redirectTo = `${window.location.origin}/?returnTo=${returnTo}`;
+      await supabase.auth.signInWithOAuth({
+        provider: "kakao",
+        options: {
+          redirectTo,
+          // prompt can be passed via queryParams if provider supports
+          queryParams: { prompt: "login" },
+        },
+      });
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Kakao OAuth start error:", err);
+      alert("카카오 로그인 중 오류가 발생했습니다.");
+    }
   };
 
   const handleManualLogin = async () => {

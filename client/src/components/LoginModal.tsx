@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./components/ui/dialog";
 import { Button } from "./components/ui/button";
+import { supabase } from "../lib/supabase";
 import { LogIn } from "lucide-react";
 
 interface LoginModalProps {
@@ -10,7 +11,15 @@ interface LoginModalProps {
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const handleLogin = () => {
     const returnTo = encodeURIComponent(window.location.href);
-    window.location.href = `/api/login?returnTo=${returnTo}`;
+    const redirectTo = `${window.location.origin}/?returnTo=${returnTo}`;
+    supabase.auth.signInWithOAuth({
+      provider: "kakao",
+      options: { redirectTo },
+    }).catch((e) => {
+      // eslint-disable-next-line no-console
+      console.error("LoginModal kakao start error", e);
+      window.location.href = `/auth?returnTo=${returnTo}`;
+    });
   };
 
   return (
