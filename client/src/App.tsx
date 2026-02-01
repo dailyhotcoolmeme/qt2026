@@ -134,25 +134,37 @@ export default function App() {
     };
 
     const syncAgreements = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        try {
-          const { data: existing } = await supabase
-            .from('user_terms_agreements')
-            .select('id')
-            .eq('user_id', user.id)
-            .limit(1);
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
+      if (userErr) {
+        // eslint-disable-next-line no-console
+        console.warn('syncAgreements: getUser error', userErr);
+        return;
+      }
 
-          if (!existing || existing.length === 0) {
-            await supabase.from('user_terms_agreements').insert([
-              { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-              { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-            ]);
-          }
-        } catch (err) {
-          // Silently log agreement sync errors; they shouldn't block app loading
+      if (user) {
+        const { data: existing, error: selectErr } = await supabase
+          .from('user_terms_agreements')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1);
+
+        if (selectErr) {
           // eslint-disable-next-line no-console
-          console.warn("Agreement sync error:", err);
+          console.warn('syncAgreements: select error', selectErr);
+          return;
+        }
+
+        if (!existing || existing.length === 0) {
+          const { data: insData, error: insErr } = await supabase.from('user_terms_agreements').insert([
+            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
+            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
+          ]);
+
+          if (insErr) {
+            // eslint-disable-next-line no-console
+            console.warn('syncAgreements: insert error', insErr);
+            return;
+          }
         }
       }
     };

@@ -925,8 +925,9 @@ const confirmDelete = async () => {
 <LoginModal 
   open={showLoginModal} 
   onOpenChange={setShowLoginModal}
-  returnTo={`${window.location.origin}/#/qt?autoOpenWrite=true`}
-/>
+  // place the query before the hash so useHashLocation sees the query correctly
+  returnTo={`${window.location.origin}/?autoOpenWrite=true#/qt`}
+/> 
     </div>
   );
 }
