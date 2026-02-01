@@ -96,11 +96,24 @@ export default function App() {
           console.error("Error handling Supabase auth hash:", e);
         }
 
+        // Give SDK a moment to process the session before checking returnTo
+        await new Promise(resolve => setTimeout(resolve, 100));
+
         // If a returnTo query param was preserved, use it. Otherwise remove the token fragment to avoid routing issues.
         const params = new URLSearchParams(window.location.search);
         const returnTo = params.get("returnTo");
         if (returnTo) {
-          window.location.href = returnTo;
+          // Decode and navigate to the original page
+          try {
+            const decoded = decodeURIComponent(returnTo);
+            window.location.href = decoded;
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error("Failed to decode returnTo:", e);
+            // Remove fragment and stay on current path
+            const clean = window.location.origin + window.location.pathname;
+            window.history.replaceState(null, "", clean);
+          }
         } else {
           // Remove fragment while preserving path and search
           const clean = window.location.origin + window.location.pathname + window.location.search;
@@ -112,24 +125,32 @@ export default function App() {
     const syncAgreements = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: existing } = await supabase
-          .from('user_terms_agreements')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
+        try {
+          const { data: existing } = await supabase
+            .from('user_terms_agreements')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1);
 
-        if (!existing || existing.length === 0) {
-          await supabase.from('user_terms_agreements').insert([
-            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-          ]);
+          if (!existing || existing.length === 0) {
+            await supabase.from('user_terms_agreements').insert([
+              { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
+              { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
+            ]);
+          }
+        } catch (err) {
+          // Silently log agreement sync errors; they shouldn't block app loading
+          // eslint-disable-next-line no-console
+          console.warn("Agreement sync error:", err);
         }
       }
     };
 
+    // Process OAuth hash and returnTo FIRST, before any other async operations
+    handleSupabaseHash();
+    // Then check and sync agreements after hash is cleared
     fixKakaoHash();
     syncAgreements();
-    handleSupabaseHash();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
