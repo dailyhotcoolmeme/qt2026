@@ -43,6 +43,7 @@ export default function QTPage() {
   // 4. Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef("");
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
@@ -107,15 +108,21 @@ export default function QTPage() {
 
       // 3. STT 로직 실행
       if (recognitionRef.current) {
-        const initialText = textContent;
+        finalTranscriptRef.current = "";
 
         recognitionRef.current.onresult = (event: any) => {
-          let sessionText = "";
+          let interim = "";
           for (let i = event.resultIndex; i < event.results.length; ++i) {
-            sessionText += event.results[i][0].transcript;
+            const res = event.results[i];
+            if (res.isFinal) {
+              finalTranscriptRef.current += res[0].transcript + " ";
+            } else {
+              interim += res[0].transcript;
+            }
           }
-          // 모바일에서 상태 업데이트가 씹히지 않도록 직접 결합
-          setTextContent(initialText + sessionText);
+
+          // 합쳐서 실시간으로 텍스트 영역에 반영
+          setTextContent(finalTranscriptRef.current + interim);
         };
 
         // 중요: 에러 발생 시 자동 재시작 로직 방지 (모바일 무한루프 방지)
