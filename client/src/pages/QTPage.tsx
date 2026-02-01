@@ -6,11 +6,33 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { useLocation } from "wouter"; // [필수] wouter 사용
 
 export default function QTPage() {
+  const [location, setLocation] = useLocation(); // 페이지 이동용
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null); 
+  const dateInputRef = useRef<HTMLInputElement>(null);
+
+  // --- 추가된 상태들 ---
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false); // [추가됨]
+  const [textContent, setTextContent] = useState(""); // [추가됨]
+  const [isRecording, setIsRecording] = useState(false); // [필수] 이 줄이 없어서 에러가 난 겁니다
+
+  // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
+  const handleJoinClick = () => {
+    // 1-1. 로그인이 안 되어 있다면 (currentUser가 null인 경우)
+    if (!currentUser) {
+      if (window.confirm("로그인이 필요한 서비스입니다.\n로그인 페이지로 이동하시겠습니까?")) {
+        setLocation('/auth'); // AuthPage로 이동
+      }
+      return; // 함수 종료
+    }
+    // 1-2. 로그인 되어 있다면 글쓰기 시트 열기
+    setIsWriteSheetOpen(true);
+  };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
@@ -34,18 +56,9 @@ export default function QTPage() {
   const [targetDeleteId, setTargetDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  // 상태 추가
-const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false);
-const [textContent, setTextContent] = useState("");
-const [isRecording, setIsRecording] = useState(false);
-const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-// 음성 인식 객체 설정 (Web Speech API)
-
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const recognition = SpeechRecognition ? new SpeechRecognition() : null;
-// 1. 상태 및 Ref 설정 (기존 중복되는 상태들은 삭제하고 이것만 남겨두세요)
   const recognitionRef = useRef<any>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null); // [추가됨]
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null); // [추가됨]
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -61,7 +74,6 @@ const recognition = SpeechRecognition ? new SpeechRecognition() : null;
       recognitionRef.current = recog;
     }
   }, []);
-
   const startRecordingWithSTT = async () => {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -195,18 +207,25 @@ const handleSubmit = () => {
   const newNote = {
     id: Date.now(),
     content: textContent,
-    author: "익명의 묵상가",
-    created_at: new Date().toLocaleString('ko-KR', { 
-      year: 'numeric', month: '2-digit', day: '2-digit', 
-      hour: '2-digit', minute: '2-digit', hour12: false 
-    }).replace(/\//g, '.'),
-    audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : null // 녹음 파일 URL 생성
+    // 1. 작성자: 익명 체크 여부에 따라 닉네임 -> 이메일 -> '회원' 순으로 안전하게 가져옵니다.
+    author: isAnonymous ? "익명" : (currentUser?.user_metadata?.nickname || currentUser?.email || "회원"),
+    
+    // 2. 날짜: '2024. 3. 21.' 형태로 깔끔하게 저장됩니다.
+    created_at: new Date().toLocaleDateString(),
+    
+    // 3. 음성: 녹음된 파일이 있다면 URL을 생성해 연결합니다.
+    audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : null
   };
 
-  setNotes([newNote, ...notes]);
-  setIsWriteSheetOpen(false);
+  // 4. 기존 리스트 맨 앞에 새 묵상을 추가합니다.
+  setNotes(prevNotes => [newNote, ...prevNotes]);
+  
+  // 5. 입력창 및 상태 초기화
   setTextContent("");
   setAudioBlob(null);
+  setIsAnonymous(true); // 다음 글을 위해 다시 익명으로 세팅
+  setIsWriteSheetOpen(false);
+  setNoteIndex(0); // 새 글이 바로 보이도록 첫 번째 인덱스로 이동
 };
 
   const { fontSize = 16 } = useDisplaySettings();
@@ -876,7 +895,7 @@ const confirmDelete = () => {
         <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
         
         <div className="flex justify-between items-center mb-6">
-          <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>묵상 남기기</h3>
+          <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>묵상기록 남기기</h3>
           <button onClick={handleSubmit} className="text-[#4A6741] font-bold" style={{ fontSize: `${fontSize}px` }}>등록</button>
         </div>
 
@@ -888,7 +907,26 @@ const confirmDelete = () => {
   className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
   style={{ fontSize: `${fontSize * 0.9}px` }}
 />
+{/* 익명 체크박스 영역 */}
+<div className="flex items-center gap-2 mb-4 px-1">
+  <input 
+    type="checkbox" 
+    id="anonymous"
+    checked={isAnonymous}
+    onChange={(e) => setIsAnonymous(e.target.checked)}
+    className="w-4 h-4 accent-[#4A6741]"
+  />
+  <label htmlFor="anonymous" className="text-zinc-500 text-sm font-medium cursor-pointer">
+    익명으로 등록하기
+  </label>
+</div>
 
+{/* 작성자 정보 표시 (미리보기 느낌) */}
+<div className="text-xs text-zinc-400 mb-4 px-1">
+  작성자: <span className="text-[#4A6741] font-bold">
+    {isAnonymous ? "익명" : (currentUser?.nickname || "회원")}
+  </span>
+</div>
         {/* 음성 녹음 및 실시간 타이핑 영역 */}
 <div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${isListening ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white shadow-sm'}`}>
   <button 
