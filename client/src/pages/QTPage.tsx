@@ -80,6 +80,31 @@ export default function QTPage() {
       setIsWriteSheetOpen(true);
       // URL에서 파라미터 제거
       window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+      try { localStorage.removeItem('qt_autoOpenWrite'); localStorage.removeItem('qt_return'); } catch (e) {}
+      return;
+    }
+
+    // Fallback: check localStorage for return/autoOpen set before OAuth flow
+    try {
+      const storedAuto = localStorage.getItem('qt_autoOpenWrite');
+      const storedReturn = localStorage.getItem('qt_return');
+      if (storedAuto === '1' && user?.id) {
+        setIsWriteSheetOpen(true);
+        localStorage.removeItem('qt_autoOpenWrite');
+        if (storedReturn) {
+          localStorage.removeItem('qt_return');
+          if (window.location.href !== storedReturn) {
+            window.location.href = storedReturn;
+            return;
+          }
+        }
+      } else if (storedReturn && user?.id) {
+        localStorage.removeItem('qt_return');
+        window.location.href = storedReturn;
+        return;
+      }
+    } catch (e) {
+      // ignore
     }
   }, [user?.id]);
 

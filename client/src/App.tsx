@@ -99,7 +99,7 @@ export default function App() {
         // Give SDK a moment to process the session before checking returnTo
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // If a returnTo query param was preserved, use it. Otherwise remove the token fragment to avoid routing issues.
+        // If a returnTo query param was preserved, use it. Otherwise try localStorage fallback.
         const params = new URLSearchParams(window.location.search);
         const returnTo = params.get("returnTo");
         if (returnTo) {
@@ -110,11 +110,22 @@ export default function App() {
           } catch (e) {
             // eslint-disable-next-line no-console
             console.error("Failed to decode returnTo:", e);
-            // Remove fragment and stay on current path
             const clean = window.location.origin + window.location.pathname;
             window.history.replaceState(null, "", clean);
           }
         } else {
+          // fallback: check localStorage for desired return
+          try {
+            const stored = localStorage.getItem('qt_return');
+            if (stored) {
+              localStorage.removeItem('qt_return');
+              localStorage.removeItem('qt_autoOpenWrite');
+              window.location.href = stored;
+              return;
+            }
+          } catch (e) {
+            // ignore storage errors
+          }
           // Remove fragment while preserving path and search
           const clean = window.location.origin + window.location.pathname + window.location.search;
           window.history.replaceState(null, "", clean);

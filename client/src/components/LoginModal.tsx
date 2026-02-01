@@ -21,6 +21,15 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const handleKakaoLogin = () => {
     // Use provided returnTo or fall back to current location
     const targetReturnTo = returnTo || window.location.href;
+    // Persist desired return target as a fallback for post-OAuth navigation
+    try {
+      localStorage.setItem('qt_return', targetReturnTo);
+      if (targetReturnTo.includes('autoOpenWrite=true')) {
+        localStorage.setItem('qt_autoOpenWrite', '1');
+      }
+    } catch (e) {
+      // ignore storage errors
+    }
     const encodedReturnTo = encodeURIComponent(targetReturnTo);
     const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
     supabase.auth.signInWithOAuth({
@@ -47,8 +56,14 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
         password: values.password,
       });
       if (error) throw error;
-      // 로그인 성공 - returnTo로 이동
+      // 로그인 성공 - use localStorage return fallback or navigate directly
       const targetReturnTo = returnTo || window.location.href;
+      try {
+        localStorage.setItem('qt_return', targetReturnTo);
+        if (targetReturnTo.includes('autoOpenWrite=true')) {
+          localStorage.setItem('qt_autoOpenWrite', '1');
+        }
+      } catch (e) {}
       window.location.href = targetReturnTo;
     } catch (e: any) {
       setErrorMsg(e.message || "로그인에 실패했습니다.");
