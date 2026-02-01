@@ -101,10 +101,10 @@ export default function QTPage() {
         .from('meditations')
         .insert({
           user_id: user.id,
-          content: textContent,
-          content_type: 'record',
-          is_public: true,
+          user_nickname: user?.nickname || null,
           is_anonymous: isAnonymous,
+          my_meditation: textContent,
+          verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
         })
         .select()
         .single();
@@ -120,10 +120,10 @@ export default function QTPage() {
         id: data.id,
         user_id: data.user_id,
         content: textContent,
-        author: isAnonymous ? "익명" : (user?.nickname || "회원"),
+        author: isAnonymous ? "익명" : (data.user_nickname || user?.nickname || "회원"),
         created_at: new Date().toLocaleDateString(),
         created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
-        authorId: user.id,
+        authorId: data.user_id,
       };
 
       setNotes(prevNotes => [newNote, ...prevNotes]);
@@ -237,16 +237,7 @@ useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('meditations')
-      .select(`
-        id,
-        user_id,
-        content,
-        is_anonymous,
-        created_at,
-        users:user_id (nickname)
-      `)
-      .eq('content_type', 'record')
-      .eq('is_public', true)
+      .select(`id, user_id, user_nickname, is_anonymous, my_meditation, verse, created_at`)
       .gte('created_at', `${today}T00:00:00`)
       .lt('created_at', `${today}T23:59:59`)
       .order('created_at', { ascending: false });
@@ -260,8 +251,9 @@ useEffect(() => {
     const loadedNotes = (data || []).map((item: any) => ({
       id: item.id,
       user_id: item.user_id,
-      content: item.content,
-      author: item.is_anonymous ? '익명' : (item.users?.nickname || '익명'),
+      content: item.my_meditation,
+      author: item.is_anonymous ? '익명' : (item.user_nickname || '익명'),
+      verse: item.verse || null,
       created_at: new Date(item.created_at).toLocaleDateString(),
       created_time: new Date(item.created_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
       authorId: item.user_id,
@@ -593,7 +585,7 @@ const confirmDelete = async () => {
     <div className="flex items-center gap-4">
       <h3 className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>묵상 나눔</h3>
       <button 
-  onClick={() => setIsWriteSheetOpen(true)}
+  onClick={handleJoinClick}
   className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-full active:scale-95 transition-all ml-1"
 >
   <PencilLine size={fontSize * 0.75} className="text-[#4A6741]" />
@@ -904,10 +896,11 @@ const confirmDelete = async () => {
         className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[450]"
       />
       
-      {/* 모달 본체 */}
+      {/* 모달 본체 (센터링을 강제하기 위해 wrapper 사용) */}
+      <div className="fixed inset-0 z-[451] flex items-center justify-center p-4 pointer-events-none">
       <motion.div 
         initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-        className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-[32px] p-8 w-[90%] max-w-sm shadow-2xl z-[451]"
+        className="bg-white rounded-[32px] p-8 w-[90%] max-w-sm shadow-2xl z-[452] pointer-events-auto"
       >
         <h4 className="font-bold text-zinc-900 text-center mb-3" style={{ fontSize: `${fontSize}px` }}>
           로그인이 필요합니다
@@ -936,6 +929,7 @@ const confirmDelete = async () => {
           </button>
         </div>
       </motion.div>
+      </div>
     </>
   )}
 </AnimatePresence>

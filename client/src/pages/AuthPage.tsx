@@ -8,7 +8,8 @@ import { useForm } from "react-hook-form";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function AuthPage() {
-const [location, setLocation] = useHashLocation(); // useLocation 대신 useHashLocation 사용  const { fontSize = 16 } = useDisplaySettings();
+  const [location, setLocation] = useHashLocation(); // useLocation 대신 useHashLocation 사용
+  const { fontSize = 16 } = useDisplaySettings();
   
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -155,4 +156,4 @@ const [location, setLocation] = useHashLocation(); // useLocation 대신 useHash
       </AnimatePresence>
     </div>
   );
-                  }
+}
