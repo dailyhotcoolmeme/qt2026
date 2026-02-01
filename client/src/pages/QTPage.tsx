@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter"; // [필수] wouter 사용
 import { useAuth } from "../hooks/use-auth";
+import { LoginModal } from "../components/LoginModal";
 
 // 사용자 세션 ID 생성 (익명 사용자 추적)
 const getSessionId = () => {
@@ -886,53 +887,11 @@ const confirmDelete = async () => {
 </AnimatePresence>
 
 {/* 5. 로그인 필수 모달 */}
-<AnimatePresence>
-  {showLoginModal && (
-    <>
-      {/* 배경 흐리게 */}
-      <motion.div 
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        onClick={() => setShowLoginModal(false)}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[450]"
-      />
-      
-      {/* 모달 본체 (센터링을 강제하기 위해 wrapper 사용) */}
-      <div className="fixed inset-0 z-[451] flex items-center justify-center p-4 pointer-events-none">
-      <motion.div 
-        initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-[32px] p-8 w-[90%] max-w-sm shadow-2xl z-[452] pointer-events-auto"
-      >
-        <h4 className="font-bold text-zinc-900 text-center mb-3" style={{ fontSize: `${fontSize}px` }}>
-          로그인이 필요합니다
-        </h4>
-        <p className="text-center text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          묵상을 나눔하려면 먼저 로그인해주세요.
-        </p>
-        
-        <div className="flex gap-3">
-          <button 
-            onClick={() => setShowLoginModal(false)}
-            className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-all active:scale-95"
-            style={{ fontSize: `${fontSize * 0.9}px` }}
-          >
-            취소
-          </button>
-          <button 
-            onClick={() => {
-              setShowLoginModal(false);
-              setLocation('/auth');
-            }}
-            className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-all active:scale-95 shadow-lg"
-            style={{ fontSize: `${fontSize * 0.9}px` }}
-          >
-            로그인하러가기
-          </button>
-        </div>
-      </motion.div>
-      </div>
-    </>
-  )}
-</AnimatePresence>
+<LoginModal 
+  open={showLoginModal} 
+  onOpenChange={setShowLoginModal}
+  returnTo={`${window.location.origin}/#/qt`}
+/>
     </div>
   );
 }

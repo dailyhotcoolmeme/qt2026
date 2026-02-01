@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter";
+import { LoginModal } from "../components/LoginModal";
 
 export default function CommunityPage() {
   const [, setLocation] = useLocation();
@@ -286,12 +287,11 @@ export default function CommunityPage() {
                   <p className="text-zinc-400 text-sm font-bold mb-10 leading-relaxed">
                     로그인 후 모임을 개설하거나<br/>참여 중인 모임을 확인할 수 있습니다.
                   </p>
-                  <button 
-                    onClick={() => setLocation('/auth')}
-                    className="w-full py-4 bg-[#4A6741] text-white rounded-2xl font-bold shadow-sm active:scale-95 transition-all"
-                  >
-                    로그인하러 가기
-                  </button>
+                  <LoginModal 
+                    open={!user}
+                    onOpenChange={() => {}}
+                    returnTo={`${window.location.origin}/#/community`}
+                  />
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -444,18 +444,11 @@ export default function CommunityPage() {
 
       <AnimatePresence>
         {isLoginRedirectOpen && (
-          <div className="fixed inset-0 z-[200] flex items-end justify-center px-4 pb-10">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginRedirectOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="relative bg-white w-full max-w-md rounded-[40px] p-8 shadow-2xl overflow-hidden">
-              <button onClick={() => setIsLoginRedirectOpen(false)} className="absolute right-7 top-7 text-zinc-300 hover:text-zinc-500"><X size={24}/></button>
-              <div className="text-center py-6">
-                <div className="w-16 h-16 bg-zinc-50 rounded-[24px] flex items-center justify-center mx-auto mb-6 text-[#4A6741]"><Lock size={28} /></div>
-                <h4 className="font-black text-zinc-900 text-[20px] mb-2">로그인이 필요합니다</h4>
-                <p className="text-zinc-400 text-sm font-bold mb-10 leading-relaxed">이 모임의 상세 내용을 확인하고 가입하려면<br/>먼저 로그인을 해주셔야 합니다.</p>
-                <button onClick={() => setLocation('/auth')} className="w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg active:scale-95 transition-all">로그인하러 가기</button>
-              </div>
-            </motion.div>
-          </div>
+          <LoginModal 
+            open={isLoginRedirectOpen}
+            onOpenChange={setIsLoginRedirectOpen}
+            returnTo={`${window.location.origin}/#/community`}
+          />
         )}
       </AnimatePresence>
 

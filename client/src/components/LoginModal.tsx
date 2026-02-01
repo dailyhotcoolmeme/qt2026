@@ -6,19 +6,22 @@ import { LogIn } from "lucide-react";
 interface LoginModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  returnTo?: string; // Optional explicit page to return to after login
 }
 
-export function LoginModal({ open, onOpenChange }: LoginModalProps) {
+export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const handleLogin = () => {
-    const returnTo = encodeURIComponent(window.location.href);
-    const redirectTo = `${window.location.origin}/?returnTo=${returnTo}`;
+    // Use provided returnTo or fall back to current location
+    const targetReturnTo = returnTo || window.location.href;
+    const encodedReturnTo = encodeURIComponent(targetReturnTo);
+    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
     supabase.auth.signInWithOAuth({
       provider: "kakao",
       options: { redirectTo },
     }).catch((e) => {
       // eslint-disable-next-line no-console
       console.error("LoginModal kakao start error", e);
-      window.location.href = `/auth?returnTo=${returnTo}`;
+      window.location.href = `/auth?returnTo=${encodedReturnTo}`;
     });
   };
 
