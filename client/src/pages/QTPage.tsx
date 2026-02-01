@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon, ChevronRight, ChevronLeft, PencilLine, Trash2
+  Play, Pause, X, Calendar as CalendarIcon, ChevronRight, ChevronLeft, PencilLine, Trash2, Mic, Square
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -31,6 +31,56 @@ export default function QTPage() {
   const [targetDeleteId, setTargetDeleteId] = useState<number | null>(null);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // 상태 추가
+const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false);
+const [textContent, setTextContent] = useState("");
+const [isRecording, setIsRecording] = useState(false);
+const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+
+// 녹음 시작 함수
+const startRecording = async () => {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const recorder = new MediaRecorder(stream);
+  const chunks: Blob[] = [];
+
+  recorder.ondataavailable = (e) => chunks.push(e.data);
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+    setAudioBlob(blob);
+  };
+
+  recorder.start();
+  setMediaRecorder(recorder);
+  setIsRecording(true);
+};
+
+// 녹음 중지 함수
+const stopRecording = () => {
+  mediaRecorder?.stop();
+  setIsRecording(false);
+};
+
+// 묵상 저장 함수
+const handleSubmit = () => {
+  if (!textContent && !audioBlob) return;
+
+  const newNote = {
+    id: Date.now(),
+    content: textContent,
+    author: "익명의 묵상가",
+    created_at: new Date().toLocaleString('ko-KR', { 
+      year: 'numeric', month: '2-digit', day: '2-digit', 
+      hour: '2-digit', minute: '2-digit', hour12: false 
+    }).replace(/\//g, '.'),
+    audioUrl: audioBlob ? URL.createObjectURL(audioBlob) : null // 녹음 파일 URL 생성
+  };
+
+  setNotes([newNote, ...notes]);
+  setIsWriteSheetOpen(false);
+  setTextContent("");
+  setAudioBlob(null);
+};
 
   const { fontSize = 16 } = useDisplaySettings();
  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
@@ -405,11 +455,13 @@ const confirmDelete = () => {
   <div className="w-[82%] max-w-sm mb-3 flex justify-between items-center px-1">
     <div className="flex items-center gap-4">
       <h3 className="font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>묵상 나눔</h3>
-      {/* 나눔 참여 버튼 */}
-      <button className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-full active:scale-95 transition-all">
-        <PencilLine size={fontSize * 0.75} className="text-[#4A6741] opacity-60" />
-        <span className="font-medium text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.80}px` }}>참여</span>
-      </button>
+      <button 
+  onClick={() => setIsWriteSheetOpen(true)}
+  className="flex items-center gap-1.5 px-2.5 py-1 bg-[#4A6741]/10 rounded-full active:scale-95 transition-all ml-1"
+>
+  <PencilLine size={fontSize * 0.75} className="text-[#4A6741]" />
+  <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.8}px` }}>나눔 참여</span>
+</button>
     </div>
     <span className="font-medium text-zinc-400 opacity-70" style={{ fontSize: `${fontSize * 0.7}px` }}>
       {notes.length > 0 ? `${noteIndex + 1} / ${notes.length}` : "0 / 0"}
@@ -458,7 +510,23 @@ const confirmDelete = () => {
                 {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
               </button>
             )}
-
+{/* 묵상 카드 내부 본문 아래 추가 */}
+{notes[noteIndex]?.audioUrl && (
+  <div className="mt-4 p-3 bg-zinc-50 rounded-xl flex items-center gap-3 border border-zinc-100">
+    <button 
+      onClick={() => {
+        const audio = new Audio(notes[noteIndex].audioUrl);
+        audio.play();
+      }}
+      className="w-8 h-8 bg-[#4A6741] rounded-full flex items-center justify-center text-white"
+    >
+      <Play size={14} fill="white" />
+    </button>
+    <span className="text-zinc-500 font-medium" style={{ fontSize: `${fontSize * 0.8}px` }}>
+      녹음된 묵상 듣기
+    </span>
+  </div>
+)}
             {/* 푸터: 닉네임 + 날짜 + 삭제 */}
             <div className="mt-5 pt-4 border-t border-zinc-50 flex justify-between items-center">
               <div className="flex flex-col gap-0.5">
@@ -605,6 +673,60 @@ const confirmDelete = () => {
     >
       말씀이 복사되었습니다
     </motion.div>
+  )}
+</AnimatePresence>
+<AnimatePresence>
+  {isWriteSheetOpen && (
+    <>
+      {/* 배경 흐리게 */}
+      <motion.div 
+        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={() => setIsWriteSheetOpen(false)}
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400]"
+      />
+      
+      {/* 입력 시트 */}
+      <motion.div 
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        transition={{ type: "spring", damping: 25, stiffness: 200 }}
+        className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10"
+      >
+        <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
+        
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>묵상 남기기</h3>
+          <button onClick={handleSubmit} className="text-[#4A6741] font-bold" style={{ fontSize: `${fontSize}px` }}>등록</button>
+        </div>
+
+        {/* 텍스트 입력 영역 */}
+        <textarea 
+          value={textContent}
+          onChange={(e) => setTextContent(e.target.value)}
+          placeholder="오늘의 묵상을 기록하세요..."
+          className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
+          style={{ fontSize: `${fontSize * 0.9}px` }}
+        />
+
+        {/* 음성 녹음 제어 영역 */}
+        <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm">
+          <button 
+            onClick={isRecording ? stopRecording : startRecording}
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-zinc-100'}`}
+          >
+            {isRecording ? <Square size={20} className="text-white" fill="white" /> : <Mic size={20} className="text-zinc-600" />}
+          </button>
+          
+          <div className="flex-1">
+            <p className="text-zinc-800 font-medium" style={{ fontSize: `${fontSize * 0.85}px` }}>
+              {isRecording ? "녹음 중..." : audioBlob ? "녹음 완료" : "음성으로 남기기"}
+            </p>
+            {audioBlob && (
+              <button onClick={() => setAudioBlob(null)} className="text-xs text-red-400 mt-0.5">다시 녹음하기</button>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    </>
   )}
 </AnimatePresence>
     </div>
