@@ -25,7 +25,7 @@ export default function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: { 
-          redirectTo: window.location.origin,
+          redirectTo: window.location.href,
           queryParams: { prompt: 'login' } 
         }
       });
@@ -48,7 +48,13 @@ export default function AuthPage() {
       if (!profile) throw new Error("아이디를 확인해 주세요.");
       const { error: lErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: values.password });
       if (lErr) throw new Error("비밀번호가 일치하지 않습니다.");
-      setLocation("/");
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = params.get('returnTo');
+      if (returnTo) {
+        window.location.href = returnTo;
+      } else {
+        setLocation("/");
+      }
     } catch (e: any) {
       setErrorMsg(e.message);
     } finally {

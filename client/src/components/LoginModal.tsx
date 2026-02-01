@@ -9,7 +9,8 @@ interface LoginModalProps {
 
 export function LoginModal({ open, onOpenChange }: LoginModalProps) {
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    const returnTo = encodeURIComponent(window.location.href);
+    window.location.href = `/api/login?returnTo=${returnTo}`;
   };
 
   return (

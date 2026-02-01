@@ -104,6 +104,14 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/login", (req, res, next) => {
     ensureStrategy(req.hostname);
+    // Preserve an optional returnTo query so passport can redirect back after auth
+    const returnTo = req.query.returnTo;
+    if (returnTo && typeof returnTo === "string") {
+      // store in session for successReturnToOrRedirect
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      req.session.returnTo = returnTo;
+    }
     passport.authenticate(`replitauth:${req.hostname}`, {
       prompt: "login consent",
       scope: ["openid", "email", "profile", "offline_access"],
