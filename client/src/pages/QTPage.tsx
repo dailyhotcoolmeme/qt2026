@@ -44,6 +44,7 @@ export default function QTPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<any>(null);
   const finalTranscriptRef = useRef("");
+  const baseTextRef = useRef("");
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
@@ -108,21 +109,30 @@ export default function QTPage() {
 
       // 3. STT 로직 실행
       if (recognitionRef.current) {
+        baseTextRef.current = textContent || "";
         finalTranscriptRef.current = "";
+
+        // ensure mobile-friendly settings
+        try {
+          recognitionRef.current.interimResults = true;
+          recognitionRef.current.continuous = true;
+          recognitionRef.current.lang = 'ko-KR';
+        } catch (e) {}
 
         recognitionRef.current.onresult = (event: any) => {
           let interim = "";
           for (let i = event.resultIndex; i < event.results.length; ++i) {
             const res = event.results[i];
             if (res.isFinal) {
-              finalTranscriptRef.current += res[0].transcript + " ";
+              finalTranscriptRef.current += (res[0]?.transcript || res[0]) + " ";
             } else {
-              interim += res[0].transcript;
+              interim += (res[0]?.transcript || res[0]) ;
             }
           }
 
-          // 합쳐서 실시간으로 텍스트 영역에 반영
-          setTextContent(finalTranscriptRef.current + interim);
+          // Combine base (pre-existing) + final accumulated + interim
+          const combined = (baseTextRef.current || "") + finalTranscriptRef.current + interim;
+          setTextContent(combined);
         };
 
         // 중요: 에러 발생 시 자동 재시작 로직 방지 (모바일 무한루프 방지)
