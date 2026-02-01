@@ -44,72 +44,135 @@ const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+// 1. 상태 및 Ref 설정 (기존 중복되는 상태들은 삭제하고 이것만 남겨두세요)
+  const recognitionRef = useRef<any>(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDuration, setAudioDuration] = useState(0);
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
-if (recognition) {
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = 'ko-KR';
-}
-// 1. 녹음 및 음성 인식 시작 함수
-const startRecordingWithSTT = async () => {
-  try {
-    // A. 마이크 권한 요청 및 오디오 녹음 준비
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    const recorder = new MediaRecorder(stream);
-    const chunks: Blob[] = [];
+  // 2. 음성 인식 초기화 (useEffect)
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SpeechRecognition && !recognitionRef.current) {
+      const recog = new SpeechRecognition();
+      recog.continuous = true;
+      recog.interimResults = true;
+      recog.lang = 'ko-KR';
+      recognitionRef.current = recog;
+    }
+  }, []);
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunks.push(e.data);
-    };
+  // 3. 녹음 및 인식 시작 함수
+  const startRecordingWithSTT = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks: Blob[] = [];
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-      setAudioBlob(blob); // 녹음된 파일 저장
-    };
-
-    // B. 음성 인식(STT) 설정
-    if (recognition) {
-      recognition.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          if (event.results[i].isFinal) {
-            // 말이 끝날 때마다 기존 텍스트에 이어붙이기
-            setTextContent(prev => prev + event.results[i][0].transcript + " ");
-          }
-        }
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
+        setAudioBlob(blob);
       };
-      recognition.start(); // 음성 인식 시작
+
+      // 실시간 타이핑 로직
+      if (recognitionRef.current) {
+        recognitionRef.current.onresult = (event: any) => {
+          let finalTranscript = "";
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+              finalTranscript += event.results[i][0].transcript + " ";
+            }
+          }
+          if (finalTranscript) setTextContent(prev => prev + finalTranscript);
+        };
+        recognitionRef.current.start();
+      }
+
+      recorder.start();
+      setMediaRecorder(recorder);
+      setIsListening(true);
+      setIsRecording(true);
+    } catch (err) {
+      alert("마이크 권한이 필요합니다.");
+    }
+  };
+
+  // 4. 녹음 및 인식 중지 함수 (가장 중요한 수정 부분)
+  const stopRecordingWithSTT = () => {
+    // 오디오 녹음 중지
+    if (mediaRecorder && mediaRecorder.state !== "inactive") {
+      mediaRecorder.stop();
     }
 
-    // C. 오디오 녹음 시작 및 상태 업데이트
-    recorder.start();
-    setMediaRecorder(recorder);
-    setIsListening(true); // UI를 '녹음 중' 상태로 변경
-    setIsRecording(true);
+    // 음성 인식 중지 (기존 'recognition' 대신 'recognitionRef.current' 사용)
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
 
-  } catch (err) {
-    console.error("녹음 시작 실패:", err);
-    alert("마이크 권한이 거부되었거나 마이크를 찾을 수 없습니다.");
-  }
-};
+    setIsListening(false);
+    setIsRecording(false);
+    if (window.navigator?.vibrate) window.navigator.vibrate(30);
+  };
 
-// 2. 녹음 및 인식 중지 함수
-const stopRecordingWithSTT = () => {
-  // A. 오디오 녹음 중지
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
+  // 5. 나눔 리스트 오디오 재생/중지 함수
+  const handleNoteAudioPlay = (url: string, id: number) => {
+    // 일시정지 로직
+    if (playingId === id && isPlaying) {
+      audioPlayer?.pause();
+      setIsPlaying(false);
+      if (progressInterval.current) clearInterval(progressInterval.current);
+      return;
+    }
 
-  // B. 음성 인식 중지
-  if (recognition) {
-    recognition.stop();
-  }
+    // 다른 오디오 재생 시 기존 오디오 정지
+    if (audioPlayer) {
+      audioPlayer.pause();
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    }
 
-  // C. 상태 업데이트
-  setIsListening(false);
-  setIsRecording(false);
-  
-  if (window.navigator?.vibrate) window.navigator.vibrate(30); // 약한 진동 피드백
-};
+    const audio = (playingId === id) ? audioPlayer! : new Audio(url);
+    if (playingId !== id) {
+      setAudioPlayer(audio);
+      setPlayingId(id);
+      audio.onloadedmetadata = () => setAudioDuration(audio.duration);
+      audio.onended = () => {
+        setIsPlaying(false);
+        setPlayingId(null);
+        setAudioCurrentTime(0);
+        if (progressInterval.current) clearInterval(progressInterval.current);
+      };
+    }
+
+    setIsPlaying(true);
+    audio.play();
+
+    // 0.1초마다 진행바 위치 업데이트
+    progressInterval.current = setInterval(() => {
+      setAudioCurrentTime(audio.currentTime);
+    }, 100);
+  };
+
+  // 리프레쉬 (처음부터 다시 재생)
+  const handleNoteAudioRestart = () => {
+    if (audioPlayer) {
+      audioPlayer.currentTime = 0;
+      setAudioCurrentTime(0);
+      if (!isPlaying) handleNoteAudioPlay("", playingId!);
+    }
+  };
+
+  // 완전 정지
+  const handleNoteAudioStop = () => {
+    if (audioPlayer) {
+      audioPlayer.pause();
+      audioPlayer.currentTime = 0;
+      setAudioCurrentTime(0);
+      setIsPlaying(false);
+      setPlayingId(null);
+      if (progressInterval.current) clearInterval(progressInterval.current);
+    }
+  };
 
 // 묵상 저장 함수
 const handleSubmit = () => {
@@ -563,25 +626,16 @@ const confirmDelete = () => {
 {/* 묵상 카드 내부 - 음성 재생 바 */}
 {notes[noteIndex]?.audioUrl && (
   <div className="mt-5 p-4 bg-[#4A6741]/5 rounded-[20px] border border-[#4A6741]/10 flex items-center gap-4">
-    {/* 재생 / 일시정지 버튼 */}
+    {/* 재생 / 일시정지 버튼 (함수 호출로 변경) */}
     <button 
-      onClick={() => {
-        if (playingId === notes[noteIndex].id && isPlaying) {
-          audioPlayer?.pause();
-          setIsPlaying(false);
-        } else {
-          if (audioPlayer) audioPlayer.pause();
-          const audio = new Audio(notes[noteIndex].audioUrl);
-          setAudioPlayer(audio);
-          setPlayingId(notes[noteIndex].id);
-          setIsPlaying(true);
-          audio.play();
-          audio.onended = () => { setIsPlaying(false); setPlayingId(null); };
-        }
-      }}
+      onClick={() => handleNoteAudioPlay(notes[noteIndex].audioUrl, notes[noteIndex].id)}
       className="w-10 h-10 bg-[#4A6741] rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all"
     >
-      {playingId === notes[noteIndex].id && isPlaying ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" className="ml-0.5" />}
+      {playingId === notes[noteIndex].id && isPlaying ? (
+        <Pause size={18} fill="white" />
+      ) : (
+        <Play size={18} fill="white" className="ml-0.5" />
+      )}
     </button>
 
     <div className="flex-1 flex flex-col gap-1">
@@ -589,29 +643,34 @@ const confirmDelete = () => {
         <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {playingId === notes[noteIndex].id && isPlaying ? "묵상 재생 중" : "음성 묵상 듣기"}
         </span>
-        {/* 정지(종료) 버튼 */}
-        {(playingId === notes[noteIndex].id) && (
+        
+        {/* 정지(종료) 버튼 (함수 호출로 변경) */}
+        {playingId === notes[noteIndex].id && (
           <button 
-            onClick={() => {
-              audioPlayer?.pause();
-              if (audioPlayer) audioPlayer.currentTime = 0;
-              setIsPlaying(false);
-              setPlayingId(null);
-            }}
-            className="text-zinc-400 hover:text-zinc-600"
+            onClick={handleNoteAudioStop}
+            className="text-zinc-400 hover:text-zinc-600 p-1"
           >
             <RotateCcw size={14} />
           </button>
         )}
       </div>
-      {/* 진행바 (단순 시각화) */}
-      <div className="w-full h-1 bg-zinc-200 rounded-full overflow-hidden">
+
+      {/* 진행바 (이제 audioCurrentTime 값에 따라 정확히 움직입니다) */}
+      <div className="w-full h-1 bg-zinc-200 rounded-full overflow-hidden mt-2">
         <motion.div 
-          className="h-full bg-[#4A6741]" 
-          initial={{ width: 0 }}
-          animate={{ width: playingId === notes[noteIndex].id && isPlaying ? "100%" : "0%" }}
-          transition={{ duration: 5, ease: "linear" }} // 실제 길이에 맞게 연동 가능
-        />
+  className="h-full bg-[#4A6741] origin-left" 
+  initial={false}
+  animate={{ 
+    width: playingId === notes[noteIndex].id && audioDuration > 0
+      ? `${(audioCurrentTime / audioDuration) * 100}%` 
+      : "0%"
+  }}
+  transition={{ 
+    // 재생 중일 때만 0.1초 애니메이션을 주고, 멈추거나 리셋할 땐 0초(즉시)로 설정
+    duration: isPlaying ? 0.1 : 0, 
+    ease: "linear" 
+  }}
+/>
       </div>
     </div>
   </div>
