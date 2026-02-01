@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon, ChevronRight, ChevronLeft, PencilLine, Trash2, Mic, Square
+  Play, Pause, X, Calendar as CalendarIcon, ChevronRight, ChevronLeft, PencilLine, Trash2, Mic, Square, RotateCcw
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -24,6 +24,9 @@ export default function QTPage() {
   };
   const [bibleData, setBibleData] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [audioPlayer, setAudioPlayer] = useState<HTMLAudioElement | null>(null);
+  const [playingId, setPlayingId] = useState<number | null>(null);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
@@ -37,28 +40,42 @@ const [textContent, setTextContent] = useState("");
 const [isRecording, setIsRecording] = useState(false);
 const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
 const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+// 음성 인식 객체 설정 (Web Speech API)
 
-// 녹음 시작 함수
-const startRecording = async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-  const recorder = new MediaRecorder(stream);
-  const chunks: Blob[] = [];
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
 
-  recorder.ondataavailable = (e) => chunks.push(e.data);
-  recorder.onstop = () => {
-    const blob = new Blob(chunks, { type: 'audio/ogg; codecs=opus' });
-    setAudioBlob(blob);
-  };
-
-  recorder.start();
-  setMediaRecorder(recorder);
-  setIsRecording(true);
+if (recognition) {
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'ko-KR';
+}
+// 녹음 및 인식 시작
+const startRecordingWithSTT = async () => {
+  // 오디오 녹음 시작 (기존 로직)
+  await startRecording(); 
+  
+  if (recognition) {
+    setIsListening(true);
+    recognition.start();
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          setTextContent(prev => prev + event.results[i][0].transcript + " ");
+        }
+      }
+    };
+  }
 };
 
-// 녹음 중지 함수
-const stopRecording = () => {
-  mediaRecorder?.stop();
-  setIsRecording(false);
+// 녹음 및 인식 중지
+const stopRecordingWithSTT = () => {
+  stopRecording(); // 오디오 녹음 중지
+  if (recognition) {
+    recognition.stop();
+    setIsListening(false);
+  }
 };
 
 // 묵상 저장 함수
@@ -510,21 +527,60 @@ const confirmDelete = () => {
                 {expandedId === notes[noteIndex].id ? "접기" : "더보기"}
               </button>
             )}
-{/* 묵상 카드 내부 본문 아래 추가 */}
+{/* 묵상 카드 내부 - 음성 재생 바 */}
 {notes[noteIndex]?.audioUrl && (
-  <div className="mt-4 p-3 bg-zinc-50 rounded-xl flex items-center gap-3 border border-zinc-100">
+  <div className="mt-5 p-4 bg-[#4A6741]/5 rounded-[20px] border border-[#4A6741]/10 flex items-center gap-4">
+    {/* 재생 / 일시정지 버튼 */}
     <button 
       onClick={() => {
-        const audio = new Audio(notes[noteIndex].audioUrl);
-        audio.play();
+        if (playingId === notes[noteIndex].id && isPlaying) {
+          audioPlayer?.pause();
+          setIsPlaying(false);
+        } else {
+          if (audioPlayer) audioPlayer.pause();
+          const audio = new Audio(notes[noteIndex].audioUrl);
+          setAudioPlayer(audio);
+          setPlayingId(notes[noteIndex].id);
+          setIsPlaying(true);
+          audio.play();
+          audio.onended = () => { setIsPlaying(false); setPlayingId(null); };
+        }
       }}
-      className="w-8 h-8 bg-[#4A6741] rounded-full flex items-center justify-center text-white"
+      className="w-10 h-10 bg-[#4A6741] rounded-full flex items-center justify-center text-white shadow-md active:scale-90 transition-all"
     >
-      <Play size={14} fill="white" />
+      {playingId === notes[noteIndex].id && isPlaying ? <Pause size={18} fill="white" /> : <Play size={18} fill="white" className="ml-0.5" />}
     </button>
-    <span className="text-zinc-500 font-medium" style={{ fontSize: `${fontSize * 0.8}px` }}>
-      녹음된 묵상 듣기
-    </span>
+
+    <div className="flex-1 flex flex-col gap-1">
+      <div className="flex justify-between items-center">
+        <span className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.8}px` }}>
+          {playingId === notes[noteIndex].id && isPlaying ? "묵상 재생 중" : "음성 묵상 듣기"}
+        </span>
+        {/* 정지(종료) 버튼 */}
+        {(playingId === notes[noteIndex].id) && (
+          <button 
+            onClick={() => {
+              audioPlayer?.pause();
+              if (audioPlayer) audioPlayer.currentTime = 0;
+              setIsPlaying(false);
+              setPlayingId(null);
+            }}
+            className="text-zinc-400 hover:text-zinc-600"
+          >
+            <RotateCcw size={14} />
+          </button>
+        )}
+      </div>
+      {/* 진행바 (단순 시각화) */}
+      <div className="w-full h-1 bg-zinc-200 rounded-full overflow-hidden">
+        <motion.div 
+          className="h-full bg-[#4A6741]" 
+          initial={{ width: 0 }}
+          animate={{ width: playingId === notes[noteIndex].id && isPlaying ? "100%" : "0%" }}
+          transition={{ duration: 5, ease: "linear" }} // 실제 길이에 맞게 연동 가능
+        />
+      </div>
+    </div>
   </div>
 )}
             {/* 푸터: 닉네임 + 날짜 + 삭제 */}
@@ -707,24 +763,24 @@ const confirmDelete = () => {
           style={{ fontSize: `${fontSize * 0.9}px` }}
         />
 
-        {/* 음성 녹음 제어 영역 */}
-        <div className="flex items-center gap-4 bg-white p-4 rounded-2xl shadow-sm">
-          <button 
-            onClick={isRecording ? stopRecording : startRecording}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-zinc-100'}`}
-          >
-            {isRecording ? <Square size={20} className="text-white" fill="white" /> : <Mic size={20} className="text-zinc-600" />}
-          </button>
-          
-          <div className="flex-1">
-            <p className="text-zinc-800 font-medium" style={{ fontSize: `${fontSize * 0.85}px` }}>
-              {isRecording ? "녹음 중..." : audioBlob ? "녹음 완료" : "음성으로 남기기"}
-            </p>
-            {audioBlob && (
-              <button onClick={() => setAudioBlob(null)} className="text-xs text-red-400 mt-0.5">다시 녹음하기</button>
-            )}
-          </div>
-        </div>
+        {/* 음성 녹음 및 실시간 타이핑 영역 */}
+<div className={`flex items-center gap-4 p-4 rounded-2xl transition-all ${isListening ? 'bg-red-50 ring-1 ring-red-200' : 'bg-white shadow-sm'}`}>
+  <button 
+    onClick={isListening ? stopRecordingWithSTT : startRecordingWithSTT}
+    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isListening ? 'bg-red-500 shadow-lg shadow-red-200 animate-pulse' : 'bg-zinc-100'}`}
+  >
+    {isListening ? <Square size={22} className="text-white" fill="white" /> : <Mic size={22} className="text-zinc-600" />}
+  </button>
+  
+  <div className="flex-1">
+    <p className="font-bold text-zinc-800" style={{ fontSize: `${fontSize * 0.9}px` }}>
+      {isListening ? "말씀하시는 대로 적고 있어요..." : audioBlob ? "음성 기록 완료" : "음성으로 남기기"}
+    </p>
+    <p className="text-zinc-400" style={{ fontSize: `${fontSize * 0.75}px` }}>
+      {isListening ? "말을 멈추면 녹음이 완료됩니다" : "버튼을 눌러 음성 인식을 시작하세요"}
+    </p>
+  </div>
+</div>
       </motion.div>
     </>
   )}
