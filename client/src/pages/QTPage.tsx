@@ -137,7 +137,8 @@ export default function QTPage() {
         .from('meditations')
         .insert({
           user_id: user.id,
-          user_nickname: user?.nickname || null,
+          // DB requires non-null user_nickname; provide a safe fallback
+          user_nickname: user?.nickname ?? '회원',
           is_anonymous: isAnonymous,
           my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
@@ -147,6 +148,8 @@ export default function QTPage() {
 
       if (error) {
         console.error('Error creating meditation:', error);
+        // show detailed error when available to help debugging
+        try { console.error(JSON.stringify(error)); } catch (e) {}
         alert("글 저장 중 오류가 발생했습니다.");
         return;
       }
