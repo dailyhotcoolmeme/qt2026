@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { supabase } from "../lib/supabase";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter"; // useLocation은 여기서 빼세요
+import { useHashLocation } from "wouter/use-hash-location"; // 이걸로 가져옵니다.
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, X, AlertCircle, Loader2, Check } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function AuthPage() {
-  const [, setLocation] = useLocation();
-  const { fontSize = 16 } = useDisplaySettings();
+const [location, setLocation] = useHashLocation(); // useLocation 대신 useHashLocation 사용  const { fontSize = 16 } = useDisplaySettings();
   
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
