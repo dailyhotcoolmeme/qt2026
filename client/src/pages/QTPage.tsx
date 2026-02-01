@@ -73,6 +73,16 @@ export default function QTPage() {
     }
   }, [user?.id, shouldOpenWriteSheet, showLoginModal]);
 
+  // URL 쿼리에서 autoOpenWrite 파라미터 확인하고 자동으로 작성창 열기
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('autoOpenWrite') === 'true' && user?.id) {
+      setIsWriteSheetOpen(true);
+      // URL에서 파라미터 제거
+      window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+    }
+  }, [user?.id]);
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -890,7 +900,7 @@ const confirmDelete = async () => {
 <LoginModal 
   open={showLoginModal} 
   onOpenChange={setShowLoginModal}
-  returnTo={`${window.location.origin}/#/qt`}
+  returnTo={`${window.location.origin}/#/qt?autoOpenWrite=true`}
 />
     </div>
   );
