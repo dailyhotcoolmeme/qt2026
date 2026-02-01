@@ -19,7 +19,6 @@ export default function QTPage() {
   const [isAnonymous, setIsAnonymous] = useState(true);
   const [isWriteSheetOpen, setIsWriteSheetOpen] = useState(false); // [추가됨]
   const [textContent, setTextContent] = useState(""); // [추가됨]
-  const [isRecording, setIsRecording] = useState(false); // [필수] 이 줄이 없어서 에러가 난 겁니다
 
   // --- 1. 나눔 참여 버튼 클릭 시 실행할 함수 ---
   const handleJoinClick = () => {
