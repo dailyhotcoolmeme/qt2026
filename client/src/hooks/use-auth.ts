@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "../lib/supabase";
 import type { User } from "@shared/models/auth";
 
 async function fetchUser(): Promise<User | null> {
@@ -7,6 +8,24 @@ async function fetchUser(): Promise<User | null> {
   });
 
   if (response.status === 401) {
+    // Server session not present — try Supabase client session as a fallback
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user) {
+        // Map Supabase user shape into server User model minimally
+        return {
+          id: data.user.id,
+          nickname: (data.user.user_metadata as any)?.nickname ?? null,
+          church: null,
+          rank: null,
+          age_group: null,
+          bible_complete_count: 0,
+          created_at: data.user.created_at ?? new Date().toISOString(),
+        } as unknown as User;
+      }
+    } catch (e) {
+      // ignore and fall through to null
+    }
     return null;
   }
 
