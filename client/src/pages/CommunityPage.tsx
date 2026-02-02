@@ -289,7 +289,7 @@ export default function CommunityPage() {
                   </p>
                   <LoginModal 
                     open={!user}
-                    onOpenChange={() => {}}
+                    onOpenChange={setIsLoginRedirectOpen}
                     returnTo={`${window.location.origin}/#/community`}
                   />
                 </div>
