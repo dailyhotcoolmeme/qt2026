@@ -154,14 +154,15 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     audioRef.current = null;
   }
 
+  // 파일명 생성 시 특수문자 제거
   const bookOrder = bibleData.bible_books?.book_order || '0';
-  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${String(bibleData.verse).replace(/:/g, '-')}_${targetVoice}.mp3`;
+  const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
+  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
   const storagePath = `daily/${fileName}`;
   
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
-    // 1. 파일 존재 확인 (있으면 바로 재생)
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
@@ -169,7 +170,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return; 
     }
 
-    // 2. 숫자 발음 치환 함수 (오타 수정됨)
+    // [핵심] 숫자 발음 치환 함수
     const toKorNum = (num: number | string) => {
       const n = Number(num);
       if (isNaN(n)) return String(num);
@@ -184,25 +185,29 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     const mainContent = cleanContent(bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     
-    // 장/절 발음 치환
+    // 장(Chapter) 한글화
     const chapterKor = toKorNum(bibleData.chapter);
+
+    // 절(Verse) 한글화: 하이픈(-)이나 콜론(:)이 있으면 "절에서"로 강제 변경
     const verseRaw = String(bibleData.verse);
     let verseKor = "";
 
-    if (verseRaw.includes(':')) {
-      const [start, end] = verseRaw.split(':');
-      verseKor = `${toKorNum(start)}절에서 ${toKorNum(end)}`;
+    if (verseRaw.includes('-') || verseRaw.includes(':')) {
+      const separator = verseRaw.includes('-') ? '-' : ':';
+      const [start, end] = verseRaw.split(separator);
+      // "일절에서 삼" 형식으로 텍스트를 완전히 조립
+      verseKor = `${toKorNum(start.trim())}절에서 ${toKorNum(end.trim())}`;
     } else {
-      verseKor = toKorNum(verseRaw);
+      verseKor = toKorNum(verseRaw.trim());
     }
 
+    // 최종 낭독 문장: 엔진이 기호를 아예 못 보게 텍스트로만 구성
     const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
 
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
     const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
-    // 3. Azure API 호출
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: "POST",
       headers: {
@@ -221,14 +226,13 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       `,
     });
 
-    if (!response.ok) throw new Error("API 요청 실패");
+    if (!response.ok) throw new Error("API 호출 실패");
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    // 4. 스토리지 저장
     supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
       contentType: 'audio/mp3', 
       upsert: true 
@@ -239,6 +243,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     setIsPlaying(false);
   }
 };
+
 
 
 
