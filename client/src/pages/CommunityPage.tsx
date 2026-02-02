@@ -67,12 +67,6 @@ export default function CommunityPage() {
     fetchGroups();
   }, [activeTab, user]);
 
-  useEffect(() => {
-    if (!user) {
-      setIsLoginRedirectOpen(true);
-    }
-  }, [user]);
-
   const fetchGroups = async () => {
     setLoading(true);
     try {
@@ -345,7 +339,7 @@ export default function CommunityPage() {
             )}
             
             <button 
-              onClick={() => user ? setViewMode('create') : setLocation('/auth')}
+              onClick={() => user ? setViewMode('create') : setIsLoginRedirectOpen(true)}
               className="fixed bottom-28 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center active:scale-95 transition-all z-50"
             >
               <Plus size={28} />
