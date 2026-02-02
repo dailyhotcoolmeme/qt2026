@@ -132,7 +132,30 @@ export default function App() {
         }
       }
     };
-
+useEffect(() => {
+  if (!user?.id) {
+    setUserNickname("");
+    return;
+  }
+  const fetchNickname = async () => {
+    const metaNick = (user as any)?.nickname ?? (user as any)?.user_metadata?.nickname;
+    if (metaNick) {
+      setUserNickname(metaNick);
+      return;
+    }
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nickname')
+        .eq('id', user.id)
+        .maybeSingle();
+      setUserNickname(profile?.nickname ?? "회원");
+    } catch (e) {
+      setUserNickname("회원");
+    }
+  };
+  fetchNickname();
+}, [user?.id]);
     const syncAgreements = async () => {
       const { data: { user }, error: userErr } = await supabase.auth.getUser();
       if (userErr) {

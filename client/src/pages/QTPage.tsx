@@ -30,6 +30,7 @@ export default function QTPage() {
 
   // 1. 사용자 관련 상태
   const [isAnonymous, setIsAnonymous] = useState(true);
+  const [userNickname, setUserNickname] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [shouldOpenWriteSheet, setShouldOpenWriteSheet] = useState(false);
 
@@ -71,6 +72,30 @@ export default function QTPage() {
     setIsWriteSheetOpen(true);
   };
 
+useEffect(() => {
+  if (!user?.id) {
+    setUserNickname("");
+    return;
+  }
+  const fetchNickname = async () => {
+    const metaNick = (user as any)?.nickname ?? (user as any)?.user_metadata?.nickname;
+    if (metaNick) {
+      setUserNickname(metaNick);
+      return;
+    }
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nickname')
+        .eq('id', user.id)
+        .maybeSingle();
+      setUserNickname(profile?.nickname ?? "회원");
+    } catch (e) {
+      setUserNickname("회원");
+    }
+  };
+  fetchNickname();
+}, [user?.id]);
   // 로그인 후 돌아오면 자동으로 작성창 열기
   useEffect(() => {
     if (user?.id && shouldOpenWriteSheet && !showLoginModal) {
@@ -140,8 +165,7 @@ export default function QTPage() {
       }
 
       // Get nickname: try user.nickname first, then user_metadata.nickname, fallback to '회원'
-      const nickname = user?.nickname ?? (user as any)?.user_metadata?.nickname ?? '회원';
-
+const nickname = userNickname || user?.nickname ?? (user as any)?.user_metadata?.nickname ?? '회원';
       const { data, error } = await supabase
         .from('meditations')
         .insert({
@@ -923,8 +947,7 @@ const confirmDelete = async () => {
 {/* 작성자 정보 표시 (미리보기 느낌) */}
 <div className="text-xs text-zinc-400 mb-4 px-1">
   작성자: <span className="text-[#4A6741] font-bold">
-    {isAnonymous ? "익명" : (user?.nickname ?? (user as any)?.user_metadata?.nickname ?? "회원")}
-  </span>
+{isAnonymous ? "익명" : (userNickname || "회원")}  </span>
 </div>
         {/* 음성 녹음 기능 제거: 텍스트 입력만 사용합니다 */}
         <div className="p-2" />
