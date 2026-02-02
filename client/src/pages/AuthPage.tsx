@@ -19,6 +19,14 @@ export default function AuthPage() {
 
   const { register, getValues } = useForm();
 
+  // 페이지 로드 시 loginModal 쿼리 파라미터 확인
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('loginModal') === 'true') {
+      setIsLoginOpen(true);
+    }
+  }, []);
+
   // 카카오 로그인 로직
   const handleKakaoLogin = async () => {
     try {
