@@ -155,25 +155,30 @@ useEffect(() => {
 
   // 묵상 저장 함수
   const handleSubmit = async () => {
-    if (!textContent) return;
+    // 공백만 있는 경우 방지
+    if (!textContent || !textContent.trim()) return;
 
     try {
-      // 로그인 사용자만 저장 가능
       if (!user?.id) {
         alert("로그인 후 글을 남길 수 있습니다.");
         return;
       }
 
-      // Get nickname: try user.nickname first, then user_metadata.nickname, fallback to '회원'
-const nickname = userNickname || user?.nickname ?? (user as any)?.user_metadata?.nickname ?? '회원';
+      // 연산자 오류 해결 및 카카오 이름(full_name) 완벽 대응
+      const nickname = 
+        userNickname || 
+        user?.nickname || 
+        (user as any)?.user_metadata?.display_name || 
+        (user as any)?.user_metadata?.full_name || 
+        '회원';
+
       const { data, error } = await supabase
         .from('meditations')
         .insert({
           user_id: user.id,
-          // DB requires non-null user_nickname; provide a safe fallback
-          user_nickname: nickname,
+          nickname: nickname, // DB 컬럼명이 nickname이 맞는지 꼭 확인!
           is_anonymous: isAnonymous,
-          my_meditation: textContent,
+          my_meditation: textContent.trim(),
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
         })
         .select()
@@ -181,11 +186,19 @@ const nickname = userNickname || user?.nickname ?? (user as any)?.user_metadata?
 
       if (error) {
         console.error('Error creating meditation:', error);
-        // show detailed error when available to help debugging
-        try { console.error(JSON.stringify(error)); } catch (e) {}
         alert("글 저장 중 오류가 발생했습니다.");
         return;
       }
+
+      // 저장 성공 후 처리 (예: 입력창 비우기 등)
+      setTextContent("");
+      alert("묵상이 성공적으로 저장되었습니다.");
+
+    } catch (err) {
+      console.error('Unexpected error:', err);
+    }
+  };
+
 
       // UI 업데이트
       const newNote = {
