@@ -182,7 +182,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return String(n);
     };
 
-    const mainContent = cleanContent(bibleData.content);
+    const mainContent = cleanContent(bibleData.tts_content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     
     // 장(Chapter) 한글화
