@@ -55,6 +55,12 @@ export default function QTPage() {
   const handleJoinClick = () => {
     // 로그인 여부 확인
     if (!user?.id) {
+      // 로그인 후 작성창을 자동으로 열기 위한 localStorage 저장
+      try {
+        localStorage.setItem('qt_autoOpenWrite', '1');
+      } catch (e) {
+        // ignore storage errors
+      }
       // 로그인 모달 띄우기
       setShowLoginModal(true);
       // 로그인 후 작성창을 자동으로 열기 위한 플래그
@@ -133,12 +139,15 @@ export default function QTPage() {
         return;
       }
 
+      // Get nickname: try user.nickname first, then user_metadata.nickname, fallback to '회원'
+      const nickname = user?.nickname ?? (user as any)?.user_metadata?.nickname ?? '회원';
+
       const { data, error } = await supabase
         .from('meditations')
         .insert({
           user_id: user.id,
           // DB requires non-null user_nickname; provide a safe fallback
-          user_nickname: user?.nickname ?? '회원',
+          user_nickname: nickname,
           is_anonymous: isAnonymous,
           my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
@@ -159,7 +168,7 @@ export default function QTPage() {
         id: data.id,
         user_id: data.user_id,
         content: textContent,
-        author: isAnonymous ? "익명" : (data.user_nickname || user?.nickname || "회원"),
+        author: isAnonymous ? "익명" : (data.user_nickname || nickname),
         created_at: new Date().toLocaleDateString(),
         created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
         authorId: data.user_id,
@@ -914,7 +923,7 @@ const confirmDelete = async () => {
 {/* 작성자 정보 표시 (미리보기 느낌) */}
 <div className="text-xs text-zinc-400 mb-4 px-1">
   작성자: <span className="text-[#4A6741] font-bold">
-    {isAnonymous ? "익명" : (user?.nickname || "회원")}
+    {isAnonymous ? "익명" : (user?.nickname ?? (user as any)?.user_metadata?.nickname ?? "회원")}
   </span>
 </div>
         {/* 음성 녹음 기능 제거: 텍스트 입력만 사용합니다 */}
@@ -928,8 +937,7 @@ const confirmDelete = async () => {
 <LoginModal 
   open={showLoginModal} 
   onOpenChange={setShowLoginModal}
-  // place the query before the hash so useHashLocation sees the query correctly
-  returnTo={`${window.location.origin}/?autoOpenWrite=true#/qt`}
+  returnTo={`${window.location.origin}/#/qt`}
 /> 
     </div>
   );
