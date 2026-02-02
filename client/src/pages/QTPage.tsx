@@ -153,18 +153,18 @@ useEffect(() => {
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
-  // 묵상 저장 함수
+    // 묵상 저장 함수
   const handleSubmit = async () => {
-    // 공백만 있는 경우 방지
     if (!textContent || !textContent.trim()) return;
 
     try {
+      // 로그인 사용자만 저장 가능
       if (!user?.id) {
         alert("로그인 후 글을 남길 수 있습니다.");
         return;
       }
 
-      // 연산자 오류 해결 및 카카오 이름(full_name) 완벽 대응
+      // 닉네임 결정 로직
       const nickname = 
         userNickname || 
         user?.nickname || 
@@ -176,7 +176,7 @@ useEffect(() => {
         .from('meditations')
         .insert({
           user_id: user.id,
-          nickname: nickname, // DB 컬럼명이 nickname이 맞는지 꼭 확인!
+          nickname: nickname,
           is_anonymous: isAnonymous,
           my_meditation: textContent.trim(),
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
@@ -190,14 +190,20 @@ useEffect(() => {
         return;
       }
 
-      // 저장 성공 후 처리 (예: 입력창 비우기 등)
+      // 저장 성공 시 UI 상태 업데이트
       setTextContent("");
       alert("묵상이 성공적으로 저장되었습니다.");
+      
+      // 기존 코드에 있던 시트 닫기 및 인덱스 초기화 로직 (에러 메시지 기반 추가)
+      if (typeof setIsWriteSheetOpen === 'function') setIsWriteSheetOpen(false);
+      if (typeof setNoteIndex === 'function') setNoteIndex(0);
 
     } catch (err) {
-      console.error('Unexpected error:', err);
-    }
+      console.error('Error in handleSubmit:', err);
+      alert("글 저장 중 오류가 발생했습니다.");
+    } // try-catch 블록이 여기서 정확히 닫혀야 합니다.
   };
+
 
 
       // UI 업데이트
