@@ -153,18 +153,19 @@ useEffect(() => {
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
-    // 묵상 저장 함수
+  // 묵상 저장 함수
   const handleSubmit = async () => {
+    // 1. 입력값 검증
     if (!textContent || !textContent.trim()) return;
 
     try {
-      // 로그인 사용자만 저장 가능
+      // 2. 로그인 여부 확인
       if (!user?.id) {
         alert("로그인 후 글을 남길 수 있습니다.");
         return;
       }
 
-      // 닉네임 결정 로직
+      // 3. 닉네임 결정 (연산자 오류 해결 및 우선순위 로직)
       const nickname = 
         userNickname || 
         user?.nickname || 
@@ -172,11 +173,12 @@ useEffect(() => {
         (user as any)?.user_metadata?.full_name || 
         '회원';
 
+      // 4. Supabase 데이터 삽입
       const { data, error } = await supabase
         .from('meditations')
         .insert({
           user_id: user.id,
-          nickname: nickname,
+          nickname: nickname, // 컬럼명이 nickname이라고 하셨으므로 수정함
           is_anonymous: isAnonymous,
           my_meditation: textContent.trim(),
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
@@ -184,26 +186,31 @@ useEffect(() => {
         .select()
         .single();
 
+      // 5. DB 에러 처리
       if (error) {
         console.error('Error creating meditation:', error);
         alert("글 저장 중 오류가 발생했습니다.");
         return;
       }
 
-      // 저장 성공 시 UI 상태 업데이트
+      // 6. 성공 시 UI 초기화
       setTextContent("");
       alert("묵상이 성공적으로 저장되었습니다.");
       
-      // 기존 코드에 있던 시트 닫기 및 인덱스 초기화 로직 (에러 메시지 기반 추가)
-      if (typeof setIsWriteSheetOpen === 'function') setIsWriteSheetOpen(false);
-      if (typeof setNoteIndex === 'function') setNoteIndex(0);
+      // 시트 닫기 및 상태 초기화 (에러 메시지에 포함된 로직)
+      if (typeof setIsWriteSheetOpen === 'function') {
+        setIsWriteSheetOpen(false);
+      }
+      if (typeof setNoteIndex === 'function') {
+        setNoteIndex(0);
+      }
 
     } catch (err) {
+      // 7. 예외 처리
       console.error('Error in handleSubmit:', err);
       alert("글 저장 중 오류가 발생했습니다.");
-    } // try-catch 블록이 여기서 정확히 닫혀야 합니다.
-  };
-
+    }
+  }; // 함수 종료
 
 
       // UI 업데이트
