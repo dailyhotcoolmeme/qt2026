@@ -67,6 +67,12 @@ export default function CommunityPage() {
     fetchGroups();
   }, [activeTab, user]);
 
+  useEffect(() => {
+    if (!user) {
+      setIsLoginRedirectOpen(true);
+    }
+  }, [user]);
+
   const fetchGroups = async () => {
     setLoading(true);
     try {
@@ -287,11 +293,6 @@ export default function CommunityPage() {
                   <p className="text-zinc-400 text-sm font-bold mb-10 leading-relaxed">
                     로그인 후 모임을 개설하거나<br/>참여 중인 모임을 확인할 수 있습니다.
                   </p>
-                  <LoginModal 
-                    open={!user}
-                    onOpenChange={setIsLoginRedirectOpen}
-                    returnTo={`${window.location.origin}/#/community`}
-                  />
                 </div>
               ) : (
                 <div className="space-y-1">
