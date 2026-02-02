@@ -153,18 +153,17 @@ useEffect(() => {
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
-    // 묵상 저장 함수
+      // 묵상 저장 함수
   const handleSubmit = async () => {
     if (!textContent || !textContent.trim()) return;
 
     try {
-      // 로그인 사용자만 저장 가능
       if (!user?.id) {
         alert("로그인 후 글을 남길 수 있습니다.");
         return;
       }
 
-      // 닉네임 결정 로직
+      // 닉네임 결정 로직 (아이디 로그인/카카오 로그인 통합 대응)
       const nickname = 
         userNickname || 
         user?.nickname || 
@@ -190,43 +189,31 @@ useEffect(() => {
         return;
       }
 
-      // 저장 성공 후 처리
-      setTextContent("");
-      alert("묵상이 성공적으로 저장되었습니다.");
-      
-      // 시트 닫기 및 초기화
-      if (typeof setIsWriteSheetOpen === 'function') setIsWriteSheetOpen(false);
-      if (typeof setNoteIndex === 'function') setNoteIndex(0);
-
-    } catch (err) {
-      console.error('Error in handleSubmit:', err);
-      alert("글 저장 중 오류가 발생했습니다.");
-    }
-  };
-
-
-
-      // UI 업데이트
+      // UI 업데이트용 새 노트 객체 생성
       const newNote = {
         id: data.id,
         user_id: data.user_id,
-        content: textContent,
-        author: isAnonymous ? "익명" : (data.user_nickname || nickname),
+        content: textContent.trim(),
+        author: isAnonymous ? "익명" : nickname,
         created_at: new Date().toLocaleDateString(),
         created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
         authorId: data.user_id,
       };
 
+      // 상태 업데이트 및 초기화
       setNotes(prevNotes => [newNote, ...prevNotes]);
       setTextContent("");
       setIsAnonymous(true);
       setIsWriteSheetOpen(false);
       setNoteIndex(0);
+      alert("묵상이 성공적으로 저장되었습니다.");
+
     } catch (err) {
       console.error('Error in handleSubmit:', err);
       alert("글 저장 중 오류가 발생했습니다.");
     }
   };
+
 
   const { fontSize = 16 } = useDisplaySettings();
  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
