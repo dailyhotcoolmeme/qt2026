@@ -8,6 +8,13 @@ export interface User {
   rank?: string;
   age_group?: string;
   bible_complete_count: number;
+  subscription_tier?: string;
+  trial_expires_at?: string;
+  subscription_expires_at?: string;
+  // Alias camelCase fields to snake_case for convenience
+  subscriptionTier?: string;
+  trialExpiresAt?: string | Date;
+  subscriptionExpiresAt?: string | Date;
   created_at: string;
 }
 
@@ -266,6 +273,35 @@ export class SupabaseStorage {
         .from('users')
         .update({ bible_complete_count: (user.bible_complete_count || 0) + 1 })
         .eq('id', userId);
+    }
+  }
+
+  async updateUserSubscription(
+    userId: string,
+    subscriptionTier: string,
+    trialExpiresAt: Date | null,
+    subscriptionExpiresAt: Date | null
+  ): Promise<void> {
+    const updates: any = {
+      subscription_tier: subscriptionTier,
+    };
+    
+    if (trialExpiresAt !== null) {
+      updates.trial_expires_at = trialExpiresAt.toISOString();
+    }
+    
+    if (subscriptionExpiresAt !== null) {
+      updates.subscription_expires_at = subscriptionExpiresAt.toISOString();
+    }
+
+    const { error } = await supabase
+      .from('users')
+      .update(updates)
+      .eq('id', userId);
+
+    if (error) {
+      console.error('Error updating user subscription:', error);
+      throw error;
     }
   }
 }

@@ -1,6 +1,13 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
+import { 
+  getUserSubscriptionTier, 
+  getSubscriptionFeatures, 
+  getDaysUntilExpiration,
+  getTrialExpirationDate,
+  getProExpirationDate
+} from "../shared/subscription";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
@@ -225,6 +232,103 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     const userId = getUserId(req);
     res.json(userId ? { id: userId } : null);
+  });
+
+  // 구독 상태 조회
+  app.get("/api/subscription/status", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ message: "로그인이 필요합니다" });
+    }
+
+    try {
+      const user = await supabaseStorage.getUser(getUserId(req)!);
+      if (!user) {
+        return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
+      }
+
+      const tier = getUserSubscriptionTier(user);
+      const features = getSubscriptionFeatures(tier);
+      const daysUntilExpiration = getDaysUntilExpiration(user);
+
+      res.json({
+        tier,
+        features,
+        daysUntilExpiration,
+      });
+    } catch (error) {
+      console.error('Error fetching subscription status:', error);
+      res.status(500).json({ message: "구독 상태를 불러오지 못했습니다" });
+    }
+  });
+
+  // 무료 체험 시작
+  app.post("/api/subscription/trial", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ message: "로그인이 필요합니다" });
+    }
+
+    try {
+      const user = await supabaseStorage.getUser(getUserId(req)!);
+      if (!user) {
+        return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
+      }
+
+      // 현재 유효한 구독 티어 확인 (만료된 경우 자동으로 free로 판단됨)
+      const currentTier = getUserSubscriptionTier(user);
+      
+      // 이미 체험을 사용했거나 Pro 사용자인 경우
+      if (user.trialExpiresAt || currentTier === "pro") {
+        return res.status(400).json({ 
+          message: "이미 체험을 사용했거나 Pro 사용자입니다" 
+        });
+      }
+
+      const expiresAt = getTrialExpirationDate();
+      await supabaseStorage.updateUserSubscription(
+        getUserId(req)!,
+        "trial",
+        expiresAt,
+        null
+      );
+
+      res.json({
+        message: "무료 체험이 시작되었습니다",
+        expiresAt: expiresAt.toISOString(),
+      });
+    } catch (error) {
+      console.error('Error starting trial:', error);
+      res.status(500).json({ message: "체험 시작에 실패했습니다" });
+    }
+  });
+
+  // Pro로 업그레이드
+  app.post("/api/subscription/upgrade", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ message: "로그인이 필요합니다" });
+    }
+
+    try {
+      const user = await supabaseStorage.getUser(getUserId(req)!);
+      if (!user) {
+        return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
+      }
+
+      const expiresAt = getProExpirationDate();
+      await supabaseStorage.updateUserSubscription(
+        getUserId(req)!,
+        "pro",
+        null,
+        expiresAt
+      );
+
+      res.json({
+        message: "Pro로 업그레이드되었습니다",
+        expiresAt: expiresAt.toISOString(),
+      });
+    } catch (error) {
+      console.error('Error upgrading to pro:', error);
+      res.status(500).json({ message: "업그레이드에 실패했습니다" });
+    }
   });
 
   return httpServer;
