@@ -153,7 +153,7 @@ useEffect(() => {
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
-        // 묵상 저장 함수 (정확히 여기서부터 교체)
+          // 묵상 저장 함수
   const handleSubmit = async () => {
     if (!textContent || !textContent.trim()) return;
 
@@ -188,7 +188,7 @@ useEffect(() => {
         return;
       }
 
-      // UI 업데이트용 새 객체
+      // UI에 즉시 반영할 새 데이터 객체
       const newNote = {
         id: data.id,
         user_id: data.user_id,
@@ -199,7 +199,7 @@ useEffect(() => {
         authorId: data.user_id,
       };
 
-      // 상태 업데이트 및 시트 닫기
+      // 상태 업데이트 및 시트 초기화
       setNotes(prevNotes => [newNote, ...prevNotes]);
       setTextContent("");
       setIsAnonymous(true);
@@ -211,7 +211,7 @@ useEffect(() => {
       console.error('Error in handleSubmit:', err);
       alert("글 저장 중 오류가 발생했습니다.");
     }
-  }; //handleSubmit 끝
+  };
 
   const { fontSize = 16 } = useDisplaySettings();
  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
