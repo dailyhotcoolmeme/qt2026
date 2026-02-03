@@ -11,9 +11,10 @@ export interface User {
   subscription_tier?: string;
   trial_expires_at?: string;
   subscription_expires_at?: string;
+  // Alias camelCase fields to snake_case for convenience
   subscriptionTier?: string;
-  trialExpiresAt?: string;
-  subscriptionExpiresAt?: string;
+  trialExpiresAt?: string | Date;
+  subscriptionExpiresAt?: string | Date;
   created_at: string;
 }
 

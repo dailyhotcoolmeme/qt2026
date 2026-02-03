@@ -273,8 +273,11 @@ export async function registerRoutes(
         return res.status(404).json({ message: "사용자를 찾을 수 없습니다" });
       }
 
+      // 현재 유효한 구독 티어 확인 (만료된 경우 자동으로 free로 판단됨)
+      const currentTier = getUserSubscriptionTier(user);
+      
       // 이미 체험을 사용했거나 Pro 사용자인 경우
-      if (user.subscriptionTier === "trial" || user.subscriptionTier === "pro") {
+      if (user.trialExpiresAt || currentTier === "pro") {
         return res.status(400).json({ 
           message: "이미 체험을 사용했거나 Pro 사용자입니다" 
         });

@@ -22,8 +22,45 @@ export interface SubscriptionFeatures {
   maxWordSharesPerDay: number;
 }
 
+// UI에서 표시할 기능 설명 (프리미엄 기능을 포함한 전체 목록)
+export const FEATURE_DESCRIPTIONS = {
+  free: [
+    "매일 말씀 읽기",
+    "성경 통독",
+    "기도 기록 (하루 3개)",
+    "묵상 나눔 (하루 3개)",
+  ],
+  trial: [
+    "매일 말씀 읽기",
+    "성경 통독",
+    "기도 기록 (하루 3개)",
+    "묵상 나눔 (하루 3개)",
+    "커뮤니티 접근",
+    "고급 기능 사용",
+    "음성 녹음 기능",
+    "아카이브 접근",
+    "기도/묵상 (하루 10개)",
+  ],
+  pro: [
+    "매일 말씀 읽기",
+    "성경 통독",
+    "기도 기록 (하루 3개)",
+    "묵상 나눔 (하루 3개)",
+    "커뮤니티 접근",
+    "모든 고급 기능",
+    "음성 녹음 무제한",
+    "아카이브 전체 접근",
+    "기도/묵상 무제한",
+    "우선 지원",
+  ],
+};
+
 /**
  * 사용자의 구독 상태를 확인합니다
+ * 
+ * Note: 이 함수는 만료된 구독을 감지하면 'free'를 반환하지만 데이터베이스의 subscriptionTier 필드를
+ * 업데이트하지 않습니다. 이는 백엔드에서 별도의 배치 작업으로 처리되어야 합니다.
+ * 또는 API 호출 시 현재 유효한 구독 상태를 확인하여 만료된 경우 업데이트할 수 있습니다.
  */
 export function getUserSubscriptionTier(user: User): SubscriptionTier {
   const tier = user.subscriptionTier as SubscriptionTier || "free";
@@ -143,6 +180,7 @@ export function getTrialExpirationDate(): Date {
  */
 export function getProExpirationDate(): Date {
   const date = new Date();
-  date.setMonth(date.getMonth() + 1); // 1개월
+  // 월말 경계 케이스 처리를 위해 일수를 더하는 방식 사용
+  date.setDate(date.getDate() + 30); // 30일 (약 1개월)
   return date;
 }

@@ -3,6 +3,7 @@ import { Crown, Zap, Check, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
 import { useAuth } from "../hooks/use-auth";
+import { FEATURE_DESCRIPTIONS } from "../../../shared/subscription";
 
 interface SubscriptionStatus {
   tier: "free" | "trial" | "pro";
@@ -110,31 +111,10 @@ export default function SubscriptionPage() {
     );
   }
 
-  const freeFeatures = [
-    "매일 말씀 읽기",
-    "성경 통독",
-    "기도 기록 (하루 3개)",
-    "묵상 나눔 (하루 3개)",
-  ];
-
-  const trialFeatures = [
-    ...freeFeatures,
-    "커뮤니티 접근",
-    "고급 기능 사용",
-    "음성 녹음 기능",
-    "아카이브 접근",
-    "기도/묵상 (하루 10개)",
-  ];
-
-  const proFeatures = [
-    ...freeFeatures,
-    "커뮤니티 접근",
-    "모든 고급 기능",
-    "음성 녹음 무제한",
-    "아카이브 전체 접근",
-    "기도/묵상 무제한",
-    "우선 지원",
-  ];
+  // Use shared feature descriptions
+  const freeFeatures = FEATURE_DESCRIPTIONS.free;
+  const trialFeatures = FEATURE_DESCRIPTIONS.trial;
+  const proFeatures = FEATURE_DESCRIPTIONS.pro;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
