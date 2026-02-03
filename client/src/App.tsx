@@ -22,6 +22,7 @@ import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage"; 
 import NotFound from "./pages/not-found";
 import PrayerPage from "./pages/PrayerPage";
+import SubscriptionPage from "./pages/SubscriptionPage";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
@@ -52,6 +53,7 @@ function AppContent() {
                   <Route path="/archive" component={ArchivePage} />
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
                   <Route path="/search" component={SearchPage} />
+                  <Route path="/subscription" component={SubscriptionPage} />
                   <Route component={NotFound} />
                 </Switch>
               </main>

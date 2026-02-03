@@ -16,6 +16,11 @@ export const users = pgTable("users", {
   church: text("church"),                        // 교회
   rank: text("rank"),                            // 직분
   
+  // 구독 관련 필드
+  subscriptionTier: text("subscription_tier").default("free"), // 'free' | 'trial' | 'pro'
+  trialExpiresAt: timestamp("trial_expires_at"),   // 무료 체험 만료일
+  subscriptionExpiresAt: timestamp("subscription_expires_at"), // 유료 구독 만료일
+  
   bibleCompleteCount: integer("bible_complete_count").default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
