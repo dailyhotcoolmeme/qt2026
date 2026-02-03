@@ -204,6 +204,7 @@ useEffect(() => {
       }
     });
 
+    
     return () => {
       authListener.subscription.unsubscribe();
     };
