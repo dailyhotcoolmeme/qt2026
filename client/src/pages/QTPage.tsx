@@ -30,7 +30,6 @@ export default function QTPage() {
 
   // 1. 사용자 관련 상태
   const [isAnonymous, setIsAnonymous] = useState(true);
-  const [userNickname, setUserNickname] = useState<string>("");
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [shouldOpenWriteSheet, setShouldOpenWriteSheet] = useState(false);
 
@@ -56,12 +55,6 @@ export default function QTPage() {
   const handleJoinClick = () => {
     // 로그인 여부 확인
     if (!user?.id) {
-      // 로그인 후 작성창을 자동으로 열기 위한 localStorage 저장
-      try {
-        localStorage.setItem('qt_autoOpenWrite', '1');
-      } catch (e) {
-        // ignore storage errors
-      }
       // 로그인 모달 띄우기
       setShowLoginModal(true);
       // 로그인 후 작성창을 자동으로 열기 위한 플래그
@@ -72,30 +65,6 @@ export default function QTPage() {
     setIsWriteSheetOpen(true);
   };
 
-useEffect(() => {
-  if (!user?.id) {
-    setUserNickname("");
-    return;
-  }
-  const fetchNickname = async () => {
-    const metaNick = (user as any)?.nickname ?? (user as any)?.user_metadata?.nickname;
-    if (metaNick) {
-      setUserNickname(metaNick);
-      return;
-    }
-    try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nickname')
-        .eq('id', user.id)
-        .maybeSingle();
-      setUserNickname(profile?.nickname ?? "회원");
-    } catch (e) {
-      setUserNickname("회원");
-    }
-  };
-  fetchNickname();
-}, [user?.id]);
   // 로그인 후 돌아오면 자동으로 작성창 열기
   useEffect(() => {
     if (user?.id && shouldOpenWriteSheet && !showLoginModal) {
@@ -153,30 +122,25 @@ useEffect(() => {
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
-          // 묵상 저장 함수
+  // 묵상 저장 함수
   const handleSubmit = async () => {
-    if (!textContent || !textContent.trim()) return;
+    if (!textContent) return;
 
     try {
+      // 로그인 사용자만 저장 가능
       if (!user?.id) {
         alert("로그인 후 글을 남길 수 있습니다.");
         return;
       }
 
-      const nickname = 
-        userNickname || 
-        user?.nickname || 
-        (user as any)?.user_metadata?.display_name || 
-        (user as any)?.user_metadata?.full_name || 
-        '회원';
-
       const { data, error } = await supabase
         .from('meditations')
         .insert({
           user_id: user.id,
-          nickname: nickname,
+          // DB requires non-null user_nickname; provide a safe fallback
+          user_nickname: user?.nickname ?? '회원',
           is_anonymous: isAnonymous,
-          my_meditation: textContent.trim(),
+          my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
         })
         .select()
@@ -184,29 +148,28 @@ useEffect(() => {
 
       if (error) {
         console.error('Error creating meditation:', error);
+        // show detailed error when available to help debugging
+        try { console.error(JSON.stringify(error)); } catch (e) {}
         alert("글 저장 중 오류가 발생했습니다.");
         return;
       }
 
-      // UI에 즉시 반영할 새 데이터 객체
+      // UI 업데이트
       const newNote = {
         id: data.id,
         user_id: data.user_id,
-        content: textContent.trim(),
-        author: isAnonymous ? "익명" : nickname,
+        content: textContent,
+        author: isAnonymous ? "익명" : (data.user_nickname || user?.nickname || "회원"),
         created_at: new Date().toLocaleDateString(),
         created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
         authorId: data.user_id,
       };
 
-      // 상태 업데이트 및 시트 초기화
       setNotes(prevNotes => [newNote, ...prevNotes]);
       setTextContent("");
       setIsAnonymous(true);
       setIsWriteSheetOpen(false);
       setNoteIndex(0);
-      alert("묵상이 성공적으로 저장되었습니다.");
-
     } catch (err) {
       console.error('Error in handleSubmit:', err);
       alert("글 저장 중 오류가 발생했습니다.");
@@ -951,7 +914,8 @@ const confirmDelete = async () => {
 {/* 작성자 정보 표시 (미리보기 느낌) */}
 <div className="text-xs text-zinc-400 mb-4 px-1">
   작성자: <span className="text-[#4A6741] font-bold">
-{isAnonymous ? "익명" : (userNickname || "회원")}  </span>
+    {isAnonymous ? "익명" : (user?.nickname || "회원")}
+  </span>
 </div>
         {/* 음성 녹음 기능 제거: 텍스트 입력만 사용합니다 */}
         <div className="p-2" />
@@ -964,7 +928,8 @@ const confirmDelete = async () => {
 <LoginModal 
   open={showLoginModal} 
   onOpenChange={setShowLoginModal}
-  returnTo={`${window.location.origin}/#/qt`}
+  // place the query before the hash so useHashLocation sees the query correctly
+  returnTo={`${window.location.origin}/?autoOpenWrite=true#/qt`}
 /> 
     </div>
   );

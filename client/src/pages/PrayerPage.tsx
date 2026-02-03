@@ -15,9 +15,6 @@ export default function KneesPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const { fontSize = 16 } = useDisplaySettings();
-  const recognitionRef = useRef<any>(null);
-const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-const audioChunksRef = useRef<Blob[]>([]);
 
   // 날짜 변경 핸들러 (DailyWordPage와 동일)
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,73 +41,13 @@ const audioChunksRef = useRef<Blob[]>([]);
     }
   };
 
-  // 2. 수정된 toggleRecording 함수
-const toggleRecording = () => {
-  if (!isRecording) {
-    // --- 녹음 및 STT 시작 로직 ---
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
-    if (!SpeechRecognition) {
-      alert("이 브라우저는 음성 인식을 지원하지 않습니다. 크롬이나 사파리를 권장합니다.");
-      return;
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    if (!isRecording) {
+      // 가상 STT 동작 예시
+      setTimeout(() => setTranscript("하나님, 오늘도 저의 발걸음을 인도하여 주시옵소서..."), 1500);
     }
-
-    // STT 설정
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ko-KR";
-    recognition.continuous = true; // 계속 인식
-    recognition.interimResults = true; // 중간 결과 확인
-
-    recognition.onresult = (event: any) => {
-      let interimTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        if (event.results[i].isFinal) {
-          setTranscript((prev) => prev + event.results[i][0].transcript + " ");
-        } else {
-          interimTranscript += event.results[i][0].transcript;
-        }
-      }
-      // 실시간으로 텍스트박스에 반영 (중간 결과 포함)
-      console.log("인식 중:", interimTranscript);
-    };
-
-    recognition.start();
-    recognitionRef.current = recognition;
-
-    // 실제 오디오 파일 저장을 위한 MediaRecorder 시작
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.start();
-      setIsRecording(true);
-    });
-
-  } else {
-    // --- 녹음 및 STT 중지 로직 ---
-    if (recognitionRef.current) {
-      recognitionRef.current.stop();
-    }
-    
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); // 마이크 끄기
-      
-      mediaRecorderRef.current.onstop = () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/mp3' });
-        // 여기서 생성된 audioBlob과 현재의 transcript를 2단계에서 R2로 보낼 예정입니다.
-        console.log("녹음 완료, 파일 크기:", audioBlob.size);
-      };
-    }
-    
-    setIsRecording(false);
-  }
-};
+  };
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
