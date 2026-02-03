@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, Sparkles } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { Link } from "wouter";
+import { useSubscription } from "../hooks/use-subscription";
 
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
+  const { status, isPro, isTrial, isFree } = useSubscription();
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -125,11 +127,45 @@ export function TopBar() {
 
           <nav className="flex flex-col gap-1">
             <Link href="/subscription" onClick={() => setIsMenuOpen(false)}>
-              <button className="flex items-center gap-3 p-4 bg-[#FDF8EE] rounded-2xl text-[#855D16] font-bold mb-4 shadow-sm active:scale-[0.98] transition-all text-left w-full">
-                <Crown className="w-5 h-5 flex-shrink-0" />
+              <button className={`flex items-center gap-3 p-4 rounded-2xl font-bold mb-4 shadow-sm active:scale-[0.98] transition-all text-left w-full ${
+                isPro 
+                  ? 'bg-gradient-to-r from-yellow-100 to-orange-100 text-yellow-800' 
+                  : isTrial
+                  ? 'bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800'
+                  : 'bg-[#FDF8EE] text-[#855D16]'
+              }`}>
+                {isPro ? (
+                  <Crown className="w-5 h-5 flex-shrink-0" />
+                ) : isTrial ? (
+                  <Sparkles className="w-5 h-5 flex-shrink-0" />
+                ) : (
+                  <Crown className="w-5 h-5 flex-shrink-0" />
+                )}
                 <div className="flex flex-col">
-                  <span className="text-[13px]">프리미엄 멤버십</span>
-                  <span className="text-[10px] font-medium opacity-70">음성 기록 무제한 보관</span>
+                  {isPro ? (
+                    <>
+                      <span className="text-[13px]">프로 멤버</span>
+                      <span className="text-[10px] font-medium opacity-70">
+                        {status?.daysUntilExpiration !== null 
+                          ? `${status.daysUntilExpiration}일 남음`
+                          : '모든 기능 이용 중'}
+                      </span>
+                    </>
+                  ) : isTrial ? (
+                    <>
+                      <span className="text-[13px]">무료 체험 중</span>
+                      <span className="text-[10px] font-medium opacity-70">
+                        {status?.daysUntilExpiration !== null 
+                          ? `${status.daysUntilExpiration}일 남음`
+                          : '프리미엄 기능 사용 중'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[13px]">프리미엄 멤버십</span>
+                      <span className="text-[10px] font-medium opacity-70">음성 기록 무제한 보관</span>
+                    </>
+                  )}
                 </div>
               </button>
             </Link>

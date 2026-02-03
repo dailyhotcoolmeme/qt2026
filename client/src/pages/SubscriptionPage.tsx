@@ -1,106 +1,35 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { Crown, Zap, Check, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { useAuth } from "../hooks/use-auth";
+import { useSubscription } from "../hooks/use-subscription";
 import { FEATURE_DESCRIPTIONS } from "../../../shared/subscription";
-
-interface SubscriptionStatus {
-  tier: "free" | "trial" | "pro";
-  features: {
-    canAccessDailyVerse: boolean;
-    canAccessReading: boolean;
-    canAccessPrayer: boolean;
-    canShareMeditation: boolean;
-    canAccessCommunity: boolean;
-    canAccessAdvancedFeatures: boolean;
-    canUploadAudio: boolean;
-    canAccessArchive: boolean;
-    maxMeditationsPerDay: number;
-    maxWordSharesPerDay: number;
-  };
-  daysUntilExpiration: number | null;
-}
 
 export default function SubscriptionPage() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
-  const [status, setStatus] = useState<SubscriptionStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [actionLoading, setActionLoading] = useState(false);
-
-  useEffect(() => {
-    if (!user?.id) {
-      setLocation("/");
-      return;
-    }
-    fetchSubscriptionStatus();
-  }, [user?.id]);
-
-  const fetchSubscriptionStatus = async () => {
-    try {
-      const response = await fetch("/api/subscription/status", {
-        headers: {
-          "x-user-id": user?.id || "",
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setStatus(data);
-      }
-    } catch (error) {
-      console.error("Failed to fetch subscription status:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { 
+    status, 
+    loading, 
+    isPro, 
+    isTrial, 
+    isFree,
+    startTrial: handleStartTrial, 
+    upgradeToPro: handleUpgradeToPro 
+  } = useSubscription();
+  const [actionLoading, setActionLoading] = React.useState(false);
 
   const startTrial = async () => {
     setActionLoading(true);
-    try {
-      const response = await fetch("/api/subscription/trial", {
-        method: "POST",
-        headers: {
-          "x-user-id": user?.id || "",
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message);
-        fetchSubscriptionStatus();
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      console.error("Failed to start trial:", error);
-      alert("체험 시작에 실패했습니다");
-    } finally {
-      setActionLoading(false);
-    }
+    const result = await handleStartTrial();
+    alert(result.message);
+    setActionLoading(false);
   };
 
   const upgradeToPro = async () => {
     setActionLoading(true);
-    try {
-      const response = await fetch("/api/subscription/upgrade", {
-        method: "POST",
-        headers: {
-          "x-user-id": user?.id || "",
-        },
-      });
-      const data = await response.json();
-      if (response.ok) {
-        alert(data.message);
-        fetchSubscriptionStatus();
-      } else {
-        alert(data.message);
-      }
-    } catch (error) {
-      console.error("Failed to upgrade:", error);
-      alert("업그레이드에 실패했습니다");
-    } finally {
-      setActionLoading(false);
-    }
+    const result = await handleUpgradeToPro();
+    alert(result.message);
+    setActionLoading(false);
   };
 
   if (loading) {
