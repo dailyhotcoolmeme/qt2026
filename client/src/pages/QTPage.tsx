@@ -142,6 +142,8 @@ export default function QTPage() {
           is_anonymous: isAnonymous,
           my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
+          verse_display_date: bibleData?.display_date 
+  ?? currentDate.toISOString().split('T')[0],
         })
         .select()
         .single();
@@ -273,13 +275,21 @@ const [isLoadingNotes, setIsLoadingNotes] = useState(true);
 useEffect(() => {
   const loadNotes = async () => {
     setIsLoadingNotes(true);
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('meditations')
-      .select(`id, user_id, user_nickname, is_anonymous, my_meditation, verse, created_at`)
-      .gte('created_at', `${today}T00:00:00`)
-      .lt('created_at', `${today}T23:59:59`)
-      .order('created_at', { ascending: false });
+    const formattedDate = currentDate.toISOString().split('T')[0];
+
+const { data, error } = await supabase
+  .from('meditations')
+  .select(`
+    id,
+    user_id,
+    user_nickname,
+    is_anonymous,
+    my_meditation,
+    verse,
+    created_at
+  `)
+  .eq('verse_display_date', formattedDate) // ⭐ 기준 변경
+  .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error loading notes:', error);
