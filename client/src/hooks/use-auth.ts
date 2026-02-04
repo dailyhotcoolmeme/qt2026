@@ -8,25 +8,25 @@ async function fetchUser(): Promise<User | null> {
     credentials: "include",
   });
 
-  // If server reports unauthorized or the route is missing (404), fall back to Supabase client session
   if (response.status === 401 || response.status === 404) {
-    try {
-      const { data } = await supabase.auth.getUser();
-      if (data?.user) {
-        return {
-          id: data.user.id,
-          nickname: (data.user.user_metadata as any)?.nickname ?? null,
-          church: null,
-          rank: null,
-          age_group: null,
-          bible_complete_count: 0,
-          created_at: data.user.created_at ?? new Date().toISOString(),
-        } as unknown as User;
-      }
-    } catch (e) {
-      // ignore and fall through to null
-    }
-    return null;
+    const { data } = await supabase.auth.getUser();
+    if (!data?.user) return null;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("nickname, church, rank, age_group")
+      .eq("id", data.user.id)
+      .single();
+
+    return {
+      id: data.user.id,
+      nickname: profile?.nickname ?? null,
+      church: profile?.church ?? null,
+      rank: profile?.rank ?? null,
+      age_group: profile?.age_group ?? null,
+      bible_complete_count: 0,
+      created_at: data.user.created_at ?? new Date().toISOString(),
+    };
   }
 
   if (!response.ok) {
@@ -42,21 +42,22 @@ async function logout(): Promise<void> {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const { data: user, isLoading, refetch } = useQuery<User | null>({
+
+  const { data: user, isLoading } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 0, // Always refetch on mount/focus to catch OAuth login
+    staleTime: 0,
   });
 
-  // Refetch user when auth state changes (e.g., after OAuth redirect)
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-        // Invalidate query cache so next mount will refetch user
-        queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+          queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        }
       }
-    });
+    );
 
     return () => {
       authListener.subscription.unsubscribe();
