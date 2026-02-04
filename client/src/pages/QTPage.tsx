@@ -29,7 +29,7 @@ export default function QTPage() {
   const { user } = useAuth();
 
   // 1. 사용자 관련 상태
-  const [isAnonymous, setIsAnonymous] = useState(true);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [shouldOpenWriteSheet, setShouldOpenWriteSheet] = useState(false);
 
@@ -62,13 +62,15 @@ export default function QTPage() {
       return;
     }
     // 로그인 되어 있으면 글쓰기 시트 열기
-    setIsWriteSheetOpen(true);
+    setIsAnonymous(false);
+setIsWriteSheetOpen(true);
   };
 
   // 로그인 후 돌아오면 자동으로 작성창 열기
   useEffect(() => {
     if (user?.id && shouldOpenWriteSheet && !showLoginModal) {
-      setIsWriteSheetOpen(true);
+      setIsAnonymous(false);
+setIsWriteSheetOpen(true);
       setShouldOpenWriteSheet(false);
     }
   }, [user?.id, shouldOpenWriteSheet, showLoginModal]);
@@ -844,10 +846,10 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
       >
         <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
-          묵상을 삭제할까요?
+          글을 삭제할까요?
         </h4>
         <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-          삭제된 묵상은 복구할 수 없습니다.
+          삭제된 글은 복구할 수 없습니다.
         </p>
         
         <div className="flex gap-3">
@@ -983,7 +985,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 {/* 작성자 정보 표시 (미리보기 느낌) */}
 <div className="text-xs text-zinc-400 mb-4 px-1">
   작성자: <span className="text-[#4A6741] font-bold">
-    {isAnonymous ? "익명" : (user?.nickname || "회원")}
+    {isAnonymous ? "익명" : (user?.nickname && user.nickname.trim() !== '' ? user.nickname : "회원")}
   </span>
 </div>
         {/* 음성 녹음 기능 제거: 텍스트 입력만 사용합니다 */}
