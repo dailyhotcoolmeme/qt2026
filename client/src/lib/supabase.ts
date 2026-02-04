@@ -60,23 +60,27 @@ export type Database = {
         Row: {
           id: number;
           user_id: string;
-          content: string;
-          content_type: 'record' | 'prayer';
-          is_public: boolean;
+          user_nickname: string;
           is_anonymous: boolean;
+          my_meditation: string;
+          verse: string | null;
+          verse_display_date: string | null;
           created_at: string;
         };
         Insert: {
           user_id: string;
-          content: string;
-          content_type: 'record' | 'prayer';
-          is_public?: boolean;
+          user_nickname: string;
           is_anonymous?: boolean;
+          my_meditation: string;
+          verse?: string | null;
+          verse_display_date?: string | null;
         };
         Update: {
-          content?: string;
-          is_public?: boolean;
+          user_nickname?: string;
           is_anonymous?: boolean;
+          my_meditation?: string;
+          verse?: string | null;
+          verse_display_date?: string | null;
         };
       };
       bible_progress: {
