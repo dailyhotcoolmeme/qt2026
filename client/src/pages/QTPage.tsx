@@ -397,10 +397,8 @@ const confirmDelete = async () => {
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
-  // 햅틱 피드백
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
-  // 성별 선택 시 상태만 변경 (상단 useEffect가 감지하여 재실행)
   if (selectedVoice) {
     setVoiceType(selectedVoice);
     return;
@@ -408,14 +406,11 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   const targetVoice = voiceType;
   const currentSrc = audioRef.current?.src || "";
-  
-  // QT용 파일명 식별 규칙 (동일 데이터 여부 확인)
   const isSameDate = currentSrc.includes(`qt_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
   const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
 
   setShowAudioControl(true);
 
-  // 기존 오디오 초기화
   if (audioRef.current) {
     audioRef.current.pause();
     audioRef.current.src = "";
@@ -423,7 +418,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     audioRef.current = null;
   }
 
-  // 1. 파일명 및 폴더 경로 설정 (서버 qt 폴더 사용)
+  // 파일 경로 설정 (qt 폴더)
   const bookOrder = bibleData.bible_books?.book_order || '0';
   const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
   const fileName = `qt_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
@@ -431,15 +426,24 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
-    // 2. 스토리지 캐시 확인
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+    
+    // 1. 이미 파일이 있는 경우 처리 (내부 로직으로 수용)
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
-      setupAudioEvents(savedAudio, lastTime);
+      audioRef.current = savedAudio;
+      savedAudio.currentTime = lastTime;
+      savedAudio.onended = () => {
+        setIsPlaying(false);
+        setShowAudioControl(false);
+        audioRef.current = null;
+      };
+      setIsPlaying(true);
+      savedAudio.play().catch(e => console.log("재생 오류:", e));
       return;
     }
 
-    // 3. 숫자 한글 치환 도구 (Azure TTS 최적화)
+    // 2. 숫자 변환 및 텍스트 정제 (함수 내부 정의)
     const toKorNum = (num: number | string) => {
       const n = Number(num);
       if (isNaN(n)) return String(num);
@@ -451,30 +455,25 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return String(n);
     };
 
-    // 4. 낭독 텍스트 가공
-    const mainContent = cleanContent(bibleData.content);
+    const cleanText = (text: string) => {
+      return text.replace(/^[.\s]+/, "").replace(/\d+절/g, "").replace(/\d+/g, "").replace(/[."'“”‘’]/g, "").replace(/\.$/, "").trim();
+    };
+
+    const mainContent = cleanText(bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const chapterKor = toKorNum(bibleData.chapter);
     const verseRaw = String(bibleData.verse);
-    let verseKor = "";
-
-    // 절 범위 처리 (예: 1-5절 -> 일절에서 오절)
-    if (verseRaw.includes('-') || verseRaw.includes(':')) {
-      const separator = verseRaw.includes('-') ? '-' : ':';
-      const [start, end] = verseRaw.split(separator);
-      verseKor = `${toKorNum(start.trim())}절에서 ${toKorNum(end.trim())}`;
-    } else {
-      verseKor = toKorNum(verseRaw.trim());
-    }
+    let verseKor = verseRaw.includes('-') || verseRaw.includes(':') 
+      ? `${toKorNum(verseRaw.split(/[-:]/)[0])}절에서 ${toKorNum(verseRaw.split(/[-:]/)[1])}`
+      : toKorNum(verseRaw);
 
     const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
 
-    // 5. Azure API 정보 및 엔드포인트
+    // 3. Azure API 호출
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
     const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
-    // 6. Azure TTS 요청 (SSML 포맷)
     const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
       method: "POST",
       headers: {
@@ -491,15 +490,24 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       `,
     });
 
-    if (!response.ok) throw new Error("Azure API 호출 실패");
+    if (!response.ok) throw new Error("API 호출 실패");
 
-    // 7. 결과물 재생 및 서버 업로드
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const ttsAudio = new Audio(audioUrl);
-    setupAudioEvents(ttsAudio, lastTime);
+    
+    // 4. 오디오 설정 및 재생
+    audioRef.current = ttsAudio;
+    ttsAudio.currentTime = lastTime;
+    ttsAudio.onended = () => {
+      setIsPlaying(false);
+      setShowAudioControl(false);
+      audioRef.current = null;
+    };
+    setIsPlaying(true);
+    ttsAudio.play().catch(e => console.log("재생 오류:", e));
 
-    // 스토리지에 업로드하여 캐싱
+    // 스토리지 업로드
     supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
       contentType: 'audio/mp3', 
       upsert: true 
