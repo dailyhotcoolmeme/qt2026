@@ -19,14 +19,19 @@ async function fetchUser(): Promise<User | null> {
       .single();
 
     return {
-      id: data.user.id,
-      nickname: profile?.nickname ?? null,
-      church: profile?.church ?? null,
-      rank: profile?.rank ?? null,
-      age_group: profile?.age_group ?? null,
-      bible_complete_count: 0,
-      created_at: data.user.created_at ?? new Date().toISOString(),
-    };
+  id: data.user.id,
+  nickname:
+    profile?.nickname
+    ?? (data.user.user_metadata as any)?.nickname
+    ?? (data.user.user_metadata as any)?.full_name
+    ?? (data.user.user_metadata as any)?.name
+    ?? null,
+  church: profile?.church ?? null,
+  rank: profile?.rank ?? null,
+  age_group: profile?.age_group ?? null,
+  bible_complete_count: 0,
+  created_at: data.user.created_at ?? new Date().toISOString(),
+};
   }
 
   if (!response.ok) {
