@@ -238,7 +238,11 @@ export default function QTPage() {
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
   }
 };
-
+const handleShare = () => {
+  navigator.share
+    ? navigator.share({ text: bibleData?.content })
+    : alert("공유 기능은 준비 중입니다.");
+};
 // 1. 재생/일시정지 토글
   const togglePlay = () => {
     if (audioRef.current) {
