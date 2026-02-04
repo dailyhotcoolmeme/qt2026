@@ -2,7 +2,13 @@
 -- This script attempts to populate verse_display_date for existing records
 -- by matching the verse field with daily_qt_verses table
 
--- WARNING: Review and test this script in a non-production environment first!
+-- IMPORTANT NOTES:
+-- 1. Review and test this script in a non-production environment first!
+-- 2. The verse field format must match exactly: "bible_name chapter:verse"
+--    Example: "시편 23:1-6" or "창세기 1:1"
+-- 3. If verse formats vary (extra spaces, different delimiters), you may need to
+--    adjust the matching logic or clean the data first
+-- 4. Records that don't match will remain with NULL verse_display_date
 
 -- Update meditations where verse_display_date is NULL
 -- by matching the verse field format with daily_qt_verses
@@ -21,6 +27,7 @@ SELECT
 FROM meditations;
 
 -- View records that couldn't be matched (for manual review)
+-- These may have formatting differences or reference verses not in daily_qt_verses
 SELECT 
   id,
   verse,

@@ -277,6 +277,7 @@ useEffect(() => {
     const formattedDate = currentDate.toISOString().split('T')[0];
     const { data, error } = await supabase
       .from('meditations')
+      // Note: verse_display_date is used for filtering, created_at is used for display and ordering
       .select(`id, user_id, user_nickname, is_anonymous, my_meditation, verse, verse_display_date, created_at`)
       .eq('verse_display_date', formattedDate)
       .order('created_at', { ascending: false });
