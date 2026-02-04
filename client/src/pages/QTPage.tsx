@@ -488,7 +488,9 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return text.replace(/^[.\s]+/, "").replace(/\d+절/g, "").replace(/\d+/g, "").replace(/[."'“”‘’]/g, "").replace(/\.$/, "").trim();
     };
 
-    const mainContent = cleanText(bibleData.content);
+    const mainContent = cleanContent(
+  bibleData.tts_content || bibleData.content
+);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const chapterKor = toKorNum(bibleData.chapter);
     const verseRaw = String(bibleData.verse);
