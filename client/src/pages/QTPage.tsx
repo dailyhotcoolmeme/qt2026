@@ -138,7 +138,7 @@ export default function QTPage() {
         .insert({
           user_id: user.id,
           // DB requires non-null user_nickname; provide a safe fallback
-          user_nickname: user?.nickname ?? '회원',
+          user_nickname: user.nickname,
           is_anonymous: isAnonymous,
           my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
