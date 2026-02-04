@@ -138,7 +138,9 @@ export default function QTPage() {
         .insert({
           user_id: user.id,
           // DB requires non-null user_nickname; provide a safe fallback
-          user_nickname: user.nickname,
+          user_nickname: isAnonymous
+  ? '익명'
+  : (user.nickname && user.nickname.trim() !== '' ? user.nickname : '회원'),
           is_anonymous: isAnonymous,
           my_meditation: textContent,
           verse: bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : null,
@@ -161,7 +163,11 @@ export default function QTPage() {
         id: data.id,
         user_id: data.user_id,
         content: textContent,
-        author: isAnonymous ? "익명" : (data.user_nickname || user?.nickname || "회원"),
+        author: isAnonymous
+  ? '익명'
+  : (data.user_nickname && data.user_nickname !== '익명'
+      ? data.user_nickname
+      : user.nickname || '회원'),
         created_at: new Date().toLocaleDateString(),
         created_time: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }),
         authorId: data.user_id,
@@ -169,7 +175,7 @@ export default function QTPage() {
 
       setNotes(prevNotes => [newNote, ...prevNotes]);
       setTextContent("");
-      setIsAnonymous(true);
+      setIsAnonymous(false);
       setIsWriteSheetOpen(false);
       setNoteIndex(0);
     } catch (err) {
