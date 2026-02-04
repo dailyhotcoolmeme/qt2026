@@ -15,7 +15,7 @@ export function BottomNav() {
       <NavItem href="/qt" icon={<BookHeart />} label="묵상일기" active={location === "/qt"} />
 
       {/* 성경읽기: Book */}
-      <NavItem href="/reading" icon={<BookHeadphones />} label="성경듣기" active={location === "/reading"} />
+      <NavItem href="/reading" icon={<BookHeadphones />} label="성경읽기" active={location === "/reading"} />
 
       {/* 낙타무릎: Mic (음성 기도 중심) */}
       <NavItem href="/prayer" icon={<HandHeart />} label="낙타무릎" active={location === "/prayer"} />
