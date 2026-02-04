@@ -393,8 +393,7 @@ const confirmDelete = async () => {
     }
   }
 };
-  // 3. TTS 실행 함수 (스토리지 저장 로직 복구 및 괄호 교정 완료)
-  const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
+  // 3. TTS 실행 함수 (azure tts)
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   
