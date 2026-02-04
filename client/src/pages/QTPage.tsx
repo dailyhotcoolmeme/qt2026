@@ -238,11 +238,36 @@ export default function QTPage() {
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
   }
 };
-const handleShare = () => {
-  navigator.share
-    ? navigator.share({ text: bibleData?.content })
-    : alert("공유 기능은 준비 중입니다.");
+const handleShare = async () => {
+  if (window.navigator?.vibrate) window.navigator.vibrate(20);
+
+  const shareDate = bibleData?.display_date;
+  const shareUrl = shareDate
+    ? `${window.location.origin}/?date=${shareDate}#/qt`
+    : window.location.href;
+
+  const shareData = {
+    title: '성경 말씀',
+    text: bibleData?.content
+      ? cleanContent(bibleData.content)
+      : '말씀을 공유해요.',
+    url: shareUrl,
+  };
+
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 클립보드에 복사되었습니다.");
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name !== 'AbortError') {
+      console.error("공유 실패:", error);
+    }
+  }
 };
+  
 // 1. 재생/일시정지 토글
   const togglePlay = () => {
     if (audioRef.current) {
