@@ -13,7 +13,7 @@ export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null); 
-
+const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'start_chapter' | 'end_chapter'>('testament');
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -374,36 +374,73 @@ const loadChapters = async (book: string) => {
                 {tempSelection.start_verse > 0 && <>〉<span>{tempSelection.start_verse}절</span></>}
               </div>
 
-              <h3 className="text-xl font-black mb-6 text-zinc-900">
-                {selectionStep === 'testament' && "어디를 읽으실까요?"}
-                {selectionStep === 'book' && "권 선택"}
-                {selectionStep === 'start_chapter' && "시작 장 선택"}
-                {selectionStep === 'start_verse' && "시작 절 선택"}
-                {selectionStep === 'end_chapter' && "종료 장 선택"}
-                {selectionStep === 'end_verse' && "종료 절 선택"}
-              </h3>
+              {/* 
+<h3 className="text-xl font-black mb-6 text-zinc-900">
+  {selectionStep === 'testament' && "어디를 읽으실까요?"}
+  {selectionStep === 'book' && "권 선택"}
+  {selectionStep === 'start_chapter' && "시작 장 선택"}
+  {selectionStep === 'start_verse' && "시작 절 선택"}
+  {selectionStep === 'end_chapter' && "종료 장 선택"}
+  {selectionStep === 'end_verse' && "종료 절 선택"}
+</h3>
+*/}
 
-              <div className="grid grid-cols-4 gap-2">
-                {selectionStep === 'testament' && ['구약', '신약'].map(t => (
-                  <button key={t} onClick={() => { setTempSelection(p => ({...p, testament: t})); setSelectionStep('book'); }} className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg">{t}</button>
-                ))}
+              {/*
+<div className="grid grid-cols-4 gap-2">
+  {selectionStep === 'testament' && ['구약', '신약'].map(t => (
+    <button
+      key={t}
+      onClick={() => {
+        setTempSelection(p => ({ ...p, testament: t }));
+        setSelectionStep('book');
+      }}
+      className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg"
+    >
+      {t}
+    </button>
+  ))}
 
-                {selectionStep === 'book' && BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
-                  <button key={b} onClick={() => loadChapters(b)} className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600">{b}</button>
-                ))}
+  {selectionStep === 'book' &&
+    BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
+      <button
+        key={b}
+        onClick={() => loadChapters(b)}
+        className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600"
+      >
+        {b}
+      </button>
+    ))}
 
-                {(selectionStep === 'start_chapter' || selectionStep === 'end_chapter') && availableChapters.map(ch => (
-                  <button 
-                    key={ch} 
-                    disabled={selectionStep === 'end_chapter' && ch < tempSelection.start_chapter}
-                    onClick={() => {
-                      if (selectionStep === 'start_chapter') { setTempSelection(p => ({...p, start_chapter: ch})); loadVerses(ch, 'start_verse'); }
-                      else { setTempSelection(p => ({...p, end_chapter: ch})); loadVerses(ch, 'end_verse'); }
-                    }}
-                    className={`py-3 rounded-xl font-bold ${selectionStep === 'end_chapter' && ch < tempSelection.start_chapter ? 'bg-zinc-100 text-zinc-300' : 'bg-zinc-50 text-zinc-700'}`}
-                  >{ch}</button>
-                ))}
-              </div>
+  {(selectionStep === 'start_chapter' ||
+    selectionStep === 'end_chapter') &&
+    availableChapters.map(ch => (
+      <button
+        key={ch}
+        disabled={
+          selectionStep === 'end_chapter' &&
+          ch < tempSelection.start_chapter
+        }
+        onClick={() => {
+          if (selectionStep === 'start_chapter') {
+            setTempSelection(p => ({ ...p, start_chapter: ch }));
+            loadVerses(ch, 'start_verse');
+          } else {
+            setTempSelection(p => ({ ...p, end_chapter: ch }));
+            loadVerses(ch, 'end_verse');
+          }
+        }}
+        className={`py-3 rounded-xl font-bold ${
+          selectionStep === 'end_chapter' &&
+          ch < tempSelection.start_chapter
+            ? 'bg-zinc-100 text-zinc-300'
+            : 'bg-zinc-50 text-zinc-700'
+        }`}
+      >
+        {ch}
+      </button>
+    ))}
+</div>
+*/}
               <button onClick={() => setIsEditModalOpen(false)} className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm">닫기</button>
             </motion.div>
           </motion.div>
