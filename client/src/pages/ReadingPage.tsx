@@ -381,11 +381,10 @@ const loadChapters = async (book: string) => {
       initial={{ y: "100%" }}
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
-      className="bg-white w-full max-md:rounded-t-[32px] p-6 max-h-[85vh] overflow-y-auto"
+      className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* 상단 현재 선택 경로 표시 */}
-      <div className="flex flex-wrap items-center gap-1 mb-6 bg-green-50 py-2 px-4 rounded-full w-fit text-[11px] font-bold text-[#4A6741]">
+      <div className="flex flex-wrap items-center gap-1 mb-6 bg-green-50 py-2 px-4 rounded-full w-fit text-[10px] font-bold text-[#4A6741]">
         <span>{tempSelection.testament || "성경"}</span>
         {tempSelection.book_name && <>〉<span>{tempSelection.book_name}</span></>}
         {tempSelection.start_chapter > 0 && <>〉<span>시작 {tempSelection.start_chapter}장</span></>}
@@ -394,7 +393,6 @@ const loadChapters = async (book: string) => {
         {tempSelection.end_verse > 0 && <>〉<span>{tempSelection.end_verse}절</span></>}
       </div>
 
-      {/* 단계별 제목 */}
       <h3 className="text-xl font-black mb-6 text-zinc-900">
         {selectionStep === 'testament' && "어디를 읽으실까요?"}
         {selectionStep === 'book' && "권 선택"}
@@ -404,9 +402,7 @@ const loadChapters = async (book: string) => {
         {selectionStep === 'end_verse' && "종료 절 선택"}
       </h3>
 
-      {/* 선택 버튼 영역 */}
-      <div className="grid grid-cols-2 gap-3">
-        {/* Testament 선택 */}
+      <div className="grid grid-cols-4 gap-2">
         {selectionStep === 'testament' &&
           ['구약', '신약'].map(t => (
             <button
@@ -415,33 +411,28 @@ const loadChapters = async (book: string) => {
                 setTempSelection(p => ({ ...p, testament: t }));
                 setSelectionStep('book');
               }}
-              className="py-6 bg-green-100 rounded-2xl font-bold text-lg hover:bg-green-200 transition-colors col-span-2"
+              className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg"
             >
               {t}
             </button>
           ))}
 
-        {/* Book 선택 */}
         {selectionStep === 'book' &&
           BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
             <button
               key={b}
               onClick={() => loadChapters(b)}
-              className="py-4 bg-zinc-50 rounded-xl text-base font-bold text-zinc-700 hover:bg-zinc-100 transition-colors"
+              className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600"
             >
               {b}
             </button>
           ))}
 
-        {/* Start / End Chapter 선택 */}
         {(selectionStep === 'start_chapter' || selectionStep === 'end_chapter') &&
           availableChapters.map(ch => (
             <button
               key={ch}
-              disabled={
-                selectionStep === 'end_chapter' &&
-                ch < tempSelection.start_chapter
-              }
+              disabled={selectionStep === 'end_chapter' && ch < tempSelection.start_chapter}
               onClick={() => {
                 if (selectionStep === 'start_chapter') {
                   setTempSelection(p => ({ ...p, start_chapter: ch }));
@@ -451,39 +442,34 @@ const loadChapters = async (book: string) => {
                   loadVerses(ch, 'end_verse');
                 }
               }}
-              className={`py-4 rounded-xl font-bold transition-colors ${
+              className={`py-3 rounded-xl font-bold ${
                 selectionStep === 'end_chapter' && ch < tempSelection.start_chapter
-                  ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                  : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
+                  ? 'bg-zinc-100 text-zinc-300'
+                  : 'bg-zinc-50 text-zinc-700'
               }`}
             >
               {ch}
             </button>
           ))}
 
-        {/* Start / End Verse 선택 */}
         {(selectionStep === 'start_verse' || selectionStep === 'end_verse') &&
           availableVerses.map(v => (
             <button
               key={v}
-              disabled={
-                selectionStep === 'end_verse' &&
-                v < tempSelection.start_verse
-              }
+              disabled={selectionStep === 'end_verse' && v < tempSelection.start_verse}
               onClick={() => {
                 if (selectionStep === 'start_verse') {
                   setTempSelection(p => ({ ...p, start_verse: v }));
-                  // 다음 단계가 있다면 end_chapter로 이동
                   setSelectionStep('end_chapter');
                 } else {
                   setTempSelection(p => ({ ...p, end_verse: v }));
-                  setIsEditModalOpen(false); // 선택 완료 후 모달 닫기
+                  setIsEditModalOpen(false);
                 }
               }}
-              className={`py-3 rounded-xl font-bold transition-colors ${
+              className={`py-3 rounded-xl font-bold ${
                 selectionStep === 'end_verse' && v < tempSelection.start_verse
-                  ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                  : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
+                  ? 'bg-zinc-100 text-zinc-300'
+                  : 'bg-zinc-50 text-zinc-700'
               }`}
             >
               {v}
@@ -493,7 +479,7 @@ const loadChapters = async (book: string) => {
 
       <button
         onClick={() => setIsEditModalOpen(false)}
-        className="w-full mt-6 py-4 text-zinc-500 font-bold text-sm hover:text-zinc-700 transition-colors"
+        className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
       >
         닫기
       </button>
