@@ -278,20 +278,14 @@ const loadChapters = async (book: string) => {
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
           <div className="flex-1 flex justify-start pl-3">      
-            <button 
-              onClick={() => {
-                setSelectionStep('testament');
-                setTempSelection({ testament: '', book_name: '', start_chapter: 0, start_verse: 0, end_chapter: 0, end_verse: 0 });
-                setIsEditModalOpen(true);
-              }}
-              className="relative flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
-            >
-              <motion.span initial={{ scale: 1, opacity: 0.5 }}
-                animate={{ scale: 1.4, opacity: 0 }}
-                transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
-                className="absolute inset-0 rounded-full bg-[#4A6741]"/>
-              <NotebookPen size={16} strokeWidth={1.5} className="relative z-10" />
-            </button>
+            <button
+  onClick={() => {
+    console.log('📌 범위 설정 버튼 클릭됨');
+  }}
+  className="relative flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]"
+>
+  <NotebookPen size={16} strokeWidth={1.5} />
+</button>
           </div>
           <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
         </div>
