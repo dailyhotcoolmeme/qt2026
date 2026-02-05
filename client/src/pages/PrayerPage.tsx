@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { 
-  Mic, Square, RotateCcw, Save, 
+  Mic, Square, Play, Pause, X,
   Calendar as CalendarIcon, Headphones, Share2, Bookmark, Copy
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -14,13 +14,20 @@ export default function KneesPage() {
   // 기도 관련 상태
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const { fontSize = 16 } = useDisplaySettings();
   
-  // Web Speech API 설정
+  // 오디오 및 음성인식 참조
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    // Web Speech API 지원 확인 및 초기화
+    // Web Speech API 초기화
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
@@ -29,56 +36,58 @@ export default function KneesPage() {
       recognitionRef.current.lang = 'ko-KR';
 
       recognitionRef.current.onresult = (event: any) => {
-        let interimTranscript = '';
         let finalTranscript = '';
+        let interimTranscript = '';
 
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
+          const transcriptPiece = event.results[i][0].transcript;
           if (event.results[i].isFinal) {
-            finalTranscript += transcript + ' ';
+            finalTranscript += transcriptPiece + ' ';
           } else {
-            interimTranscript += transcript;
+            interimTranscript += transcriptPiece;
           }
         }
 
-        setTranscript((prev) => {
-          // 기존 텍스트에 최종 결과를 추가
-          if (finalTranscript) {
-            return prev + finalTranscript;
-          }
-          // 임시 결과는 표시만 (저장 안 함)
-          return prev;
-        });
+        if (finalTranscript) {
+          setTranscript((prev) => prev + finalTranscript);
+        }
       };
 
       recognitionRef.current.onerror = (event: any) => {
         console.error('Speech recognition error:', event.error);
-        if (event.error === 'no-speech') {
-          console.log('음성이 감지되지 않았습니다.');
-        }
-        setIsRecording(false);
       };
-
-      recognitionRef.current.onend = () => {
-        if (isRecording) {
-          // 자동으로 다시 시작 (continuous 모드가 중단될 경우)
-          try {
-            recognitionRef.current?.start();
-          } catch (e) {
-            console.log('Recognition already started');
-          }
-        }
-      };
-    } else {
-      console.warn('Web Speech API를 지원하지 않는 브라우저입니다.');
     }
 
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
     };
-  }, [isRecording]);
+  }, []);
+
+  // 오디오 재생 시간 업데이트
+  useEffect(() => {
+    if (audioRef.current) {
+      const audio = audioRef.current;
+      
+      const updateTime = () => setCurrentTime(audio.currentTime);
+      const updateDuration = () => setDuration(audio.duration);
+      const handleEnded = () => setIsPlaying(false);
+
+      audio.addEventListener('timeupdate', updateTime);
+      audio.addEventListener('loadedmetadata', updateDuration);
+      audio.addEventListener('ended', handleEnded);
+
+      return () => {
+        audio.removeEventListener('timeupdate', updateTime);
+        audio.removeEventListener('loadedmetadata', updateDuration);
+        audio.removeEventListener('ended', handleEnded);
+      };
+    }
+  }, [audioURL]);
 
   // 날짜 변경 핸들러 (DailyWordPage와 동일)
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,30 +114,94 @@ export default function KneesPage() {
     }
   };
 
-  const toggleRecording = () => {
-    if (!recognitionRef.current) {
-      alert('이 브라우저는 음성인식을 지원하지 않습니다.');
-      return;
-    }
-
+  const toggleRecording = async () => {
     if (!isRecording) {
       // 녹음 시작
       try {
-        recognitionRef.current.start();
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // MediaRecorder 시작
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const url = URL.createObjectURL(audioBlob);
+          setAudioURL(url);
+          
+          // 오디오 엘리먼트 생성
+          audioRef.current = new Audio(url);
+          
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+        mediaRecorder.start();
+        
+        // STT 시작
+        if (recognitionRef.current) {
+          recognitionRef.current.start();
+        }
+        
         setIsRecording(true);
       } catch (error) {
         console.error('Failed to start recording:', error);
-        alert('음성인식을 시작할 수 없습니다.');
+        alert('마이크 접근 권한이 필요합니다.');
       }
     } else {
       // 녹음 중지
-      try {
-        recognitionRef.current.stop();
-        setIsRecording(false);
-      } catch (error) {
-        console.error('Failed to stop recording:', error);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
       }
+      
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      
+      setIsRecording(false);
     }
+  };
+
+  const togglePlayback = () => {
+    if (!audioRef.current) return;
+
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!audioRef.current) return;
+    const time = parseFloat(e.target.value);
+    audioRef.current.currentTime = time;
+    setCurrentTime(time);
+  };
+
+  const handleReset = () => {
+    setAudioURL(null);
+    setTranscript("");
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   return (
@@ -189,32 +262,68 @@ export default function KneesPage() {
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-8 text-center z-10 touch-none"
           >
             {/* 기도 입력 컨텐츠 */}
-            <div className="w-full h-full flex flex-col items-center justify-between gap-2">
+            <div className="w-full h-full flex flex-col items-center justify-between gap-4">
               <div className="space-y-1">
               </div>
 
-              {/* 음성 녹음 버튼 UI */}
-              <div className="relative my-2">
-                <AnimatePresence>
-                  {isRecording && (
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1.4, opacity: 0.15 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
-                      transition={{ repeat: Infinity, duration: 1.5 }}
-                      className="absolute inset-0 bg-red-500 rounded-full"
+              {/* 음성 녹음/재생 UI */}
+              {!audioURL ? (
+                <div className="relative my-2">
+                  <AnimatePresence>
+                    {isRecording && (
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1.4, opacity: 0.15 }}
+                        exit={{ scale: 0.8, opacity: 0 }}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                        className="absolute inset-0 bg-red-500 rounded-full"
+                      />
+                    )}
+                  </AnimatePresence>
+                  <button
+                    onClick={toggleRecording}
+                    className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                      isRecording ? 'bg-red-500 text-white' : 'bg-[#4A6741] text-white'
+                    }`}
+                  >
+                    {isRecording ? <Square className="w-7 h-7 fill-current" /> : <Mic className="w-8 h-8" />}
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full space-y-3">
+                  {/* 재생 컨트롤 */}
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      onClick={togglePlayback}
+                      className="w-16 h-16 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg active:scale-95 transition-all"
+                    >
+                      {isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-1" />}
+                    </button>
+                    <button
+                      onClick={handleReset}
+                      className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* 재생 바 */}
+                  <div className="w-full space-y-2">
+                    <input
+                      type="range"
+                      min="0"
+                      max={duration || 0}
+                      value={currentTime}
+                      onChange={handleSeek}
+                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
                     />
-                  )}
-                </AnimatePresence>
-                <button
-                  onClick={toggleRecording}
-                  className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
-                    isRecording ? 'bg-red-500 text-white' : 'bg-[#4A6741] text-white'
-                  }`}
-                >
-                  {isRecording ? <Square className="w-7 h-7 fill-current" /> : <Mic className="w-8 h-8" />}
-                </button>
-              </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>{formatTime(currentTime)}</span>
+                      <span>{formatTime(duration)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 텍스트 입력 박스 (STT 결과) */}
               <textarea
