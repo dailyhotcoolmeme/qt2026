@@ -58,7 +58,6 @@ const [tempSelection, setTempSelection] = useState({
   start_chapter: 0,
   end_chapter: 0,
 });
-
 const [availableChapters, setAvailableChapters] = useState<number[]>([]);
   type SelectionStep =
   | 'testament'
@@ -117,21 +116,6 @@ const loadChapters = async (book: string) => {
   });
 
   // 장 정보 가져오기
-  const { data } = await supabase
-    .from('bible_verses')
-    .select('chapter')
-    .eq('book_name', book)
-    .order('chapter', { ascending: true });
-
-  if (data) {
-    const loadChapters = async (book: string) => {
-  setTempSelection({
-    ...tempSelection,
-    book_name: book,
-    start_chapter: 0,
-    end_chapter: 0,
-  });
-
   const { data } = await supabase
     .from('bible_verses')
     .select('chapter')
@@ -512,7 +496,6 @@ const loadChapters = async (book: string) => {
     </motion.div>
   </motion.div>
 )}
-        }
       </AnimatePresence>
 
       {/* TTS 컨트롤 (완벽 복구) */}
