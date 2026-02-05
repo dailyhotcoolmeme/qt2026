@@ -280,7 +280,7 @@ const loadChapters = async (book: string) => {
           <div className="flex-1 flex justify-start pl-3">      
             <button
   onClick={() => {
-    alert('버튼 눌림');
+    setIsEditModalOpen(true);
   }}
   className="
     relative z-[9999]
@@ -288,7 +288,6 @@ const loadChapters = async (book: string) => {
     p-2 rounded-full
     bg-red-500
     active:scale-90
-    transition-transform
   "
 >
   <NotebookPen size={18} color="white" />
@@ -360,7 +359,21 @@ const loadChapters = async (book: string) => {
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
-
+{isEditModalOpen && (
+  <div
+    className="fixed inset-0 z-[10000] bg-black/40 flex items-center justify-center"
+    onClick={() => setIsEditModalOpen(false)}
+  >
+    <div
+      className="bg-white w-4/5 h-40 rounded-xl flex items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-lg font-bold">
+        모달 열림
+      </p>
+    </div>
+  </div>
+)}
       {/* 🔥 범위 선택 모달 (복구 및 기능 수정) */}
       <AnimatePresence>
         {isEditModalOpen && (
