@@ -67,8 +67,6 @@ const [availableChapters, setAvailableChapters] = useState<number[]>([]);
   | 'end_chapter'
   | 'confirm';
 
-const [selectionStep, setSelectionStep] =
-  useState<SelectionStep>('testament');
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
