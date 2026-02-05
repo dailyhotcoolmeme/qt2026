@@ -58,7 +58,8 @@ const [tempSelection, setTempSelection] = useState({
   start_chapter: 0,
   end_chapter: 0,
 });
-const [availableChapters, setAvailableChapters] = useState<number[]>([]);
+const [availableVerses, setAvailableVerses] = useState<number[]>([]);
+  const [availableChapters, setAvailableChapters] = useState<number[]>([]);
   type SelectionStep =
   | 'testament'
   | 'book'
@@ -125,12 +126,27 @@ const loadChapters = async (book: string) => {
   if (data) {
     const chapters = Array.from(new Set(data.map(d => d.chapter)));
     setAvailableChapters(chapters);
-
+setAvailableVerses([]);
     setSelectionStep('start_chapter'); // 권 선택 후 장 UI 바로 열림
   }
 };
 
+const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse') => {
+  if (!tempSelection.book_name) return;
 
+  const { data } = await supabase
+    .from('bible_verses')
+    .select('verse')
+    .eq('book_name', tempSelection.book_name)
+    .eq('chapter', chapter)
+    .order('verse', { ascending: true });
+
+  if (data) {
+    const verses = Array.from(new Set(data.map(d => d.verse)));
+    setAvailableVerses(verses);
+    setSelectionStep(nextStep);
+  }
+};
   
   const cleanContent = (text: string) => {
     if (!text) return "";
@@ -444,11 +460,11 @@ const loadChapters = async (book: string) => {
                 if (selectionStep === 'start_chapter') {
                   setTempSelection(p => ({ ...p, start_chapter: ch }));
                   loadVerses(ch, 'start_verse');
-                  setSelectionStep('start_verse'); // ✅ 시작 장 선택 후 절 선택
+                
                 } else {
                   setTempSelection(p => ({ ...p, end_chapter: ch }));
                   loadVerses(ch, 'end_verse');
-                  setSelectionStep('end_verse');
+                
                 }
               }}
               className={`py-3 rounded-xl font-bold ${
