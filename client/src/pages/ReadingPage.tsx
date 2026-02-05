@@ -444,6 +444,7 @@ const loadChapters = async (book: string) => {
                 if (selectionStep === 'start_chapter') {
                   setTempSelection(p => ({ ...p, start_chapter: ch }));
                   loadVerses(ch, 'start_verse');
+                  setSelectionStep('start_verse');
                 } else {
                   setTempSelection(p => ({ ...p, end_chapter: ch }));
                   loadVerses(ch, 'end_verse');
