@@ -284,7 +284,7 @@ export default function RegisterPage() {
             className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
           >
             <img 
-              src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" 
+              src="/kakao-login.png" 
               className="w-6 h-6" 
               alt="카카오" 
             />

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { 
   Mic, Square, RotateCcw, Save, 
   Calendar as CalendarIcon, Headphones, Share2, Bookmark, Copy
@@ -15,6 +15,70 @@ export default function KneesPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const { fontSize = 16 } = useDisplaySettings();
+  
+  // Web Speech API 설정
+  const recognitionRef = useRef<any>(null);
+
+  useEffect(() => {
+    // Web Speech API 지원 확인 및 초기화
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      recognitionRef.current = new SpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = 'ko-KR';
+
+      recognitionRef.current.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + ' ';
+          } else {
+            interimTranscript += transcript;
+          }
+        }
+
+        setTranscript((prev) => {
+          // 기존 텍스트에 최종 결과를 추가
+          if (finalTranscript) {
+            return prev + finalTranscript;
+          }
+          // 임시 결과는 표시만 (저장 안 함)
+          return prev;
+        });
+      };
+
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        if (event.error === 'no-speech') {
+          console.log('음성이 감지되지 않았습니다.');
+        }
+        setIsRecording(false);
+      };
+
+      recognitionRef.current.onend = () => {
+        if (isRecording) {
+          // 자동으로 다시 시작 (continuous 모드가 중단될 경우)
+          try {
+            recognitionRef.current?.start();
+          } catch (e) {
+            console.log('Recognition already started');
+          }
+        }
+      };
+    } else {
+      console.warn('Web Speech API를 지원하지 않는 브라우저입니다.');
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [isRecording]);
 
   // 날짜 변경 핸들러 (DailyWordPage와 동일)
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,10 +106,28 @@ export default function KneesPage() {
   };
 
   const toggleRecording = () => {
-    setIsRecording(!isRecording);
+    if (!recognitionRef.current) {
+      alert('이 브라우저는 음성인식을 지원하지 않습니다.');
+      return;
+    }
+
     if (!isRecording) {
-      // 가상 STT 동작 예시
-      setTimeout(() => setTranscript("하나님, 오늘도 저의 발걸음을 인도하여 주시옵소서..."), 1500);
+      // 녹음 시작
+      try {
+        recognitionRef.current.start();
+        setIsRecording(true);
+      } catch (error) {
+        console.error('Failed to start recording:', error);
+        alert('음성인식을 시작할 수 없습니다.');
+      }
+    } else {
+      // 녹음 중지
+      try {
+        recognitionRef.current.stop();
+        setIsRecording(false);
+      } catch (error) {
+        console.error('Failed to stop recording:', error);
+      }
     }
   };
 

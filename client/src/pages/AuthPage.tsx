@@ -102,14 +102,14 @@ export default function AuthPage() {
           onClick={handleKakaoLogin} 
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
         >
-          <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="카카오" />
+          <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
           카카오로 시작하기
         </button>
 
         <div className="flex items-center justify-center gap-5">
           <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
-          <Link href="/register"><a className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</a></Link>
+          <Link href="/register" className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</Link>
         </div>
       </div>
 
@@ -153,9 +153,9 @@ export default function AuthPage() {
                   
                   {/* 핵심 수정 부분: 탭 신호를 포함한 링크 */}
                   <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
-                    <Link href="/find-account?tab=id"><a>아이디 찾기</a></Link>
+                    <Link href="/find-account?tab=id">아이디 찾기</Link>
                     <span className="text-zinc-200">|</span>
-                    <Link href="/find-account?tab=pw"><a>비밀번호 찾기</a></Link>
+                    <Link href="/find-account?tab=pw">비밀번호 찾기</Link>
                   </div>
                 </div>
 

@@ -94,7 +94,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 onClick={handleKakaoLogin}
                 className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
               >
-                <img src="https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png" className="w-6 h-6" alt="카카오" />
+                <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
                 카카오로 시작하기
               </button>
 
