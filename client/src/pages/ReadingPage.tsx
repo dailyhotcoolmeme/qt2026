@@ -45,20 +45,21 @@ export default function ReadingPage() {
 
   // --- 🔥 범위 선택 전용 상태 (복구 및 강화) ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'start_chapter' | 'start_verse' | 'end_chapter' | 'end_verse'>('testament');
-  const [tempSelection, setTempSelection] = useState({
-    testament: '',
-    book_name: '',
-    start_chapter: 0,
-    start_verse: 0,
-    end_chapter: 0,
-    end_verse: 0
-  });
-  const [availableChapters, setAvailableChapters] = useState<number[]>([]);
-  const [availableVerses, setAvailableVerses] = useState<number[]>([]);
   const [rangePages, setRangePages] = useState<any[]>([]); 
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
+type SelectionPhase = 'start' | 'end' | 'confirm';
 
+const [selectionPhase, setSelectionPhase] =
+  useState<SelectionPhase>('start');
+
+const [tempSelection, setTempSelection] = useState({
+  testament: '',
+  book_name: '',
+  start_chapter: 0,
+  end_chapter: 0,
+});
+
+const [availableChapters, setAvailableChapters] = useState<number[]>([]);
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -99,65 +100,30 @@ export default function ReadingPage() {
   };
 
   // --- 🔥 [핵심] 단계별 데이터 로딩 로직 ---
-  const loadChapters = async (book: string) => {
-    setTempSelection(prev => ({ ...prev, book_name: book }));
-    const { data } = await supabase.from('bible_verses').select('chapter').eq('book_name', book).order('chapter', { ascending: true });
-    if (data) {
-      const chapters = Array.from(new Set(data.map(d => d.chapter)));
-      setAvailableChapters(chapters);
-      setSelectionStep('start_chapter');
-    }
-  };
+const loadChapters = async (book: string) => {
+  setTempSelection({
+    testament: tempSelection.testament,
+    book_name: book,
+    start_chapter: 0,
+    end_chapter: 0,
+  });
 
-  const loadVerses = async (chapter: number, step: 'start_verse' | 'end_verse') => {
-    const { data } = await supabase.from('bible_verses').select('verse').eq('book_name', tempSelection.book_name).eq('chapter', chapter).order('verse', { ascending: true });
-    if (data) {
-      setAvailableVerses(data.map(d => d.verse));
-      setSelectionStep(step);
-    }
-  };
+  const { data } = await supabase
+    .from('bible_verses')
+    .select('chapter')
+    .eq('book_name', book)
+    .order('chapter', { ascending: true });
 
-  const handleFinalRangeSelection = async (endVerse: number) => {
-    const { data } = await supabase
-      .from('bible_verses')
-      .select('*, bible_books(book_order)')
-      .eq('book_name', tempSelection.book_name)
-      .gte('chapter', tempSelection.start_chapter)
-      .lte('chapter', tempSelection.end_chapter)
-      .order('chapter', { ascending: true })
-      .order('verse', { ascending: true });
+  if (data) {
+    const chapters = Array.from(new Set(data.map(d => d.chapter)));
+    setAvailableChapters(chapters);
+    setSelectionPhase('start');
+  }
+};
 
-    if (data) {
-      // 시작 절과 끝 절 필터링 (복합 조건)
-      const filtered = data.filter(v => {
-        if (v.chapter === tempSelection.start_chapter && v.verse < tempSelection.start_verse) return false;
-        if (v.chapter === tempSelection.end_chapter && v.verse > endVerse) return false;
-        return true;
-      });
 
-      // 장별로 묶기
-      const groupedByChapter = filtered.reduce((acc: any[], curr: any) => {
-        let chapter = acc.find(c => c.chapter === curr.chapter);
-        if (!chapter) {
-          chapter = { 
-            ...curr, 
-            content: `${curr.verse}절 ${curr.content}`,
-            original_verses: [curr] 
-          };
-          acc.push(chapter);
-        } else {
-          chapter.content += ` ${curr.verse}절 ${curr.content}`;
-        }
-        return acc;
-      }, []);
 
-      setRangePages(groupedByChapter);
-      setCurrentPageIdx(0);
-      setBibleData(groupedByChapter[0]);
-      setIsEditModalOpen(false);
-    }
-  };
-
+  
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
@@ -436,18 +402,6 @@ export default function ReadingPage() {
                     }}
                     className={`py-3 rounded-xl font-bold ${selectionStep === 'end_chapter' && ch < tempSelection.start_chapter ? 'bg-zinc-100 text-zinc-300' : 'bg-zinc-50 text-zinc-700'}`}
                   >{ch}</button>
-                ))}
-
-                {(selectionStep === 'start_verse' || selectionStep === 'end_verse') && availableVerses.map(v => (
-                  <button 
-                    key={v} 
-                    disabled={selectionStep === 'end_verse' && tempSelection.start_chapter === tempSelection.end_chapter && v < tempSelection.start_verse}
-                    onClick={() => {
-                      if (selectionStep === 'start_verse') { setTempSelection(p => ({...p, start_verse: v})); setSelectionStep('end_chapter'); }
-                      else { handleFinalRangeSelection(v); }
-                    }}
-                    className={`py-3 rounded-xl font-bold ${selectionStep === 'end_verse' && tempSelection.start_chapter === tempSelection.end_chapter && v < tempSelection.start_verse ? 'bg-zinc-100 text-zinc-300' : 'bg-zinc-50 text-zinc-700'}`}
-                  >{v}</button>
                 ))}
               </div>
               <button onClick={() => setIsEditModalOpen(false)} className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm">닫기</button>
