@@ -282,7 +282,7 @@ const loadChapters = async (book: string) => {
   onClick={() => {
     console.log('📌 범위 설정 버튼 클릭됨');
   }}
-  className="relative flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]"
+  className="relative z-[9999] flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]"
 >
   <NotebookPen size={16} strokeWidth={1.5} />
 </button>
