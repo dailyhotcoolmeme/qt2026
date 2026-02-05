@@ -512,6 +512,7 @@ const loadChapters = async (book: string) => {
     </motion.div>
   </motion.div>
 )}
+        }
       </AnimatePresence>
 
       {/* TTS 컨트롤 (완벽 복구) */}
