@@ -359,21 +359,7 @@ const loadChapters = async (book: string) => {
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
-{isEditModalOpen && (
-  <div
-    className="fixed inset-0 z-[10000] bg-black/40 flex items-center justify-center"
-    onClick={() => setIsEditModalOpen(false)}
-  >
-    <div
-      className="bg-white w-4/5 h-40 rounded-xl flex items-center justify-center"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <p className="text-lg font-bold">
-        모달 열림
-      </p>
-    </div>
-  </div>
-)}
+
       {/* 🔥 범위 선택 모달 (복구 및 기능 수정) */}
       <AnimatePresence>
         {isEditModalOpen && (
@@ -446,6 +432,21 @@ const loadChapters = async (book: string) => {
           </motion.div>
         )}
       </AnimatePresence>
+      {isEditModalOpen && (
+  <div
+    className="fixed inset-0 z-[10000] bg-black/40 flex items-center justify-center"
+    onClick={() => setIsEditModalOpen(false)}
+  >
+    <div
+      className="bg-white w-4/5 h-40 rounded-xl flex items-center justify-center"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <p className="text-lg font-bold">
+        모달 열림
+      </p>
+    </div>
+  </div>
+)}
     </div>
   );
 }
