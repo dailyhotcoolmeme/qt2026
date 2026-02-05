@@ -13,7 +13,6 @@ export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null); 
-const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'start_chapter' | 'end_chapter'>('testament');
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -52,20 +51,6 @@ type SelectionPhase = 'start' | 'end' | 'confirm';
 const [selectionPhase, setSelectionPhase] =
   useState<SelectionPhase>('start');
 
-const [tempSelection, setTempSelection] = useState({
-  testament: '',
-  book_name: '',
-  start_chapter: 0,
-  end_chapter: 0,
-});
-const [availableVerses, setAvailableVerses] = useState<number[]>([]);
-  const [availableChapters, setAvailableChapters] = useState<number[]>([]);
-  type SelectionStep =
-  | 'testament'
-  | 'book'
-  | 'start_chapter'
-  | 'end_chapter'
-  | 'confirm';
 
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -105,18 +90,30 @@ const [availableVerses, setAvailableVerses] = useState<number[]>([]);
       setIsReadCompleted(false);
     }
   };
-
-  // --- 🔥 [핵심] 단계별 데이터 로딩 로직 ---
+// 🔥 범위 선택 관련 상태
+const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'start_chapter' | 'start_verse' | 'end_chapter' | 'end_verse'>('testament');
+const [tempSelection, setTempSelection] = useState({
+  testament: '',
+  book_name: '',
+  start_chapter: 0,
+  end_chapter: 0,
+  start_verse: 0,
+  end_verse: 0,
+});
+const [availableChapters, setAvailableChapters] = useState<number[]>([]);
+const [availableVerses, setAvailableVerses] = useState<number[]>([]);
+  
+// --- 🔹 장 선택 불러오기
 const loadChapters = async (book: string) => {
-  // 선택 반영
-  setTempSelection({
-    ...tempSelection,
+  setTempSelection(p => ({
+    ...p,
     book_name: book,
     start_chapter: 0,
     end_chapter: 0,
-  });
+    start_verse: 0,
+    end_verse: 0,
+  }));
 
-  // 장 정보 가져오기
   const { data } = await supabase
     .from('bible_verses')
     .select('chapter')
@@ -126,11 +123,11 @@ const loadChapters = async (book: string) => {
   if (data) {
     const chapters = Array.from(new Set(data.map(d => d.chapter)));
     setAvailableChapters(chapters);
-setAvailableVerses([]);
-    setSelectionStep('start_chapter'); // 권 선택 후 장 UI 바로 열림
+    setSelectionStep('start_chapter'); // 권 선택 후 시작 장으로
   }
 };
 
+// --- 🔹 절 선택 불러오기
 const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse') => {
   if (!tempSelection.book_name) return;
 
@@ -144,10 +141,9 @@ const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse'
   if (data) {
     const verses = Array.from(new Set(data.map(d => d.verse)));
     setAvailableVerses(verses);
-    setSelectionStep(nextStep);
+    setSelectionStep(nextStep); // 장 선택 후 절 단계로 이동
   }
 };
-  
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
@@ -383,136 +379,129 @@ const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse'
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
-
-      {/* 🔥 범위 선택 모달 (복구 및 기능 수정) */}
-      <AnimatePresence>
-        {/* 실제 모달 */}
-{isEditModalOpen && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    exit={{ opacity: 0 }}
-    className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center"
-    onClick={() => setIsEditModalOpen(false)}
-  >
+// --- 🔹 범위 선택 모달 JSX (AnimatePresence 포함)
+<AnimatePresence>
+  {isEditModalOpen && (
     <motion.div
-      initial={{ y: "100%" }}
-      animate={{ y: 0 }}
-      exit={{ y: "100%" }}
-      className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
-      onClick={(e) => e.stopPropagation()}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center"
+      onClick={() => setIsEditModalOpen(false)}
     >
-      {/* 상단 선택 상태 표시 */}
-      <div className="flex flex-wrap items-center gap-1 mb-6 bg-green-50 py-2 px-4 rounded-full w-fit text-[10px] font-bold text-[#4A6741]">
-        <span>{tempSelection.testament || "성경"}</span>
-        {tempSelection.book_name && <>〉<span>{tempSelection.book_name}</span></>}
-        {tempSelection.start_chapter > 0 && <>〉<span>시작 {tempSelection.start_chapter}장</span></>}
-        {tempSelection.start_verse > 0 && <>〉<span>{tempSelection.start_verse}절</span></>}
-        {tempSelection.end_chapter > 0 && <>〉<span>{tempSelection.end_chapter}장</span></>}
-        {tempSelection.end_verse > 0 && <>〉<span>{tempSelection.end_verse}절</span></>}
-      </div>
-
-      {/* 단계별 제목 */}
-      <h3 className="text-xl font-black mb-6 text-zinc-900">
-        {selectionStep === 'testament' && "어디를 읽으실까요?"}
-        {selectionStep === 'book' && "권 선택"}
-        {selectionStep === 'start_chapter' && "시작 장 선택"}
-        {selectionStep === 'start_verse' && "시작 절 선택"}
-        {selectionStep === 'end_chapter' && "종료 장 선택"}
-        {selectionStep === 'end_verse' && "종료 절 선택"}
-      </h3>
-
-      <div className="grid grid-cols-4 gap-2">
-        {/* 신약/구약 선택 */}
-        {selectionStep === 'testament' &&
-          ['구약', '신약'].map(t => (
-            <button
-              key={t}
-              onClick={() => {
-                setTempSelection(p => ({ ...p, testament: t }));
-                setSelectionStep('book');
-              }}
-              className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg"
-            >
-              {t}
-            </button>
-          ))}
-
-        {/* 권 선택 */}
-        {selectionStep === 'book' &&
-          BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
-            <button
-              key={b}
-              onClick={() => loadChapters(b)}
-              className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600"
-            >
-              {b}
-            </button>
-          ))}
-
-        {/* 장 선택 */}
-        {(selectionStep === 'start_chapter' || selectionStep === 'end_chapter') &&
-          availableChapters.map(ch => (
-            <button
-              key={ch}
-              disabled={selectionStep === 'end_chapter' && ch < tempSelection.start_chapter}
-              onClick={() => {
-                if (selectionStep === 'start_chapter') {
-                  setTempSelection(p => ({ ...p, start_chapter: ch }));
-                  loadVerses(ch, 'start_verse');
-                
-                } else {
-                  setTempSelection(p => ({ ...p, end_chapter: ch }));
-                  loadVerses(ch, 'end_verse');
-                
-                }
-              }}
-              className={`py-3 rounded-xl font-bold ${
-                selectionStep === 'end_chapter' && ch < tempSelection.start_chapter
-                  ? 'bg-zinc-100 text-zinc-300'
-                  : 'bg-zinc-50 text-zinc-700'
-              }`}
-            >
-              {ch}
-            </button>
-          ))}
-
-        {/* 절 선택 */}
-        {(selectionStep === 'start_verse' || selectionStep === 'end_verse') &&
-          availableVerses.map(v => (
-            <button
-              key={v}
-              disabled={selectionStep === 'end_verse' && v < tempSelection.start_verse}
-              onClick={() => {
-                if (selectionStep === 'start_verse') {
-                  setTempSelection(p => ({ ...p, start_verse: v }));
-                  setSelectionStep('end_chapter'); // 다음 단계: 종료 장
-                } else {
-                  setTempSelection(p => ({ ...p, end_verse: v }));
-                  setIsEditModalOpen(false); // 완료 시 모달 닫기
-                }
-              }}
-              className={`py-3 rounded-xl font-bold ${
-                selectionStep === 'end_verse' && v < tempSelection.start_verse
-                  ? 'bg-zinc-100 text-zinc-300'
-                  : 'bg-zinc-50 text-zinc-700'
-              }`}
-            >
-              {v}
-            </button>
-          ))}
-      </div>
-
-      <button
-        onClick={() => setIsEditModalOpen(false)}
-        className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
       >
-        닫기
-      </button>
+        {/* 선택 상태 표시 */}
+        <div className="flex flex-wrap items-center gap-1 mb-6 bg-green-50 py-2 px-4 rounded-full w-fit text-[10px] font-bold text-[#4A6741]">
+          <span>{tempSelection.testament || '성경'}</span>
+          {tempSelection.book_name && <>〉<span>{tempSelection.book_name}</span></>}
+          {tempSelection.start_chapter > 0 && <>〉<span>시작 {tempSelection.start_chapter}장</span></>}
+          {tempSelection.start_verse > 0 && <>〉<span>{tempSelection.start_verse}절</span></>}
+          {tempSelection.end_chapter > 0 && <>〉<span>{tempSelection.end_chapter}장</span></>}
+          {tempSelection.end_verse > 0 && <>〉<span>{tempSelection.end_verse}절</span></>}
+        </div>
+
+        {/* 단계별 제목 */}
+        <h3 className="text-xl font-black mb-6 text-zinc-900">
+          {selectionStep === 'testament' && '어디를 읽으실까요?'}
+          {selectionStep === 'book' && '권 선택'}
+          {selectionStep === 'start_chapter' && '시작 장 선택'}
+          {selectionStep === 'start_verse' && '시작 절 선택'}
+          {selectionStep === 'end_chapter' && '종료 장 선택'}
+          {selectionStep === 'end_verse' && '종료 절 선택'}
+        </h3>
+
+        <div className="grid grid-cols-4 gap-2">
+          {/* 신약/구약 선택 */}
+          {selectionStep === 'testament' &&
+            ['구약', '신약'].map(t => (
+              <button
+                key={t}
+                onClick={() => { setTempSelection(p => ({ ...p, testament: t })); setSelectionStep('book'); }}
+                className="py-5 bg-zinc-50 rounded-2xl font-bold col-span-4 text-lg"
+              >
+                {t}
+              </button>
+            ))}
+
+          {/* 권 선택 */}
+          {selectionStep === 'book' &&
+            BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
+              <button
+                key={b}
+                onClick={() => loadChapters(b)}
+                className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600"
+              >
+                {b}
+              </button>
+            ))}
+
+          {/* 장 선택 */}
+          {(selectionStep === 'start_chapter' || selectionStep === 'end_chapter') &&
+            availableChapters.map(ch => (
+              <button
+                key={ch}
+                disabled={selectionStep === 'end_chapter' && ch < tempSelection.start_chapter}
+                onClick={() => {
+                  if (selectionStep === 'start_chapter') {
+                    setTempSelection(p => ({ ...p, start_chapter: ch }));
+                    loadVerses(ch, 'start_verse'); // 시작 절로 이동
+                  } else {
+                    setTempSelection(p => ({ ...p, end_chapter: ch }));
+                    loadVerses(ch, 'end_verse'); // 종료 절로 이동
+                  }
+                }}
+                className={`py-3 rounded-xl font-bold ${
+                  selectionStep === 'end_chapter' && ch < tempSelection.start_chapter
+                    ? 'bg-zinc-100 text-zinc-300'
+                    : 'bg-zinc-50 text-zinc-700'
+                }`}
+              >
+                {ch}
+              </button>
+            ))}
+
+          {/* 절 선택 */}
+          {(selectionStep === 'start_verse' || selectionStep === 'end_verse') &&
+            availableVerses.map(v => (
+              <button
+                key={v}
+                disabled={selectionStep === 'end_verse' && v < tempSelection.start_verse}
+                onClick={() => {
+                  if (selectionStep === 'start_verse') {
+                    setTempSelection(p => ({ ...p, start_verse: v }));
+                    setSelectionStep('end_chapter'); // 종료 장으로 이동
+                  } else {
+                    setTempSelection(p => ({ ...p, end_verse: v }));
+                    setIsEditModalOpen(false); // 완료 후 모달 닫기
+                  }
+                }}
+                className={`py-3 rounded-xl font-bold ${
+                  selectionStep === 'end_verse' && v < tempSelection.start_verse
+                    ? 'bg-zinc-100 text-zinc-300'
+                    : 'bg-zinc-50 text-zinc-700'
+                }`}
+              >
+                {v}
+              </button>
+            ))}
+        </div>
+
+        <button
+          onClick={() => setIsEditModalOpen(false)}
+          className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
+        >
+          닫기
+        </button>
+      </motion.div>
     </motion.div>
-  </motion.div>
-)}
-      </AnimatePresence>
+  )}
+</AnimatePresence>
 
       {/* TTS 컨트롤 (완벽 복구) */}
       <AnimatePresence>
