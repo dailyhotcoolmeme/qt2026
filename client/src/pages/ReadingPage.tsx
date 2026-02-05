@@ -280,11 +280,18 @@ const loadChapters = async (book: string) => {
           <div className="flex-1 flex justify-start pl-3">      
             <button
   onClick={() => {
-    console.log('📌 범위 설정 버튼 클릭됨');
+    alert('버튼 눌림');
   }}
-  className="relative z-[9999] flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741]"
+  className="
+    relative z-[9999]
+    flex items-center justify-center
+    p-2 rounded-full
+    bg-red-500
+    active:scale-90
+    transition-transform
+  "
 >
-  <NotebookPen size={16} strokeWidth={1.5} />
+  <NotebookPen size={18} color="white" />
 </button>
           </div>
           <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
