@@ -389,7 +389,7 @@ const loadChapters = async (book: string) => {
         {tempSelection.book_name && <>〉<span>{tempSelection.book_name}</span></>}
         {tempSelection.start_chapter > 0 && <>〉<span>시작 {tempSelection.start_chapter}장</span></>}
         {tempSelection.start_verse > 0 && <>〉<span>{tempSelection.start_verse}절</span></>}
-        {tempSelection.end_chapter > 0 && <>〉<span>종료 {tempSelection.end_chapter}장</span></>}
+        {tempSelection.end_chapter > 0 && <>〉<span>{tempSelection.end_chapter}장</span></>}
         {tempSelection.end_verse > 0 && <>〉<span>{tempSelection.end_verse}절</span></>}
       </div>
 
@@ -421,7 +421,10 @@ const loadChapters = async (book: string) => {
           BIBLE_BOOKS[tempSelection.testament as '구약' | '신약'].map(b => (
             <button
               key={b}
-              onClick={() => loadChapters(b)}
+              onClick={() => {
+                setTempSelection(p => ({ ...p, book_name: b }));
+                loadChapters(b);
+              }}
               className="py-3 bg-zinc-50 rounded-xl text-sm font-bold text-zinc-600"
             >
               {b}
