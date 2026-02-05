@@ -20,11 +20,25 @@ export default function KneesPage() {
   const [duration, setDuration] = useState(0);
   const { fontSize = 16 } = useDisplaySettings();
   
+  // 저장된 기도 목록
+  interface SavedPrayer {
+    id: string;
+    audioURL: string;
+    transcript: string;
+    timestamp: Date;
+    isPlaying: boolean;
+    currentTime: number;
+    duration: number;
+  }
+  const [savedPrayers, setSavedPrayers] = useState<SavedPrayer[]>([]);
+  const [playingPrayerId, setPlayingPrayerId] = useState<string | null>(null);
+  
   // 오디오 및 음성인식 참조
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recognitionRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const previousAudioBlobsRef = useRef<Blob[]>([]); // 이전 녹음 저장
 
   useEffect(() => {
     // Web Speech API 초기화
@@ -131,13 +145,27 @@ export default function KneesPage() {
           }
         };
 
-        mediaRecorder.onstop = () => {
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-          const url = URL.createObjectURL(audioBlob);
+        mediaRecorder.onstop = async () => {
+          const newAudioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          // 이전 녹음이 있으면 합치기
+          let finalBlob: Blob;
+          if (previousAudioBlobsRef.current.length > 0) {
+            // 모든 Blob을 합침
+            const allBlobs = [...previousAudioBlobsRef.current, newAudioBlob];
+            finalBlob = new Blob(allBlobs, { type: 'audio/webm' });
+          } else {
+            finalBlob = newAudioBlob;
+          }
+          
+          const url = URL.createObjectURL(finalBlob);
           setAudioURL(url);
           
           // 오디오 엘리먼트 생성
           audioRef.current = new Audio(url);
+          
+          // 현재 녹음을 이전 녹음 목록에 저장
+          previousAudioBlobsRef.current.push(newAudioBlob);
           
           stream.getTracks().forEach(track => track.stop());
         };
@@ -192,9 +220,63 @@ export default function KneesPage() {
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    previousAudioBlobsRef.current = []; // 이전 녹음 초기화
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
+    }
+  };
+
+  const handleContinueRecording = async () => {
+    // 이어서 녹음 - 기존 녹음과 텍스트는 유지
+    setAudioURL(null); // 재생 UI 숨기고 다시 녹음 시작
+    setIsPlaying(false);
+    await toggleRecording();
+  };
+
+  const handleSavePrayer = () => {
+    if (!audioURL || !transcript.trim()) {
+      alert('녹음 또는 텍스트가 없습니다.');
+      return;
+    }
+
+    const newPrayer: SavedPrayer = {
+      id: Date.now().toString(),
+      audioURL: audioURL,
+      transcript: transcript,
+      timestamp: new Date(),
+      isPlaying: false,
+      currentTime: 0,
+      duration: duration,
+    };
+
+    setSavedPrayers((prev) => [newPrayer, ...prev]);
+    
+    // 초기화
+    handleReset();
+  };
+
+  const toggleSavedPrayerPlayback = (prayerId: string) => {
+    const prayer = savedPrayers.find(p => p.id === prayerId);
+    if (!prayer) return;
+
+    // 다른 기도 재생 중이면 멈춤
+    if (playingPrayerId && playingPrayerId !== prayerId) {
+      const prevAudio = document.getElementById(`audio-${playingPrayerId}`) as HTMLAudioElement;
+      if (prevAudio) {
+        prevAudio.pause();
+      }
+    }
+
+    const audio = document.getElementById(`audio-${prayerId}`) as HTMLAudioElement;
+    if (!audio) return;
+
+    if (playingPrayerId === prayerId) {
+      audio.pause();
+      setPlayingPrayerId(null);
+    } else {
+      audio.play();
+      setPlayingPrayerId(prayerId);
     }
   };
 
@@ -262,77 +344,97 @@ export default function KneesPage() {
             className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-8 text-center z-10 touch-none"
           >
             {/* 기도 입력 컨텐츠 */}
-            <div className="w-full h-full flex flex-col items-center justify-between gap-4">
-              <div className="space-y-1">
-              </div>
+            <div className="w-full h-full flex flex-col gap-4">
+              <h3 className="font-bold text-[#4A6741] text-sm tracking-wide">오늘의 기도</h3>
 
               {/* 음성 녹음/재생 UI */}
               {!audioURL ? (
-                <div className="relative my-2">
-                  <AnimatePresence>
-                    {isRecording && (
-                      <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1.4, opacity: 0.15 }}
-                        exit={{ scale: 0.8, opacity: 0 }}
-                        transition={{ repeat: Infinity, duration: 1.5 }}
-                        className="absolute inset-0 bg-red-500 rounded-full"
-                      />
-                    )}
-                  </AnimatePresence>
-                  <button
-                    onClick={toggleRecording}
-                    className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
-                      isRecording ? 'bg-red-500 text-white' : 'bg-[#4A6741] text-white'
-                    }`}
-                  >
-                    {isRecording ? <Square className="w-7 h-7 fill-current" /> : <Mic className="w-8 h-8" />}
-                  </button>
+                <div className="flex flex-col items-center justify-center flex-1 gap-4">
+                  <div className="relative">
+                    <AnimatePresence>
+                      {isRecording && (
+                        <motion.div
+                          initial={{ scale: 0.8, opacity: 0 }}
+                          animate={{ scale: 1.4, opacity: 0.15 }}
+                          exit={{ scale: 0.8, opacity: 0 }}
+                          transition={{ repeat: Infinity, duration: 1.5 }}
+                          className="absolute inset-0 bg-red-500 rounded-full"
+                        />
+                      )}
+                    </AnimatePresence>
+                    <button
+                      onClick={toggleRecording}
+                      className={`relative z-10 w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-lg active:scale-95 ${
+                        isRecording ? 'bg-red-500 text-white' : 'bg-[#4A6741] text-white'
+                      }`}
+                    >
+                      {isRecording ? <Square className="w-7 h-7 fill-current" /> : <Mic className="w-8 h-8" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-400">
+                    {isRecording ? '기도 중...' : '마이크를 눌러 기도를 시작하세요'}
+                  </p>
+                  
+                  {/* 녹음 중 실시간 텍스트 표시 */}
+                  {isRecording && transcript && (
+                    <div className="w-full flex-1 bg-gray-50 rounded-2xl p-3 overflow-y-auto mt-2">
+                      <p className="text-sm text-gray-600 leading-relaxed text-left whitespace-pre-wrap">
+                        {transcript}
+                      </p>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="w-full space-y-3">
-                  {/* 재생 컨트롤 */}
-                  <div className="flex items-center justify-center gap-4">
+                <div className="flex flex-col gap-4 flex-1">
+                  {/* 재생 컨트롤 - 깔끔한 디자인 */}
+                  <div className="flex items-center justify-center gap-2">
                     <button
                       onClick={togglePlayback}
-                      className="w-16 h-16 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg active:scale-95 transition-all"
+                      className="w-12 h-12 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-sm active:scale-95 transition-all"
                     >
-                      {isPlaying ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-1" />}
+                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
                     </button>
                     <button
-                      onClick={handleReset}
-                      className="w-12 h-12 rounded-full bg-red-500 text-white flex items-center justify-center shadow-md active:scale-95 transition-all"
+                      onClick={handleContinueRecording}
+                      className="px-3 py-2 rounded-full bg-white border border-gray-200 text-gray-700 text-xs font-medium shadow-sm active:scale-95 transition-all"
                     >
-                      <X className="w-5 h-5" />
+                      이어서 녹음
+                    </button>
+                    <button
+                      onClick={handleSavePrayer}
+                      className="px-3 py-2 rounded-full bg-[#4A6741] text-white text-xs font-medium shadow-sm active:scale-95 transition-all"
+                    >
+                      기도 저장
                     </button>
                   </div>
 
                   {/* 재생 바 */}
-                  <div className="w-full space-y-2">
+                  <div className="w-full space-y-1.5 px-2">
                     <input
                       type="range"
                       min="0"
                       max={duration || 0}
                       value={currentTime}
                       onChange={handleSeek}
-                      className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
+                      className="w-full h-1 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#4A6741]"
+                      style={{
+                        background: `linear-gradient(to right, #4A6741 0%, #4A6741 ${(currentTime / duration) * 100}%, #e5e7eb ${(currentTime / duration) * 100}%, #e5e7eb 100%)`
+                      }}
                     />
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-[10px] text-gray-400">
                       <span>{formatTime(currentTime)}</span>
                       <span>{formatTime(duration)}</span>
                     </div>
                   </div>
+
+                  {/* 텍스트 미리보기 */}
+                  <div className="flex-1 bg-gray-50 rounded-2xl p-3 overflow-y-auto">
+                    <p className="text-xs text-gray-600 leading-relaxed text-left whitespace-pre-wrap">
+                      {transcript || '텍스트가 없습니다.'}
+                    </p>
+                  </div>
                 </div>
               )}
-
-              {/* 텍스트 입력 박스 (STT 결과) */}
-              <textarea
-                value={transcript}
-                onChange={(e) => setTranscript(e.target.value)}
-                placeholder="음성을 녹음하면 이곳에 텍스트로 입력됩니다"
-                className="w-full flex-1 p-4 rounded-2xl bg-zinc-50 border-none focus:ring-2 focus:ring-green-100 text-zinc-700 leading-relaxed resize-none text-[15px] placeholder:text-zinc-300"
-                style={{ fontSize: `${fontSize * 0.9}px` }}
-              />
             </div>
           </motion.div>
         </AnimatePresence>
@@ -340,6 +442,54 @@ export default function KneesPage() {
         {/* 오른쪽 힌트 카드 */}
         <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
+
+      {/* 저장된 기도 목록 */}
+      {savedPrayers.length > 0 && (
+        <div className="w-full max-w-sm mt-6 space-y-3 px-4 pb-8">
+          <h3 className="text-xs font-semibold text-gray-400 tracking-wide">저장된 기도</h3>
+          {savedPrayers.map((prayer) => (
+            <motion.div
+              key={prayer.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 space-y-3"
+            >
+              {/* 오디오 엘리먼트 (숨김) */}
+              <audio
+                id={`audio-${prayer.id}`}
+                src={prayer.audioURL}
+                onEnded={() => setPlayingPrayerId(null)}
+              />
+
+              {/* 재생 컨트롤 */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => toggleSavedPrayerPlayback(prayer.id)}
+                  className="w-9 h-9 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-sm active:scale-95 transition-all"
+                >
+                  {playingPrayerId === prayer.id ? (
+                    <Pause className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  )}
+                </button>
+                <div className="flex-1">
+                  <p className="text-[10px] text-gray-400">
+                    {prayer.timestamp.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+
+              {/* 텍스트 */}
+              <div className="max-h-32 overflow-y-auto bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-wrap">
+                  {prayer.transcript}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
