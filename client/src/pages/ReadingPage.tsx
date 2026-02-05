@@ -432,21 +432,24 @@ const loadChapters = async (book: string) => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 🔴 테스트용 모달 — 반드시 여기 */}
       {isEditModalOpen && (
-  <div
-    className="fixed inset-0 z-[10000] bg-black/40 flex items-center justify-center"
-    onClick={() => setIsEditModalOpen(false)}
-  >
-    <div
-      className="bg-white w-4/5 h-40 rounded-xl flex items-center justify-center"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <p className="text-lg font-bold">
-        모달 열림
-      </p>
-    </div>
-  </div>
-)}
+        <div
+          className="fixed inset-0 z-[10000] bg-black/40 flex items-center justify-center"
+          onClick={() => setIsEditModalOpen(false)}
+        >
+          <div
+            className="bg-white w-4/5 h-40 rounded-xl flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-lg font-bold">
+              모달 열림
+            </p>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
