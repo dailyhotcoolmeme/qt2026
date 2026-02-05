@@ -103,7 +103,6 @@ const [tempSelection, setTempSelection] = useState({
 const [availableChapters, setAvailableChapters] = useState<number[]>([]);
 const [availableVerses, setAvailableVerses] = useState<number[]>([]);
   
-// --- 🔹 장 선택 불러오기
 const loadChapters = async (book: string) => {
   setTempSelection(p => ({
     ...p,
@@ -127,7 +126,6 @@ const loadChapters = async (book: string) => {
   }
 };
 
-// --- 🔹 절 선택 불러오기
 const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse') => {
   if (!tempSelection.book_name) return;
 
@@ -379,7 +377,6 @@ const loadVerses = async (chapter: number, nextStep: 'start_verse' | 'end_verse'
           <ChevronRight size={32} strokeWidth={1.5} />
         </button>
       </div>
-// --- 🔹 범위 선택 모달 JSX (AnimatePresence 포함)
 <AnimatePresence>
   {isEditModalOpen && (
     <motion.div
