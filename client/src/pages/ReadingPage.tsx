@@ -298,7 +298,7 @@ const loadChapters = async (book: string) => {
             key={bibleData?.id || bibleData?.chapter || currentDate.toISOString()}
             drag="x" dragConstraints={{ left: 0, right: 0 }} dragElastic={0.2} onDragEnd={onDragEnd}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
-            className="w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
+            className="w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center p-10 text-center z-10 cursor-grab active:cursor-grabbing"
           >
             {bibleData ? (
               <>
