@@ -108,13 +108,15 @@ const [availableChapters, setAvailableChapters] = useState<number[]>([]);
 
   // --- 🔥 [핵심] 단계별 데이터 로딩 로직 ---
 const loadChapters = async (book: string) => {
+  // 선택 반영
   setTempSelection({
-    testament: tempSelection.testament,
+    ...tempSelection,
     book_name: book,
     start_chapter: 0,
     end_chapter: 0,
   });
 
+  // 장 정보 가져오기
   const { data } = await supabase
     .from('bible_verses')
     .select('chapter')
@@ -124,7 +126,9 @@ const loadChapters = async (book: string) => {
   if (data) {
     const chapters = Array.from(new Set(data.map(d => d.chapter)));
     setAvailableChapters(chapters);
-    setSelectionPhase('start');
+
+    // ✅ 여기가 핵심: 권 선택 후 바로 장 선택 단계로 이동
+    setSelectionStep('start_chapter');
   }
 };
 
