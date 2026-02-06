@@ -93,16 +93,16 @@ function NavItem({
                   w-14 h-14 rounded-full
                   ${
                     active
-                      ? "bg-[#4A6741] text-white scale-110 animate-[amen-breath_3s_ease-in-out_infinite]"
+                      ? "bg-[#4A6741] text-white scale-110 animate-[amen-breath_8s_ease-in-out_infinite]"
                       : "bg-white text-[#4A6741] border"
                   }
                   shadow-md
                 `
                 : `
-                  p-1.5 rounded-2xl
+                  p-1.5 rounded-2xl transition-transform duration-200
                   ${
                     active
-                      ? "bg-green-50 text-[#4A6741] scale-105"
+                      ? "bg-green-50 text-[#4A6741] scale-110"
                       : "text-zinc-400"
                   }
                 `
