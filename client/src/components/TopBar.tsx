@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookPlus, BookType, BookSearch } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookSearch } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { Link } from "wouter";
 
@@ -28,7 +28,6 @@ export function TopBar() {
   
   
         <div className="flex items-center gap-1">
-          {/* 성경 검색 버튼 */}
   <Link href="/search">
     <button
       className="p-2 rounded-full hover:bg-zinc-100 text-zinc-600 transition-colors"
