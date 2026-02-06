@@ -2,7 +2,6 @@
 module.exports = {
   darkMode: ["class"],
 
-  // Root가 client이므로 현재 폴더 기준
   content: [
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
@@ -77,10 +76,17 @@ module.exports = {
           to: { height: 0 },
         },
 
-        // 🔥 myAmen 숨쉬기 (아이콘만 커졌다 작아짐)
+        /*
+         myAmen 호흡 애니메이션
+         - 빠른 UI 리듬 ❌
+         - 기도 / 머묾 / 호흡 ⭕
+         */
         "amen-breath": {
-          "0%, 100%": { transform: "scale(1.08)" },
-          "50%": { transform: "scale(1.15)" },
+          "0%": { transform: "scale(1.0)" },
+          "25%": { transform: "scale(1.08)" }, // 들이마심
+          "40%": { transform: "scale(1.08)" }, // 멈춤
+          "75%": { transform: "scale(1.0)" },  // 내쉼
+          "100%": { transform: "scale(1.0)" }, // 멈춤
         },
       },
 
@@ -88,8 +94,8 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
 
-        // 🔥 myAmen 전용 애니메이션
-        "amen-breath": "amen-breath 3s ease-in-out infinite",
+        // myAmen 전용 (느린 1호흡 = 8초)
+        "amen-breath": "amen-breath 8s ease-in-out infinite",
       },
     },
   },
