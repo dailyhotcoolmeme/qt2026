@@ -35,6 +35,7 @@ export function TopBar() {
       <BookSearch className="w-5 h-5" />
     </button>
   </Link>
+</div>
         <div className="flex items-center gap-1">
           <button 
             onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
