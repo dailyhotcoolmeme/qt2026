@@ -27,7 +27,7 @@ export function BottomNav() {
         active={location === "/"}
       />
 
-      {/* myAmen 중심 */}
+      {/* myAmen */}
       <NavItem
         href="/prayer"
         icon={<HandHeart />}
@@ -69,10 +69,7 @@ function NavItem({
   primary = false,
 }: NavItemProps) {
   const handleClick = () => {
-    // 🔔 모든 메뉴 햅틱
-    if (navigator.vibrate) {
-      navigator.vibrate(12);
-    }
+    if (navigator.vibrate) navigator.vibrate(12);
   };
 
   return (
@@ -81,20 +78,22 @@ function NavItem({
         onClick={handleClick}
         className={`
           flex flex-col items-center justify-center min-w-[68px] h-full cursor-pointer
+          transition-transform duration-200
           ${primary ? "-mt-4" : ""}
         `}
       >
-        {/* 아이콘 영역 */}
+        {/* 아이콘 */}
         <div
           className={`
-            flex items-center justify-center transition-all
+            flex items-center justify-center
+            transition-transform duration-200 ease-out
             ${
               primary
                 ? `
                   w-14 h-14 rounded-full
                   ${
                     active
-                      ? "bg-[#4A6741] text-white animate-[pulse_3s_ease-in-out_infinite]"
+                      ? "bg-[#4A6741] text-white scale-110 animate-[amen-breath_3s_ease-in-out_infinite]"
                       : "bg-white text-[#4A6741] border"
                   }
                   shadow-md
@@ -103,7 +102,7 @@ function NavItem({
                   p-1.5 rounded-2xl
                   ${
                     active
-                      ? "bg-green-50 text-[#4A6741]"
+                      ? "bg-green-50 text-[#4A6741] scale-105"
                       : "text-zinc-400"
                   }
                 `
@@ -112,20 +111,22 @@ function NavItem({
         >
           {React.cloneElement(icon, {
             size: primary ? 30 : 22,
-            strokeWidth: 1.6, // 👈 전체적으로 얇게
+            strokeWidth: 1.5,
           })}
         </div>
 
         {/* 라벨 */}
         <span
           className={`
-            mt-1 tracking-tight
+            mt-0.5 tracking-tight transition-all duration-200
             ${
               primary
-                ? "text-[14px] font-semibold text-[#4A6741]"
+                ? active
+                  ? "text-[14.5px] font-semibold text-[#4A6741] scale-105"
+                  : "text-[14px] font-semibold text-[#4A6741]"
                 : active
-                ? "text-[#4A6741] text-[13px] font-medium"
-                : "text-zinc-400 text-[13px] font-medium"
+                ? "text-[13.5px] font-medium text-[#4A6741] scale-105"
+                : "text-[13px] font-medium text-zinc-400"
             }
           `}
         >
