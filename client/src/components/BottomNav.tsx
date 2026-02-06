@@ -8,17 +8,17 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t px-1 pb-safe-area-inset-bottom h-[76px] flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+{/* 오늘묵상: Sparkles (기도의 영성을 상징하는 반짝임) */}
+      <NavItem href="/qt" icon={<BookHeart />} label="묵상일기" active={location === "/qt"} />
+      
       {/* 오늘말씀 */}
       <NavItem href="/" icon={<Sun />} label="오늘말씀" active={location === "/"} />
-      
-      {/* 오늘묵상: Sparkles (기도의 영성을 상징하는 반짝임) */}
-      <NavItem href="/qt" icon={<BookHeart />} label="묵상일기" active={location === "/qt"} />
 
+{/* myAmen: Mic (음성 기도 중심) */}
+      <NavItem href="/prayer" icon={<HandHeart />} label="낙타무릎" active={location === "/prayer"} />
+      
       {/* 성경읽기: Book */}
       <NavItem href="/reading" icon={<BookHeadphones />} label="성경읽기" active={location === "/reading"} />
-
-      {/* 낙타무릎: Mic (음성 기도 중심) */}
-      <NavItem href="/prayer" icon={<HandHeart />} label="낙타무릎" active={location === "/prayer"} />
       
       {/* 중보모임: Users2 */}
       <NavItem href="/community" icon={<Church />} label="중보모임" active={location === "/community"} />
