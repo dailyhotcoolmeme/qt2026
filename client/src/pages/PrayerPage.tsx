@@ -170,7 +170,7 @@ export default function KneesPage() {
           stream.getTracks().forEach(track => track.stop());
         };
 
-        /*mediaRecorder.start();*/
+        mediaRecorder.start();
         
         // STT 시작
         if (recognitionRef.current) {
