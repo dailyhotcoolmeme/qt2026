@@ -93,7 +93,7 @@ function NavItem({
                   w-14 h-14 rounded-full
                   ${
                     active
-                      ? "bg-[#4A6741] text-white scale-110 animate-[amen-breath_8s_ease-in-out_infinite]"
+                      ? "bg-[#4A6741] text-white scale-110 animate-amen-breath"
                       : "bg-white text-[#4A6741] border"
                   }
                   shadow-md
@@ -125,8 +125,8 @@ function NavItem({
                   ? "text-[14.5px] font-semibold text-[#4A6741] scale-105"
                   : "text-[14px] font-semibold text-[#4A6741]"
                 : active
-                ? "text-[13.5px] font-medium text-[#4A6741] scale-105"
-                : "text-[13px] font-medium text-zinc-400"
+                ? "text-[13.5px] font-semibold text-[#4A6741] scale-105"
+                : "text-[13px] font-semibold text-zinc-400"
             }
           `}
         >

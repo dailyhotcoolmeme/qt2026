@@ -94,8 +94,8 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
 
-        // myAmen 전용 (느린 1호흡 = 8초)
-        "amen-breath": "amen-breath 8s ease-in-out infinite",
+        // myAmen 전용 (매우 느린 호흡 = 15초)
+        "amen-breath": "amen-breath 15s ease-in-out infinite",
       },
     },
   },
