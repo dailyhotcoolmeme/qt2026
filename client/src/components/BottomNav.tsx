@@ -13,8 +13,6 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t px-1 pb-safe-area-inset-bottom h-[76px] flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
-      
-      {/* 묵상일기 */}
       <NavItem
         href="/qt"
         icon={<BookHeart />}
@@ -22,7 +20,6 @@ export function BottomNav() {
         active={location === "/qt"}
       />
 
-      {/* 오늘말씀 */}
       <NavItem
         href="/"
         icon={<Sun />}
@@ -30,7 +27,7 @@ export function BottomNav() {
         active={location === "/"}
       />
 
-      {/* myAmen - 중앙 강조 */}
+      {/* myAmen 중심 */}
       <NavItem
         href="/prayer"
         icon={<HandHeart />}
@@ -39,7 +36,6 @@ export function BottomNav() {
         primary
       />
 
-      {/* 성경읽기 */}
       <NavItem
         href="/reading"
         icon={<BookHeadphones />}
@@ -47,7 +43,6 @@ export function BottomNav() {
         active={location === "/reading"}
       />
 
-      {/* 중보모임 */}
       <NavItem
         href="/community"
         icon={<Church />}
@@ -63,53 +58,74 @@ interface NavItemProps {
   icon: React.ReactElement;
   label: string;
   active: boolean;
-  primary?: boolean; // 👈 myAmen 전용
+  primary?: boolean;
 }
 
-function NavItem({ href, icon, label, active, primary = false }: NavItemProps) {
+function NavItem({
+  href,
+  icon,
+  label,
+  active,
+  primary = false,
+}: NavItemProps) {
+  const handleClick = () => {
+    // 🔔 모든 메뉴 햅틱
+    if (navigator.vibrate) {
+      navigator.vibrate(12);
+    }
+  };
+
   return (
     <Link href={href}>
       <div
+        onClick={handleClick}
         className={`
           flex flex-col items-center justify-center min-w-[68px] h-full cursor-pointer
           ${primary ? "-mt-4" : ""}
         `}
       >
-        {/* 아이콘 버튼 */}
+        {/* 아이콘 영역 */}
         <div
           className={`
-            flex items-center justify-center rounded-full transition-all
+            flex items-center justify-center transition-all
             ${
               primary
-                ? `w-14 h-14 shadow-lg ${
+                ? `
+                  w-14 h-14 rounded-full
+                  ${
                     active
-                      ? "bg-[#4A6741] text-white"
+                      ? "bg-[#4A6741] text-white animate-[pulse_3s_ease-in-out_infinite]"
                       : "bg-white text-[#4A6741] border"
-                  }`
-                : `p-1.5 rounded-2xl ${
+                  }
+                  shadow-md
+                `
+                : `
+                  p-1.5 rounded-2xl
+                  ${
                     active
                       ? "bg-green-50 text-[#4A6741]"
                       : "text-zinc-400"
-                  }`
+                  }
+                `
             }
           `}
         >
           {React.cloneElement(icon, {
             size: primary ? 30 : 22,
-            strokeWidth: active ? 2.5 : 2,
+            strokeWidth: 1.6, // 👈 전체적으로 얇게
           })}
         </div>
 
         {/* 라벨 */}
         <span
           className={`
-            mt-1 tracking-tighter
+            mt-1 tracking-tight
             ${
               primary
-                ? "text-[14px] font-bold text-[#4A6741]"
+                ? "text-[14px] font-semibold text-[#4A6741]"
                 : active
-                ? "text-[#4A6741] text-[13px] font-bold"
-                : "text-zinc-400 text-[13px] font-bold"
+                ? "text-[#4A6741] text-[13px] font-medium"
+                : "text-zinc-400 text-[13px] font-medium"
             }
           `}
         >
