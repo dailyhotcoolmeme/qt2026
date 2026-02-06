@@ -25,8 +25,10 @@ export function TopBar() {
           </button>
           <span className="text-xl font-black text-[#4A6741] tracking-tighter">묵상일기</span>
         </div>
+  
+  
         <div className="flex items-center gap-1">
-  {/* 성경 검색 버튼 */}
+          {/* 성경 검색 버튼 */}
   <Link href="/search">
     <button
       className="p-2 rounded-full hover:bg-zinc-100 text-zinc-600 transition-colors"
@@ -35,8 +37,6 @@ export function TopBar() {
       <BookSearch className="w-5 h-5" />
     </button>
   </Link>
-</div>
-        <div className="flex items-center gap-1">
           <button 
             onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
             className={`p-2 rounded-full transition-colors ${showFontSizeSlider ? 'bg-green-100 text-[#4A6741]' : 'hover:bg-zinc-100 text-zinc-600'}`}
