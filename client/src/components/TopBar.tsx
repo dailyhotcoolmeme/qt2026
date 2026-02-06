@@ -19,13 +19,16 @@ export function TopBar() {
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-[150] bg-white border-b px-4 h-16 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button onClick={() => setIsMenuOpen(true)} className="p-2 -ml-2 hover:bg-zinc-100 rounded-full transition-colors">
             <Menu className="w-6 h-6 text-zinc-700" />
           </button>
         
         
-            <span className="text-xl font-black text-[#4A6741] tracking-tighter">myAmen</span>
+            <span className="text-xl font-bold text-[#4A6741] tracking-tighter relative inline-block">
+              <span className="text-[14px] font-bold absolute -top-2.5 -left-4">my</span>
+              <span>Amen</span>
+            </span>
         
         </div>
   
