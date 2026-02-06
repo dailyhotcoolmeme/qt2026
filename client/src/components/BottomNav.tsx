@@ -42,6 +42,12 @@ export function BottomNav() {
         href="/prayer"
         icon={<HandHeart />}
         label="myAmen"
+        customLabel={
+          <span className="relative inline-block">
+            <span className="text-[12px] font-medium absolute -top-1.5 -left-3.5">my</span>
+            <span>Amen</span>
+          </span>
+        }
         active={location === "/prayer"}
         primary
       />
@@ -70,6 +76,7 @@ interface NavItemProps {
   label: string;
   active: boolean;
   primary?: boolean;
+  customLabel?: React.ReactNode;
 }
 
 function NavItem({
@@ -78,6 +85,7 @@ function NavItem({
   label,
   active,
   primary = false,
+  customLabel,
 }: NavItemProps) {
   const handleClick = () => {
     if (navigator.vibrate) navigator.vibrate(12);
@@ -148,7 +156,7 @@ function NavItem({
             }
           `}
         >
-          {label}
+          {customLabel || label}
         </span>
       </div>
     </Link>
