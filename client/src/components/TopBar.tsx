@@ -23,7 +23,7 @@ export function TopBar() {
           <button onClick={() => setIsMenuOpen(true)} className="p-2 -ml-2 hover:bg-zinc-100 rounded-full transition-colors">
             <Menu className="w-6 h-6 text-zinc-700" />
           </button>
-          <span className="text-xl font-black text-[#4A6741] tracking-tighter">묵상일기</span>
+          <span className="text-xl font-black text-[#4A6741] tracking-tighter">myAmen</span>
         </div>
   
   
