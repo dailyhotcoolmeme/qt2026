@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookSearch } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { Link } from "wouter";
 
@@ -33,7 +33,7 @@ export function TopBar() {
       className="p-2 rounded-full hover:bg-zinc-100 text-zinc-600 transition-colors"
       aria-label="성경 검색"
     >
-      <BookSearch className="w-5 h-5" />
+      <BookType className="w-5 h-5" />
     </button>
   </Link>
           <button 
