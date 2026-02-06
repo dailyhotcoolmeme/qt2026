@@ -1,11 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
-  // Root가 client이므로 현재 폴더 기준으로 경로를 잡습니다.
+
+  // Root가 client이므로 현재 폴더 기준
   content: [
     "./index.html",
     "./src/**/*.{js,jsx,ts,tsx}",
   ],
+
   theme: {
     container: {
       center: true,
@@ -14,6 +16,7 @@ module.exports = {
         "2xl": "1400px",
       },
     },
+
     extend: {
       colors: {
         border: "hsl(var(--border))",
@@ -21,8 +24,9 @@ module.exports = {
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+
         primary: {
-          DEFAULT: "#5D7BAF", // 묵상 페이지 메인 컬러 고정
+          DEFAULT: "#5D7BAF",
           foreground: "hsl(var(--primary-foreground))",
         },
         secondary: {
@@ -50,17 +54,19 @@ module.exports = {
           foreground: "hsl(var(--card-foreground))",
         },
       },
-      // 핵심: TopBar 시스템과 폰트를 연결하는 이름표만 추가했습니다.
+
       fontFamily: {
         "sans-serif": ["'Noto Sans KR'", "sans-serif"],
-        "serif": ["'Nanum Myeongjo'", "serif"],
-        "monospace": ["'Nanum Gothic'", "monospace"],
+        serif: ["'Nanum Myeongjo'", "serif"],
+        monospace: ["'Nanum Gothic'", "monospace"],
       },
+
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+
       keyframes: {
         "accordion-down": {
           from: { height: 0 },
@@ -70,12 +76,26 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: 0 },
         },
+
+        // 🔥 myAmen 숨쉬기 (아이콘만 커졌다 작아짐)
+        "amen-breath": {
+          "0%, 100%": { transform: "scale(1.08)" },
+          "50%": { transform: "scale(1.15)" },
+        },
       },
+
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+
+        // 🔥 myAmen 전용 애니메이션
+        "amen-breath": "amen-breath 3s ease-in-out infinite",
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
-}
+
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+  ],
+};
