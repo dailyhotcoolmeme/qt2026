@@ -15,7 +15,7 @@ export function BottomNav() {
       <NavItem href="/" icon={<Sun />} label="오늘말씀" active={location === "/"} />
 
 {/* myAmen: Mic (음성 기도 중심) */}
-      <NavItem href="/prayer" icon={<HandHeart />} label="낙타무릎" active={location === "/prayer"} />
+      <NavItem href="/prayer" icon={<HandHeart />} label="myAmen" active={location === "/prayer"} />
       
       {/* 성경읽기: Book */}
       <NavItem href="/reading" icon={<BookHeadphones />} label="성경읽기" active={location === "/reading"} />
