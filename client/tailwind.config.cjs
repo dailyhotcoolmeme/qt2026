@@ -83,10 +83,10 @@ module.exports = {
          */
         "amen-breath": {
           "0%": { transform: "scale(1.0)" },
-          "25%": { transform: "scale(1.08)" }, // 들이마심
-          "40%": { transform: "scale(1.08)" }, // 멈춤
-          "75%": { transform: "scale(1.0)" },  // 내쉼
-          "100%": { transform: "scale(1.0)" }, // 멈춤
+          "20%": { transform: "scale(1.05)" }, // 천천히 들이마심
+          "40%": { transform: "scale(1.05)" }, // 길게 멈춤
+          "60%": { transform: "scale(1.0)" },  // 천천히 내쉼
+          "100%": { transform: "scale(1.0)" }, // 길게 멈춤
         },
       },
 
@@ -94,8 +94,8 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
 
-        // myAmen 전용 (매우 느린 호흡 = 15초)
-        "amen-breath": "amen-breath 15s ease-in-out infinite",
+        // myAmen 전용 (매우 느린 호흡 = 20초)
+        "amen-breath": "amen-breath 20s ease-in-out infinite",
       },
     },
   },

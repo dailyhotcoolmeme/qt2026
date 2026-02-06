@@ -12,7 +12,17 @@ export function BottomNav() {
   const [location] = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t px-1 pb-safe-area-inset-bottom h-[76px] flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+    <>
+      <style>{`
+        @keyframes amenBreathAnimation {
+          0% { transform: scale(1.05); }
+          25% { transform: scale(1.1); }
+          50% { transform: scale(1.15); }
+          75% { transform: scale(1.1); }
+          100% { transform: scale(1.05); }
+        }
+      `}</style>
+      <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t px-1 pb-safe-area-inset-bottom h-[76px] flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
       <NavItem
         href="/qt"
         icon={<BookHeart />}
@@ -50,6 +60,7 @@ export function BottomNav() {
         active={location === "/community"}
       />
     </nav>
+    </>
   );
 }
 
@@ -93,7 +104,7 @@ function NavItem({
                   w-14 h-14 rounded-full
                   ${
                     active
-                      ? "bg-[#4A6741] text-white scale-110 animate-amen-breath"
+                      ? "bg-[#4A6741] text-white scale-110"
                       : "bg-white text-[#4A6741] border"
                   }
                   shadow-md
@@ -108,6 +119,13 @@ function NavItem({
                 `
             }
           `}
+          style={
+            primary && active
+              ? {
+                  animation: 'amenBreathAnimation 6s ease-in-out infinite',
+                }
+              : undefined
+          }
         >
           {React.cloneElement(icon, {
             size: primary ? 30 : 22,
