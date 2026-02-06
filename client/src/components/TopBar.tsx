@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookPlus, BookType, BookSearch } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { Link } from "wouter";
 
