@@ -57,6 +57,7 @@ export default function ReadingPage() {
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showRangeToast, setShowRangeToast] = useState(false);
   const [rangeToastMessage, setRangeToastMessage] = useState('');
+  const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
@@ -637,9 +638,17 @@ const loadRangePages = async () => {
   };
 
   const handleShare = async () => {
+    if (!bibleData) return;
+    
+    const unit = bibleData.bible_name === '시편' ? '편' : '장';
+    const title = `${bibleData.bible_name} ${bibleData.chapter}${unit}`;
+    
+    // 절 번호 포함된 전체 내용
+    const contentWithVerses = bibleData.content;
+    
     const shareData = {
-      title: '성경 말씀',
-      text: bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.',
+      title: title,
+      text: `${title}\n\n${contentWithVerses}`,
       url: window.location.href, 
     };
 
@@ -669,7 +678,8 @@ const loadRangePages = async () => {
     // 로그인 확인
     if (!user) {
       setTimeout(() => {
-        alert('로그인하시면 읽은 말씀을 기록하고 관리할 수 있습니다!');
+        setShowLoginAlert(true);
+        setTimeout(() => setShowLoginAlert(false), 3000);
         setShowLoginModal(true);
       }, 500);
       return;
@@ -737,15 +747,15 @@ const loadRangePages = async () => {
               onClick={() => {
                 setIsEditModalOpen(true);
               }}
-              className="relative flex items-center justify-center p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+              className="relative flex items-center justify-center p-1.5 rounded-full bg-[#4A6741] shadow-sm active:scale-95 transition-transform"
             >
               <motion.span
-                initial={{ scale: 1, opacity: 0.5 }}
-                animate={{ scale: 1.4, opacity: 0 }}
+                initial={{ scale: 1, opacity: 0.3 }}
+                animate={{ scale: 1.5, opacity: 0 }}
                 transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
-                className="absolute inset-0 rounded-full bg-[#4A6741]"
+                className="absolute inset-0 rounded-full bg-white"
               />
-              <NotebookPen size={16} strokeWidth={1.5} className="relative z-10" />
+              <NotebookPen size={16} strokeWidth={1.5} className="relative z-10 text-white" />
             </button>
           </div>
           <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
@@ -761,18 +771,18 @@ const loadRangePages = async () => {
             animate={{ opacity: 1, rotateY: 0, scale: 1 }} 
             exit={{ opacity: 0, rotateY: 15, scale: 0.95 }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
-            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-10 py-8 text-left z-10"
+            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-8 text-left z-10"
             style={{ perspective: 1000 }}
           >
             {bibleData ? (
               <>
                 {/* 출처 영역 - 상단으로 이동 */}
-                <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-4" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-8" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse ? `${bibleData.verse}절` : ''}
                 </span>
 
                 {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-                <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium" 
+                <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2 text-zinc-800 leading-[1.7] break-keep font-medium" 
                      style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}>
                   {bibleData.content.split('\n').map((line: string, i: number) => {
                     // 정규식: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
@@ -798,7 +808,7 @@ const loadRangePages = async () => {
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <NotebookPen size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  우측 상단 📖 버튼을 눌러<br />
+                  우측 상단 � 버튼을 눌러<br />
                   읽을 범위를 선택해주세요
                 </p>
               </div>
@@ -1188,6 +1198,22 @@ const loadRangePages = async () => {
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
             {rangeToastMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 로그인 안내 토스트 */}
+      <AnimatePresence>
+        {showLoginAlert && (
+          <motion.div 
+            initial={{ opacity: 0, x: "-50%", y: 20 }}
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
+            style={{ left: '50%', transform: 'translateX(-50%)' }}
+          >
+            로그인하시면 읽은 말씀을 기록하고 관리할 수 있습니다!
           </motion.div>
         )}
       </AnimatePresence>
