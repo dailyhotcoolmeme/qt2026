@@ -80,7 +80,6 @@ export default function ReadingPage() {
 
   // 롱프레스로 읽기 완료 취소 관련 상태
   const [isLongPressing, setIsLongPressing] = useState(false);
-  const [longPressProgress, setLongPressProgress] = useState(0);
   const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
   const longPressStartTimeRef = useRef<number>(0);
   const longPressAnimationRef = useRef<number | null>(null);
@@ -1063,6 +1062,11 @@ const loadRangePages = async () => {
         // 로컬 상태 업데이트
         await checkCurrentChapterReadStatus();
         
+        // 햅틱 피드백 (취소 패턴 - 3번 진동)
+        if (navigator.vibrate) {
+          navigator.vibrate([100, 50, 100]);
+        }
+        
         // 취소 토스트 표시
         setShowCancelToast(true);
         setTimeout(() => setShowCancelToast(false), 2000);
@@ -1090,6 +1094,11 @@ const loadRangePages = async () => {
         origin: { y: 0.8 }, 
         colors: ['#f897c4', '#88B04B', '#FFD700'] 
       });
+      
+      // 햅틱 피드백 (짧은 진동)
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
     }
 
     // 로그인 확인 (전체 재생 모드가 아닐 때만 팝업)
@@ -1177,16 +1186,13 @@ const loadRangePages = async () => {
       
       const animate = () => {
         const elapsed = Date.now() - longPressStartTimeRef.current;
-        const progress = Math.min((elapsed / 1500) * 100, 100);
-        setLongPressProgress(progress);
         
-        if (progress >= 100) {
+        if (elapsed >= 1500) {
           // 1.5초 완료 - 취소 실행
           handleReadCancel();
           longPressCancelledRef.current = true;
           isLongPressingRef.current = false;
           setIsLongPressing(false);
-          setLongPressProgress(0);
         } else if (isLongPressingRef.current) {
           longPressAnimationRef.current = requestAnimationFrame(animate);
         }
@@ -1205,7 +1211,6 @@ const loadRangePages = async () => {
       longPressCancelledRef.current = false;
       isLongPressingRef.current = false;
       setIsLongPressing(false);
-      setLongPressProgress(0);
       if (longPressAnimationRef.current) {
         cancelAnimationFrame(longPressAnimationRef.current);
       }
@@ -1397,24 +1402,6 @@ const loadRangePages = async () => {
             className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
               ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
           >
-            {/* 원형 진행 바 (롱프레스 시) */}
-            {isLongPressing && (
-              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="48"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="4"
-                  strokeDasharray="301.6"
-                  strokeDashoffset={301.6 - (301.6 * longPressProgress) / 100}
-                  className="transition-all duration-100"
-                  style={{ opacity: 0.8 }}
-                />
-              </svg>
-            )}
-
             <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
             <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
             {user && readCount > 0 && (
@@ -1859,7 +1846,7 @@ const loadRangePages = async () => {
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}
             transition={{ duration: 0.3 }}
-            className="fixed bottom-36 left-1/2 z-[200] bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
+            className="fixed bottom-64 left-1/2 z-[200] bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
             읽기 완료가 취소되었습니다
