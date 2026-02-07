@@ -372,10 +372,8 @@ const loadLastReadChapter = async () => {
   
   const { data } = await supabase
     .from('user_reading_records')
-    .select('book_name, chapter, updated_at')
+    .select('book_name, chapter, completed_at')
     .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-    .limit(1);
     .order('completed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
