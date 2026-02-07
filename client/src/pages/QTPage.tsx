@@ -628,12 +628,17 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     initial={{ opacity: 0, x: 20 }} 
     animate={{ opacity: 1, x: 0 }} 
     exit={{ opacity: 0, x: -20 }}
-    className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center p-10 pb-8 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+    className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
   >
     {bibleData ? (
       <>
+        {/* 출처 영역 - 상단으로 이동 */}
+        <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+        </span>
+
         {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-    <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-6" 
+    <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium" 
          style={{ fontSize: `${fontSize}px`,maxHeight: "320px" // 이 값을 조절하여 카드의 전체적인 높이감을 결정하세요
         }}>
           {bibleData.content.split('\n').map((line: string, i: number) => {
@@ -655,11 +660,6 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
             return <p key={i}>{line}</p>;
           })}
         </div>
-
-        {/* 출처 영역 */}
-        <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-        </span>
       </>
     ) : (
       <div className="animate-pulse text-zinc-200 w-full text-center">

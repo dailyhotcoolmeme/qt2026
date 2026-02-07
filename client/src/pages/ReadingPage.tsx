@@ -61,7 +61,12 @@ export default function ReadingPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [isFromServer, setIsFromServer] = useState(false);
+  const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const verseRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
   const { fontSize = 16 } = useDisplaySettings();
 
@@ -112,6 +117,61 @@ useEffect(() => {
   };
   loadBookOrders();
 }, []);
+
+// 날짜별 말씀 로드 (로그인한 회원용)
+const loadDailyVerse = async (date: Date) => {
+  if (!user) return;
+  
+  const dateStr = date.toISOString().split('T')[0];
+  
+  const { data, error } = await supabase
+    .from('user_reading_records')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('date', dateStr)
+    .maybeSingle();
+  
+  if (data) {
+    // bible_books 정보 별도 조회
+    const { data: bookInfo } = await supabase
+      .from('bible_books')
+      .select('*')
+      .eq('book_name', data.book_name)
+      .single();
+    
+    // 절 번호와 함께 포맷팅
+    const { data: verses } = await supabase
+      .from('bible_verses')
+      .select('*')
+      .eq('book_name', data.book_name)
+      .eq('chapter', data.chapter)
+      .gte('verse', data.start_verse || 1)
+      .lte('verse', data.end_verse || 999)
+      .order('verse', { ascending: true });
+    
+    if (verses && verses.length > 0) {
+      const formattedContent = verses.map(v => `${v.verse}. ${v.content}`).join('\n');
+      
+      setBibleData({
+        id: data.id,
+        bible_name: data.book_name,
+        chapter: data.chapter,
+        verse: data.start_verse === data.end_verse ? `${data.start_verse}` : `${data.start_verse}-${data.end_verse}`,
+        content: formattedContent,
+        bible_books: bookInfo || { book_order: 0 },
+      });
+    }
+  } else if (error) {
+    console.error('말씀 로드 실패:', error);
+  }
+};
+
+// 로그인한 회원의 경우 날짜별 말씀 로드
+useEffect(() => {
+  if (user && rangePages.length === 0) {
+    loadDailyVerse(currentDate);
+  }
+}, [user, currentDate, rangePages.length]);
 
 // 모달이 열릴 때 전체 읽기 이력 로드
 useEffect(() => {
@@ -178,15 +238,15 @@ useEffect(() => {
 const loadAllReadingProgress = async () => {
   if (!user) return;
   
-  // 사용자의 모든 읽기 이력 가져오기
+  // user_reading_records에서 모든 읽기 기록 가져오기
   const { data } = await supabase
-    .from('reading_history')
-    .select('book_name, chapter')
+    .from('user_reading_records')
+    .select('book_name, chapter, read_count')
     .eq('user_id', user.id);
   
   if (!data) return;
   
-  // 각 책의 장별 카운트와 중복 제거된 장 목록 계산
+  // 각 책의 장별 카운트 계산
   const bookData: Record<string, { chapters: Set<number>; chapterCounts: Record<number, number> }> = {};
   
   data.forEach(record => {
@@ -197,8 +257,7 @@ const loadAllReadingProgress = async () => {
       };
     }
     bookData[record.book_name].chapters.add(record.chapter);
-    const counts = bookData[record.book_name].chapterCounts;
-    counts[record.chapter] = (counts[record.chapter] || 0) + 1;
+    bookData[record.book_name].chapterCounts[record.chapter] = record.read_count;
   });
   
   // 각 책의 전체 장 수를 가져와서 진행률 계산
@@ -262,19 +321,17 @@ const loadReadingProgress = async (book: string, chapters: number[]) => {
   if (!user) return;
   
   const { data } = await supabase
-    .from('reading_history')
-    .select('chapter')
+    .from('user_reading_records')
+    .select('chapter, read_count')
     .eq('user_id', user.id)
     .eq('book_name', book);
   
   if (data) {
-    // 중복 제거: 같은 장을 여러 번 읽어도 1회로 계산
     const uniqueCompletedChapters = Array.from(new Set(data.map(d => d.chapter)));
-    
-    // 각 장별로 읽은 횟수도 계산 (장 선택 시 표시용)
     const chapterCounts: Record<number, number> = {};
+    
     data.forEach(d => {
-      chapterCounts[d.chapter] = (chapterCounts[d.chapter] || 0) + 1;
+      chapterCounts[d.chapter] = d.read_count;
     });
     
     const progressMap: Record<string, number> = {};
@@ -298,24 +355,27 @@ const loadReadingProgress = async (book: string, chapters: number[]) => {
 const checkCurrentChapterReadStatus = async () => {
   if (!user || !bibleData) return;
   
-  const { data, count } = await supabase
-    .from('reading_history')
-    .select('*', { count: 'exact' })
+  const { data } = await supabase
+    .from('user_reading_records')
+    .select('read_count')
     .eq('user_id', user.id)
     .eq('book_name', bibleData.bible_name)
     .eq('chapter', bibleData.chapter);
   
   // 읽기 완료 횟수만 저장, 버튼 색상은 변경하지 않음 (범위 선택 모드이므로)
-  setReadCount(count || 0);
+  const totalCount = data ? data.reduce((sum, record) => sum + record.read_count, 0) : 0;
+  setReadCount(totalCount);
 };
 
 const loadLastReadChapter = async () => {
   if (!user || rangePages.length === 0) return;
   
   const { data } = await supabase
-    .from('reading_history')
-    .select('book_name, chapter, completed_at')
+    .from('user_reading_records')
+    .select('book_name, chapter, updated_at')
     .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(1);
     .order('completed_at', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -482,14 +542,41 @@ const loadRangePages = async () => {
       .trim();
   };
 
-  const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
+  const setupAudioEvents = (audio: HTMLAudioElement, startTime: number, fromServer = false) => {
     audioRef.current = audio;
     audio.currentTime = startTime;
+    
+    // 서버 파일일 때 duration 및 진행 상태 업데이트
+    setIsFromServer(fromServer);
+    
+    audio.onloadedmetadata = () => {
+      setDuration(audio.duration);
+    };
+    
+    audio.ontimeupdate = () => {
+      setCurrentTime(audio.currentTime);
+      
+      // 음성 싱크: 절별 스크롤 및 하이라이트
+      if (verseRefs.current.length > 0 && audio.duration > 0) {
+        const totalVerses = verseRefs.current.length;
+        const estimatedVerseIndex = Math.floor((audio.currentTime / audio.duration) * totalVerses);
+        const clampedIndex = Math.min(estimatedVerseIndex, totalVerses - 1);
+        
+        if (clampedIndex !== currentVerseIndex && verseRefs.current[clampedIndex]) {
+          setCurrentVerseIndex(clampedIndex);
+          verseRefs.current[clampedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }
+    };
+    
     audio.onended = () => {
       setIsPlaying(false);
       setShowAudioControl(false);
+      setCurrentTime(0);
+      setDuration(0);
       audioRef.current = null;
     };
+    
     setShowAudioControl(true);
     setIsPlaying(true);
     audio.play().catch(e => console.log("재생 시작 오류:", e));
@@ -531,15 +618,7 @@ const loadRangePages = async () => {
       // 1. 이미 파일이 있는 경우
       if (checkRes.ok) {
         const savedAudio = new Audio(publicUrl);
-        audioRef.current = savedAudio;
-        savedAudio.currentTime = lastTime;
-        savedAudio.onended = () => {
-          setIsPlaying(false);
-          setShowAudioControl(false);
-          audioRef.current = null;
-        };
-        setIsPlaying(true);
-        savedAudio.play().catch(e => console.log("재생 오류:", e));
+        setupAudioEvents(savedAudio, lastTime, true); // 서버 파일이므로 true 전달
         return;
       }
 
@@ -589,16 +668,8 @@ const loadRangePages = async () => {
       const audioUrl = URL.createObjectURL(audioBlob);
       const ttsAudio = new Audio(audioUrl);
       
-      // 4. 오디오 설정 및 재생
-      audioRef.current = ttsAudio;
-      ttsAudio.currentTime = lastTime;
-      ttsAudio.onended = () => {
-        setIsPlaying(false);
-        setShowAudioControl(false);
-        audioRef.current = null;
-      };
-      setIsPlaying(true);
-      ttsAudio.play().catch(e => console.log("재생 오류:", e));
+      // 4. 오디오 설정 및 재생 (TTS API이므로 false 전달)
+      setupAudioEvents(ttsAudio, lastTime, false);
 
       // 스토리지 업로드
       supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
@@ -677,10 +748,13 @@ const loadRangePages = async () => {
 
     // 로그인 확인
     if (!user) {
+      // 폭죽 후 메시지 표시
       setTimeout(() => {
         setShowLoginAlert(true);
-        setTimeout(() => setShowLoginAlert(false), 3000);
-        setShowLoginModal(true);
+        setTimeout(() => {
+          setShowLoginAlert(false);
+          setShowLoginModal(true); // 메시지 후 모달
+        }, 3000);
       }, 500);
       return;
     }
@@ -688,14 +762,37 @@ const loadRangePages = async () => {
     // 로그인 상태면 읽기 완료 기록 저장 (횟수 증가)
     if (bibleData) {
       try {
-        // insert (기존에 없으면 새로 추가, 있으면 새 행 추가로 횟수 증가)
-        await supabase
-          .from('reading_history')
-          .insert({
+        const dateStr = currentDate.toISOString().split('T')[0];
+        
+        // user_reading_records에서 오늘 날짜 데이터 확인
+        const { data: existing } = await supabase
+          .from('user_reading_records')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('date', dateStr)
+          .maybeSingle();
+        
+        if (existing) {
+          // 이미 있으면 read_count만 증가
+          await supabase
+            .from('user_reading_records')
+            .update({ 
+              read_count: existing.read_count + 1, 
+              updated_at: new Date().toISOString() 
+            })
+            .eq('id', existing.id);
+        } else {
+          // 없으면 새로 생성
+          await supabase.from('user_reading_records').insert({
             user_id: user.id,
+            date: dateStr,
             book_name: bibleData.bible_name,
             chapter: bibleData.chapter,
+            start_verse: bibleData.verse || 1,
+            end_verse: bibleData.verse || 1,
+            read_count: 1,
           });
+        }
         
         // 진행률 업데이트
         const key = `${bibleData.bible_name}_${bibleData.chapter}`;
@@ -742,21 +839,26 @@ const loadRangePages = async () => {
           <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
-          <div className="flex-1 flex justify-start pl-3">      
-            <button
-              onClick={() => {
-                setIsEditModalOpen(true);
-              }}
-              className="relative flex items-center justify-center p-1.5 rounded-full bg-[#4A6741] shadow-sm active:scale-95 transition-transform"
-            >
-              <motion.span
-                initial={{ scale: 1, opacity: 0.3 }}
-                animate={{ scale: 1.5, opacity: 0 }}
-                transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
-                className="absolute inset-0 rounded-full bg-white"
-              />
-              <NotebookPen size={16} strokeWidth={1.5} className="relative z-10 text-white" />
-            </button>
+          <div className="flex-1 flex justify-start pl-3">
+            {/* 오늘 날짜에만 NotebookPen 버튼 표시 */}
+            {currentDate.toDateString() === today.toDateString() ? (
+              <button
+                onClick={() => {
+                  setIsEditModalOpen(true);
+                }}
+                className="relative flex items-center justify-center p-1.5 rounded-full bg-[#4A6741] shadow-sm active:scale-95 transition-transform"
+              >
+                <motion.span
+                  initial={{ scale: 1, opacity: 0.3 }}
+                  animate={{ scale: 1.5, opacity: 0 }}
+                  transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
+                  className="absolute inset-0 rounded-full bg-white"
+                />
+                <NotebookPen size={16} strokeWidth={1.5} className="relative z-10 text-white" />
+              </button>
+            ) : (
+              <div className="w-[28px] h-[28px]" aria-hidden="true" />
+            )}
           </div>
           <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
         </div>
@@ -767,22 +869,28 @@ const loadRangePages = async () => {
         <AnimatePresence mode="wait">
           <motion.div 
             key={bibleData?.id || bibleData?.chapter || currentDate.toISOString()}
+            drag={user && rangePages.length === 0 ? "x" : false}
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={user && rangePages.length === 0 ? onDragEnd : undefined}
             initial={{ opacity: 0, rotateY: -15, scale: 0.95 }} 
             animate={{ opacity: 1, rotateY: 0, scale: 1 }} 
             exit={{ opacity: 0, rotateY: 15, scale: 0.95 }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
-            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-8 text-left z-10"
+            className={`w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 ${
+              user && rangePages.length === 0 ? 'touch-none cursor-grab active:cursor-grabbing' : ''
+            }`}
             style={{ perspective: 1000 }}
           >
             {bibleData ? (
               <>
                 {/* 출처 영역 - 상단으로 이동 */}
-                <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-8" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse ? `${bibleData.verse}절` : ''}
                 </span>
 
                 {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-                <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-2 text-zinc-800 leading-[1.7] break-keep font-medium" 
+                <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium" 
                      style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}>
                   {bibleData.content.split('\n').map((line: string, i: number) => {
                     // 정규식: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
@@ -790,8 +898,13 @@ const loadRangePages = async () => {
                     
                     if (match) {
                       const [_, verseNum, textContent] = match;
+                      const isCurrentVerse = isPlaying && i === currentVerseIndex;
                       return (
-                        <p key={i} className="flex items-start gap-2">
+                        <p 
+                          key={i} 
+                          ref={(el) => verseRefs.current[i] = el}
+                          className={`flex items-start gap-2 transition-colors duration-300 rounded-lg px-2 py-1 ${isCurrentVerse ? 'bg-[#4A6741]/10' : ''}`}
+                        >
                           {/* 점 없이 숫자만 출력 */}
                           <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
                             {verseNum}
@@ -1218,7 +1331,7 @@ const loadRangePages = async () => {
         )}
       </AnimatePresence>
 
-      {/* TTS 컨트롤 (완벽 복구) */}
+      {/* TTS 컨트롤 (재생바 추가) */}
       <AnimatePresence>
         {showAudioControl && (
           <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
@@ -1230,8 +1343,36 @@ const loadRangePages = async () => {
                   </button>
                   <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
                 </div>
-                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); }}><X size={20}/></button>
+                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); setCurrentTime(0); setDuration(0); }}><X size={20}/></button>
               </div>
+              
+              {/* 재생바 및 시간 (서버 파일일 때만 표시) */}
+              {isFromServer && duration > 0 && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs text-white/80">
+                    <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
+                    <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={duration || 0}
+                    value={currentTime}
+                    onChange={(e) => {
+                      const newTime = Number(e.target.value);
+                      setCurrentTime(newTime);
+                      if (audioRef.current) {
+                        audioRef.current.currentTime = newTime;
+                      }
+                    }}
+                    className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, white 0%, white ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) 100%)`
+                    }}
+                  />
+                </div>
+              )}
+              
               <div className="flex gap-2">
                 <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>여성 목소리</button>
                 <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>남성 목소리</button>
