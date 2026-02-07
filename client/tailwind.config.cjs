@@ -58,6 +58,8 @@ module.exports = {
         "sans-serif": ["'Noto Sans KR'", "sans-serif"],
         serif: ["'Nanum Myeongjo'", "serif"],
         monospace: ["'Nanum Gothic'", "monospace"],
+        // 1. 애플 느낌을 내고 싶을 때
+        'apple': ['"Apple SD Gothic Neo"', 'sans-serif'],
       },
 
       borderRadius: {
