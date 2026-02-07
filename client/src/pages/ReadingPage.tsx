@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import confetti from 'canvas-confetti';
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
@@ -59,6 +59,7 @@ export default function ReadingPage() {
   const [rangeToastMessage, setRangeToastMessage] = useState('');
   const [showLoginAlert, setShowLoginAlert] = useState(false);
   const [showWarningToast, setShowWarningToast] = useState(false);
+  const [showCancelToast, setShowCancelToast] = useState(false);
   const [noReadingForDate, setNoReadingForDate] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -76,6 +77,17 @@ export default function ReadingPage() {
   const [showPlayModePopup, setShowPlayModePopup] = useState(false);
   const [isContinuousPlayMode, setIsContinuousPlayMode] = useState(false);
   const nextChapterAudioCache = useRef<HTMLAudioElement | null>(null);
+
+  // 롱프레스로 읽기 완료 취소 관련 상태
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const [longPressProgress, setLongPressProgress] = useState(0);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const longPressStartTimeRef = useRef<number>(0);
+  const longPressAnimationRef = useRef<number | null>(null);
+  const readCompleteButtonRef = useRef<HTMLButtonElement | null>(null);
+  const isLongPressingRef = useRef(false);
+  const longPressCancelledRef = useRef(false);
+  const pressStartedRef = useRef(false); // handleStart 실행 여부 확인용
 
   const { fontSize = 16 } = useDisplaySettings();
 
@@ -1010,6 +1022,56 @@ const loadRangePages = async () => {
     }
   };
 
+  // 읽기 완료 취소
+  const handleReadCancel = useCallback(async () => {
+    if (!user || !bibleData) return;
+
+    try {
+      // DB에서 read_count 1 감소 (최소 0)
+      const { data: existing } = await supabase
+        .from('user_reading_records')
+        .select('read_count')
+        .eq('user_id', user.id)
+        .eq('book_name', bibleData.bible_name)
+        .eq('chapter', bibleData.chapter)
+        .maybeSingle();
+
+      if (existing && existing.read_count > 0) {
+        const newCount = existing.read_count - 1;
+        
+        if (newCount === 0) {
+          // 0이 되면 레코드 삭제
+          await supabase
+            .from('user_reading_records')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('book_name', bibleData.bible_name)
+            .eq('chapter', bibleData.chapter);
+        } else {
+          // 1 감소
+          await supabase
+            .from('user_reading_records')
+            .update({ 
+              read_count: newCount,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('book_name', bibleData.bible_name)
+            .eq('chapter', bibleData.chapter);
+        }
+
+        // 로컬 상태 업데이트
+        await checkCurrentChapterReadStatus();
+        
+        // 취소 토스트 표시
+        setShowCancelToast(true);
+        setTimeout(() => setShowCancelToast(false), 2000);
+      }
+    } catch (error) {
+      console.error('읽기 완료 취소 실패:', error);
+    }
+  }, [user, bibleData]);
+
   const handleReadComplete = async (silent = false, chapterData = bibleData) => {
     // 말씀이 없으면 읽기 완료 불가
     if (!chapterData) {
@@ -1096,6 +1158,73 @@ const loadRangePages = async () => {
       }
     }
   };
+
+  // 롱프레스 이벤트 리스너 (터치 시작 즉시 원형 진행 바 표시)
+  useEffect(() => {
+    const button = readCompleteButtonRef.current;
+    if (!button) return;
+
+    const handleStart = (e: TouchEvent | MouseEvent) => {
+      pressStartedRef.current = true; // 버튼 누름 시작 플래그
+      longPressStartTimeRef.current = Date.now();
+      
+      // 읽기 완료 상태일 때만 진행 바 시작
+      if (!isReadCompleted) return;
+      
+      // 즉시 진행 바 시작
+      isLongPressingRef.current = true;
+      setIsLongPressing(true);
+      
+      const animate = () => {
+        const elapsed = Date.now() - longPressStartTimeRef.current;
+        const progress = Math.min((elapsed / 1500) * 100, 100);
+        setLongPressProgress(progress);
+        
+        if (progress >= 100) {
+          // 1.5초 완료 - 취소 실행
+          handleReadCancel();
+          longPressCancelledRef.current = true;
+          isLongPressingRef.current = false;
+          setIsLongPressing(false);
+          setLongPressProgress(0);
+        } else if (isLongPressingRef.current) {
+          longPressAnimationRef.current = requestAnimationFrame(animate);
+        }
+      };
+      longPressAnimationRef.current = requestAnimationFrame(animate);
+    };
+
+    const handleEnd = () => {
+      // handleStart가 실행되었고, 롱프레스 취소가 아닌 경우만 읽기 완료 실행
+      if (pressStartedRef.current && !longPressCancelledRef.current) {
+        handleReadComplete();
+      }
+      
+      // 모든 상태 초기화
+      pressStartedRef.current = false;
+      longPressCancelledRef.current = false;
+      isLongPressingRef.current = false;
+      setIsLongPressing(false);
+      setLongPressProgress(0);
+      if (longPressAnimationRef.current) {
+        cancelAnimationFrame(longPressAnimationRef.current);
+      }
+    };
+
+    button.addEventListener('touchstart', handleStart, { passive: true });
+    button.addEventListener('touchend', handleEnd, { passive: true });
+    button.addEventListener('mousedown', handleStart);
+    button.addEventListener('mouseup', handleEnd);
+    button.addEventListener('mouseleave', handleEnd);
+
+    return () => {
+      button.removeEventListener('touchstart', handleStart);
+      button.removeEventListener('touchend', handleEnd);
+      button.removeEventListener('mousedown', handleStart);
+      button.removeEventListener('mouseup', handleEnd);
+      button.removeEventListener('mouseleave', handleEnd);
+    };
+  }, [isReadCompleted, handleReadCancel, handleReadComplete]);
 
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
@@ -1261,19 +1390,47 @@ const loadRangePages = async () => {
           <ChevronLeft size={32} strokeWidth={1.5} />
         </motion.button>
 
-        <motion.button 
-          whileTap={{ scale: 0.9 }} onClick={() => handleReadComplete()}
-          className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
-            ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
-        >
-          <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
-          <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
-          {user && readCount > 0 && (
-            <span className="text-xs mt-0.5 opacity-80" style={{ fontSize: `${fontSize * 0.65}px` }}>
-              {readCount}회
-            </span>
+        <div className="relative flex flex-col items-center">
+          <motion.button 
+            ref={readCompleteButtonRef}
+            whileTap={{ scale: 0.9 }}
+            className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
+              ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
+          >
+            {/* 원형 진행 바 (롱프레스 시) */}
+            {isLongPressing && (
+              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="48"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="4"
+                  strokeDasharray="301.6"
+                  strokeDashoffset={301.6 - (301.6 * longPressProgress) / 100}
+                  className="transition-all duration-100"
+                  style={{ opacity: 0.8 }}
+                />
+              </svg>
+            )}
+
+            <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
+            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
+            {user && readCount > 0 && (
+              <span className="text-xs mt-0.5 opacity-80" style={{ fontSize: `${fontSize * 0.65}px` }}>
+                {readCount}회
+              </span>
+            )}
+          </motion.button>
+          
+          {/* 미세 힌트 텍스트 (읽기 완료 상태일 때만) */}
+          {isReadCompleted && (
+            <div className="text-[10px] text-gray-400 mt-1.5 opacity-60">
+              길게 누르면 취소
+            </div>
           )}
-        </motion.button>
+        </div>
 
         <motion.button 
           whileHover={{ scale: 1.1 }}
@@ -1690,6 +1847,22 @@ const loadRangePages = async () => {
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
             로그인하시면 읽은 말씀을 기록하고 관리할 수 있습니다!
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 읽기 완료 취소 토스트 (빨간색) */}
+      <AnimatePresence>
+        {showCancelToast && (
+          <motion.div 
+            initial={{ opacity: 0, x: "-50%", y: 20 }}
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[200] bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
+            style={{ left: '50%', transform: 'translateX(-50%)' }}
+          >
+            읽기 완료가 취소되었습니다
           </motion.div>
         )}
       </AnimatePresence>
