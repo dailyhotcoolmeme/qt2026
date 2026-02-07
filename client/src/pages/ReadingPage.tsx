@@ -1413,7 +1413,7 @@ const loadRangePages = async () => {
           
           {/* 미세 힌트 텍스트 (읽기 완료 상태일 때만) */}
           {isReadCompleted && (
-            <div className="text-[10px] text-gray-400 mt-1.5 opacity-60">
+            <div className="text-xs text-gray-400 mt-1.5 opacity-60">
               길게 누르면 취소
             </div>
           )}
