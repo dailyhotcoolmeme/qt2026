@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useSearch } from "wouter"; 
 import { Search, ChevronDown } from "lucide-react";
 
@@ -6,6 +6,7 @@ import { Search, ChevronDown } from "lucide-react";
 
 export default function SearchPage() {
   const [location, setLocation] = useLocation();
+  const isInitialized = useRef(false); // 초기 URL 복원 완료 플래그
   
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -89,38 +90,38 @@ export default function SearchPage() {
     setKeyword(searchWord);
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
-    
-    // URL에 검색어 저장
-    if (searchWord) {
-      window.history.replaceState(null, '', `#/search?q=${encodeURIComponent(searchWord)}`);
-    } else {
-      window.history.replaceState(null, '', '#/search');
-    }
+    // URL은 useEffect에서 자동 업데이트됨
   };
 
-  // URL에서 검색어 및 필터 복원 (wouter location 변화 감지)
+  // URL에서 검색어 및 필터 복원 (초기 마운트 시 한 번만)
   useEffect(() => {
-    const hash = window.location.hash; // #/search?q=사랑&testament=NT&book=42
-    const queryStart = hash.indexOf('?');
-    const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-    const params = new URLSearchParams(queryString);
-    
-    const q = params.get('q');
-    const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
-    const book = params.get('book');
-    const chapter = params.get('chapter');
-    
-    console.log('🔄 URL 복원 (location 변화):', { hash, q, testament, book, chapter });
-    
-    // 검색어 복원
-    setSearchInput(q || '');
-    setKeyword(q || '');
-    
-    // 필터 복원
-    setTestamentFilter(testament || 'ALL');
-    setSelectedBook(book || 'ALL');
-    setSelectedChapter(chapter || 'ALL');
-  }, [location]); // wouter location이 변경될 때마다 실행
+    if (!isInitialized.current) {
+      const hash = window.location.hash;
+      const queryStart = hash.indexOf('?');
+      const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+      const params = new URLSearchParams(queryString);
+      
+      const q = params.get('q');
+      const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
+      const book = params.get('book');
+      const chapter = params.get('chapter');
+      
+      console.log('🔄 초기 URL 복원:', { q, testament, book, chapter });
+      
+      // 검색어 복원
+      if (q) {
+        setSearchInput(q);
+        setKeyword(q);
+      }
+      
+      // 필터 복원
+      if (testament) setTestamentFilter(testament);
+      if (book) setSelectedBook(book);
+      if (chapter) setSelectedChapter(chapter);
+      
+      isInitialized.current = true;
+    }
+  }, []); // 빈 배열 - 마운트 시 한 번만
 
   // 초기 로드 (전체 성경)
   useEffect(() => {
@@ -140,8 +141,10 @@ export default function SearchPage() {
 
   // 필터 변경 시 하위 선택 초기화 - 제거됨 (뒤로가기 시 URL state 복원 방해)
 
-  // URL 업데이트 (keyword나 필터가 변경될 때마다)
+  // URL 업데이트 (keyword나 필터가 변경될 때마다) - 초기화 후에만
   useEffect(() => {
+    if (!isInitialized.current) return; // 초기 복원 완료 전에는 실행 안 함
+    
     const params = new URLSearchParams();
     if (keyword) params.set('q', keyword);
     if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
@@ -150,6 +153,8 @@ export default function SearchPage() {
     
     const queryString = params.toString();
     const url = queryString ? `#/search?${queryString}` : '#/search';
+    
+    console.log('📝 URL 업데이트:', url);
     window.history.replaceState(null, '', url);
   }, [keyword, testamentFilter, selectedBook, selectedChapter]);
 
@@ -253,7 +258,7 @@ export default function SearchPage() {
 
       {/* 결과 리스트 */}
       <div className="pt-[200px] px-4">
-        {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
+        {loading && <p className="text-center py-10 text-zinc-500 text-sm">성경을 불러오는 중...</p>}
         
         {!loading && finalResults.length === 0 && (
           <p className="text-center py-20 text-zinc-400 text-sm">결과가 없습니다.</p>
