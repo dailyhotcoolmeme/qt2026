@@ -70,8 +70,12 @@ export default function BibleViewPage() {
       <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
           onClick={() => {
-            // 검색어가 있으면 유지하면서 돌아가기
-            const backUrl = searchKeyword ? `/search?q=${encodeURIComponent(searchKeyword)}` : '/search';
+            // URL의 모든 파라미터를 유지하면서 돌아가기
+            const params = new URLSearchParams(queryString);
+            params.delete('verse'); // verse만 제거
+            
+            const backQuery = params.toString();
+            const backUrl = backQuery ? `/search?${backQuery}` : '/search';
             setLocation(backUrl);
           }}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"

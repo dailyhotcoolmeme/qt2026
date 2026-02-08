@@ -142,14 +142,26 @@ export default function SearchPage() {
     }
   };
 
-  // URL에서 검색어 복원
+  // URL에서 검색어 및 필터 복원
   useEffect(() => {
     const params = new URLSearchParams(searchString);
     const q = params.get('q');
+    const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
+    const book = params.get('book');
+    const chapter = params.get('chapter');
+    
+    // 검색어 복원 (없으면 초기화)
     if (q) {
       setSearchInput(q);
       setKeyword(q);
+    } else {
+      setSearchInput('');
+      setKeyword('');
     }
+    
+    if (testament) setTestamentFilter(testament);
+    if (book) setSelectedBook(book);
+    if (chapter) setSelectedChapter(chapter);
   }, [searchString]);
 
   // 초기 로드 (전체 성경)
@@ -172,11 +184,33 @@ export default function SearchPage() {
   useEffect(() => {
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
+    // URL 업데이트
+    updateURL();
   }, [testamentFilter]);
 
   useEffect(() => {
     setSelectedChapter('ALL');
+    // URL 업데이트
+    updateURL();
   }, [selectedBook]);
+
+  useEffect(() => {
+    // URL 업데이트
+    updateURL();
+  }, [selectedChapter]);
+
+  // URL 업데이트 함수
+  const updateURL = () => {
+    const params = new URLSearchParams();
+    if (keyword) params.set('q', keyword);
+    if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
+    if (selectedBook !== 'ALL') params.set('book', selectedBook);
+    if (selectedChapter !== 'ALL') params.set('chapter', selectedChapter);
+    
+    const queryString = params.toString();
+    const url = queryString ? `#/search?${queryString}` : '#/search';
+    window.history.replaceState(null, '', url);
+  };
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -202,7 +236,7 @@ export default function SearchPage() {
       </div>
 
       {/* 필터 영역 */}
-      <div className="fixed top-[74px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
+      <div className="fixed top-[78px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
         {/* 전체/구약/신약 */}
         <div className="flex gap-2">
           {(['ALL', 'OT', 'NT'] as const).map((f) => (
@@ -263,7 +297,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[180px] px-4">
+      <div className="pt-[190px] px-4">
         {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
         
         {!loading && finalResults.length === 0 && (
@@ -271,44 +305,46 @@ export default function SearchPage() {
         )}
 
         {!loading && finalResults.map((v, idx) => {
-          // 이전 절과 연속되는지 확인 (같은 권, 같은 장, 연속된 절 번호)
+          // 이전 절과 연속되는지 확인
           const prevVerse = finalResults[idx - 1];
-          const isContinuous = prevVerse && 
+          const isNewChapter = !prevVerse || prevVerse.book_id !== v.book_id || prevVerse.chapter !== v.chapter;
+          const isContinuousVerse = prevVerse && 
             prevVerse.book_id === v.book_id && 
             prevVerse.chapter === v.chapter && 
             prevVerse.verse + 1 === v.verse;
 
-          // 처음 또는 새로운 그룹 시작
-          const isNewGroup = !isContinuous;
-
           return (
-            <div 
-              key={v.id} 
-              className={`py-3 ${isNewGroup ? 'border-t border-zinc-200' : ''} cursor-pointer hover:bg-zinc-50`}
-              onClick={() => {
-                // 현재 검색어를 URL에 포함하여 이동
-                const currentSearch = keyword ? `?q=${encodeURIComponent(keyword)}` : '';
-                setLocation(`/bible/${v.book_id}/${v.chapter}${currentSearch}`);
-              }}
-            >
-              {/* 새로운 그룹 시작 - 권 장:절 표시 */}
-              {isNewGroup && (
-                <p className="text-xs font-bold text-[#4A6741] mb-1">
-                  {v.book_name} {v.chapter}:{v.verse}
-                </p>
+            <div key={v.id}>
+              {/* 새로운 장 시작 - 권 장 표시 */}
+              {isNewChapter && (
+                <div className="mt-6 mb-3 border-t-2 border-zinc-300 pt-4">
+                  <h3 className="text-base font-extrabold text-[#4A6741]">
+                    {v.book_name} {v.chapter}장
+                  </h3>
+                </div>
               )}
               
-              {/* 연속된 절은 절 번호만 표시 */}
-              {isContinuous && (
-                <p className="text-xs font-bold text-zinc-400 mb-1">
-                  {v.verse}절
+              {/* 절 번호 + 본문 */}
+              <div 
+                className="mb-4 cursor-pointer hover:bg-zinc-50 p-2 rounded"
+                onClick={() => {
+                  // 현재 필터 상태를 URL에 포함하여 이동
+                  const params = new URLSearchParams();
+                  if (keyword) params.set('q', keyword);
+                  if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
+                  if (selectedBook !== 'ALL') params.set('book', selectedBook);
+                  if (selectedChapter !== 'ALL') params.set('chapter', selectedChapter);
+                  params.set('verse', v.verse.toString());
+                  
+                  const queryString = params.toString();
+                  setLocation(`/bible/${v.book_id}/${v.chapter}?${queryString}`);
+                }}
+              >
+                <p className="text-xs font-bold text-zinc-500 mb-1">{v.verse}절</p>
+                <p className="text-sm leading-relaxed text-zinc-700">
+                  {highlightKeyword(v.content)}
                 </p>
-              )}
-              
-              {/* 본문 */}
-              <p className="text-sm leading-relaxed text-zinc-700">
-                {highlightKeyword(v.content)}
-              </p>
+              </div>
             </div>
           );
         })}
