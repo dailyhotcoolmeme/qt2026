@@ -3,10 +3,32 @@ import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import type { User } from "@shared/models/auth";
 
+let isSupabaseInitialized = false;
+let initPromise: Promise<void> | null = null;
+
+// Supabase 초기화 완료 대기
+async function waitForSupabaseInit(): Promise<void> {
+  if (isSupabaseInitialized) return;
+  
+  if (!initPromise) {
+    initPromise = new Promise((resolve) => {
+      supabase.auth.getSession().then(() => {
+        isSupabaseInitialized = true;
+        resolve();
+      });
+    });
+  }
+  
+  return initPromise;
+}
+
 async function fetchUser(): Promise<User | null> {
   console.log('[use-auth] fetchUser 시작');
   
-  // 먼저 getSession으로 localStorage의 세션 확인 (동기적)
+  // Supabase 초기화 완료 대기
+  await waitForSupabaseInit();
+  
+  // 세션 확인
   const { data: sessionData } = await supabase.auth.getSession();
   console.log('[use-auth] getSession 결과:', sessionData?.session ? '세션 있음' : '세션 없음');
   
