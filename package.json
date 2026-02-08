@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "npm run build:client",
+    "build": "cd client && npm install && npm run build && cd .. && node copy-dist.js",
     "build:client": "cd client && npm install && npm run build"
   },
   "dependencies": {
