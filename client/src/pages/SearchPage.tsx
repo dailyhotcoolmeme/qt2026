@@ -174,11 +174,10 @@ export default function SearchPage() {
     // 성경 데이터 로드
     loadBibleData();
     
-    // 마지막 검색어 복원
+    // 마지막 검색어 복원 (검색은 allVerses 로드 후 실행)
     const lastSearch = localStorage.getItem('lastSearch');
     if (lastSearch) {
       setSearchInput(lastSearch);
-      setKeyword(lastSearch);
     }
     
     // 스크롤 감지
@@ -189,6 +188,13 @@ export default function SearchPage() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // allVerses 로드 완료 시 저장된 검색어로 자동 검색
+  useEffect(() => {
+    if (allVerses.length > 0 && searchInput) {
+      performSearch();
+    }
+  }, [allVerses]);
 
   // 검색어 하이라이트
   const highlightKeyword = (text: string) => {
