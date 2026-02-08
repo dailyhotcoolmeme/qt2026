@@ -323,7 +323,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[280px] px-4 pb-20">
+      <div className="pt-[400px] px-4 pb-20">
         {loading && (
           <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
             <p className="text-zinc-500 font-bold text-lg">성경을 불러오는 중...</p>
