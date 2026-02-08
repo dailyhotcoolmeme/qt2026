@@ -64,11 +64,11 @@ export default function BibleViewPage() {
       {/* 뒤로가기 버튼 */}
       <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
-          onClick={() => window.history.back()}
+          onClick={() => setLocation('/search')}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>뒤로가기</span>
+          <span>검색으로 돌아가기</span>
         </button>
       </div>
 
