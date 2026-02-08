@@ -232,14 +232,14 @@ export default function SearchPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && performSearch()}
               placeholder="검색어 입력 (없으면 전체 조회)"
-              className="flex-1 h-10 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
+              className="flex-1 max-w-lg h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
             />
             <button
               onClick={performSearch}
               disabled={loading}
-              className="w-10 h-10 flex items-center justify-center bg-[#4A6741] text-white rounded-lg hover:bg-[#3d5636] disabled:opacity-50"
+              className="w-12 h-11 flex items-center justify-center bg-[#4A6741] text-white rounded-lg hover:bg-[#3d5636] disabled:opacity-50 shrink-0"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
             </button>
             <button
               onClick={() => {
@@ -250,7 +250,7 @@ export default function SearchPage() {
                 setSelectedChapter('ALL');
                 localStorage.removeItem('lastSearch');
               }}
-              className="px-4 h-10 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600 font-bold text-sm whitespace-nowrap"
+              className="px-3 h-11 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600 font-bold text-sm whitespace-nowrap shrink-0"
             >
               초기화
             </button>
@@ -347,7 +347,7 @@ export default function SearchPage() {
             <div key={v.id}>
               {/* 새로운 장 시작 - 권 장 표시 */}
               {isNewChapter && (
-                <div className="mt-6 mb-3 border-t-2 border-zinc-300 pt-4">
+                <div className={`mb-2 border-t-2 border-zinc-300 ${idx === 0 ? 'mt-0 pt-0' : 'mt-4 pt-3'}`}>
                   <h3 className="text-base font-extrabold text-[#4A6741]">
                     {v.book_name} {v.book_name === '시편' ? `${v.chapter}편` : `${v.chapter}장`}
                   </h3>
