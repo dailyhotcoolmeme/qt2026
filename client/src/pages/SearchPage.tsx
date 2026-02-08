@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from "wouter"; 
-import { Search, ChevronDown } from "lucide-react";
+import { Search, ChevronDown, ArrowUp } from "lucide-react";
 
 export default function SearchPage() {
   const [, setLocation] = useLocation();
@@ -12,6 +12,7 @@ export default function SearchPage() {
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // 검색어로 필터링된 결과
   const searchFilteredVerses = React.useMemo(() => {
@@ -107,6 +108,14 @@ export default function SearchPage() {
       setSearchInput(lastSearch);
       setKeyword(lastSearch);
     }
+    
+    // 스크롤 감지
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   // 검색어 하이라이트
@@ -134,7 +143,7 @@ export default function SearchPage() {
     <div className="min-h-screen bg-white pb-20">
       {/* 검색 + 필터 영역 - 하나로 통합 */}
       <div className="fixed top-14 left-0 right-0 z-[100] bg-white shadow-md">
-        <div className="px-4 pt-3 pb-3 space-y-3">
+        <div className="px-4 pt-5 pb-3 space-y-3">
           {/* 검색 입력 */}
           <div className="flex gap-2">
             <input
@@ -226,8 +235,12 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[200px] px-4">
-        {loading && <p className="text-center py-10 text-zinc-500 text-medium">성경을 불러오는 중...</p>}
+      <div className="pt-[230px] px-4 pb-20">
+        {loading && (
+          <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
+            <p className="text-zinc-500 font-bold text-lg">성경을 불러오는 중...</p>
+          </div>
+        )}
         
         {!loading && finalResults.length === 0 && (
           <p className="text-center py-20 text-zinc-400 text-sm">결과가 없습니다.</p>
@@ -270,6 +283,17 @@ export default function SearchPage() {
           );
         })}
       </div>
+      
+      {/* 최상단 스크롤 버튼 */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-lg hover:bg-[#3d5636] flex items-center justify-center z-50 transition-all"
+          aria-label="최상단으로"
+        >
+          <ArrowUp className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 }

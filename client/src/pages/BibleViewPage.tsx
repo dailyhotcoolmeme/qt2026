@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRoute, useLocation } from "wouter";
 import { supabase } from '../lib/supabase';
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowUp } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function BibleViewPage() {
@@ -9,6 +9,7 @@ export default function BibleViewPage() {
   const [, setLocation] = useLocation();
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   
   const { fontSize, fontFamily } = useDisplaySettings();
 
@@ -60,6 +61,16 @@ export default function BibleViewPage() {
       return () => clearTimeout(timer);
     }
   }, [loading, verses, highlightVerse]);
+  
+  // 스크롤 감지
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 500);
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   if (loading) return (
     <div className="min-h-screen bg-white">
@@ -74,9 +85,9 @@ export default function BibleViewPage() {
         </button>
       </div>
       
-      {/* 로딩 메시지 */}
-      <div className="pt-32 text-center text-zinc-500 font-bold">
-        말씀을 불러오는 중...
+      {/* 로딩 메시지 - 화면 중앙 */}
+      <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
+        <p className="text-zinc-500 font-bold text-lg">말씀을 불러오는 중...</p>
       </div>
     </div>
   );
@@ -123,6 +134,17 @@ export default function BibleViewPage() {
           );
         })}
       </div>
+      
+      {/* 최상단 스크롤 버튼 */}
+      {showScrollTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-lg hover:bg-[#3d5636] flex items-center justify-center z-50 transition-all"
+          aria-label="최상단으로"
+        >
+          <ArrowUp className="w-6 h-6" />
+        </button>
+      )}
     </div>
   );
 }
