@@ -13,7 +13,9 @@ export default function SearchPage() {
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(230); // 헤더 높이 (동적)
   const isAutoFiltering = useRef(false); // 자동 필터링 중인지 표시
+  const headerRef = useRef<HTMLDivElement>(null); // 헤더 ref
 
   // 검색어로 필터링된 결과
   const searchFilteredVerses = React.useMemo(() => {
@@ -169,6 +171,30 @@ export default function SearchPage() {
     }
   };
 
+  // 헤더 높이 측정
+  useEffect(() => {
+    const updateHeaderHeight = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.offsetHeight;
+        setHeaderHeight(height + 10); // 10px 여유 공간
+      }
+    };
+    
+    updateHeaderHeight();
+    window.addEventListener('resize', updateHeaderHeight);
+    
+    // 폰트 크기 변경 감지를 위한 MutationObserver
+    const observer = new MutationObserver(updateHeaderHeight);
+    if (headerRef.current) {
+      observer.observe(document.body, { attributes: true, attributeFilter: ['style', 'class'], subtree: true });
+    }
+    
+    return () => {
+      window.removeEventListener('resize', updateHeaderHeight);
+      observer.disconnect();
+    };
+  }, [testamentFilter, selectedBook, selectedChapter, searchFilteredVerses.length, bookFilteredVerses.length]);
+
   // 초기 로드
   useEffect(() => {
     // 성경 데이터 로드
@@ -222,7 +248,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* 검색 + 필터 영역 - 하나로 통합 */}
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white shadow-md">
+      <div ref={headerRef} className="fixed top-14 left-0 right-0 z-[100] bg-white shadow-md">
         <div className="px-4 pt-5 pb-3 space-y-3">
           {/* 검색 입력 */}
           <div className="flex gap-2">
@@ -323,7 +349,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[400px] px-4 pb-20">
+      <div style={{ paddingTop: `${headerHeight + 56}px` }} className="px-4 pb-20">
         {loading && (
           <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
             <p className="text-zinc-500 font-bold text-lg">성경을 불러오는 중...</p>
