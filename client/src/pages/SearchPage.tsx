@@ -5,7 +5,7 @@ import { Search, ChevronDown } from "lucide-react";
 // sessionStorage quota 문제로 캐시 제거 - 매번 1-2초 다운로드
 
 export default function SearchPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -98,38 +98,29 @@ export default function SearchPage() {
     }
   };
 
-  // URL에서 검색어 및 필터 복원 (hashchange 감지)
+  // URL에서 검색어 및 필터 복원 (wouter location 변화 감지)
   useEffect(() => {
-    const restoreFromUrl = () => {
-      const hash = window.location.hash; // #/search?q=사랑&testament=NT&book=42
-      const queryStart = hash.indexOf('?');
-      const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-      const params = new URLSearchParams(queryString);
-      
-      const q = params.get('q');
-      const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
-      const book = params.get('book');
-      const chapter = params.get('chapter');
-      
-      console.log('🔄 URL 복원:', { q, testament, book, chapter });
-      
-      // 검색어 복원
-      setSearchInput(q || '');
-      setKeyword(q || '');
-      
-      // 필터 복원
-      setTestamentFilter(testament || 'ALL');
-      setSelectedBook(book || 'ALL');
-      setSelectedChapter(chapter || 'ALL');
-    };
+    const hash = window.location.hash; // #/search?q=사랑&testament=NT&book=42
+    const queryStart = hash.indexOf('?');
+    const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+    const params = new URLSearchParams(queryString);
     
-    // 초기 복원
-    restoreFromUrl();
+    const q = params.get('q');
+    const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
+    const book = params.get('book');
+    const chapter = params.get('chapter');
     
-    // hashchange 이벤트 리스닝 (뒤로가기 감지)
-    window.addEventListener('hashchange', restoreFromUrl);
-    return () => window.removeEventListener('hashchange', restoreFromUrl);
-  }, []);
+    console.log('🔄 URL 복원 (location 변화):', { hash, q, testament, book, chapter });
+    
+    // 검색어 복원
+    setSearchInput(q || '');
+    setKeyword(q || '');
+    
+    // 필터 복원
+    setTestamentFilter(testament || 'ALL');
+    setSelectedBook(book || 'ALL');
+    setSelectedChapter(chapter || 'ALL');
+  }, [location]); // wouter location이 변경될 때마다 실행
 
   // 초기 로드 (전체 성경)
   useEffect(() => {
