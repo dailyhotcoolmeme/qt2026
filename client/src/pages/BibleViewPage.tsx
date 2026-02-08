@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; // 폰트 설정을 위해 필수
 
 export default function BibleViewPage() {
-  const [, params] = useRoute("/view/:bookId/:chapter");
+  const [, params] = useRoute("/bible/:bookId/:chapter");
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   

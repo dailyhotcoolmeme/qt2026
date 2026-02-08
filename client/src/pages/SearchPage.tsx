@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from "wouter"; 
-import { supabase } from '../lib/supabase'; 
 import { Search, ChevronDown } from "lucide-react";
 
 export default function SearchPage() {
@@ -59,38 +58,33 @@ export default function SearchPage() {
     return bookFilteredVerses.filter(v => v.chapter.toString() === selectedChapter);
   }, [bookFilteredVerses, selectedChapter]);
 
-  // 검색 실행
-  const performSearch = async () => {
-    const searchWord = searchInput.trim();
-    setKeyword(searchWord);
+  // 성경 전체 데이터 로드
+  const loadBibleData = async () => {
     setLoading(true);
-    
     try {
-      let query = supabase.from('bible_verses').select('*');
-      
-      if (searchWord) {
-        query = query.ilike('content', `%${searchWord}%`).limit(1000);
-      }
-      
-      const { data, error } = await query
-        .order('book_id', { ascending: true })
-        .order('chapter', { ascending: true })
-        .order('verse', { ascending: true });
-
-      if (error) throw error;
-      setAllVerses(data || []);
-      setSelectedBook('ALL');
-      setSelectedChapter('ALL');
+      const response = await fetch('/bible.json');
+      if (!response.ok) throw new Error('bible.json 로드 실패');
+      const data = await response.json();
+      setAllVerses(data);
     } catch (err: any) {
-      console.error(err);
+      console.error('bible.json 로드 에러:', err);
+      alert('성경 데이터를 불러올 수 없습니다.');
     } finally {
       setLoading(false);
     }
   };
 
+  // 검색 실행
+  const performSearch = () => {
+    const searchWord = searchInput.trim();
+    setKeyword(searchWord);
+    setSelectedBook('ALL');
+    setSelectedChapter('ALL');
+  };
+
   // 초기 로드 (전체 성경)
   useEffect(() => {
-    performSearch();
+    loadBibleData();
   }, []);
 
   // 검색어 하이라이트
