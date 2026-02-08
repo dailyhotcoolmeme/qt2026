@@ -1,12 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useLocation, useSearch } from "wouter"; 
+import React, { useState, useEffect } from 'react';
+import { useLocation } from "wouter"; 
 import { Search, ChevronDown } from "lucide-react";
 
-// sessionStorage quota 문제로 캐시 제거 - 매번 1-2초 다운로드
-
 export default function SearchPage() {
-  const [location, setLocation] = useLocation();
-  const isInitialized = useRef(false); // 초기 URL 복원 완료 플래그
+  const [, setLocation] = useLocation();
   
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -90,42 +87,26 @@ export default function SearchPage() {
     setKeyword(searchWord);
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
-    // URL은 useEffect에서 자동 업데이트됨
+    
+    // localStorage에 저장 (캐시)
+    if (searchWord) {
+      localStorage.setItem('lastSearch', searchWord);
+    } else {
+      localStorage.removeItem('lastSearch');
+    }
   };
 
-  // URL에서 검색어 및 필터 복원 (location 변경 시마다 체크)
+  // 초기 로드
   useEffect(() => {
-    const hash = window.location.hash;
-    const queryStart = hash.indexOf('?');
-    const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-    const params = new URLSearchParams(queryString);
-    
-    const q = params.get('q') || '';
-    const testament = (params.get('testament') as 'ALL' | 'OT' | 'NT') || 'ALL';
-    const book = params.get('book') || 'ALL';
-    const chapter = params.get('chapter') || 'ALL';
-    
-    // URL과 현재 State가 다를 때만 복원 (무한루프 방지)
-    const needsRestore = 
-      q !== keyword ||
-      testament !== testamentFilter ||
-      book !== selectedBook ||
-      chapter !== selectedChapter;
-    
-    if (needsRestore) {
-      console.log('🔄 URL 복원 (State와 다름):', { q, testament, book, chapter });
-      setSearchInput(q);
-      setKeyword(q);
-      setTestamentFilter(testament);
-      setSelectedBook(book);
-      setSelectedChapter(chapter);
-      isInitialized.current = true;
-    }
-  }, [location, keyword, testamentFilter, selectedBook, selectedChapter]); // location과 state 모두 의존성
-
-  // 초기 로드 (전체 성경)
-  useEffect(() => {
+    // 성경 데이터 로드
     loadBibleData();
+    
+    // 마지막 검색어 복원
+    const lastSearch = localStorage.getItem('lastSearch');
+    if (lastSearch) {
+      setSearchInput(lastSearch);
+      setKeyword(lastSearch);
+    }
   }, []);
 
   // 검색어 하이라이트
@@ -139,24 +120,15 @@ export default function SearchPage() {
     );
   };
 
-  // 필터 변경 시 하위 선택 초기화 - 제거됨 (뒤로가기 시 URL state 복원 방해)
-
-  // URL 업데이트 (keyword나 필터가 변경될 때마다) - 초기화 후에만
+  // 필터 변경 시 하위 선택 초기화
   useEffect(() => {
-    if (!isInitialized.current) return; // 초기 복원 완료 전에는 실행 안 함
-    
-    const params = new URLSearchParams();
-    if (keyword) params.set('q', keyword);
-    if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
-    if (selectedBook !== 'ALL') params.set('book', selectedBook);
-    if (selectedChapter !== 'ALL') params.set('chapter', selectedChapter);
-    
-    const queryString = params.toString();
-    const url = queryString ? `#/search?${queryString}` : '#/search';
-    
-    console.log('📝 URL 업데이트:', url);
-    window.history.replaceState(null, '', url);
-  }, [keyword, testamentFilter, selectedBook, selectedChapter]);
+    setSelectedBook('ALL');
+    setSelectedChapter('ALL');
+  }, [testamentFilter]);
+
+  useEffect(() => {
+    setSelectedChapter('ALL');
+  }, [selectedBook]);
 
   return (
     <div className="min-h-screen bg-white pb-20">
@@ -189,7 +161,7 @@ export default function SearchPage() {
                 setSelectedChapter('ALL');
                 window.history.replaceState(null, '', '#/search');
               }}
-              className="w-10 h-10 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600"
+              className="w-10 h-20 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600"
               title="초기화"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -258,7 +230,7 @@ export default function SearchPage() {
 
       {/* 결과 리스트 */}
       <div className="pt-[200px] px-4">
-        {loading && <p className="text-center py-10 text-zinc-500 text-sm">성경을 불러오는 중...</p>}
+        {loading && <p className="text-center py-10 text-zinc-500 text-medium">성경을 불러오는 중...</p>}
         
         {!loading && finalResults.length === 0 && (
           <p className="text-center py-20 text-zinc-400 text-sm">결과가 없습니다.</p>
@@ -288,22 +260,8 @@ export default function SearchPage() {
               <div 
                 className="mb-4 cursor-pointer hover:bg-zinc-50 p-2 rounded"
                 onClick={() => {
-                  // 현재 필터 상태를 URL에 포함하여 이동
-                  const params = new URLSearchParams();
-                  if (keyword) params.set('q', keyword);
-                  if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
-                  if (selectedBook !== 'ALL') params.set('book', selectedBook);
-                  if (selectedChapter !== 'ALL') params.set('chapter', selectedChapter);
-                  params.set('verse', v.verse.toString());
-                  
-                  const queryString = params.toString();
-                  const targetUrl = `/bible/${v.book_id}/${v.chapter}?${queryString}`;
-                  
-                  console.log('📤 절 클릭 - 이동 URL:', targetUrl);
-                  console.log('📤 파라미터:', Object.fromEntries(params));
-                  
-                  // window.location.hash를 직접 설정
-                  window.location.hash = targetUrl;
+                  // 간단하게 BibleViewPage로 이동
+                  setLocation(`/bible/${v.book_id}/${v.chapter}`);
                 }}
               >
                 <p className="text-xs font-bold text-zinc-500 mb-1">{v.verse}절</p>
