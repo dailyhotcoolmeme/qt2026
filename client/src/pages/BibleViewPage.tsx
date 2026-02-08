@@ -14,8 +14,13 @@ export default function BibleViewPage() {
   // 폰트 설정 가져오기 (이 부분이 없으면 에러로 인해 흰 화면이 뜰 수 있습니다)
   const { fontSize, fontFamily } = useDisplaySettings();
 
-  const queryParams = new URLSearchParams(window.location.search);
+  // URL에서 쿼리 파라미터 추출 (검색어 및 절 번호)
+  const hash = window.location.hash; // #/bible/1/1?q=사랑&verse=1
+  const queryStart = hash.indexOf('?');
+  const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+  const queryParams = new URLSearchParams(queryString);
   const highlightVerse = queryParams.get('verse');
+  const searchKeyword = queryParams.get('q');
 
   useEffect(() => {
     async function fetchChapter() {
@@ -64,7 +69,11 @@ export default function BibleViewPage() {
       {/* 뒤로가기 버튼 */}
       <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
-          onClick={() => setLocation('/search')}
+          onClick={() => {
+            // 검색어가 있으면 유지하면서 돌아가기
+            const backUrl = searchKeyword ? `/search?q=${encodeURIComponent(searchKeyword)}` : '/search';
+            setLocation(backUrl);
+          }}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
         >
           <ArrowLeft className="w-5 h-5" />

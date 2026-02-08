@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useSearch } from "wouter"; 
 import { Search, ChevronDown } from "lucide-react";
 
+// 메모리 캐시 (페이지 새로고침 전까지 유지)
+let bibleDataCache: any[] | null = null;
+
 export default function SearchPage() {
   const [, setLocation] = useLocation();
   const searchString = useSearch();
@@ -59,28 +62,38 @@ export default function SearchPage() {
     return bookFilteredVerses.filter(v => v.chapter.toString() === selectedChapter);
   }, [bookFilteredVerses, selectedChapter]);
 
-  // 성경 전체 데이터 로드 (캐싱 적용)
+  // 성경 전체 데이터 로드 (메모리 + localStorage 캐싱)
   const loadBibleData = async () => {
     setLoading(true);
     const startTime = performance.now();
     
     try {
-      // 1. 캐시 확인
+      // 1. 메모리 캐시 확인 (가장 빠름)
+      if (bibleDataCache) {
+        const loadTime = ((performance.now() - startTime) / 1000).toFixed(3);
+        console.log(`⚡ 메모리 캐시 사용 (${loadTime}초)`);
+        setAllVerses(bibleDataCache);
+        setLoading(false);
+        return;
+      }
+
+      // 2. localStorage 캐시 확인
       const cached = localStorage.getItem('bible-data');
       const cacheVersion = localStorage.getItem('bible-version');
-      const currentVersion = '1.0'; // 데이터 업데이트 시 버전 변경
+      const currentVersion = '1.0';
 
       if (cached && cacheVersion === currentVersion) {
         const loadTime = ((performance.now() - startTime) / 1000).toFixed(2);
-        console.log(`✅ 캐시된 성경 데이터 사용 (${loadTime}초)`);
+        console.log(`✅ localStorage 캐시 사용 (${loadTime}초)`);
         const data = JSON.parse(cached);
+        bibleDataCache = data; // 메모리에도 저장
         setAllVerses(data);
         setLoading(false);
         return;
       }
 
-      // 2. 캐시 없으면 다운로드
-      console.log('📥 성경 데이터 다운로드 중...');
+      // 3. 캐시 없으면 다운로드
+      console.log('📥 성경 데이터 다운로드 중... (최초 1회만)');
       const response = await fetch('/bible.json');
       if (!response.ok) throw new Error('bible.json 로드 실패');
       const data = await response.json();
@@ -88,7 +101,10 @@ export default function SearchPage() {
       const downloadTime = ((performance.now() - startTime) / 1000).toFixed(2);
       console.log(`✅ 다운로드 완료 (${downloadTime}초)`);
       
-      // 3. localStorage에 저장
+      // 4. 메모리 캐시에 저장 (즉시 사용)
+      bibleDataCache = data;
+      
+      // 5. localStorage에도 저장 시도
       try {
         const jsonStr = JSON.stringify(data);
         const sizeInMB = (jsonStr.length / 1024 / 1024).toFixed(2);
@@ -96,10 +112,10 @@ export default function SearchPage() {
         
         localStorage.setItem('bible-data', jsonStr);
         localStorage.setItem('bible-version', currentVersion);
-        console.log('✅ localStorage 저장 완료');
+        console.log('✅ localStorage 저장 완료 (다음부터 더 빠름)');
       } catch (storageError: any) {
-        console.error('❌ localStorage 저장 실패:', storageError.message);
-        console.warn('⚠️ 캐시를 사용할 수 없습니다. 매번 다운로드됩니다.');
+        console.warn('⚠️ localStorage 저장 실패 (브라우저 용량 부족)');
+        console.log('💡 메모리 캐시만 사용 (새로고침 전까지 빠름)');
       }
       
       setAllVerses(data);
@@ -165,7 +181,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* 검색 입력 영역 */}
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 py-3">
+      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 pt-4 pb-3">
         <div className="flex gap-2">
           <input
             type="text"
@@ -186,7 +202,7 @@ export default function SearchPage() {
       </div>
 
       {/* 필터 영역 */}
-      <div className="fixed top-[70px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
+      <div className="fixed top-[74px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
         {/* 전체/구약/신약 */}
         <div className="flex gap-2">
           {(['ALL', 'OT', 'NT'] as const).map((f) => (
@@ -255,21 +271,28 @@ export default function SearchPage() {
         )}
 
         {!loading && finalResults.map((v, idx) => {
-          // 이전 절과 연속되는지 확인
+          // 이전 절과 연속되는지 확인 (같은 권, 같은 장, 연속된 절 번호)
           const prevVerse = finalResults[idx - 1];
           const isContinuous = prevVerse && 
             prevVerse.book_id === v.book_id && 
             prevVerse.chapter === v.chapter && 
-            prevVerse.verse === v.verse - 1;
+            prevVerse.verse + 1 === v.verse;
+
+          // 처음 또는 새로운 그룹 시작
+          const isNewGroup = !isContinuous;
 
           return (
             <div 
               key={v.id} 
-              className={`py-3 ${!isContinuous ? 'border-t border-zinc-200' : ''} cursor-pointer hover:bg-zinc-50`}
-              onClick={() => setLocation(`/bible/${v.book_id}/${v.chapter}?verse=${v.verse}`)}
+              className={`py-3 ${isNewGroup ? 'border-t border-zinc-200' : ''} cursor-pointer hover:bg-zinc-50`}
+              onClick={() => {
+                // 현재 검색어를 URL에 포함하여 이동
+                const currentSearch = keyword ? `?q=${encodeURIComponent(keyword)}` : '';
+                setLocation(`/bible/${v.book_id}/${v.chapter}${currentSearch}`);
+              }}
             >
-              {/* 새로운 구절 그룹 시작 */}
-              {!isContinuous && (
+              {/* 새로운 그룹 시작 - 권 장:절 표시 */}
+              {isNewGroup && (
                 <p className="text-xs font-bold text-[#4A6741] mb-1">
                   {v.book_name} {v.chapter}:{v.verse}
                 </p>
