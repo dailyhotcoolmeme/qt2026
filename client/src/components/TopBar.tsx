@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType } from "lucide-react";
+import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType, LogOut } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { useAuth } from "../hooks/use-auth";
 import { ProfileEditModal } from "./ProfileEditModal";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -12,7 +12,16 @@ export function TopBar() {
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
-  const { user } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const handleLogout = () => {
+    if (confirm("로그아웃 하시겠습니까?")) {
+      logout();
+      setLocation("/");
+      setIsMenuOpen(false);
+    }
+  };
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const size = Number(e.target.value);
@@ -187,6 +196,18 @@ export function TopBar() {
             <SidebarItem icon={<Settings className="w-5 h-5" />} label="서비스 설정" />
             <SidebarItem icon={<MessageCircle className="w-5 h-5" />} label="공지사항" />
             <SidebarItem icon={<HelpCircle className="w-5 h-5" />} label="도움말" />
+            
+            {isAuthenticated && (
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-3 p-3.5 rounded-xl text-red-600 hover:bg-red-50 transition-colors text-left w-full group mt-2"
+              >
+                <div className="text-red-400 group-hover:text-red-600 transition-colors">
+                  <LogOut className="w-5 h-5" />
+                </div>
+                <span className="font-semibold text-[14px] group-hover:text-red-700 transition-colors">로그아웃</span>
+              </button>
+            )}
           </nav>
           
           <div className="mt-auto border-t pt-4">
