@@ -741,21 +741,28 @@ const loadRangePages = async () => {
       
       // 파일이 존재하면 재생, 없으면 error 이벤트에서 TTS 생성
       let audioLoadFailed = false;
+      let audioLoaded = false;
       
       savedAudio.addEventListener('error', async () => {
-        if (audioLoadFailed) return; // 중복 실행 방지
+        if (audioLoadFailed || audioLoaded) return; // 중복 실행 방지
         audioLoadFailed = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
+        
+        // 실패한 오디오 정리
+        savedAudio.pause();
+        savedAudio.src = '';
         
         // TTS 생성 로직
         await generateAndUploadTTS();
       }, { once: true });
       
       savedAudio.addEventListener('canplay', () => {
+        if (audioLoadFailed) return; // TTS 생성 중이면 무시
+        audioLoaded = true;
         console.log('[Audio] R2 파일 로드 성공');
+        setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
       }, { once: true });
       
-      setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
       return;
       
     } catch (error) {
@@ -880,21 +887,28 @@ const loadRangePages = async () => {
       const savedAudio = new Audio(publicUrl);
       
       let audioLoadFailed = false;
+      let audioLoaded = false;
       
       savedAudio.addEventListener('error', async () => {
-        if (audioLoadFailed) return;
+        if (audioLoadFailed || audioLoaded) return;
         audioLoadFailed = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
+        
+        // 실패한 오디오 정리
+        savedAudio.pause();
+        savedAudio.src = '';
         
         // TTS 생성
         await generateContinuousTTS();
       }, { once: true });
       
       savedAudio.addEventListener('canplay', () => {
+        if (audioLoadFailed) return;
+        audioLoaded = true;
         console.log('[Audio Continuous] R2 파일 로드 성공');
+        setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
       }, { once: true });
       
-      setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
       return;
 
     } catch (error) {
@@ -992,24 +1006,34 @@ const loadRangePages = async () => {
     try {
       // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
-      nextChapterAudioCache.current = new Audio(publicUrl);
-      nextChapterAudioCache.current.preload = 'auto';
+      const preloadAudio = new Audio(publicUrl);
+      preloadAudio.preload = 'auto';
       
       let audioLoadFailed = false;
+      let audioLoaded = false;
       
-      nextChapterAudioCache.current.addEventListener('error', async () => {
-        if (audioLoadFailed) return;
+      preloadAudio.addEventListener('error', async () => {
+        if (audioLoadFailed || audioLoaded) return;
         audioLoadFailed = true;
         console.log('[Audio Preload] R2 파일 없음, TTS 생성 시작');
+        
+        // 실패한 오디오 정리
+        preloadAudio.pause();
+        preloadAudio.src = '';
         
         // TTS 생성
         await generatePreloadTTS();
       }, { once: true });
       
-      nextChapterAudioCache.current.addEventListener('canplay', () => {
+      preloadAudio.addEventListener('canplay', () => {
+        if (audioLoadFailed) return;
+        audioLoaded = true;
         console.log('[Audio Preload] R2 파일 로드 성공');
+        nextChapterAudioCache.current = preloadAudio;
       }, { once: true });
       
+      // 임시로 캐시에 할당 (canplay 이벤트에서 재할당)
+      nextChapterAudioCache.current = preloadAudio;
       return;
 
     } catch (error) {
