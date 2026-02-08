@@ -825,7 +825,6 @@ const loadRangePages = async () => {
       // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
-          errorOccurred = true; // error 핸들러 방지
           savedAudio.removeEventListener('error', errorHandler); // error 리스너 제거
           console.log('[Audio] R2 파일 로드 성공');
           setIsPlaying(true);
@@ -1039,7 +1038,6 @@ const loadRangePages = async () => {
       // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
-          errorOccurred = true; // error 핸들러 방지
           savedAudio.removeEventListener('error', errorHandlerContinuous); // error 리스너 제거
           console.log('[Audio Continuous] R2 파일 로드 성공');
           setIsPlaying(true);
