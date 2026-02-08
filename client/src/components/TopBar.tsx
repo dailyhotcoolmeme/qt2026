@@ -202,6 +202,27 @@ export function TopBar() {
             <SidebarItem icon={<MessageCircle className="w-5 h-5" />} label="공지사항" />
             <SidebarItem icon={<HelpCircle className="w-5 h-5" />} label="도움말" />
             
+            {!isAuthenticated && (
+              <div className="flex flex-col gap-2 mt-2">
+                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                  <button className="flex items-center gap-3 p-3.5 rounded-xl text-[#4A6741] bg-green-50 hover:bg-green-100 transition-colors text-left w-full group">
+                    <div className="text-[#4A6741] transition-colors">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <span className="font-semibold text-[14px] transition-colors">회원가입</span>
+                  </button>
+                </Link>
+                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
+                  <button className="flex items-center gap-3 p-3.5 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors text-left w-full group">
+                    <div className="text-zinc-400 group-hover:text-[#4A6741] transition-colors">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <span className="font-semibold text-[14px] group-hover:text-zinc-900 transition-colors">로그인</span>
+                  </button>
+                </Link>
+              </div>
+            )}
+            
             {isAuthenticated && (
               <button 
                 onClick={handleLogout}
