@@ -736,7 +736,11 @@ const loadRangePages = async () => {
 
     try {
       // 1. R2에서 파일 확인
-      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
+      const checkRes = await fetch('/api/audio/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
       
       if (checkRes.ok) {
         const { publicUrl } = await checkRes.json();
@@ -841,7 +845,11 @@ const loadRangePages = async () => {
 
     try {
       // R2에서 파일 확인
-      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
+      const checkRes = await fetch('/api/audio/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
       
       if (checkRes.ok) {
         const { publicUrl } = await checkRes.json();
@@ -932,7 +940,11 @@ const loadRangePages = async () => {
 
     try {
       // R2에서 파일 확인
-      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
+      const checkRes = await fetch('/api/audio/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
       
       if (checkRes.ok) {
         const { publicUrl } = await checkRes.json();

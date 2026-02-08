@@ -15,19 +15,19 @@ const PUBLIC_URL = process.env.R2_PUBLIC_URL;
 export default async function handler(req, res) {
   // CORS 헤더 설정
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    const { fileName } = req.query;
+    const { fileName } = req.body;
     
     if (!fileName || typeof fileName !== 'string') {
       return res.status(400).json({ 
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       });
     }
   } catch (error) {
-    console.error('Audio fetch error:', error);
+    console.error('Audio check error:', error);
     return res.status(500).json({ 
       success: false, 
       error: error.message || "조회 실패" 
