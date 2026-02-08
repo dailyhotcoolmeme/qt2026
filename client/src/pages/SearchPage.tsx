@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from "wouter"; 
 import { Search, ChevronDown, ArrowUp } from "lucide-react";
 
@@ -13,6 +13,7 @@ export default function SearchPage() {
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
   const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const isAutoFiltering = useRef(false); // 자동 필터링 중인지 표시
 
   // 검색어로 필터링된 결과
   const searchFilteredVerses = React.useMemo(() => {
@@ -95,8 +96,10 @@ export default function SearchPage() {
     
     if (!searchWord) {
       setKeyword('');
+      isAutoFiltering.current = true; // 자동 필터링 시작
       setSelectedBook('ALL');
       setSelectedChapter('ALL');
+      isAutoFiltering.current = false; // 자동 필터링 종료
       return;
     }
     
@@ -116,6 +119,9 @@ export default function SearchPage() {
     );
     
     if (foundBook) {
+      // 자동 필터링 모드 활성화
+      isAutoFiltering.current = true;
+      
       // 책 찾음 - testament와 book 자동 설정
       setTestamentFilter(foundBook.testament as 'OT' | 'NT');
       setSelectedBook(foundBook.id.toString());
@@ -137,6 +143,11 @@ export default function SearchPage() {
         setSelectedChapter('ALL');
       }
       
+      // 자동 필터링 모드 비활성화
+      setTimeout(() => {
+        isAutoFiltering.current = false;
+      }, 100);
+      
       // 검색어가 "책이름" 또는 "책이름 숫자장"만 있는 경우 keyword는 빈 문자열
       const bookNamePattern = new RegExp(`^${foundBook.name}(\\s*\\d+\\s*장?)?$`);
       if (bookNamePattern.test(searchWord)) {
@@ -149,8 +160,12 @@ export default function SearchPage() {
     } else {
       // 책 이름이 없으면 일반 검색
       setKeyword(searchWord);
+      isAutoFiltering.current = true;
       setSelectedBook('ALL');
       setSelectedChapter('ALL');
+      setTimeout(() => {
+        isAutoFiltering.current = false;
+      }, 100);
     }
   };
 
@@ -186,13 +201,15 @@ export default function SearchPage() {
     );
   };
 
-  // 필터 변경 시 하위 선택 초기화
+  // 필터 변경 시 하위 선택 초기화 (자동 필터링 중에는 실행 안 함)
   useEffect(() => {
+    if (isAutoFiltering.current) return;
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
   }, [testamentFilter]);
 
   useEffect(() => {
+    if (isAutoFiltering.current) return;
     setSelectedChapter('ALL');
   }, [selectedBook]);
 
