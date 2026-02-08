@@ -735,15 +735,11 @@ const loadRangePages = async () => {
     const fileName = `reading/reading_b${bookOrder}_c${bibleData.chapter}_${targetVoice}.mp3`;
 
     try {
-      // 1. R2에서 파일 확인
-      const checkRes = await fetch('/api/audio/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName })
-      });
+      // 1. R2에서 파일 확인 (직접 HEAD 요청)
+      const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
+      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
       
       if (checkRes.ok) {
-        const { publicUrl } = await checkRes.json();
         const savedAudio = new Audio(publicUrl);
         setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
         return;
@@ -857,15 +853,11 @@ const loadRangePages = async () => {
     }
 
     try {
-      // R2에서 파일 확인
-      const checkRes = await fetch('/api/audio/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName })
-      });
+      // R2에서 파일 확인 (직접 HEAD 요청)
+      const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
+      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
       
       if (checkRes.ok) {
-        const { publicUrl } = await checkRes.json();
         const savedAudio = new Audio(publicUrl);
         setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
         return;
@@ -955,15 +947,11 @@ const loadRangePages = async () => {
     const fileName = `reading/reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
 
     try {
-      // R2에서 파일 확인
-      const checkRes = await fetch('/api/audio/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName })
-      });
+      // R2에서 파일 확인 (직접 HEAD 요청)
+      const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
+      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
       
       if (checkRes.ok) {
-        const { publicUrl } = await checkRes.json();
         nextChapterAudioCache.current = new Audio(publicUrl);
         nextChapterAudioCache.current.preload = 'auto';
         return;
