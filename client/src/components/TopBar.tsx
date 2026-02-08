@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { useAuth } from "../hooks/use-auth";
+import { ProfileEditModal } from "./ProfileEditModal";
 import { Link } from "wouter";
 
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -154,9 +156,18 @@ export function TopBar() {
               )}
             </div>
             
-            <button className="flex items-center gap-1 text-zinc-400 mt-3 hover:text-zinc-600 transition-colors" style={{ fontSize: `${fontSize - 4}px` }}>
-              프로필 관리 <ChevronRight className="w-3 h-3" />
-            </button>
+            {user && (
+              <button 
+                onClick={() => {
+                  setIsProfileModalOpen(true);
+                  setIsMenuOpen(false);
+                }}
+                className="flex items-center gap-1 text-zinc-400 mt-3 hover:text-zinc-600 transition-colors" 
+                style={{ fontSize: `${fontSize - 4}px` }}
+              >
+                프로필 관리 <ChevronRight className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           <nav className="flex flex-col gap-1">
@@ -185,6 +196,12 @@ export function TopBar() {
           </div>
         </div>
       </div>
+      
+      {/* Profile Edit Modal */}
+      <ProfileEditModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </>
   );
 }
