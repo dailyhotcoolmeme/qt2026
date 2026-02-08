@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useRoute } from "wouter";
+import { useRoute, useLocation } from "wouter";
 import { supabase } from '../lib/supabase';
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ArrowLeft } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; // 폰트 설정을 위해 필수
 
 export default function BibleViewPage() {
   const [, params] = useRoute("/bible/:bookId/:chapter");
+  const [, setLocation] = useLocation();
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -60,8 +61,19 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* 본문 내용: 상단바(h-14) 만큼 띄워줍니다. */}
-      <div className="pt-20 pb-10 px-5 space-y-5">
+      {/* 뒤로가기 버튼 */}
+      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
+        <button
+          onClick={() => window.history.back()}
+          className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
+        >
+          <ArrowLeft className="w-5 h-5" />
+          <span>뒤로가기</span>
+        </button>
+      </div>
+
+      {/* 본문 내용: 상단바(h-14) + 뒤로가기(h-[52px]) 만큼 띄워줍니다. */}
+      <div className="pt-[108px] pb-10 px-5 space-y-5">
         <h2 className="text-xl font-extrabold text-zinc-900 mb-6 border-b pb-2">
           {verses[0]?.book_name} {params?.chapter}장
         </h2>

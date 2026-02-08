@@ -58,13 +58,38 @@ export default function SearchPage() {
     return bookFilteredVerses.filter(v => v.chapter.toString() === selectedChapter);
   }, [bookFilteredVerses, selectedChapter]);
 
-  // 성경 전체 데이터 로드
+  // 성경 전체 데이터 로드 (캐싱 적용)
   const loadBibleData = async () => {
     setLoading(true);
     try {
+      // 1. 캐시 확인
+      const cached = localStorage.getItem('bible-data');
+      const cacheVersion = localStorage.getItem('bible-version');
+      const currentVersion = '1.0'; // 데이터 업데이트 시 버전 변경
+
+      if (cached && cacheVersion === currentVersion) {
+        console.log('✅ 캐시된 성경 데이터 사용');
+        const data = JSON.parse(cached);
+        setAllVerses(data);
+        setLoading(false);
+        return;
+      }
+
+      // 2. 캐시 없으면 다운로드
+      console.log('📥 성경 데이터 다운로드 중...');
       const response = await fetch('/bible.json');
       if (!response.ok) throw new Error('bible.json 로드 실패');
       const data = await response.json();
+      
+      // 3. localStorage에 저장
+      try {
+        localStorage.setItem('bible-data', JSON.stringify(data));
+        localStorage.setItem('bible-version', currentVersion);
+        console.log('✅ 성경 데이터 캐시 완료');
+      } catch (storageError) {
+        console.warn('localStorage 저장 실패 (용량 부족 가능성)', storageError);
+      }
+      
       setAllVerses(data);
     } catch (err: any) {
       console.error('bible.json 로드 에러:', err);
