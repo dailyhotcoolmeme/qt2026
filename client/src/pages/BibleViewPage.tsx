@@ -10,17 +10,25 @@ export default function BibleViewPage() {
   const [, setLocation] = useLocation();
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [highlightVerse, setHighlightVerse] = useState<string | null>(null);
+  const [queryString, setQueryString] = useState('');
   
   // 폰트 설정 가져오기 (이 부분이 없으면 에러로 인해 흰 화면이 뜰 수 있습니다)
   const { fontSize, fontFamily } = useDisplaySettings();
 
-  // URL에서 쿼리 파라미터 추출 (검색어 및 절 번호)
-  const hash = window.location.hash; // #/bible/1/1?q=사랑&verse=1
-  const queryStart = hash.indexOf('?');
-  const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-  const queryParams = new URLSearchParams(queryString);
-  const highlightVerse = queryParams.get('verse');
-  const searchKeyword = queryParams.get('q');
+  // URL에서 쿼리 파라미터 추출
+  useEffect(() => {
+    const hash = window.location.hash;
+    const queryStart = hash.indexOf('?');
+    const qs = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+    setQueryString(qs);
+    
+    const queryParams = new URLSearchParams(qs);
+    const verse = queryParams.get('verse');
+    setHighlightVerse(verse);
+    
+    console.log('🔍 BibleViewPage - verse 파라미터:', verse);
+  }, []);
 
   useEffect(() => {
     async function fetchChapter() {
@@ -48,15 +56,17 @@ export default function BibleViewPage() {
 
   // 하이라이트된 절로 스크롤 이동
   useEffect(() => {
-    if (!loading && highlightVerse && verses.length > 0) {
+    if (!loading && verses.length > 0 && highlightVerse) {
+      console.log('📍 스크롤 시도 - verse:', highlightVerse);
       setTimeout(() => {
         const element = document.getElementById(`verse-${highlightVerse}`);
+        console.log('📍 찾은 요소:', element);
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 500);
     }
-  }, [loading, highlightVerse, verses]);
+  }, [loading, verses.length, highlightVerse]);
 
   if (loading) return (
     <div className="min-h-screen bg-white pt-20 text-center text-zinc-500 font-bold">
@@ -95,9 +105,9 @@ export default function BibleViewPage() {
           <div 
             key={v.id} 
             id={`verse-${v.verse}`}
-            className={`leading-relaxed transition-colors p-1 ${
-              v.verse.toString() === highlightVerse 
-                ? 'bg-yellow-100 rounded font-bold shadow-sm' 
+            className={`leading-relaxed transition-colors p-2 rounded ${
+              highlightVerse && v.verse.toString() === highlightVerse
+                ? 'bg-yellow-200 font-bold shadow-md border-2 border-yellow-400' 
                 : ''
             }`}
             style={{ 

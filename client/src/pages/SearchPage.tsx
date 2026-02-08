@@ -151,17 +151,13 @@ export default function SearchPage() {
     const chapter = params.get('chapter');
     
     // 검색어 복원 (없으면 초기화)
-    if (q) {
-      setSearchInput(q);
-      setKeyword(q);
-    } else {
-      setSearchInput('');
-      setKeyword('');
-    }
+    setSearchInput(q || '');
+    setKeyword(q || '');
     
-    if (testament) setTestamentFilter(testament);
-    if (book) setSelectedBook(book);
-    if (chapter) setSelectedChapter(chapter);
+    // 필터 복원
+    setTestamentFilter(testament || 'ALL');
+    setSelectedBook(book || 'ALL');
+    setSelectedChapter(chapter || 'ALL');
   }, [searchString]);
 
   // 초기 로드 (전체 성경)
@@ -184,23 +180,14 @@ export default function SearchPage() {
   useEffect(() => {
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
-    // URL 업데이트
-    updateURL();
   }, [testamentFilter]);
 
   useEffect(() => {
     setSelectedChapter('ALL');
-    // URL 업데이트
-    updateURL();
   }, [selectedBook]);
 
+  // URL 업데이트 (keyword나 필터가 변경될 때마다)
   useEffect(() => {
-    // URL 업데이트
-    updateURL();
-  }, [selectedChapter]);
-
-  // URL 업데이트 함수
-  const updateURL = () => {
     const params = new URLSearchParams();
     if (keyword) params.set('q', keyword);
     if (testamentFilter !== 'ALL') params.set('testament', testamentFilter);
@@ -210,12 +197,12 @@ export default function SearchPage() {
     const queryString = params.toString();
     const url = queryString ? `#/search?${queryString}` : '#/search';
     window.history.replaceState(null, '', url);
-  };
+  }, [keyword, testamentFilter, selectedBook, selectedChapter]);
 
   return (
     <div className="min-h-screen bg-white pb-20">
       {/* 검색 입력 영역 */}
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 pt-4 pb-3">
+      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 pt-4 pb-4">
         <div className="flex gap-2">
           <input
             type="text"
@@ -232,11 +219,27 @@ export default function SearchPage() {
           >
             <Search className="w-4 h-4" />
           </button>
+          <button
+            onClick={() => {
+              setSearchInput('');
+              setKeyword('');
+              setTestamentFilter('ALL');
+              setSelectedBook('ALL');
+              setSelectedChapter('ALL');
+              window.history.replaceState(null, '', '#/search');
+            }}
+            className="w-10 h-10 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600"
+            title="초기화"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       </div>
 
       {/* 필터 영역 */}
-      <div className="fixed top-[78px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
+      <div className="fixed top-[90px] left-0 right-0 z-[99] bg-white border-b px-4 pt-3 pb-3 space-y-3">
         {/* 전체/구약/신약 */}
         <div className="flex gap-2">
           {(['ALL', 'OT', 'NT'] as const).map((f) => (
@@ -297,7 +300,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[190px] px-4">
+      <div className="pt-[220px] px-4">
         {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
         
         {!loading && finalResults.length === 0 && (
