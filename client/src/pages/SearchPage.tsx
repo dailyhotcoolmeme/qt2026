@@ -93,35 +93,35 @@ export default function SearchPage() {
     // URL은 useEffect에서 자동 업데이트됨
   };
 
-  // URL에서 검색어 및 필터 복원 (초기 마운트 시 한 번만)
+  // URL에서 검색어 및 필터 복원 (location 변경 시마다 체크)
   useEffect(() => {
-    if (!isInitialized.current) {
-      const hash = window.location.hash;
-      const queryStart = hash.indexOf('?');
-      const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-      const params = new URLSearchParams(queryString);
-      
-      const q = params.get('q');
-      const testament = params.get('testament') as 'ALL' | 'OT' | 'NT' | null;
-      const book = params.get('book');
-      const chapter = params.get('chapter');
-      
-      console.log('🔄 초기 URL 복원:', { q, testament, book, chapter });
-      
-      // 검색어 복원
-      if (q) {
-        setSearchInput(q);
-        setKeyword(q);
-      }
-      
-      // 필터 복원
-      if (testament) setTestamentFilter(testament);
-      if (book) setSelectedBook(book);
-      if (chapter) setSelectedChapter(chapter);
-      
+    const hash = window.location.hash;
+    const queryStart = hash.indexOf('?');
+    const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+    const params = new URLSearchParams(queryString);
+    
+    const q = params.get('q') || '';
+    const testament = (params.get('testament') as 'ALL' | 'OT' | 'NT') || 'ALL';
+    const book = params.get('book') || 'ALL';
+    const chapter = params.get('chapter') || 'ALL';
+    
+    // URL과 현재 State가 다를 때만 복원 (무한루프 방지)
+    const needsRestore = 
+      q !== keyword ||
+      testament !== testamentFilter ||
+      book !== selectedBook ||
+      chapter !== selectedChapter;
+    
+    if (needsRestore) {
+      console.log('🔄 URL 복원 (State와 다름):', { q, testament, book, chapter });
+      setSearchInput(q);
+      setKeyword(q);
+      setTestamentFilter(testament);
+      setSelectedBook(book);
+      setSelectedChapter(chapter);
       isInitialized.current = true;
     }
-  }, []); // 빈 배열 - 마운트 시 한 번만
+  }, [location, keyword, testamentFilter, selectedBook, selectedChapter]); // location과 state 모두 의존성
 
   // 초기 로드 (전체 성경)
   useEffect(() => {
