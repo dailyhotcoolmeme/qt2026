@@ -899,11 +899,19 @@ const loadRangePages = async () => {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64Audio = (reader.result as string).split(',')[1];
-        await fetch('/api/audio/upload', {
+        console.log('[R2 Upload - Continuous] Uploading:', fileName);
+        const uploadRes = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName, audioBase64: base64Audio })
         });
+        const uploadResult = await uploadRes.json();
+        console.log('[R2 Upload - Continuous] Result:', uploadResult);
+        if (uploadResult.success) {
+          console.log('[R2 Upload - Continuous] ✅ Success! URL:', uploadResult.publicUrl);
+        } else {
+          console.error('[R2 Upload - Continuous] ❌ Failed:', uploadResult.error);
+        }
       };
       reader.readAsDataURL(audioBlob);
 
@@ -981,11 +989,19 @@ const loadRangePages = async () => {
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64Audio = (reader.result as string).split(',')[1];
-        await fetch('/api/audio/upload', {
+        console.log('[R2 Upload - Preload] Uploading:', fileName);
+        const uploadRes = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName, audioBase64: base64Audio })
         });
+        const uploadResult = await uploadRes.json();
+        console.log('[R2 Upload - Preload] Result:', uploadResult);
+        if (uploadResult.success) {
+          console.log('[R2 Upload - Preload] ✅ Success! URL:', uploadResult.publicUrl);
+        } else {
+          console.error('[R2 Upload - Preload] ❌ Failed:', uploadResult.error);
+        }
       };
       reader.readAsDataURL(audioBlob);
 
