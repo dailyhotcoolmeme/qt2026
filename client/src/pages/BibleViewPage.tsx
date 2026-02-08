@@ -13,23 +13,21 @@ export default function BibleViewPage() {
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 쿼리 파라미터 추출
-  const hash = window.location.hash; // #/bible/42/9?q=믿음&testament=NT&book=42&verse=41
-  console.log('📍 전체 hash:', hash);
-  
+  const hash = window.location.hash;
   const queryStart = hash.indexOf('?');
   const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-  console.log('📍 추출한 queryString:', queryString);
-  
   const queryParams = new URLSearchParams(queryString);
   const highlightVerse = queryParams.get('verse');
   
-  console.log('📍 BibleViewPage - 하이라이트 절:', highlightVerse);
-  console.log('📍 모든 파라미터:', Object.fromEntries(queryParams));
+  // params.chapter에서 query string 제거 (wouter 버그 대응)
+  const cleanChapter = params?.chapter?.split('?')[0] || params?.chapter;
+  
+  console.log('📍 원본 chapter:', params?.chapter, '| 정리된 chapter:', cleanChapter, '| verse:', highlightVerse);
 
   // 성경 구절 로드
   useEffect(() => {
     async function fetchChapter() {
-      if (!params?.bookId || !params?.chapter) return;
+      if (!params?.bookId || !cleanChapter) return;
       
       setLoading(true);
       try {
@@ -37,7 +35,7 @@ export default function BibleViewPage() {
           .from('bible_verses')
           .select('*')
           .eq('book_id', params.bookId)
-          .eq('chapter', params.chapter)
+          .eq('chapter', cleanChapter)
           .order('verse', { ascending: true });
 
         if (error) throw error;
@@ -52,7 +50,7 @@ export default function BibleViewPage() {
       }
     }
     fetchChapter();
-  }, [params?.bookId, params?.chapter]);
+  }, [params?.bookId, cleanChapter]);
 
   // 하이라이트된 절로 스크롤
   useEffect(() => {

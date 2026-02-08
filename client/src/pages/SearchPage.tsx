@@ -2,9 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useSearch } from "wouter"; 
 import { Search, ChevronDown } from "lucide-react";
 
-// sessionStorage 캐시 (더 빠름)
-const CACHE_KEY = 'bible-data-session';
-const CACHE_VERSION = '1.0';
+// sessionStorage quota 문제로 캐시 제거 - 매번 1-2초 다운로드
 
 export default function SearchPage() {
   const [, setLocation] = useLocation();
@@ -63,78 +61,19 @@ export default function SearchPage() {
     return bookFilteredVerses.filter(v => v.chapter.toString() === selectedChapter);
   }, [bookFilteredVerses, selectedChapter]);
 
-  // 성경 전체 데이터 로드 (sessionStorage 캐싱 - 더 빠름)
+  // 성경 전체 데이터 로드 (캐시 없음 - 매번 다운로드)
   const loadBibleData = async () => {
     setLoading(true);
     const startTime = performance.now();
     
     try {
-      // 1. sessionStorage 캐시 확인 (더 빠름)
-      const cached = sessionStorage.getItem(CACHE_KEY);
-      const cacheVersion = sessionStorage.getItem('bible-version');
-      const chunks = parseInt(sessionStorage.getItem('bible-chunks') || '0');
-
-      if (cached && cacheVersion === CACHE_VERSION) {
-        const loadTime = ((performance.now() - startTime) / 1000).toFixed(3);
-        console.log(`⚡ sessionStorage 캐시 사용 (${loadTime}초)`);
-        const data = JSON.parse(cached);
-        setAllVerses(data);
-        setLoading(false);
-        return;
-      } else if (chunks > 1) {
-        // 분할 된 데이터 복원
-        let fullData = '';
-        for (let i = 0; i < chunks; i++) {
-          const chunk = sessionStorage.getItem(`${CACHE_KEY}-${i}`);
-          if (chunk) fullData += chunk;
-        }
-        if (fullData) {
-          const loadTime = ((performance.now() - startTime) / 1000).toFixed(3);
-          console.log(`⚡ sessionStorage 캐시 사용 (${chunks}개 부분, ${loadTime}초)`);
-          const data = JSON.parse(fullData);
-          setAllVerses(data);
-          setLoading(false);
-          return;
-        }
-      }
-
-      // 2. 캐시 없으면 다운로드
-      console.log('📥 성경 데이터 다운로드 중... (최초 1회만)');
+      console.log('📥 성경 데이터 다운로드 중...');
       const response = await fetch('/bible.json');
       if (!response.ok) throw new Error('bible.json 로드 실패');
       const data = await response.json();
       
       const downloadTime = ((performance.now() - startTime) / 1000).toFixed(2);
-      console.log(`✅ 다운로드 완료 (${downloadTime}초)`);
-      
-      // 3. sessionStorage에 저장 (탭 닫을 때까지 유지)
-      try {
-        const jsonStr = JSON.stringify(data);
-        const sizeInMB = (jsonStr.length / 1024 / 1024).toFixed(2);
-        console.log(`💾 sessionStorage 저장 시도 (${sizeInMB}MB)...`);
-        
-        // 용량이 크면 분할 저장
-        const chunkSize = 1024 * 1024; // 1MB
-        const chunks = Math.ceil(jsonStr.length / chunkSize);
-        
-        if (chunks > 1) {
-          console.log(`📦 ${chunks}개로 분할 저장...`);
-          for (let i = 0; i < chunks; i++) {
-            const chunk = jsonStr.slice(i * chunkSize, (i + 1) * chunkSize);
-            sessionStorage.setItem(`${CACHE_KEY}-${i}`, chunk);
-          }
-          sessionStorage.setItem('bible-chunks', chunks.toString());
-        } else {
-          sessionStorage.setItem(CACHE_KEY, jsonStr);
-          sessionStorage.setItem('bible-chunks', '1');
-        }
-        
-        sessionStorage.setItem('bible-version', CACHE_VERSION);
-        console.log('✅ sessionStorage 저장 완료 (탭 닫기 전까지 빠름)');
-      } catch (storageError: any) {
-        console.warn('⚠️ sessionStorage 저장 실패:', storageError.message);
-        console.log('💡 캐시 없이 사용 (매번 다운로드)');
-      }
+      console.log(`✅ 다운로드 완료 (${downloadTime}초, 31,102절)`);
       
       setAllVerses(data);
     } catch (err: any) {
