@@ -232,7 +232,7 @@ export default function SearchPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && performSearch()}
               placeholder="검색어 입력 (없으면 전체 조회)"
-              className="flex-1 max-w-lg h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
+              className="flex-1 max-w-xs h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
             />
             <button
               onClick={performSearch}
@@ -323,7 +323,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[230px] px-4 pb-20">
+      <div className="pt-[280px] px-4 pb-20">
         {loading && (
           <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
             <p className="text-zinc-500 font-bold text-lg">성경을 불러오는 중...</p>
@@ -347,7 +347,7 @@ export default function SearchPage() {
             <div key={v.id}>
               {/* 새로운 장 시작 - 권 장 표시 */}
               {isNewChapter && (
-                <div className={`mb-2 border-t-2 border-zinc-300 ${idx === 0 ? 'mt-0 pt-0' : 'mt-4 pt-3'}`}>
+                <div className={`mb-3 border-t-2 border-zinc-300 ${idx === 0 ? 'mt-0 pt-2' : 'mt-6 pt-4'}`}>
                   <h3 className="text-base font-extrabold text-[#4A6741]">
                     {v.book_name} {v.book_name === '시편' ? `${v.chapter}편` : `${v.chapter}장`}
                   </h3>
