@@ -26,8 +26,8 @@ export function TopBar() {
         
         
             <span className="text-xl font-bold text-[#4A6741] tracking-tighter relative inline-block">
-              <span className="text-[14px] font-bold absolute -top-2.5 -left-4">마이</span>
-              <span>A멘</span>
+              <span className="text-[14px] font-bold absolute -top-2.5 -left-4">my</span>
+              <span>Amen</span>
             </span>
         
         </div>
