@@ -72,6 +72,7 @@ export default function SearchPage() {
       // 1. sessionStorage 캐시 확인 (더 빠름)
       const cached = sessionStorage.getItem(CACHE_KEY);
       const cacheVersion = sessionStorage.getItem('bible-version');
+      const chunks = parseInt(sessionStorage.getItem('bible-chunks') || '0');
 
       if (cached && cacheVersion === CACHE_VERSION) {
         const loadTime = ((performance.now() - startTime) / 1000).toFixed(3);
@@ -80,6 +81,21 @@ export default function SearchPage() {
         setAllVerses(data);
         setLoading(false);
         return;
+      } else if (chunks > 1) {
+        // 분할 된 데이터 복원
+        let fullData = '';
+        for (let i = 0; i < chunks; i++) {
+          const chunk = sessionStorage.getItem(`${CACHE_KEY}-${i}`);
+          if (chunk) fullData += chunk;
+        }
+        if (fullData) {
+          const loadTime = ((performance.now() - startTime) / 1000).toFixed(3);
+          console.log(`⚡ sessionStorage 캐시 사용 (${chunks}개 부분, ${loadTime}초)`);
+          const data = JSON.parse(fullData);
+          setAllVerses(data);
+          setLoading(false);
+          return;
+        }
       }
 
       // 2. 캐시 없으면 다운로드
@@ -93,11 +109,31 @@ export default function SearchPage() {
       
       // 3. sessionStorage에 저장 (탭 닫을 때까지 유지)
       try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        const jsonStr = JSON.stringify(data);
+        const sizeInMB = (jsonStr.length / 1024 / 1024).toFixed(2);
+        console.log(`💾 sessionStorage 저장 시도 (${sizeInMB}MB)...`);
+        
+        // 용량이 크면 분할 저장
+        const chunkSize = 1024 * 1024; // 1MB
+        const chunks = Math.ceil(jsonStr.length / chunkSize);
+        
+        if (chunks > 1) {
+          console.log(`📦 ${chunks}개로 분할 저장...`);
+          for (let i = 0; i < chunks; i++) {
+            const chunk = jsonStr.slice(i * chunkSize, (i + 1) * chunkSize);
+            sessionStorage.setItem(`${CACHE_KEY}-${i}`, chunk);
+          }
+          sessionStorage.setItem('bible-chunks', chunks.toString());
+        } else {
+          sessionStorage.setItem(CACHE_KEY, jsonStr);
+          sessionStorage.setItem('bible-chunks', '1');
+        }
+        
         sessionStorage.setItem('bible-version', CACHE_VERSION);
         console.log('✅ sessionStorage 저장 완료 (탭 닫기 전까지 빠름)');
       } catch (storageError: any) {
-        console.warn('⚠️ sessionStorage 저장 실패');
+        console.warn('⚠️ sessionStorage 저장 실패:', storageError.message);
+        console.log('💡 캐시 없이 사용 (매번 다운로드)');
       }
       
       setAllVerses(data);
@@ -320,9 +356,13 @@ export default function SearchPage() {
                   params.set('verse', v.verse.toString());
                   
                   const queryString = params.toString();
-                  setLocation(`/bible/${v.book_id}/${v.chapter}?${queryString}`, {
-                    state: { highlightVerse: v.verse, scrollToVerse: true }
-                  });
+                  const targetUrl = `/bible/${v.book_id}/${v.chapter}?${queryString}`;
+                  
+                  console.log('📤 절 클릭 - 이동 URL:', targetUrl);
+                  console.log('📤 파라미터:', Object.fromEntries(params));
+                  
+                  // window.location.hash를 직접 설정
+                  window.location.hash = targetUrl;
                 }}
               >
                 <p className="text-xs font-bold text-zinc-500 mb-1">{v.verse}절</p>

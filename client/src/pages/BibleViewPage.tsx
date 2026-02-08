@@ -13,13 +13,18 @@ export default function BibleViewPage() {
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 쿼리 파라미터 추출
-  const hash = window.location.hash;
+  const hash = window.location.hash; // #/bible/42/9?q=믿음&testament=NT&book=42&verse=41
+  console.log('📍 전체 hash:', hash);
+  
   const queryStart = hash.indexOf('?');
   const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+  console.log('📍 추출한 queryString:', queryString);
+  
   const queryParams = new URLSearchParams(queryString);
   const highlightVerse = queryParams.get('verse');
   
-  console.log('📍 BibleViewPage - 하이라이트 절:', highlightVerse, '| 전체 쿼리:', queryString);
+  console.log('📍 BibleViewPage - 하이라이트 절:', highlightVerse);
+  console.log('📍 모든 파라미터:', Object.fromEntries(queryParams));
 
   // 성경 구절 로드
   useEffect(() => {
