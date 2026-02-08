@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { useAuth } from "../hooks/use-auth";
 import { ProfileEditModal } from "./ProfileEditModal";
+import { LoginModal } from "./LoginModal";
 import { Link, useLocation } from "wouter";
 
 export function TopBar() {
@@ -11,6 +12,7 @@ export function TopBar() {
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -19,6 +21,11 @@ export function TopBar() {
 
   const handleLogout = () => {
     setShowLogoutConfirm(true);
+  };
+
+  const handleLoginClick = () => {
+    setIsMenuOpen(false);
+    setShowLoginModal(true);
   };
 
   const confirmLogout = () => {
@@ -212,14 +219,12 @@ export function TopBar() {
                     <span className="font-semibold text-[14px] transition-colors">회원가입</span>
                   </button>
                 </Link>
-                <Link href="/login" onClick={() => setIsMenuOpen(false)}>
-                  <button className="flex items-center gap-3 p-3.5 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors text-left w-full group">
-                    <div className="text-zinc-400 group-hover:text-[#4A6741] transition-colors">
-                      <User className="w-5 h-5" />
-                    </div>
-                    <span className="font-semibold text-[14px] group-hover:text-zinc-900 transition-colors">로그인</span>
-                  </button>
-                </Link>
+                <button onClick={handleLoginClick} className="flex items-center gap-3 p-3.5 rounded-xl text-zinc-600 hover:bg-zinc-50 transition-colors text-left w-full group">
+                  <div className="text-zinc-400 group-hover:text-[#4A6741] transition-colors">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <span className="font-semibold text-[14px] group-hover:text-zinc-900 transition-colors">로그인</span>
+                </button>
               </div>
             )}
             
@@ -297,6 +302,12 @@ export function TopBar() {
           </div>
         )}
       </AnimatePresence>
+      
+      {/* Login Modal */}
+      <LoginModal 
+        open={showLoginModal} 
+        onOpenChange={setShowLoginModal}
+      />
     </>
   );
 }
