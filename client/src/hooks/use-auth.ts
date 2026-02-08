@@ -4,101 +4,43 @@ import { supabase } from "../lib/supabase";
 import type { User } from "@shared/models/auth";
 
 async function fetchUser(): Promise<User | null> {
-  console.log('[use-auth] fetchUser 시작, DEV:', import.meta.env.DEV);
+  console.log('[use-auth] fetchUser 시작');
   
-  // 로컬 개발 환경에서는 서버를 거치지 않고 바로 Supabase 사용
-  if (import.meta.env.DEV) {
-    const { data } = await supabase.auth.getUser();
-    console.log('[use-auth] DEV - Supabase getUser 결과:', data?.user ? '사용자 있음' : '사용자 없음');
-    if (!data?.user) return null;
+  // 모든 환경에서 Supabase 클라이언트 직접 사용 (API 우회)
+  const { data } = await supabase.auth.getUser();
+  console.log('[use-auth] Supabase getUser 결과:', data?.user ? '사용자 있음' : '사용자 없음');
+  if (!data?.user) return null;
 
-    // profiles 테이블 조회 (에러 발생 시 user_metadata 사용)
-    let profile = null;
-    try {
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("nickname, church, rank, age_group")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      
-      if (!error) {
-        profile = profileData;
-      }
-    } catch (e) {
-      // profiles 테이블이 없거나 접근 불가 시 user_metadata 사용
-      console.warn("profiles 테이블 조회 실패, user_metadata 사용:", e);
+  // profiles 테이블 조회 (에러 발생 시 user_metadata 사용)
+  let profile = null;
+  try {
+    const { data: profileData, error } = await supabase
+      .from("profiles")
+      .select("nickname, church, rank, age_group")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    
+    if (!error) {
+      profile = profileData;
     }
-
-    return {
-      id: data.user.id,
-      nickname:
-        profile?.nickname
-        ?? (data.user.user_metadata as any)?.nickname
-        ?? (data.user.user_metadata as any)?.full_name
-        ?? (data.user.user_metadata as any)?.name
-        ?? null,
-      church: profile?.church ?? null,
-      rank: profile?.rank ?? null,
-      age_group: profile?.age_group ?? null,
-      bible_complete_count: 0,
-      created_at: data.user.created_at ?? new Date().toISOString(),
-    };
+  } catch (e) {
+    console.warn("profiles 테이블 조회 실패, user_metadata 사용:", e);
   }
 
-  // 프로덕션에서는 서버 API 사용
-  console.log('[use-auth] 프로덕션 - /api/auth/user 호출');
-  const response = await fetch("/api/auth/user", {
-    credentials: "include",
-  });
-  console.log('[use-auth] API 응답 상태:', response.status);
-
-  if (response.status === 401 || response.status === 404) {
-    console.log('[use-auth] API 실패, Supabase fallback 사용');
-    const { data } = await supabase.auth.getUser();
-    console.log('[use-auth] Supabase fallback 결과:', data?.user ? '사용자 있음' : '사용자 없음');
-    if (!data?.user) return null;
-
-    // profiles 테이블 조회 (에러 발생 시 user_metadata 사용)
-    let profile = null;
-    try {
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("nickname, church, rank, age_group")
-        .eq("id", data.user.id)
-        .maybeSingle();
-      
-      if (!error) {
-        profile = profileData;
-      }
-    } catch (e) {
-      // 에러 무시
-      console.warn("profiles 조회 실패:", e);
-    }
-
-    return {
-      id: data.user.id,
-      nickname:
-        profile?.nickname
-        ?? (data.user.user_metadata as any)?.nickname
-        ?? (data.user.user_metadata as any)?.full_name
-        ?? (data.user.user_metadata as any)?.name
-        ?? null,
-      church: profile?.church ?? null,
-      rank: profile?.rank ?? null,
-      age_group: profile?.age_group ?? null,
-      bible_complete_count: 0,
-      created_at: data.user.created_at ?? new Date().toISOString(),
-    };
-  }
-
-  if (!response.ok) {
-    console.error('[use-auth] API 오류:', response.status, response.statusText);
-    throw new Error(`${response.status}: ${response.statusText}`);
-  }
-
-  const userData = await response.json();
-  console.log('[use-auth] API에서 사용자 반환:', userData ? '있음' : '없음');
-  return userData;
+  return {
+    id: data.user.id,
+    nickname:
+      profile?.nickname
+      ?? (data.user.user_metadata as any)?.nickname
+      ?? (data.user.user_metadata as any)?.full_name
+      ?? (data.user.user_metadata as any)?.name
+      ?? null,
+    church: profile?.church ?? null,
+    rank: profile?.rank ?? null,
+    age_group: profile?.age_group ?? null,
+    bible_complete_count: 0,
+    created_at: data.user.created_at ?? new Date().toISOString(),
+  };
 }
 
 async function logout(): Promise<void> {
