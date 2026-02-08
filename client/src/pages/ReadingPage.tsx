@@ -799,16 +799,29 @@ const loadRangePages = async () => {
       setupAudioEvents(ttsAudio, lastTime, false, isContinuous, currentPageIdx);
 
       // R2 업로드 (백그라운드)
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        await fetch('/api/audio/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, audioBase64: base64Audio })
-        });
-      };
-      reader.readAsDataURL(audioBlob);
+      (async () => {
+        try {
+          console.log('[R2 Upload] Uploading:', fileName);
+          // 1. Presigned URL 받기
+          const urlRes = await fetch('/api/audio/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName })
+          });
+          const { uploadUrl, publicUrl } = await urlRes.json();
+          
+          // 2. 직접 R2에 업로드
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: audioBlob,
+            headers: { 'Content-Type': 'audio/mp3' }
+          });
+          
+          console.log('[R2 Upload] ✅ Success! URL:', publicUrl);
+        } catch (error) {
+          console.error('[R2 Upload] ❌ Failed:', error);
+        }
+      })();
 
     } catch (error) {
       console.error("Azure TTS 에러:", error);
@@ -904,24 +917,27 @@ const loadRangePages = async () => {
       setupAudioEvents(ttsAudio, 0, false, true, chapterIdx);
 
       // R2 업로드 (백그라운드)
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        console.log('[R2 Upload - Continuous] Uploading:', fileName);
-        const uploadRes = await fetch('/api/audio/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, audioBase64: base64Audio })
-        });
-        const uploadResult = await uploadRes.json();
-        console.log('[R2 Upload - Continuous] Result:', uploadResult);
-        if (uploadResult.success) {
-          console.log('[R2 Upload - Continuous] ✅ Success! URL:', uploadResult.publicUrl);
-        } else {
-          console.error('[R2 Upload - Continuous] ❌ Failed:', uploadResult.error);
+      (async () => {
+        try {
+          console.log('[R2 Upload - Continuous] Uploading:', fileName);
+          const urlRes = await fetch('/api/audio/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName })
+          });
+          const { uploadUrl, publicUrl } = await urlRes.json();
+          
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: audioBlob,
+            headers: { 'Content-Type': 'audio/mp3' }
+          });
+          
+          console.log('[R2 Upload - Continuous] ✅ Success! URL:', publicUrl);
+        } catch (error) {
+          console.error('[R2 Upload - Continuous] ❌ Failed:', error);
         }
-      };
-      reader.readAsDataURL(audioBlob);
+      })();
 
     } catch (error) {
       console.error("Azure TTS \uc5d0\ub7ec:", error);
@@ -998,24 +1014,27 @@ const loadRangePages = async () => {
       nextChapterAudioCache.current.preload = 'auto';
 
       // R2 업로드 (백그라운드)
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64Audio = (reader.result as string).split(',')[1];
-        console.log('[R2 Upload - Preload] Uploading:', fileName);
-        const uploadRes = await fetch('/api/audio/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, audioBase64: base64Audio })
-        });
-        const uploadResult = await uploadRes.json();
-        console.log('[R2 Upload - Preload] Result:', uploadResult);
-        if (uploadResult.success) {
-          console.log('[R2 Upload - Preload] ✅ Success! URL:', uploadResult.publicUrl);
-        } else {
-          console.error('[R2 Upload - Preload] ❌ Failed:', uploadResult.error);
+      (async () => {
+        try {
+          console.log('[R2 Upload - Preload] Uploading:', fileName);
+          const urlRes = await fetch('/api/audio/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName })
+          });
+          const { uploadUrl, publicUrl } = await urlRes.json();
+          
+          await fetch(uploadUrl, {
+            method: 'PUT',
+            body: audioBlob,
+            headers: { 'Content-Type': 'audio/mp3' }
+          });
+          
+          console.log('[R2 Upload - Preload] ✅ Success! URL:', publicUrl);
+        } catch (error) {
+          console.error('[R2 Upload - Preload] ❌ Failed:', error);
         }
-      };
-      reader.readAsDataURL(audioBlob);
+      })();
 
     } catch (error) {
       console.error("다음 장 미리 로드 실패:", error);

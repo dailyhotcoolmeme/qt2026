@@ -1,3 +1,12 @@
 {
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/audio/upload.js": {
+      "maxDuration": 60,
+      "memory": 1024
+    },
+    "api/audio/check.js": {
+      "maxDuration": 10
+    }
+  }
 }
