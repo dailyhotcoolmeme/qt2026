@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType } from "lucide-react";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
+import { useAuth } from "../hooks/use-auth";
 import { Link } from "wouter";
 
 export function TopBar() {
@@ -9,6 +10,7 @@ export function TopBar() {
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
+  const { user } = useAuth();
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const size = Number(e.target.value);
@@ -117,23 +119,42 @@ export function TopBar() {
         <div className="p-6 flex flex-col h-full overflow-y-auto">
           <div className="mb-8 pt-2">
             <div className="flex justify-between items-start mb-4">
-              <div className="w-14 h-14 bg-zinc-100 rounded-2xl flex items-center justify-center">
-                <User className="w-8 h-8 text-zinc-400" />
-              </div>
+              {user?.avatar_url ? (
+                <img 
+                  src={user.avatar_url} 
+                  alt="프로필" 
+                  className="w-14 h-14 rounded-2xl object-cover"
+                />
+              ) : (
+                <div className="w-14 h-14 bg-zinc-100 rounded-2xl flex items-center justify-center">
+                  <User className="w-8 h-8 text-zinc-400" />
+                </div>
+              )}
               <button onClick={() => setIsMenuOpen(false)} className="p-1 hover:bg-zinc-50 rounded-full transition-colors">
                 <X className="w-6 h-6 text-zinc-300" />
               </button>
             </div>
             
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-lg font-bold text-zinc-900">홍길동</span>
-                <span className="text-xs font-medium text-[#4A6741] bg-green-50 px-2 py-0.5 rounded-full">(신실한 성도)</span>
-              </div>
-              <p className="text-sm text-zinc-500">광주중흥교회 집사</p>
+            <div className="space-y-0.5">
+              <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+                {user?.nickname || '닉네임 없음'}
+              </p>
+              <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
+                {user?.username || '아이디 없음'}
+              </p>
+              {user?.church && (
+                <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
+                  {user.church}
+                </p>
+              )}
+              {user?.rank && (
+                <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
+                  {user.rank}
+                </p>
+              )}
             </div>
             
-            <button className="flex items-center gap-1 text-[11px] text-zinc-400 mt-3 hover:text-zinc-600 transition-colors">
+            <button className="flex items-center gap-1 text-zinc-400 mt-3 hover:text-zinc-600 transition-colors" style={{ fontSize: `${fontSize - 4}px` }}>
               프로필 관리 <ChevronRight className="w-3 h-3" />
             </button>
           </div>

@@ -5,6 +5,8 @@ interface UserProfile {
   id: string;
   kakao_id?: string;
   nickname?: string;
+  username?: string;
+  avatar_url?: string;
   church?: string;
   rank?: string;
   age_group?: string;

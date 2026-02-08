@@ -1,7 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import type { User } from "@shared/models/auth";
+
+// User 타입 정의 (Supabase profiles 테이블 기반)
+export interface User {
+  id: string;
+  nickname: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  church: string | null;
+  rank: string | null;
+  age_group: string | null;
+  bible_complete_count: number;
+  created_at: string;
+}
 
 let isSupabaseInitialized = false;
 let initPromise: Promise<void> | null = null;
@@ -47,7 +59,7 @@ async function fetchUser(): Promise<User | null> {
   try {
     const { data: profileData, error } = await supabase
       .from("profiles")
-      .select("nickname, church, rank, age_group")
+      .select("nickname, username, church, rank, age_group, avatar_url")
       .eq("id", data.user.id)
       .maybeSingle();
     
@@ -66,6 +78,8 @@ async function fetchUser(): Promise<User | null> {
       ?? (data.user.user_metadata as any)?.full_name
       ?? (data.user.user_metadata as any)?.name
       ?? null,
+    username: profile?.username ?? data.user.email ?? null,
+    avatar_url: profile?.avatar_url ?? null,
     church: profile?.church ?? null,
     rank: profile?.rank ?? null,
     age_group: profile?.age_group ?? null,
