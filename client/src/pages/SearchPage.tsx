@@ -258,7 +258,7 @@ export default function SearchPage() {
               onChange={(e) => setSearchInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && performSearch()}
               placeholder="검색어 입력 (없으면 전체 조회)"
-              className="flex-1 max-w-xs h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
+              className="flex-1 min-w-0 h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
             />
             <button
               onClick={performSearch}
