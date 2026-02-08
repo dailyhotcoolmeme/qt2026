@@ -15,7 +15,7 @@ async function getApp() {
   app.use(express.urlencoded({ extended: false, limit: '50mb' }));
 
   // 서버 라우트 등록
-  const { registerRoutes } = await import('../server/routes.js');
+  const { registerRoutes } = await import('../server/routes');
   await registerRoutes(httpServer, app);
 
   return app;

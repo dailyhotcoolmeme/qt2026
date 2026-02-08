@@ -228,6 +228,12 @@ export async function registerRoutes(
     res.json(userId ? { id: userId } : null);
   });
 
+  // /api/auth/user 엔드포인트 추가 (클라이언트 호환성)
+  app.get("/api/auth/user", (req, res) => {
+    const userId = getUserId(req);
+    res.json(userId ? { id: userId } : null);
+  });
+
   // R2 오디오 업로드
   app.post("/api/audio/upload", async (req, res) => {
     try {
