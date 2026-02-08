@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Menu, X, Bell, Crown, Settings, User, MessageCircle, HelpCircle, Type, ChevronRight, Lock, BookType, LogOut } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider"; 
 import { useAuth } from "../hooks/use-auth";
 import { ProfileEditModal } from "./ProfileEditModal";
@@ -9,6 +10,7 @@ export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   
   // 전역 Context에서 상태와 변경 함수를 가져옵니다.
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -16,11 +18,14 @@ export function TopBar() {
   const [, setLocation] = useLocation();
 
   const handleLogout = () => {
-    if (confirm("로그아웃 하시겠습니까?")) {
-      logout();
-      setLocation("/");
-      setIsMenuOpen(false);
-    }
+    setShowLogoutConfirm(true);
+  };
+
+  const confirmLogout = () => {
+    logout();
+    setLocation("/");
+    setIsMenuOpen(false);
+    setShowLogoutConfirm(false);
   };
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,6 +228,54 @@ export function TopBar() {
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
       />
+      
+      {/* Logout Confirm Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            {/* 배경 흐리게 */}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowLogoutConfirm(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            
+            {/* 모달 본체 */}
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
+            >
+              <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
+                로그아웃 하시겠습니까?
+              </h4>
+              <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                현재 세션이 종료됩니다.
+              </p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={confirmLogout}
+                  className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-active active:scale-95 shadow-lg shadow-red-200"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  로그아웃
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
