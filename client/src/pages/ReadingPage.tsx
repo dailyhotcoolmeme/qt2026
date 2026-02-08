@@ -105,7 +105,7 @@ export default function ReadingPage() {
 
   useEffect(() => {
     if (showAudioControl) {
-      handlePlayTTS(undefined, false, isContinuousPlayMode);
+      handlePlayTTS(undefined, true, isContinuousPlayMode); // skipPopup=true로 변경
     }
   }, [voiceType]);
 
