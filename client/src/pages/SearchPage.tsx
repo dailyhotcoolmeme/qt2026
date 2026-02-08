@@ -1,70 +1,84 @@
 import React, { useState, useEffect } from 'react';
-import { useSearch, useLocation } from "wouter"; 
+import { useLocation } from "wouter"; 
 import { supabase } from '../lib/supabase'; 
-import { ChevronDown } from "lucide-react";
-import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { Search, ChevronDown } from "lucide-react";
 
 export default function SearchPage() {
-  const searchString = useSearch();
   const [, setLocation] = useLocation();
-  const { fontSize, fontFamily } = useDisplaySettings();
   
   const [keyword, setKeyword] = useState('');
-  const [results, setResults] = useState<any[]>([]);
+  const [searchInput, setSearchInput] = useState('');
+  const [allVerses, setAllVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
+  const [selectedChapter, setSelectedChapter] = useState<string>('ALL');
 
-  // 1. 현재 필터(전체/구약/신약)에 맞는 검색 결과만 먼저 추출
-  const filteredByTestament = React.useMemo(() => {
-    return results.filter(v => 
-      testamentFilter === 'ALL' || v.testament?.toUpperCase() === testamentFilter
-    );
-  }, [results, testamentFilter]);
+  // 검색어로 필터링된 결과
+  const searchFilteredVerses = React.useMemo(() => {
+    if (!keyword) return allVerses;
+    return allVerses.filter(v => v.content.includes(keyword));
+  }, [allVerses, keyword]);
 
-  // 2. 필터링된 결과에서 존재하는 성경 권 목록 추출
+  // 구약/신약으로 필터링
+  const testamentFilteredVerses = React.useMemo(() => {
+    if (testamentFilter === 'ALL') return searchFilteredVerses;
+    return searchFilteredVerses.filter(v => v.testament?.toUpperCase() === testamentFilter);
+  }, [searchFilteredVerses, testamentFilter]);
+
+  // 사용 가능한 권 목록
   const availableBooks = React.useMemo(() => {
     const bookMap = new Map();
-    filteredByTestament.forEach(v => {
+    testamentFilteredVerses.forEach(v => {
       if (!bookMap.has(v.book_id)) {
-        bookMap.set(v.book_id, v.book_name);
+        bookMap.set(v.book_id, { id: v.book_id, name: v.book_name, order: v.book_order });
       }
     });
-    return Array.from(bookMap.entries())
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => Number(a.id) - Number(b.id));
-  }, [filteredByTestament]);
+    return Array.from(bookMap.values()).sort((a, b) => Number(a.order) - Number(b.order));
+  }, [testamentFilteredVerses]);
 
-  // 3. 최종적으로 화면에 보여줄 결과 (권 선택 포함)
+  // 권으로 필터링
+  const bookFilteredVerses = React.useMemo(() => {
+    if (selectedBook === 'ALL') return testamentFilteredVerses;
+    return testamentFilteredVerses.filter(v => v.book_id.toString() === selectedBook);
+  }, [testamentFilteredVerses, selectedBook]);
+
+  // 사용 가능한 장 목록
+  const availableChapters = React.useMemo(() => {
+    const chapters = new Set<number>();
+    bookFilteredVerses.forEach(v => chapters.add(v.chapter));
+    return Array.from(chapters).sort((a, b) => a - b);
+  }, [bookFilteredVerses]);
+
+  // 최종 결과 (장으로 필터링)
   const finalResults = React.useMemo(() => {
-    return filteredByTestament.filter(v => 
-      selectedBook === 'ALL' || v.book_id.toString() === selectedBook
-    );
-  }, [filteredByTestament, selectedBook]);
+    if (selectedChapter === 'ALL') return bookFilteredVerses;
+    return bookFilteredVerses.filter(v => v.chapter.toString() === selectedChapter);
+  }, [bookFilteredVerses, selectedChapter]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchString);
-    const q = params.get('q');
-    if (q) {
-      setKeyword(q);
-      performSearch(q);
-    }
-  }, [searchString]);
-
-  const performSearch = async (searchWord: string) => {
-    if (!searchWord.trim()) return;
+  // 검색 실행
+  const performSearch = async () => {
+    const searchWord = searchInput.trim();
+    setKeyword(searchWord);
     setLoading(true);
+    
     try {
-      let query = supabase.from('bible_verses').select('*').ilike('content', `%${searchWord}%`);
+      let query = supabase.from('bible_verses').select('*');
+      
+      if (searchWord) {
+        query = query.ilike('content', `%${searchWord}%`);
+      }
+      
       const { data, error } = await query
-        .order('book_id', { ascending: true })
+        .order('book_order', { ascending: true })
         .order('chapter', { ascending: true })
         .order('verse', { ascending: true })
-        .limit(500);
+        .limit(1000);
 
       if (error) throw error;
-      setResults(data || []);
-      setSelectedBook('ALL'); 
+      setAllVerses(data || []);
+      setSelectedBook('ALL');
+      setSelectedChapter('ALL');
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -72,76 +86,156 @@ export default function SearchPage() {
     }
   };
 
+  // 초기 로드 (전체 성경)
+  useEffect(() => {
+    performSearch();
+  }, []);
+
+  // 검색어 하이라이트
+  const highlightKeyword = (text: string) => {
+    if (!keyword) return text;
+    const parts = text.split(new RegExp(`(${keyword})`, 'gi'));
+    return parts.map((part, i) => 
+      part.toLowerCase() === keyword.toLowerCase() 
+        ? <mark key={i} className="bg-yellow-200 font-bold">{part}</mark>
+        : part
+    );
+  };
+
+  // 필터 변경 시 하위 선택 초기화
+  useEffect(() => {
+    setSelectedBook('ALL');
+    setSelectedChapter('ALL');
+  }, [testamentFilter]);
+
+  useEffect(() => {
+    setSelectedChapter('ALL');
+  }, [selectedBook]);
+
   return (
-    <div className="min-h-screen bg-white">
-      {/* 상단 필터 영역 (TopBar 아래 고정) */}
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 py-4 space-y-4 shadow-sm">
-        {/* 전체/구약/신약 버튼 섹션 */}
-        <div className="flex gap-2 w-full">
-          {(['ALL', 'OT', 'NT'] as const).map((f) => (
-            <button 
-              key={f} 
-              onClick={() => { setTestamentFilter(f); setSelectedBook('ALL'); }}
-              className={`flex-1 py-3 rounded-xl text-[15px] font-extrabold transition-all active:scale-95 ${
-                testamentFilter === f 
-                  ? 'bg-blue-600 text-white shadow-md ring-2 ring-blue-100' 
-                  : 'bg-zinc-100 text-zinc-500 border border-zinc-200'
-              }`}
-            >
-              {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
-            </button>
-          ))}
-        </div>
-        
-        {/* 권 선택 콤보박스 섹션 */}
-        <div className="relative">
-          <select 
-            className="w-full h-12 px-4 bg-zinc-50 border border-zinc-200 rounded-xl text-[15px] outline-none appearance-none font-bold text-zinc-700 pr-10"
-            value={selectedBook}
-            onChange={(e) => setSelectedBook(e.target.value)}
+    <div className="min-h-screen bg-white pb-20">
+      {/* 검색 입력 영역 */}
+      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b px-4 py-3">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && performSearch()}
+            placeholder="검색어 입력 (없으면 전체 조회)"
+            className="flex-1 h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none focus:border-zinc-400"
+          />
+          <button
+            onClick={performSearch}
+            disabled={loading}
+            className="w-11 h-11 flex items-center justify-center bg-[#4A6741] text-white rounded-xl hover:bg-[#3d5636] disabled:opacity-50"
           >
-            <option value="ALL">
-              {testamentFilter === 'ALL' ? '모든 성경' : testamentFilter === 'OT' ? '검색된 구약' : '검색된 신약'} ({availableBooks.length}권)
-            </option>
-            {availableBooks.map(book => (
-              <option key={book.id} value={book.id}>{book.name}</option>
-            ))}
-          </select>
-          <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none">
-            <ChevronDown className="w-5 h-5 text-zinc-400" />
-          </div>
+            <Search className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
-      {/* 결과 리스트 섹션 */}
-      <div className="pt-52 pb-10 px-4">
-        {loading && <p className="text-center py-10 text-zinc-500 font-bold">검색 중...</p>}
-        
-        {!loading && finalResults.map((v) => (
-          <div key={v.id} className="py-5 border-b border-zinc-100 active:bg-zinc-50 cursor-pointer"
-            onClick={() => setLocation(`/view/${v.book_id}/${v.chapter}?verse=${v.verse}`)}>
-            
-            {/* 구절 정보: 본문과 동일한 fontSize 적용, 파란색/굵게 유지 */}
-            <p 
-              className="font-extrabold text-blue-600 mb-2 bg-blue-50 w-fit px-2 py-0.5 rounded"
-              style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
+      {/* 필터 영역 */}
+      <div className="fixed top-[122px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
+        {/* 전체/구약/신약 */}
+        <div className="flex gap-2">
+          {(['ALL', 'OT', 'NT'] as const).map((f) => (
+            <button 
+              key={f} 
+              onClick={() => setTestamentFilter(f)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                testamentFilter === f 
+                  ? 'bg-[#4A6741] text-white' 
+                  : 'bg-zinc-100 text-zinc-500'
+              }`}
             >
-              {v.book_name} {v.chapter}:{v.verse}
-            </p>
+              {f === 'ALL' ? `전체 (${searchFilteredVerses.length})` : 
+               f === 'OT' ? `구약 (${searchFilteredVerses.filter(v => v.testament === 'OT').length})` : 
+               `신약 (${searchFilteredVerses.filter(v => v.testament === 'NT').length})`}
+            </button>
+          ))}
+        </div>
 
-            {/* 본문 내용: 설정된 fontSize 적용 */}
-            <p 
-              className="leading-relaxed text-zinc-800"
-              style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
+        {/* 권 선택 */}
+        <div className="relative">
+          <select 
+            className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none appearance-none font-bold text-zinc-700 pr-8"
+            value={selectedBook}
+            onChange={(e) => setSelectedBook(e.target.value)}
+          >
+            <option value="ALL">전체 권 ({availableBooks.length}권)</option>
+            {availableBooks.map(book => (
+              <option key={book.id} value={book.id}>
+                {book.name} ({testamentFilteredVerses.filter(v => v.book_id === book.id).length})
+              </option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
+        </div>
+
+        {/* 장 선택 */}
+        {selectedBook !== 'ALL' && (
+          <div className="relative">
+            <select 
+              className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none appearance-none font-bold text-zinc-700 pr-8"
+              value={selectedChapter}
+              onChange={(e) => setSelectedChapter(e.target.value)}
             >
-              {v.content}
-            </p>
+              <option value="ALL">전체 장 ({availableChapters.length}장)</option>
+              {availableChapters.map(ch => (
+                <option key={ch} value={ch}>
+                  {ch}장 ({bookFilteredVerses.filter(v => v.chapter === ch).length}절)
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
           </div>
-        ))}
-
-        {!loading && keyword && finalResults.length === 0 && (
-          <p className="text-center py-20 text-zinc-400">해당 조건의 결과가 없습니다.</p>
         )}
+      </div>
+
+      {/* 결과 리스트 */}
+      <div className="pt-[240px] px-4">
+        {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
+        
+        {!loading && finalResults.length === 0 && (
+          <p className="text-center py-20 text-zinc-400 text-sm">결과가 없습니다.</p>
+        )}
+
+        {!loading && finalResults.map((v, idx) => {
+          // 이전 절과 연속되는지 확인
+          const prevVerse = finalResults[idx - 1];
+          const isContinuous = prevVerse && 
+            prevVerse.book_id === v.book_id && 
+            prevVerse.chapter === v.chapter && 
+            prevVerse.verse === v.verse - 1;
+
+          return (
+            <div 
+              key={v.id} 
+              className={`py-3 ${!isContinuous ? 'border-t border-zinc-200' : ''} cursor-pointer hover:bg-zinc-50`}
+              onClick={() => setLocation(`/view/${v.book_id}/${v.chapter}?verse=${v.verse}`)}
+            >
+              {/* 새로운 구절 그룹 시작 */}
+              {!isContinuous && (
+                <p className="text-xs font-bold text-[#4A6741] mb-1">
+                  {v.book_name} {v.chapter}:{v.verse}
+                </p>
+              )}
+              
+              {/* 연속된 절은 절 번호만 표시 */}
+              {isContinuous && (
+                <p className="text-xs font-bold text-zinc-400 mb-1">
+                  {v.verse}절
+                </p>
+              )}
+              
+              {/* 본문 */}
+              <p className="text-sm leading-relaxed text-zinc-700">
+                {highlightKeyword(v.content)}
+              </p>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
