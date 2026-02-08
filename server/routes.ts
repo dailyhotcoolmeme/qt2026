@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
+import { uploadAudioToR2, checkAudioExistsInR2, getR2PublicUrl } from "./r2";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
@@ -225,6 +226,65 @@ export async function registerRoutes(
   app.get("/api/auth/me", (req, res) => {
     const userId = getUserId(req);
     res.json(userId ? { id: userId } : null);
+  });
+
+  // R2 오디오 업로드
+  app.post("/api/audio/upload", async (req, res) => {
+    try {
+      const { fileName, audioBase64 } = req.body;
+      
+      if (!fileName || !audioBase64) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "fileName과 audioBase64가 필요합니다" 
+        });
+      }
+
+      // Base64 디코딩
+      const audioBuffer = Buffer.from(audioBase64, 'base64');
+      
+      // R2에 업로드
+      const result = await uploadAudioToR2(fileName, audioBuffer, 'audio/mp3');
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Audio upload error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "업로드 실패" 
+      });
+    }
+  });
+
+  // R2 오디오 URL 가져오기
+  app.get("/api/audio/:fileName", async (req, res) => {
+    try {
+      const { fileName } = req.params;
+      
+      // 파일 존재 확인
+      const exists = await checkAudioExistsInR2(fileName);
+      
+      if (!exists) {
+        return res.status(404).json({ 
+          success: false, 
+          error: "파일이 존재하지 않습니다" 
+        });
+      }
+
+      // Public URL 반환
+      const publicUrl = getR2PublicUrl(fileName);
+      
+      res.json({ 
+        success: true, 
+        publicUrl 
+      });
+    } catch (error) {
+      console.error('Audio fetch error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "조회 실패" 
+      });
+    }
   });
 
   return httpServer;

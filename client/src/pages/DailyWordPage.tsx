@@ -157,14 +157,14 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   // 파일명 생성 시 특수문자 제거
   const bookOrder = bibleData.bible_books?.book_order || '0';
   const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
-  const fileName = `daily_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
-  const storagePath = `daily/${fileName}`;
-  
-  const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+  const fileName = `daily/daily_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
 
   try {
-    const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+    // R2에서 파일 확인
+    const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
+    
     if (checkRes.ok) {
+      const { publicUrl } = await checkRes.json();
       const savedAudio = new Audio(publicUrl);
       setupAudioEvents(savedAudio, lastTime);
       return; 
@@ -235,10 +235,17 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-      contentType: 'audio/mp3', 
-      upsert: true 
-    });
+    // R2 업로드 (백그라운드)
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64Audio = (reader.result as string).split(',')[1];
+      await fetch('/api/audio/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName, audioBase64: base64Audio })
+      });
+    };
+    reader.readAsDataURL(audioBlob);
 
   } catch (error) {
     console.error("TTS 에러:", error);

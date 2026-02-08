@@ -732,15 +732,14 @@ const loadRangePages = async () => {
 
     // 파일 경로 설정 (reading 폴더)
     const bookOrder = bibleData.bible_books?.book_order || '0';
-    const fileName = `reading_b${bookOrder}_c${bibleData.chapter}_${targetVoice}.mp3`;
-    const storagePath = `reading/${fileName}`;
-    const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+    const fileName = `reading/reading_b${bookOrder}_c${bibleData.chapter}_${targetVoice}.mp3`;
 
     try {
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      // 1. R2에서 파일 확인
+      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
       
-      // 1. 이미 파일이 있는 경우
       if (checkRes.ok) {
+        const { publicUrl } = await checkRes.json();
         const savedAudio = new Audio(publicUrl);
         setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
         return;
@@ -795,11 +794,17 @@ const loadRangePages = async () => {
       // 4. 오디오 설정 및 재생
       setupAudioEvents(ttsAudio, lastTime, false, isContinuous, currentPageIdx);
 
-      // 스토리지 업로드
-      supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-        contentType: 'audio/mp3', 
-        upsert: true 
-      });
+      // R2 업로드 (백그라운드)
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        await fetch('/api/audio/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, audioBase64: base64Audio })
+        });
+      };
+      reader.readAsDataURL(audioBlob);
 
     } catch (error) {
       console.error("Azure TTS 에러:", error);
@@ -825,9 +830,7 @@ const loadRangePages = async () => {
     
     const targetVoice = voiceType;
     const bookOrder = chapterData.bible_books?.book_order || '0';
-    const fileName = `reading_b${bookOrder}_c${chapterData.chapter}_${targetVoice}.mp3`;
-    const storagePath = `reading/${fileName}`;
-    const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+    const fileName = `reading/reading_b${bookOrder}_c${chapterData.chapter}_${targetVoice}.mp3`;
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -837,10 +840,11 @@ const loadRangePages = async () => {
     }
 
     try {
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      // R2에서 파일 확인
+      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
       
-      // 서버에 파일이 있는 경우
       if (checkRes.ok) {
+        const { publicUrl } = await checkRes.json();
         const savedAudio = new Audio(publicUrl);
         setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
         return;
@@ -891,11 +895,17 @@ const loadRangePages = async () => {
       
       setupAudioEvents(ttsAudio, 0, false, true, chapterIdx);
 
-      // \uc2a4\ud1a0\ub9ac\uc9c0 \uc5c5\ub85c\ub4dc
-      supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-        contentType: 'audio/mp3', 
-        upsert: true 
-      });
+      // R2 업로드 (백그라운드)
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        await fetch('/api/audio/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, audioBase64: base64Audio })
+        });
+      };
+      reader.readAsDataURL(audioBlob);
 
     } catch (error) {
       console.error("Azure TTS \uc5d0\ub7ec:", error);
@@ -910,15 +920,14 @@ const loadRangePages = async () => {
     
     const targetVoice = voiceType;
     const bookOrder = nextChapter.bible_books?.book_order || '0';
-    const fileName = `reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
-    const storagePath = `reading/${fileName}`;
-    const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
+    const fileName = `reading/reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
 
     try {
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      // R2에서 파일 확인
+      const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
       
-      // 서버에 파일이 있으면 미리 로드 (재생은 하지 않음)
       if (checkRes.ok) {
+        const { publicUrl } = await checkRes.json();
         nextChapterAudioCache.current = new Audio(publicUrl);
         nextChapterAudioCache.current.preload = 'auto';
         return;
@@ -968,11 +977,17 @@ const loadRangePages = async () => {
       nextChapterAudioCache.current = new Audio(audioUrl);
       nextChapterAudioCache.current.preload = 'auto';
 
-      // 스토리지 업로드 (백그라운드)
-      supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-        contentType: 'audio/mp3', 
-        upsert: true 
-      });
+      // R2 업로드 (백그라운드)
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64Audio = (reader.result as string).split(',')[1];
+        await fetch('/api/audio/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, audioBase64: base64Audio })
+        });
+      };
+      reader.readAsDataURL(audioBlob);
 
     } catch (error) {
       console.error("다음 장 미리 로드 실패:", error);
