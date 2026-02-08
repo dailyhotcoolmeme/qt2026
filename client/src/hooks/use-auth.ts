@@ -4,9 +4,12 @@ import { supabase } from "../lib/supabase";
 import type { User } from "@shared/models/auth";
 
 async function fetchUser(): Promise<User | null> {
+  console.log('[use-auth] fetchUser 시작, DEV:', import.meta.env.DEV);
+  
   // 로컬 개발 환경에서는 서버를 거치지 않고 바로 Supabase 사용
   if (import.meta.env.DEV) {
     const { data } = await supabase.auth.getUser();
+    console.log('[use-auth] DEV - Supabase getUser 결과:', data?.user ? '사용자 있음' : '사용자 없음');
     if (!data?.user) return null;
 
     // profiles 테이블 조회 (에러 발생 시 user_metadata 사용)
@@ -43,12 +46,16 @@ async function fetchUser(): Promise<User | null> {
   }
 
   // 프로덕션에서는 서버 API 사용
+  console.log('[use-auth] 프로덕션 - /api/auth/user 호출');
   const response = await fetch("/api/auth/user", {
     credentials: "include",
   });
+  console.log('[use-auth] API 응답 상태:', response.status);
 
   if (response.status === 401 || response.status === 404) {
+    console.log('[use-auth] API 실패, Supabase fallback 사용');
     const { data } = await supabase.auth.getUser();
+    console.log('[use-auth] Supabase fallback 결과:', data?.user ? '사용자 있음' : '사용자 없음');
     if (!data?.user) return null;
 
     // profiles 테이블 조회 (에러 발생 시 user_metadata 사용)
@@ -85,14 +92,18 @@ async function fetchUser(): Promise<User | null> {
   }
 
   if (!response.ok) {
+    console.error('[use-auth] API 오류:', response.status, response.statusText);
     throw new Error(`${response.status}: ${response.statusText}`);
   }
 
-  return response.json();
+  const userData = await response.json();
+  console.log('[use-auth] API에서 사용자 반환:', userData ? '있음' : '없음');
+  return userData;
 }
 
 async function logout(): Promise<void> {
-  window.location.href = "/api/logout";
+  await supabase.auth.signOut();
+  window.location.href = "/";
 }
 
 export function useAuth() {
@@ -102,13 +113,15 @@ export function useAuth() {
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 0,
+    staleTime: 1000 * 60 * 5, // 5분 동안 캐시 유지
+    gcTime: 1000 * 60 * 10, // 10분 동안 메모리 유지
   });
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+      (event, session) => {
+        console.log('[use-auth] Auth 상태 변경:', event, 'session:', session ? '있음' : '없음');
+        if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "TOKEN_REFRESHED") {
           queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
         }
       }

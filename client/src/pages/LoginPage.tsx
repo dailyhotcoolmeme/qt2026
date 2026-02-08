@@ -14,13 +14,22 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log('[LoginPage] 로그인 시도...');
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password: password.trim(),
       });
       if (error) throw error;
-      setLocation("/");
+      
+      console.log('[LoginPage] 로그인 성공, session:', data.session ? '있음' : '없음');
+      console.log('[LoginPage] localStorage 확인:', localStorage.getItem('myamen-auth'));
+      
+      // 세션이 저장될 시간을 주고 페이지 이동
+      setTimeout(() => {
+        setLocation("/");
+      }, 100);
     } catch (error: any) {
+      console.error('[LoginPage] 로그인 실패:', error);
       alert(error.message || "로그인에 실패했습니다.");
     } finally {
       setIsLoading(false);

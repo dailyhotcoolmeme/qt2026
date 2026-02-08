@@ -15,7 +15,7 @@ export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null); 
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1152,7 +1152,16 @@ const loadRangePages = async () => {
     }
 
     // 로그인 확인 (전체 재생 모드가 아닐 때만 팝업)
+    // 인증 로딩 중이면 잠시 대기
+    if (isAuthLoading) {
+      console.log('인증 상태 확인 중...');
+      // 로딩이 끝날 때까지 잠시 대기 후 재시도
+      setTimeout(() => handleReadComplete(silent, chapterData), 500);
+      return;
+    }
+    
     if (!user) {
+      console.log('사용자 없음 - 로그인 모달 표시');
       if (!silent) {
         // 폭죽과 동시에 로그인 팝업 표시
         setShowLoginModal(true);
