@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from "wouter"; 
+import { useLocation, useSearch } from "wouter"; 
 import { Search, ChevronDown } from "lucide-react";
 
 export default function SearchPage() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   
   const [keyword, setKeyword] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -61,6 +62,8 @@ export default function SearchPage() {
   // 성경 전체 데이터 로드 (캐싱 적용)
   const loadBibleData = async () => {
     setLoading(true);
+    const startTime = performance.now();
+    
     try {
       // 1. 캐시 확인
       const cached = localStorage.getItem('bible-data');
@@ -68,7 +71,8 @@ export default function SearchPage() {
       const currentVersion = '1.0'; // 데이터 업데이트 시 버전 변경
 
       if (cached && cacheVersion === currentVersion) {
-        console.log('✅ 캐시된 성경 데이터 사용');
+        const loadTime = ((performance.now() - startTime) / 1000).toFixed(2);
+        console.log(`✅ 캐시된 성경 데이터 사용 (${loadTime}초)`);
         const data = JSON.parse(cached);
         setAllVerses(data);
         setLoading(false);
@@ -81,13 +85,21 @@ export default function SearchPage() {
       if (!response.ok) throw new Error('bible.json 로드 실패');
       const data = await response.json();
       
+      const downloadTime = ((performance.now() - startTime) / 1000).toFixed(2);
+      console.log(`✅ 다운로드 완료 (${downloadTime}초)`);
+      
       // 3. localStorage에 저장
       try {
-        localStorage.setItem('bible-data', JSON.stringify(data));
+        const jsonStr = JSON.stringify(data);
+        const sizeInMB = (jsonStr.length / 1024 / 1024).toFixed(2);
+        console.log(`💾 localStorage 저장 시도 (${sizeInMB}MB)...`);
+        
+        localStorage.setItem('bible-data', jsonStr);
         localStorage.setItem('bible-version', currentVersion);
-        console.log('✅ 성경 데이터 캐시 완료');
-      } catch (storageError) {
-        console.warn('localStorage 저장 실패 (용량 부족 가능성)', storageError);
+        console.log('✅ localStorage 저장 완료');
+      } catch (storageError: any) {
+        console.error('❌ localStorage 저장 실패:', storageError.message);
+        console.warn('⚠️ 캐시를 사용할 수 없습니다. 매번 다운로드됩니다.');
       }
       
       setAllVerses(data);
@@ -105,7 +117,24 @@ export default function SearchPage() {
     setKeyword(searchWord);
     setSelectedBook('ALL');
     setSelectedChapter('ALL');
+    
+    // URL에 검색어 저장
+    if (searchWord) {
+      window.history.replaceState(null, '', `#/search?q=${encodeURIComponent(searchWord)}`);
+    } else {
+      window.history.replaceState(null, '', '#/search');
+    }
   };
+
+  // URL에서 검색어 복원
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const q = params.get('q');
+    if (q) {
+      setSearchInput(q);
+      setKeyword(q);
+    }
+  }, [searchString]);
 
   // 초기 로드 (전체 성경)
   useEffect(() => {
@@ -144,27 +173,27 @@ export default function SearchPage() {
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && performSearch()}
             placeholder="검색어 입력 (없으면 전체 조회)"
-            className="flex-1 h-11 px-4 bg-zinc-50 border border-zinc-200 rounded-xl text-sm outline-none focus:border-zinc-400"
+            className="flex-1 h-10 px-4 bg-zinc-50 border border-zinc-200 rounded-lg text-sm outline-none focus:border-zinc-400"
           />
           <button
             onClick={performSearch}
             disabled={loading}
-            className="w-11 h-11 flex items-center justify-center bg-[#4A6741] text-white rounded-xl hover:bg-[#3d5636] disabled:opacity-50"
+            className="w-10 h-10 flex items-center justify-center bg-[#4A6741] text-white rounded-lg hover:bg-[#3d5636] disabled:opacity-50"
           >
-            <Search className="w-5 h-5" />
+            <Search className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {/* 필터 영역 */}
-      <div className="fixed top-[122px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
+      <div className="fixed top-[70px] left-0 right-0 z-[99] bg-white border-b px-4 py-3 space-y-2">
         {/* 전체/구약/신약 */}
         <div className="flex gap-2">
           {(['ALL', 'OT', 'NT'] as const).map((f) => (
             <button 
               key={f} 
               onClick={() => setTestamentFilter(f)}
-              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex-1 h-10 rounded-lg text-xs font-bold transition-all ${
                 testamentFilter === f 
                   ? 'bg-[#4A6741] text-white' 
                   : 'bg-zinc-100 text-zinc-500'
@@ -177,45 +206,48 @@ export default function SearchPage() {
           ))}
         </div>
 
-        {/* 권 선택 */}
-        <div className="relative">
-          <select 
-            className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none appearance-none font-bold text-zinc-700 pr-8"
-            value={selectedBook}
-            onChange={(e) => setSelectedBook(e.target.value)}
-          >
-            <option value="ALL">전체 권 ({availableBooks.length}권)</option>
-            {availableBooks.map(book => (
-              <option key={book.id} value={book.id}>
-                {book.name} ({testamentFilteredVerses.filter(v => v.book_id === book.id).length})
-              </option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
-        </div>
-
-        {/* 장 선택 */}
-        {selectedBook !== 'ALL' && (
-          <div className="relative">
+        {/* 권/장 선택 - 한 줄로 */}
+        <div className="flex gap-2">
+          {/* 권 선택 */}
+          <div className="relative flex-1">
             <select 
               className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none appearance-none font-bold text-zinc-700 pr-8"
-              value={selectedChapter}
-              onChange={(e) => setSelectedChapter(e.target.value)}
+              value={selectedBook}
+              onChange={(e) => setSelectedBook(e.target.value)}
             >
-              <option value="ALL">전체 장 ({availableChapters.length}장)</option>
-              {availableChapters.map(ch => (
-                <option key={ch} value={ch}>
-                  {ch}장 ({bookFilteredVerses.filter(v => v.chapter === ch).length}절)
+              <option value="ALL">전체 권 ({availableBooks.length}권)</option>
+              {availableBooks.map(book => (
+                <option key={book.id} value={book.id}>
+                  {book.name} ({testamentFilteredVerses.filter(v => v.book_id === book.id).length})
                 </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
           </div>
-        )}
+
+          {/* 장 선택 */}
+          {selectedBook !== 'ALL' && (
+            <div className="relative flex-1">
+              <select 
+                className="w-full h-10 px-3 bg-zinc-50 border border-zinc-200 rounded-lg text-xs outline-none appearance-none font-bold text-zinc-700 pr-8"
+                value={selectedChapter}
+                onChange={(e) => setSelectedChapter(e.target.value)}
+              >
+                <option value="ALL">전체 장 ({availableChapters.length}장)</option>
+                {availableChapters.map(ch => (
+                  <option key={ch} value={ch}>
+                    {ch}장 ({bookFilteredVerses.filter(v => v.chapter === ch).length}절)
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[260px] px-4">
+      <div className="pt-[180px] px-4">
         {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
         
         {!loading && finalResults.length === 0 && (
