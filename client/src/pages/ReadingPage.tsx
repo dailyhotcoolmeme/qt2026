@@ -68,6 +68,9 @@ export default function ReadingPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isFromServer, setIsFromServer] = useState(false);
+  const [audioControlY, setAudioControlY] = useState(0); // 재생 팝업 Y 위치
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const verseRefs = useRef<(HTMLParagraphElement | null)[]>([]);
@@ -105,6 +108,27 @@ export default function ReadingPage() {
       handlePlayTTS(undefined, false, isContinuousPlayMode);
     }
   }, [voiceType]);
+
+  // 재생 팝업 드래그 핸들러
+  const handleDragStart = (e: React.PointerEvent) => {
+    setIsDragging(true);
+    setDragStartY(e.clientY - audioControlY);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleDragMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const newY = e.clientY - dragStartY;
+    // 화면 경계 체크 (상단 80px, 하단 200px 여유)
+    const minY = -200;
+    const maxY = window.innerHeight - 350;
+    setAudioControlY(Math.max(minY, Math.min(newY, maxY)));
+  };
+
+  const handleDragEnd = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+  };
 
   // 범위 선택 모드로만 사용
   useEffect(() => {
@@ -2157,16 +2181,28 @@ const loadRangePages = async () => {
       {/* TTS 컨트롤 (재생바 추가) */}
       <AnimatePresence>
         {showAudioControl && (
-          <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]">
+          <motion.div 
+            initial={{ y: 80, opacity: 0 }} 
+            animate={{ y: audioControlY, opacity: 1 }} 
+            exit={{ y: 80, opacity: 0 }} 
+            style={{ bottom: '96px' }}
+            className="fixed left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
+          >
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
+              <div 
+                className="flex items-center justify-between cursor-move touch-none"
+                onPointerDown={handleDragStart}
+                onPointerMove={handleDragMove}
+                onPointerUp={handleDragEnd}
+                onPointerCancel={handleDragEnd}
+              >
                 <div className="flex items-center gap-3">
                   <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors">
                     {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
                   </button>
                   <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
                 </div>
-                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); setCurrentTime(0); setDuration(0); }}><X size={20}/></button>
+                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); setCurrentTime(0); setDuration(0); setAudioControlY(0); }}><X size={20}/></button>
               </div>
               
               {/* 재생바 및 시간 (서버 파일일 때만 표시) */}
