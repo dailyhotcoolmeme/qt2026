@@ -1,35 +1,27 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRoute, useLocation } from "wouter";
 import { supabase } from '../lib/supabase';
-import { ChevronLeft, ArrowLeft } from "lucide-react";
-import { Button } from "../components/ui/button";
-import { useDisplaySettings } from "../components/DisplaySettingsProvider"; // 폰트 설정을 위해 필수
+import { ArrowLeft } from "lucide-react";
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 export default function BibleViewPage() {
   const [, params] = useRoute("/bible/:bookId/:chapter");
   const [, setLocation] = useLocation();
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [highlightVerse, setHighlightVerse] = useState<string | null>(null);
-  const [queryString, setQueryString] = useState('');
   
-  // 폰트 설정 가져오기 (이 부분이 없으면 에러로 인해 흰 화면이 뜰 수 있습니다)
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 쿼리 파라미터 추출
-  useEffect(() => {
-    const hash = window.location.hash;
-    const queryStart = hash.indexOf('?');
-    const qs = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-    setQueryString(qs);
-    
-    const queryParams = new URLSearchParams(qs);
-    const verse = queryParams.get('verse');
-    setHighlightVerse(verse);
-    
-    console.log('🔍 BibleViewPage - verse 파라미터:', verse);
-  }, []);
+  const hash = window.location.hash;
+  const queryStart = hash.indexOf('?');
+  const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+  const queryParams = new URLSearchParams(queryString);
+  const highlightVerse = queryParams.get('verse');
+  
+  console.log('📍 BibleViewPage - 하이라이트 절:', highlightVerse, '| 전체 쿼리:', queryString);
 
+  // 성경 구절 로드
   useEffect(() => {
     async function fetchChapter() {
       if (!params?.bookId || !params?.chapter) return;
@@ -44,7 +36,10 @@ export default function BibleViewPage() {
           .order('verse', { ascending: true });
 
         if (error) throw error;
-        if (data) setVerses(data);
+        if (data) {
+          setVerses(data);
+          console.log('✅ 구절 로드 완료:', data.length, '절');
+        }
       } catch (err) {
         console.error("데이터 로딩 에러:", err);
       } finally {
@@ -54,19 +49,24 @@ export default function BibleViewPage() {
     fetchChapter();
   }, [params?.bookId, params?.chapter]);
 
-  // 하이라이트된 절로 스크롤 이동
+  // 하이라이트된 절로 스크롤
   useEffect(() => {
     if (!loading && verses.length > 0 && highlightVerse) {
-      console.log('📍 스크롤 시도 - verse:', highlightVerse);
-      setTimeout(() => {
+      console.log('🎯 스크롤 시도 - 절:', highlightVerse);
+      
+      const timer = setTimeout(() => {
         const element = document.getElementById(`verse-${highlightVerse}`);
-        console.log('📍 찾은 요소:', element);
+        console.log('🎯 찾은 요소:', element ? '발견' : '없음');
+        
         if (element) {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          console.log('✅ 스크롤 완료');
         }
-      }, 500);
+      }, 300);
+      
+      return () => clearTimeout(timer);
     }
-  }, [loading, verses.length, highlightVerse]);
+  }, [loading, verses, highlightVerse]);
 
   if (loading) return (
     <div className="min-h-screen bg-white pt-20 text-center text-zinc-500 font-bold">
@@ -80,12 +80,13 @@ export default function BibleViewPage() {
       <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
           onClick={() => {
-            // URL의 모든 파라미터를 유지하면서 돌아가기
+            // 모든 쿼리 파라미터 유지 (verse 제외)
             const params = new URLSearchParams(queryString);
-            params.delete('verse'); // verse만 제거
+            params.delete('verse');
             
             const backQuery = params.toString();
             const backUrl = backQuery ? `/search?${backQuery}` : '/search';
+            console.log('🔙 뒤로가기:', backUrl);
             setLocation(backUrl);
           }}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
@@ -95,30 +96,34 @@ export default function BibleViewPage() {
         </button>
       </div>
 
-      {/* 본문 내용: 상단바(h-14) + 뒤로가기(h-[52px]) 만큼 띄워줍니다. */}
+      {/* 본문 내용 */}
       <div className="pt-[108px] pb-10 px-5 space-y-5">
         <h2 className="text-xl font-extrabold text-zinc-900 mb-6 border-b pb-2">
           {verses[0]?.book_name} {params?.chapter}장
         </h2>
 
-        {verses.map((v) => (
-          <div 
-            key={v.id} 
-            id={`verse-${v.verse}`}
-            className={`leading-relaxed transition-colors p-2 rounded ${
-              highlightVerse && v.verse.toString() === highlightVerse
-                ? 'bg-yellow-200 font-bold shadow-md border-2 border-yellow-400' 
-                : ''
-            }`}
-            style={{ 
-              fontSize: `${fontSize}px`, 
-              fontFamily: fontFamily 
-            }}
-          >
-            <sup className="text-blue-500 mr-2 text-xs font-bold">{v.verse}</sup>
-            {v.content}
-          </div>
-        ))}
+        {verses.map((v) => {
+          const isHighlighted = highlightVerse && v.verse.toString() === highlightVerse;
+          
+          return (
+            <div 
+              key={v.id} 
+              id={`verse-${v.verse}`}
+              className={`leading-relaxed transition-all duration-300 p-3 rounded ${
+                isHighlighted
+                  ? 'bg-yellow-200 border-2 border-yellow-500 font-bold shadow-lg' 
+                  : ''
+              }`}
+              style={{ 
+                fontSize: `${fontSize}px`, 
+                fontFamily: fontFamily 
+              }}
+            >
+              <sup className="text-blue-500 mr-2 text-xs font-bold">{v.verse}</sup>
+              {v.content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
