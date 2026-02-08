@@ -85,15 +85,72 @@ export default function SearchPage() {
   // 검색 실행
   const performSearch = () => {
     const searchWord = searchInput.trim();
-    setKeyword(searchWord);
-    setSelectedBook('ALL');
-    setSelectedChapter('ALL');
     
     // localStorage에 저장 (캐시)
     if (searchWord) {
       localStorage.setItem('lastSearch', searchWord);
     } else {
       localStorage.removeItem('lastSearch');
+    }
+    
+    if (!searchWord) {
+      setKeyword('');
+      setSelectedBook('ALL');
+      setSelectedChapter('ALL');
+      return;
+    }
+    
+    // 책 이름 + 장 번호 자동 필터링
+    // 예: "갈라디아서 5장", "데살로니가전서", "창세기 1"
+    
+    // 모든 책 목록 추출
+    const bookList = Array.from(new Set(allVerses.map(v => ({
+      id: v.book_id,
+      name: v.book_name,
+      testament: v.testament
+    })).map(b => JSON.stringify(b)))).map(b => JSON.parse(b));
+    
+    // 검색어에서 책 이름 찾기
+    const foundBook = bookList.find(book => 
+      searchWord.includes(book.name) || book.name.includes(searchWord)
+    );
+    
+    if (foundBook) {
+      // 책 찾음 - testament와 book 자동 설정
+      setTestamentFilter(foundBook.testament as 'OT' | 'NT');
+      setSelectedBook(foundBook.id.toString());
+      
+      // "숫자장" 또는 "숫자" 패턴 찾기
+      const chapterMatch = searchWord.match(/(\d+)\s*장/) || searchWord.match(/\s(\d+)$/);
+      if (chapterMatch) {
+        const chapterNum = chapterMatch[1];
+        // 해당 책의 장 목록에서 확인
+        const hasChapter = allVerses.some(v => 
+          v.book_id === foundBook.id && v.chapter.toString() === chapterNum
+        );
+        if (hasChapter) {
+          setSelectedChapter(chapterNum);
+        } else {
+          setSelectedChapter('ALL');
+        }
+      } else {
+        setSelectedChapter('ALL');
+      }
+      
+      // 검색어가 "책이름" 또는 "책이름 숫자장"만 있는 경우 keyword는 빈 문자열
+      const bookNamePattern = new RegExp(`^${foundBook.name}(\\s*\\d+\\s*장?)?$`);
+      if (bookNamePattern.test(searchWord)) {
+        setKeyword(''); // 책 이름으로만 필터링, 내용 검색 안 함
+      } else {
+        // 책 이름 외의 키워드가 있으면 그것으로 검색
+        const remainingKeyword = searchWord.replace(foundBook.name, '').replace(/\d+\s*장?/, '').trim();
+        setKeyword(remainingKeyword || searchWord);
+      }
+    } else {
+      // 책 이름이 없으면 일반 검색
+      setKeyword(searchWord);
+      setSelectedBook('ALL');
+      setSelectedChapter('ALL');
     }
   };
 
