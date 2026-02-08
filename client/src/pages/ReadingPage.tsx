@@ -735,16 +735,37 @@ const loadRangePages = async () => {
     const fileName = `reading/reading_b${bookOrder}_c${bibleData.chapter}_${targetVoice}.mp3`;
 
     try {
-      // 1. R2에서 파일 확인 (직접 HEAD 요청)
+      // 1. R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      const savedAudio = new Audio(publicUrl);
       
-      if (checkRes.ok) {
-        const savedAudio = new Audio(publicUrl);
-        setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
-        return;
-      }
-
+      // 파일이 존재하면 재생, 없으면 error 이벤트에서 TTS 생성
+      let audioLoadFailed = false;
+      
+      savedAudio.addEventListener('error', async () => {
+        if (audioLoadFailed) return; // 중복 실행 방지
+        audioLoadFailed = true;
+        console.log('[Audio] R2 파일 없음, TTS 생성 시작');
+        
+        // TTS 생성 로직
+        await generateAndUploadTTS();
+      }, { once: true });
+      
+      savedAudio.addEventListener('canplay', () => {
+        console.log('[Audio] R2 파일 로드 성공');
+      }, { once: true });
+      
+      setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
+      return;
+      
+    } catch (error) {
+      console.error("Audio 재생 에러:", error);
+      setIsPlaying(false);
+    }
+    
+    // TTS 생성 및 업로드 함수
+    async function generateAndUploadTTS() {
+      try {
       // 2. 숫자 변환 및 텍스트 정제
       const toKorNum = (num: number | string) => {
         const n = Number(num);
@@ -819,9 +840,10 @@ const loadRangePages = async () => {
         }
       })();
 
-    } catch (error) {
-      console.error("Azure TTS 에러:", error);
-      setIsPlaying(false);
+      } catch (error) {
+        console.error("Azure TTS 에러:", error);
+        setIsPlaying(false);
+      }
     }
   };
 
@@ -853,16 +875,36 @@ const loadRangePages = async () => {
     }
 
     try {
-      // R2에서 파일 확인 (직접 HEAD 요청)
+      // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      const savedAudio = new Audio(publicUrl);
       
-      if (checkRes.ok) {
-        const savedAudio = new Audio(publicUrl);
-        setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
-        return;
-      }
+      let audioLoadFailed = false;
+      
+      savedAudio.addEventListener('error', async () => {
+        if (audioLoadFailed) return;
+        audioLoadFailed = true;
+        console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
+        
+        // TTS 생성
+        await generateContinuousTTS();
+      }, { once: true });
+      
+      savedAudio.addEventListener('canplay', () => {
+        console.log('[Audio Continuous] R2 파일 로드 성공');
+      }, { once: true });
+      
+      setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
+      return;
 
+    } catch (error) {
+      console.error("Audio 재생 에러:", error);
+      setIsPlaying(false);
+      setIsContinuousPlayMode(false);
+    }
+    
+    async function generateContinuousTTS() {
+      try {
       // 서버에 파일이 없으면 TTS API 호출
       const toKorNum = (num: number | string) => {
         const n = Number(num);
@@ -931,10 +973,11 @@ const loadRangePages = async () => {
         }
       })();
 
-    } catch (error) {
-      console.error("Azure TTS \uc5d0\ub7ec:", error);
-      setIsPlaying(false);
-      setIsContinuousPlayMode(false);
+      } catch (error) {
+        console.error("Azure TTS \uc5d0\ub7ec:", error);
+        setIsPlaying(false);
+        setIsContinuousPlayMode(false);
+      }
     }
   };
 
@@ -947,16 +990,34 @@ const loadRangePages = async () => {
     const fileName = `reading/reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
 
     try {
-      // R2에서 파일 확인 (직접 HEAD 요청)
+      // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
-      const checkRes = await fetch(publicUrl, { method: 'HEAD' });
+      nextChapterAudioCache.current = new Audio(publicUrl);
+      nextChapterAudioCache.current.preload = 'auto';
       
-      if (checkRes.ok) {
-        nextChapterAudioCache.current = new Audio(publicUrl);
-        nextChapterAudioCache.current.preload = 'auto';
-        return;
-      }
+      let audioLoadFailed = false;
+      
+      nextChapterAudioCache.current.addEventListener('error', async () => {
+        if (audioLoadFailed) return;
+        audioLoadFailed = true;
+        console.log('[Audio Preload] R2 파일 없음, TTS 생성 시작');
+        
+        // TTS 생성
+        await generatePreloadTTS();
+      }, { once: true });
+      
+      nextChapterAudioCache.current.addEventListener('canplay', () => {
+        console.log('[Audio Preload] R2 파일 로드 성공');
+      }, { once: true });
+      
+      return;
 
+    } catch (error) {
+      console.error("다음 장 미리 로드 실패:", error);
+    }
+    
+    async function generatePreloadTTS() {
+      try {
       // 서버에 파일이 없으면 TTS API로 미리 생성
       const toKorNum = (num: number | string) => {
         const n = Number(num);
@@ -1024,8 +1085,9 @@ const loadRangePages = async () => {
         }
       })();
 
-    } catch (error) {
-      console.error("다음 장 미리 로드 실패:", error);
+      } catch (error) {
+        console.error("다음 장 미리 로드 실패:", error);
+      }
     }
   };
 
