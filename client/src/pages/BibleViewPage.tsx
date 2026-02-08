@@ -83,14 +83,8 @@ export default function BibleViewPage() {
       <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
           onClick={() => {
-            // 모든 쿼리 파라미터 유지 (verse 제외)
-            const params = new URLSearchParams(queryString);
-            params.delete('verse');
-            
-            const backQuery = params.toString();
-            const backUrl = backQuery ? `/search?${backQuery}` : '/search';
-            console.log('🔙 뒤로가기:', backUrl);
-            setLocation(backUrl);
+            // 브라우저 히스토리 뒤로가기 사용 (SearchPage remount 방지)
+            window.history.back();
           }}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
         >
