@@ -23,7 +23,10 @@ export default function SearchPage() {
   // 구약/신약으로 필터링
   const testamentFilteredVerses = React.useMemo(() => {
     if (testamentFilter === 'ALL') return searchFilteredVerses;
-    return searchFilteredVerses.filter(v => v.testament?.toUpperCase() === testamentFilter);
+    return searchFilteredVerses.filter(v => {
+      const testament = v.testament?.toUpperCase();
+      return testament === testamentFilter;
+    });
   }, [searchFilteredVerses, testamentFilter]);
 
   // 사용 가능한 권 목록
@@ -66,14 +69,13 @@ export default function SearchPage() {
       let query = supabase.from('bible_verses').select('*');
       
       if (searchWord) {
-        query = query.ilike('content', `%${searchWord}%`);
+        query = query.ilike('content', `%${searchWord}%`).limit(1000);
       }
       
       const { data, error } = await query
         .order('book_id', { ascending: true })
         .order('chapter', { ascending: true })
-        .order('verse', { ascending: true })
-        .limit(1000);
+        .order('verse', { ascending: true });
 
       if (error) throw error;
       setAllVerses(data || []);
@@ -150,8 +152,8 @@ export default function SearchPage() {
               }`}
             >
               {f === 'ALL' ? `전체 (${searchFilteredVerses.length})` : 
-               f === 'OT' ? `구약 (${searchFilteredVerses.filter(v => v.testament === 'OT').length})` : 
-               `신약 (${searchFilteredVerses.filter(v => v.testament === 'NT').length})`}
+               f === 'OT' ? `구약 (${searchFilteredVerses.filter(v => v.testament?.toUpperCase() === 'OT').length})` : 
+               `신약 (${searchFilteredVerses.filter(v => v.testament?.toUpperCase() === 'NT').length})`}
             </button>
           ))}
         </div>
@@ -194,7 +196,7 @@ export default function SearchPage() {
       </div>
 
       {/* 결과 리스트 */}
-      <div className="pt-[240px] px-4">
+      <div className="pt-[260px] px-4">
         {loading && <p className="text-center py-10 text-zinc-500 text-sm">검색 중...</p>}
         
         {!loading && finalResults.length === 0 && (
@@ -213,7 +215,7 @@ export default function SearchPage() {
             <div 
               key={v.id} 
               className={`py-3 ${!isContinuous ? 'border-t border-zinc-200' : ''} cursor-pointer hover:bg-zinc-50`}
-              onClick={() => setLocation(`/view/${v.book_id}/${v.chapter}?verse=${v.verse}`)}
+              onClick={() => setLocation(`/bible/${v.book_id}/${v.chapter}?verse=${v.verse}`)}
             >
               {/* 새로운 구절 그룹 시작 */}
               {!isContinuous && (
