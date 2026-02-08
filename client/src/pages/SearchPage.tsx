@@ -31,10 +31,10 @@ export default function SearchPage() {
     const bookMap = new Map();
     testamentFilteredVerses.forEach(v => {
       if (!bookMap.has(v.book_id)) {
-        bookMap.set(v.book_id, { id: v.book_id, name: v.book_name, order: v.book_order });
+        bookMap.set(v.book_id, { id: v.book_id, name: v.book_name });
       }
     });
-    return Array.from(bookMap.values()).sort((a, b) => Number(a.order) - Number(b.order));
+    return Array.from(bookMap.values()).sort((a, b) => Number(a.id) - Number(b.id));
   }, [testamentFilteredVerses]);
 
   // 권으로 필터링
@@ -70,7 +70,7 @@ export default function SearchPage() {
       }
       
       const { data, error } = await query
-        .order('book_order', { ascending: true })
+        .order('book_id', { ascending: true })
         .order('chapter', { ascending: true })
         .order('verse', { ascending: true })
         .limit(1000);
