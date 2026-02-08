@@ -804,17 +804,8 @@ const loadRangePages = async () => {
         }
       };
       
-      // 파일이 로드되면 재생 시작
-      savedAudio.addEventListener('loadeddata', () => {
-        if (!errorOccurred) {
-          console.log('[Audio] R2 파일 로드 성공');
-          setIsPlaying(true);
-          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
-        }
-      }, { once: true });
-      
-      // 파일이 없으면 TTS 생성
-      savedAudio.addEventListener('error', async (e) => {
+      // 에러 핸들러 정의
+      const errorHandler = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
@@ -829,7 +820,21 @@ const loadRangePages = async () => {
         
         // TTS 생성
         await generateAndUploadTTS();
+      };
+      
+      // 파일이 로드되면 재생 시작
+      savedAudio.addEventListener('loadeddata', () => {
+        if (!errorOccurred) {
+          errorOccurred = true; // error 핸들러 방지
+          savedAudio.removeEventListener('error', errorHandler); // error 리스너 제거
+          console.log('[Audio] R2 파일 로드 성공');
+          setIsPlaying(true);
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
+        }
       }, { once: true });
+      
+      // 파일이 없으면 TTS 생성
+      savedAudio.addEventListener('error', errorHandler, { once: true });
       
       return;
       
@@ -1013,17 +1018,8 @@ const loadRangePages = async () => {
         }
       };
       
-      // 파일이 로드되면 재생 시작
-      savedAudio.addEventListener('loadeddata', () => {
-        if (!errorOccurred) {
-          console.log('[Audio Continuous] R2 파일 로드 성공');
-          setIsPlaying(true);
-          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
-        }
-      }, { once: true });
-      
-      // 파일이 없으면 TTS 생성
-      savedAudio.addEventListener('error', async (e) => {
+      // 에러 핸들러 정의
+      const errorHandlerContinuous = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
@@ -1038,7 +1034,21 @@ const loadRangePages = async () => {
         
         // TTS 생성
         await generateContinuousTTS();
+      };
+      
+      // 파일이 로드되면 재생 시작
+      savedAudio.addEventListener('loadeddata', () => {
+        if (!errorOccurred) {
+          errorOccurred = true; // error 핸들러 방지
+          savedAudio.removeEventListener('error', errorHandlerContinuous); // error 리스너 제거
+          console.log('[Audio Continuous] R2 파일 로드 성공');
+          setIsPlaying(true);
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
+        }
       }, { once: true });
+      
+      // 파일이 없으면 TTS 생성
+      savedAudio.addEventListener('error', errorHandlerContinuous, { once: true });
       
       return;
 
