@@ -159,14 +159,11 @@ export default function SearchPage() {
                 setTestamentFilter('ALL');
                 setSelectedBook('ALL');
                 setSelectedChapter('ALL');
-                window.history.replaceState(null, '', '#/search');
+                localStorage.removeItem('lastSearch');
               }}
-              className="w-10 h-20 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600"
-              title="초기화"
+              className="px-4 h-10 flex items-center justify-center bg-zinc-500 text-white rounded-lg hover:bg-zinc-600 font-bold text-sm whitespace-nowrap"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
+              초기화
             </button>
           </div>
           
@@ -260,8 +257,8 @@ export default function SearchPage() {
               <div 
                 className="mb-4 cursor-pointer hover:bg-zinc-50 p-2 rounded"
                 onClick={() => {
-                  // 간단하게 BibleViewPage로 이동
-                  setLocation(`/bible/${v.book_id}/${v.chapter}`);
+                  // verse 파라미터를 URL에 포함하여 이동
+                  window.location.hash = `/bible/${v.book_id}/${v.chapter}?verse=${v.verse}`;
                 }}
               >
                 <p className="text-xs font-bold text-zinc-500 mb-1">{v.verse}절</p>

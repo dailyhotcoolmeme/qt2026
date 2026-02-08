@@ -12,6 +12,13 @@ export default function BibleViewPage() {
   
   const { fontSize, fontFamily } = useDisplaySettings();
 
+  // URL에서 verse 파라미터 추출
+  const hash = window.location.hash;
+  const queryStart = hash.indexOf('?');
+  const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
+  const queryParams = new URLSearchParams(queryString);
+  const highlightVerse = queryParams.get('verse');
+
   // 성경 구절 로드
   useEffect(() => {
     async function fetchChapter() {
@@ -36,6 +43,20 @@ export default function BibleViewPage() {
     }
     fetchChapter();
   }, [params?.bookId, params?.chapter]);
+
+  // 하이라이트된 절로 스크롤
+  useEffect(() => {
+    if (!loading && verses.length > 0 && highlightVerse) {
+      const timer = setTimeout(() => {
+        const element = document.getElementById(`verse-${highlightVerse}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [loading, verses, highlightVerse]);
 
   if (loading) return (
     <div className="min-h-screen bg-white pt-20 text-center text-zinc-500 font-bold">
@@ -62,19 +83,28 @@ export default function BibleViewPage() {
           {verses[0]?.book_name} {params?.chapter}장
         </h2>
 
-        {verses.map((v) => (
-          <div 
-            key={v.id}
-            className="leading-relaxed p-3"
-            style={{ 
-              fontSize: `${fontSize}px`, 
-              fontFamily: fontFamily 
-            }}
-          >
-            <sup className="text-blue-500 mr-2 text-xs font-bold">{v.verse}</sup>
-            {v.content}
-          </div>
-        ))}
+        {verses.map((v) => {
+          const isHighlighted = highlightVerse && v.verse.toString() === highlightVerse;
+          
+          return (
+            <div 
+              key={v.id}
+              id={`verse-${v.verse}`}
+              className={`leading-relaxed transition-all duration-300 p-3 rounded ${
+                isHighlighted
+                  ? 'bg-yellow-200 border-2 border-yellow-500 font-bold shadow-lg' 
+                  : ''
+              }`}
+              style={{ 
+                fontSize: `${fontSize}px`, 
+                fontFamily: fontFamily 
+              }}
+            >
+              <sup className="text-blue-500 mr-2 text-xs font-bold">{v.verse}</sup>
+              {v.content}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
