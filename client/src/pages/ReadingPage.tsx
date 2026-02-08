@@ -697,7 +697,11 @@ const loadRangePages = async () => {
     
     setShowAudioControl(true);
     setIsPlaying(true);
-    audio.play().catch(e => console.log("재생 시작 오류:", e));
+    // play()는 여기서 호출하지 않음 - R2 파일 loadeddata에서만 호출
+    if (!fromServer) {
+      // TTS 생성된 파일만 즉시 재생
+      audio.play().catch(e => console.log("재생 시작 오류:", e));
+    }
   };
 
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M', skipPopup = false, isContinuous = false) => {
