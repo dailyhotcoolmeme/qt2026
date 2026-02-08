@@ -739,34 +739,27 @@ const loadRangePages = async () => {
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
       
-      let errorHandled = false;
+      let handlerCalled = false;
+      
+      // 파일이 실제로 로드되면 재생 준비
+      savedAudio.addEventListener('loadeddata', () => {
+        if (!handlerCalled) {
+          handlerCalled = true;
+          console.log('[Audio] R2 파일 로드 성공');
+          setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
+        }
+      }, { once: true });
       
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', async (e) => {
-        if (errorHandled) return;
-        errorHandled = true;
+        if (handlerCalled) return;
+        handlerCalled = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
-        
-        // 현재 오디오 완전히 제거
-        savedAudio.pause();
-        savedAudio.removeAttribute('src');
-        savedAudio.load();
-        
-        // audioRef도 정리
-        if (audioRef.current === savedAudio) {
-          audioRef.current = null;
-        }
-        
-        // UI 숨기기
-        setIsPlaying(false);
-        setShowAudioControl(false);
         
         // TTS 생성
         await generateAndUploadTTS();
       }, { once: true });
       
-      // 즉시 UI 표시 및 재생 준비
-      setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
       return;
       
     } catch (error) {
@@ -890,34 +883,27 @@ const loadRangePages = async () => {
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
       
-      let errorHandled = false;
+      let handlerCalled = false;
+      
+      // 파일이 실제로 로드되면 재생 준비
+      savedAudio.addEventListener('loadeddata', () => {
+        if (!handlerCalled) {
+          handlerCalled = true;
+          console.log('[Audio Continuous] R2 파일 로드 성공');
+          setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
+        }
+      }, { once: true });
       
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', async (e) => {
-        if (errorHandled) return;
-        errorHandled = true;
+        if (handlerCalled) return;
+        handlerCalled = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
-        
-        // 현재 오디오 완전히 제거
-        savedAudio.pause();
-        savedAudio.removeAttribute('src');
-        savedAudio.load();
-        
-        // audioRef도 정리
-        if (audioRef.current === savedAudio) {
-          audioRef.current = null;
-        }
-        
-        // UI 숨기기
-        setIsPlaying(false);
-        setShowAudioControl(false);
         
         // TTS 생성
         await generateContinuousTTS();
       }, { once: true });
       
-      // 즉시 UI 표시 및 재생 준비
-      setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
       return;
 
     } catch (error) {
