@@ -1,12 +1,8 @@
 {
   "outputDirectory": "dist",
-  "functions": {
-    "api/audio/upload.js": {
-      "maxDuration": 60,
-      "memory": 1024
-    },
-    "api/audio/check.js": {
-      "maxDuration": 10
-    }
-  }
+  "rewrites": [
+    { "source": "/api/audio/check", "destination": "/api/audio/check" },
+    { "source": "/api/audio/upload", "destination": "/api/audio/upload" },
+    { "source": "/api/auth/user", "destination": "/api/auth/user" }
+  ]
 }
