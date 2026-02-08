@@ -741,28 +741,31 @@ const loadRangePages = async () => {
       
       // 파일이 존재하면 재생, 없으면 error 이벤트에서 TTS 생성
       let audioLoadFailed = false;
-      let audioLoaded = false;
       
       savedAudio.addEventListener('error', async () => {
-        if (audioLoadFailed || audioLoaded) return; // 중복 실행 방지
+        if (audioLoadFailed) return; // 중복 실행 방지
         audioLoadFailed = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
         
         // 실패한 오디오 정리
-        savedAudio.pause();
-        savedAudio.src = '';
+        if (audioRef.current === savedAudio) {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+          audioRef.current = null;
+        }
+        setIsPlaying(false);
+        setShowAudioControl(false);
         
         // TTS 생성 로직
         await generateAndUploadTTS();
       }, { once: true });
       
       savedAudio.addEventListener('canplay', () => {
-        if (audioLoadFailed) return; // TTS 생성 중이면 무시
-        audioLoaded = true;
         console.log('[Audio] R2 파일 로드 성공');
-        setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
       }, { once: true });
       
+      // 즉시 UI 표시 및 재생 준비
+      setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
       return;
       
     } catch (error) {
@@ -887,28 +890,31 @@ const loadRangePages = async () => {
       const savedAudio = new Audio(publicUrl);
       
       let audioLoadFailed = false;
-      let audioLoaded = false;
       
       savedAudio.addEventListener('error', async () => {
-        if (audioLoadFailed || audioLoaded) return;
+        if (audioLoadFailed) return;
         audioLoadFailed = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
         
         // 실패한 오디오 정리
-        savedAudio.pause();
-        savedAudio.src = '';
+        if (audioRef.current === savedAudio) {
+          audioRef.current.pause();
+          audioRef.current.src = '';
+          audioRef.current = null;
+        }
+        setIsPlaying(false);
+        setShowAudioControl(false);
         
         // TTS 생성
         await generateContinuousTTS();
       }, { once: true });
       
       savedAudio.addEventListener('canplay', () => {
-        if (audioLoadFailed) return;
-        audioLoaded = true;
         console.log('[Audio Continuous] R2 파일 로드 성공');
-        setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
       }, { once: true });
       
+      // 즉시 UI 표시 및 재생 준비
+      setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
       return;
 
     } catch (error) {
