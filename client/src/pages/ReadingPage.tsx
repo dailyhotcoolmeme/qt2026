@@ -739,22 +739,89 @@ const loadRangePages = async () => {
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
       
-      let handlerCalled = false;
+      let errorOccurred = false;
       
-      // 파일이 실제로 로드되면 재생 준비
+      // 즉시 UI 표시
+      audioRef.current = savedAudio;
+      savedAudio.currentTime = lastTime;
+      setShowAudioControl(true);
+      setIsFromServer(true);
+      
+      // 오디오 이벤트 설정
+      savedAudio.onloadedmetadata = () => {
+        if (!errorOccurred) {
+          setDuration(savedAudio.duration);
+          // 전체 재생 모드일 때 다음 장 미리 로드
+          if (isContinuous && rangePages.length > 0 && currentPageIdx < rangePages.length - 1) {
+            const nextChapter = rangePages[currentPageIdx + 1];
+            preloadNextChapterAudio(nextChapter);
+          }
+        }
+      };
+      
+      savedAudio.ontimeupdate = () => {
+        if (!errorOccurred) {
+          setCurrentTime(savedAudio.currentTime);
+          // 음성 싱크: 절별 스크롤
+          if (verseRefs.current.length > 0 && savedAudio.duration > 0) {
+            const totalVerses = verseRefs.current.length;
+            const estimatedVerseIndex = Math.floor((savedAudio.currentTime / savedAudio.duration) * totalVerses);
+            const clampedIndex = Math.min(estimatedVerseIndex, totalVerses - 1);
+            if (clampedIndex !== currentVerseIndex && verseRefs.current[clampedIndex]) {
+              setCurrentVerseIndex(clampedIndex);
+              verseRefs.current[clampedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }
+      };
+      
+      savedAudio.onended = async () => {
+        if (!errorOccurred) {
+          const currentChapterData = rangePages[currentPageIdx] || bibleData;
+          await handleReadComplete(isContinuous, currentChapterData);
+          
+          if (isContinuous && rangePages.length > 0 && currentPageIdx < rangePages.length - 1) {
+            const nextIdx = currentPageIdx + 1;
+            const nextChapterData = rangePages[nextIdx];
+            currentPageIdxRef.current = nextIdx;
+            setCurrentPageIdx(nextIdx);
+            setBibleData(nextChapterData);
+            setTimeout(() => {
+              playNextChapterInContinuousMode(nextChapterData, nextIdx);
+            }, 500);
+          } else {
+            setIsPlaying(false);
+            setShowAudioControl(false);
+            setCurrentTime(0);
+            setDuration(0);
+            setIsContinuousPlayMode(false);
+            audioRef.current = null;
+          }
+        }
+      };
+      
+      // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
-        if (!handlerCalled) {
-          handlerCalled = true;
+        if (!errorOccurred) {
           console.log('[Audio] R2 파일 로드 성공');
-          setupAudioEvents(savedAudio, lastTime, true, isContinuous, currentPageIdx);
+          setIsPlaying(true);
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
       
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', async (e) => {
-        if (handlerCalled) return;
-        handlerCalled = true;
+        if (errorOccurred) return;
+        errorOccurred = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
+        
+        // UI 숨기고 오디오 정리
+        setShowAudioControl(false);
+        setIsPlaying(false);
+        audioRef.current = null;
+        savedAudio.onloadedmetadata = null;
+        savedAudio.ontimeupdate = null;
+        savedAudio.onended = null;
         
         // TTS 생성
         await generateAndUploadTTS();
@@ -883,22 +950,87 @@ const loadRangePages = async () => {
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
       
-      let handlerCalled = false;
+      let errorOccurred = false;
       
-      // 파일이 실제로 로드되면 재생 준비
+      // 즉시 UI 표시
+      audioRef.current = savedAudio;
+      savedAudio.currentTime = 0;
+      setShowAudioControl(true);
+      setIsFromServer(true);
+      
+      // 오디오 이벤트 설정
+      savedAudio.onloadedmetadata = () => {
+        if (!errorOccurred) {
+          setDuration(savedAudio.duration);
+          if (rangePages.length > 0 && chapterIdx < rangePages.length - 1) {
+            const nextChapter = rangePages[chapterIdx + 1];
+            preloadNextChapterAudio(nextChapter);
+          }
+        }
+      };
+      
+      savedAudio.ontimeupdate = () => {
+        if (!errorOccurred) {
+          setCurrentTime(savedAudio.currentTime);
+          if (verseRefs.current.length > 0 && savedAudio.duration > 0) {
+            const totalVerses = verseRefs.current.length;
+            const estimatedVerseIndex = Math.floor((savedAudio.currentTime / savedAudio.duration) * totalVerses);
+            const clampedIndex = Math.min(estimatedVerseIndex, totalVerses - 1);
+            if (clampedIndex !== currentVerseIndex && verseRefs.current[clampedIndex]) {
+              setCurrentVerseIndex(clampedIndex);
+              verseRefs.current[clampedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }
+      };
+      
+      savedAudio.onended = async () => {
+        if (!errorOccurred) {
+          const currentChapterData = rangePages[chapterIdx] || bibleData;
+          await handleReadComplete(true, currentChapterData);
+          
+          if (rangePages.length > 0 && chapterIdx < rangePages.length - 1) {
+            const nextIdx = chapterIdx + 1;
+            const nextChapterData = rangePages[nextIdx];
+            currentPageIdxRef.current = nextIdx;
+            setCurrentPageIdx(nextIdx);
+            setBibleData(nextChapterData);
+            setTimeout(() => {
+              playNextChapterInContinuousMode(nextChapterData, nextIdx);
+            }, 500);
+          } else {
+            setIsPlaying(false);
+            setShowAudioControl(false);
+            setCurrentTime(0);
+            setDuration(0);
+            setIsContinuousPlayMode(false);
+            audioRef.current = null;
+          }
+        }
+      };
+      
+      // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
-        if (!handlerCalled) {
-          handlerCalled = true;
+        if (!errorOccurred) {
           console.log('[Audio Continuous] R2 파일 로드 성공');
-          setupAudioEvents(savedAudio, 0, true, true, chapterIdx);
+          setIsPlaying(true);
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
       
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', async (e) => {
-        if (handlerCalled) return;
-        handlerCalled = true;
+        if (errorOccurred) return;
+        errorOccurred = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
+        
+        // UI 숨기고 오디오 정리
+        setShowAudioControl(false);
+        setIsPlaying(false);
+        audioRef.current = null;
+        savedAudio.onloadedmetadata = null;
+        savedAudio.ontimeupdate = null;
+        savedAudio.onended = null;
         
         // TTS 생성
         await generateContinuousTTS();
