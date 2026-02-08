@@ -126,22 +126,22 @@ export default function SearchPage() {
       setTestamentFilter(foundBook.testament as 'OT' | 'NT');
       setSelectedBook(foundBook.id.toString());
       
-      // "숫자장" 또는 "숫자" 패턴 찾기
-      const chapterMatch = searchWord.match(/(\d+)\s*장/) || searchWord.match(/\s(\d+)$/);
-      if (chapterMatch) {
-        const chapterNum = chapterMatch[1];
-        // 해당 책의 장 목록에서 확인
+      // 책 이름을 제거한 나머지 텍스트에서 모든 숫자 추출
+      const remainingText = searchWord.replace(foundBook.name, '');
+      const allNumbers = remainingText.match(/\d+/g) || [];
+      
+      // 각 숫자가 유효한 장인지 확인하고 첫 번째 유효한 장 사용
+      let foundChapter = 'ALL';
+      for (const numStr of allNumbers) {
         const hasChapter = allVerses.some(v => 
-          v.book_id === foundBook.id && v.chapter.toString() === chapterNum
+          v.book_id === foundBook.id && v.chapter.toString() === numStr
         );
         if (hasChapter) {
-          setSelectedChapter(chapterNum);
-        } else {
-          setSelectedChapter('ALL');
+          foundChapter = numStr;
+          break; // 첫 번째 유효한 장 발견
         }
-      } else {
-        setSelectedChapter('ALL');
       }
+      setSelectedChapter(foundChapter);
       
       // 자동 필터링 모드 비활성화
       setTimeout(() => {
@@ -149,13 +149,13 @@ export default function SearchPage() {
       }, 100);
       
       // 검색어가 "책이름" 또는 "책이름 숫자장"만 있는 경우 keyword는 빈 문자열
-      const bookNamePattern = new RegExp(`^${foundBook.name}(\\s*\\d+\\s*장?)?$`);
+      const bookNamePattern = new RegExp(`^${foundBook.name}(\\s*\\d+\\s*(장|편)?\\s*)*$`);
       if (bookNamePattern.test(searchWord)) {
         setKeyword(''); // 책 이름으로만 필터링, 내용 검색 안 함
       } else {
-        // 책 이름 외의 키워드가 있으면 그것으로 검색
-        const remainingKeyword = searchWord.replace(foundBook.name, '').replace(/\d+\s*장?/, '').trim();
-        setKeyword(remainingKeyword || searchWord);
+        // 책 이름과 장 번호를 제거한 나머지 키워드로 검색
+        const cleanedKeyword = remainingText.replace(/\d+/g, '').replace(/장|편/g, '').trim();
+        setKeyword(cleanedKeyword || searchWord);
       }
     } else {
       // 책 이름이 없으면 일반 검색
@@ -294,12 +294,20 @@ export default function SearchPage() {
                   value={selectedChapter}
                   onChange={(e) => setSelectedChapter(e.target.value)}
                 >
-                  <option value="ALL">전체 장 ({availableChapters.length}장)</option>
-                  {availableChapters.map(ch => (
-                    <option key={ch} value={ch}>
-                      {ch}장 ({bookFilteredVerses.filter(v => v.chapter === ch).length}절)
-                    </option>
-                  ))}
+                  {(() => {
+                    const selectedBookName = bookFilteredVerses[0]?.book_name || '';
+                    const chapterLabel = selectedBookName === '시편' ? '편' : '장';
+                    return (
+                      <>
+                        <option value="ALL">전체 {chapterLabel} ({availableChapters.length}{chapterLabel})</option>
+                        {availableChapters.map(ch => (
+                          <option key={ch} value={ch}>
+                            {ch}{chapterLabel} ({bookFilteredVerses.filter(v => v.chapter === ch).length}절)
+                          </option>
+                        ))}
+                      </>
+                    );
+                  })()}
                 </select>
                 <ChevronDown className="absolute right-3 top-3 w-4 h-4 text-zinc-400 pointer-events-none" />
               </div>
@@ -335,7 +343,7 @@ export default function SearchPage() {
               {isNewChapter && (
                 <div className="mt-6 mb-3 border-t-2 border-zinc-300 pt-4">
                   <h3 className="text-base font-extrabold text-[#4A6741]">
-                    {v.book_name} {v.chapter}장
+                    {v.book_name} {v.book_name === '시편' ? `${v.chapter}편` : `${v.chapter}장`}
                   </h3>
                 </div>
               )}

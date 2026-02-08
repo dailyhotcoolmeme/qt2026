@@ -108,7 +108,7 @@ export default function BibleViewPage() {
       {/* 본문 내용 */}
       <div className="pt-[108px] pb-10 px-5 space-y-5">
         <h2 className="text-xl font-extrabold text-zinc-900 mb-6 border-b pb-2">
-          {verses[0]?.book_name} {cleanChapter}장
+          {verses[0]?.book_name} {verses[0]?.book_name === '시편' ? `${cleanChapter}편` : `${cleanChapter}장`}
         </h2>
 
         {verses.map((v) => {
