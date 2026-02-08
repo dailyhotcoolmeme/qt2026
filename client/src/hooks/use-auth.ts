@@ -6,7 +6,16 @@ import type { User } from "@shared/models/auth";
 async function fetchUser(): Promise<User | null> {
   console.log('[use-auth] fetchUser 시작');
   
-  // 모든 환경에서 Supabase 클라이언트 직접 사용 (API 우회)
+  // 먼저 getSession으로 localStorage의 세션 확인 (동기적)
+  const { data: sessionData } = await supabase.auth.getSession();
+  console.log('[use-auth] getSession 결과:', sessionData?.session ? '세션 있음' : '세션 없음');
+  
+  if (!sessionData?.session) {
+    console.log('[use-auth] 세션 없음, null 반환');
+    return null;
+  }
+  
+  // 세션이 있으면 getUser로 사용자 정보 가져오기
   const { data } = await supabase.auth.getUser();
   console.log('[use-auth] Supabase getUser 결과:', data?.user ? '사용자 있음' : '사용자 없음');
   if (!data?.user) return null;
