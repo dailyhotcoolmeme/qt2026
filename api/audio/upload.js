@@ -1,5 +1,4 @@
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const r2Client = new S3Client({
   region: "auto",
@@ -28,34 +27,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { fileName } = req.body;
+    const { fileName, audioBase64 } = req.body;
     
-    if (!fileName) {
+    if (!fileName || !audioBase64) {
       return res.status(400).json({ 
         success: false, 
-        error: "fileName이 필요합니다" 
+        error: "fileName과 audioBase64가 필요합니다" 
       });
     }
 
-    // Presigned URL 생성 (PUT 요청용)
+    // Base64를 Buffer로 변환
+    const audioBuffer = Buffer.from(audioBase64, 'base64');
+
+    // R2에 직접 업로드
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
-      ContentType: 'audio/mp3',
+      Body: audioBuffer,
+      ContentType: 'audio/webm', // 또는 'audio/mp3'
     });
 
-    const uploadUrl = await getSignedUrl(r2Client, command, { expiresIn: 3600 });
+    await r2Client.send(command);
 
-    // Public URL
+    // Public URL 반환
     const publicUrl = `${PUBLIC_URL}/${fileName}`;
     
     return res.json({
       success: true,
-      uploadUrl,
       publicUrl,
     });
   } catch (error) {
-    console.error('Presigned URL 생성 실패:', error);
+    console.error('R2 업로드 실패:', error);
     return res.status(500).json({ 
       success: false, 
       error: error.message || "알 수 없는 오류" 
