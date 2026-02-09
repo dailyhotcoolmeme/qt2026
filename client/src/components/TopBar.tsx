@@ -192,13 +192,7 @@ export function TopBar() {
           </div>
 
           <nav className="flex flex-col gap-1">
-            <button className="flex items-center gap-3 p-4 bg-[#FDF8EE] rounded-2xl text-[#855D16] font-bold mb-4 shadow-sm active:scale-[0.98] transition-all text-left">
-              <Crown className="w-5 h-5 flex-shrink-0" />
-              <div className="flex flex-col">
-                <span className="text-[13px]">프리미엄 멤버십</span>
-                <span className="text-[10px] font-medium opacity-70">음성 기록 무제한 보관</span>
-              </div>
-            </button>
+            
             
             {/* 내 기록함 이동 추가 */}
             <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
