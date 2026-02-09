@@ -689,30 +689,60 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
       {/* QT 묵상 질문 카드 */}
+{/* QT 묵상 질문 영역 */}
 {bibleData?.qt_question && (
-  <motion.div
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4 }}
-    className="w-[82%] max-w-sm mt-2 mb-6 bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-white px-6 py-6"
-  >
-    <div className="flex items-center gap-2 mb-3">
-      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-      <h4
-        className="font-bold text-[#4A6741] opacity-70 tracking-tight"
-        style={{ fontSize: `${fontSize * 0.9}px` }}
-      >
-        묵상 질문
-      </h4>
-    </div>
+  <div className="w-full mt-8 mb-10 px-2">
+    
+    {/* 상단 구분선 */}
+    <div className="w-full h-[1px] bg-zinc-200 mb-8" />
 
-    <p
-      className="text-zinc-600 leading-[1.7] break-keep whitespace-pre-wrap"
-      style={{ fontSize: `${fontSize * 0.9}px` }}
-    >
-      {bibleData.qt_question}
-    </p>
-  </motion.div>
+    <div className="space-y-8">
+      {bibleData.qt_question
+        .split(/\n?\d+\.\s/)  // 1. 2. 3. 기준으로 분리
+        .filter((q: string) => q.trim() !== "")
+        .map((item: string, index: number) => {
+          
+          const parts = item.split("\n");
+          const description = parts[0]; // 설명 문장
+          const question = parts.slice(1).join("\n"); // 실제 질문
+
+          return (
+            <div key={index} className="space-y-4">
+              
+              {/* 번호 + 설명 */}
+              <div>
+                <p
+                  className="text-zinc-700 font-medium leading-[1.7] break-keep"
+                  style={{ fontSize: `${fontSize * 0.95}px` }}
+                >
+                  <span className="font-bold text-[#4A6741] mr-1">
+                    {index + 1}.
+                  </span>
+                  {description}
+                </p>
+
+                {/* 실제 질문 (색상 구분) */}
+                {question && (
+                  <p
+                    className="mt-3 text-[#4A6741] opacity-80 leading-[1.8] break-keep"
+                    style={{ fontSize: `${fontSize * 0.95}px` }}
+                  >
+                    {question}
+                  </p>
+                )}
+              </div>
+
+              {/* 중간 구분선 (마지막 제외) */}
+              {index < bibleData.qt_question
+                .split(/\n?\d+\.\s/)
+                .filter((q: string) => q.trim() !== "").length - 1 && (
+                <div className="w-full h-[1px] bg-zinc-100 mt-6" />
+              )}
+            </div>
+          );
+        })}
+    </div>
+  </div>
 )}
 {/* 4. 묵상 카드 영역 */}
 <div className="relative w-full flex flex-col items-center mt-6 mb-6">
