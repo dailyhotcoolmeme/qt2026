@@ -672,7 +672,32 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   {/* 오른쪽 힌트 카드 (내일) */}
 <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
+{/* QT 묵상 질문 카드 */}
+{bibleData?.qt_question && (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4 }}
+    className="w-[82%] max-w-sm mt-2 mb-6 bg-white rounded-[24px] shadow-[0_8px_30px_rgba(0,0,0,0.03)] border border-white px-6 py-6"
+  >
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+      <h4
+        className="font-bold text-[#4A6741] opacity-70 tracking-tight"
+        style={{ fontSize: `${fontSize * 0.9}px` }}
+      >
+        묵상 질문
+      </h4>
+    </div>
 
+    <p
+      className="text-zinc-600 leading-[1.7] break-keep whitespace-pre-wrap"
+      style={{ fontSize: `${fontSize * 0.9}px` }}
+    >
+      {bibleData.qt_question}
+    </p>
+  </motion.div>
+)}
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
   <div className="flex items-center gap-8 mt-3 mb-14"> 
     <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
