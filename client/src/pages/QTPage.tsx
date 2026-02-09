@@ -672,7 +672,23 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   {/* 오른쪽 힌트 카드 (내일) */}
 <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
-{/* QT 묵상 질문 카드 */}
+
+      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
+  <div className="flex items-center gap-8 mt-3 mb-14"> 
+    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+              className="flex flex-col items-center gap-1.5 text-zinc-400">
+      <Headphones size={22} strokeWidth={1.5} />
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 재생</span>
+    </button>
+{/* 말씀 복사 버튼 찾아서 수정 */}
+<button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
+  <Copy size={22} strokeWidth={1.5} />
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+</button>
+    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+  </div>
+      {/* QT 묵상 질문 카드 */}
 {bibleData?.qt_question && (
   <motion.div
     initial={{ opacity: 0, y: 10 }}
@@ -698,21 +714,6 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     </p>
   </motion.div>
 )}
-      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-  <div className="flex items-center gap-8 mt-3 mb-14"> 
-    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-              className="flex flex-col items-center gap-1.5 text-zinc-400">
-      <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 재생</span>
-    </button>
-{/* 말씀 복사 버튼 찾아서 수정 */}
-<button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
-  <Copy size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
-</button>
-    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
-  </div>
 {/* 4. 묵상 카드 영역 */}
 <div className="relative w-full flex flex-col items-center mt-6 mb-6">
   {/* 헤더 부분 */}
