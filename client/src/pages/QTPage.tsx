@@ -692,9 +692,6 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 {bibleData?.qt_question && (
   <div className="w-full mt-8 mb-8 px-4">
 
-    {/* 상단 구분선 */}
-    //<div className="w-full h-[1px] bg-zinc-200 mb-8" />
-
     {/* 제목 */}
     <div className="flex items-center gap-2 mb-6">
       <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
@@ -742,7 +739,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
               {/* 실제 질문 */}
               {question && (
                 <p
-                  className="mt-4 text-[#4A6741] font-medium opacity-80 leading-[1.9] break-keep"
+                  className="mt-4 text-[#4A6741] font-bold opacity-80 leading-[1.9] break-keep"
                   style={{ fontSize: `${fontSize * 0.95}px` }}
                 >
                   {question}
