@@ -75,7 +75,7 @@ export default function BibleViewPage() {
   if (loading) return (
     <div className="min-h-screen bg-white">
       {/* 뒤로가기 버튼 */}
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
+      <div className="fixed top-16 left-0 right-0 z-50 bg-white border-b px-4 py-3">
         <button
           onClick={() => setLocation('/search')}
           className="flex items-center gap-2 text-zinc-700 hover:text-zinc-900 font-bold"
@@ -87,7 +87,7 @@ export default function BibleViewPage() {
       
       {/* 로딩 메시지 - 화면 중앙 */}
       <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
-        <p className="text-zinc-500 font-bold text-lg">말씀을 불러오는 중...</p>
+        <p className="text-zinc-500 font-medium text-lg">말씀을 불러오는 중...</p>
       </div>
     </div>
   );
