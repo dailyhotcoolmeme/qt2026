@@ -688,55 +688,70 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
-      {/* QT 묵상 질문 카드 */}
-{/* QT 묵상 질문 영역 */}
+      {/* QT 묵상 질문 영역 */}
 {bibleData?.qt_question && (
-  <div className="w-full mt-8 mb-10 px-2">
-    
+  <div className="w-full mt-10 mb-12 px-4">
+
     {/* 상단 구분선 */}
     <div className="w-full h-[1px] bg-zinc-200 mb-8" />
 
-    <div className="space-y-8">
+    {/* 제목 */}
+    <div className="flex items-center gap-2 mb-6">
+      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+      <h4
+        className="font-bold text-[#4A6741] opacity-80"
+        style={{ fontSize: `${fontSize * 0.95}px` }}
+      >
+        묵상 질문
+      </h4>
+    </div>
+
+    <div className="space-y-10">
       {bibleData.qt_question
-        .split(/\n?\d+\.\s/)  // 1. 2. 3. 기준으로 분리
+        .split(/\n?\d+\.\s/) // 번호 기준 분리
         .filter((q: string) => q.trim() !== "")
-        .map((item: string, index: number) => {
+        .map((item: string, index: number, arr: string[]) => {
+
+          // 🔥 핵심: 첫 마침표 기준 분리
+          const firstDotIndex = item.indexOf(".");
           
-          const parts = item.split("\n");
-          const description = parts[0]; // 설명 문장
-          const question = parts.slice(1).join("\n"); // 실제 질문
+          let description = item;
+          let question = "";
+
+          if (firstDotIndex !== -1) {
+            description = item.slice(0, firstDotIndex + 1).trim();
+            question = item.slice(firstDotIndex + 1).trim();
+          }
 
           return (
-            <div key={index} className="space-y-4">
-              
+            <div key={index}>
+
               {/* 번호 + 설명 */}
-              <div>
+              <p
+                className="leading-[1.8] break-keep"
+                style={{ fontSize: `${fontSize * 0.95}px` }}
+              >
+                <span className="font-bold text-[#4A6741] mr-1">
+                  {index + 1}.
+                </span>
+                <span className="text-zinc-700">
+                  {description}
+                </span>
+              </p>
+
+              {/* 실제 질문 */}
+              {question && (
                 <p
-                  className="text-zinc-700 font-medium leading-[1.7] break-keep"
+                  className="mt-4 text-[#4A6741] opacity-80 leading-[1.9] break-keep"
                   style={{ fontSize: `${fontSize * 0.95}px` }}
                 >
-                  <span className="font-bold text-[#4A6741] mr-1">
-                    {index + 1}.
-                  </span>
-                  {description}
+                  {question}
                 </p>
+              )}
 
-                {/* 실제 질문 (색상 구분) */}
-                {question && (
-                  <p
-                    className="mt-3 text-[#4A6741] opacity-80 leading-[1.8] break-keep"
-                    style={{ fontSize: `${fontSize * 0.95}px` }}
-                  >
-                    {question}
-                  </p>
-                )}
-              </div>
-
-              {/* 중간 구분선 (마지막 제외) */}
-              {index < bibleData.qt_question
-                .split(/\n?\d+\.\s/)
-                .filter((q: string) => q.trim() !== "").length - 1 && (
-                <div className="w-full h-[1px] bg-zinc-100 mt-6" />
+              {/* 마지막 제외 얇은 구분선 */}
+              {index < arr.length - 1 && (
+                <div className="w-full h-[1px] bg-zinc-100 mt-8" />
               )}
             </div>
           );
