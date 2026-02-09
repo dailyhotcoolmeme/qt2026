@@ -710,7 +710,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         .map((item: string, index: number, arr: string[]) => {
 
           // 🔥 (25절) 같은 패턴 기준으로 분리
-const verseMatch = item.match(/\(\d+절\)/);
+const verseMatch = item.match(/\(\d+절\)[\.\!\?…"”"]*/);
 
 let description = item;
 let question = "";
