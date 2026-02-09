@@ -215,58 +215,74 @@ const loadDailyVerse = async (date: Date) => {
   
   const dateStr = date.toISOString().split('T')[0];
   
-  const { data, error } = await supabase
+  // 해당 날짜의 모든 읽은 장을 가져옵니다
+  const { data: records, error } = await supabase
     .from('user_reading_records')
     .select('*')
     .eq('user_id', user.id)
     .eq('date', dateStr)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('updated_at', { ascending: true });
   
-  if (data) {
+  if (records && records.length > 0) {
     setNoReadingForDate(false);
-    // bible_books 정보 별도 조회
-    const { data: bookInfo } = await supabase
-      .from('bible_books')
-      .select('*')
-      .eq('book_name', data.book_name)
-      .single();
     
-    // 절 번호와 함께 포맷팅
-    const { data: verses } = await supabase
-      .from('bible_verses')
-      .select('*')
-      .eq('book_name', data.book_name)
-      .eq('chapter', data.chapter)
-      .gte('verse', data.start_verse || 1)
-      .lte('verse', data.end_verse || 999)
-      .order('verse', { ascending: true });
+    // 모든 읽은 장을 rangePages로 변환
+    const pages = [];
     
-    if (verses && verses.length > 0) {
-      const formattedContent = verses.map(v => `${v.verse}. ${v.content}`).join('\n');
-      const hasVerseRange = typeof data.start_verse === 'number' && typeof data.end_verse === 'number';
-      const verseLabel = hasVerseRange
-        ? (data.start_verse === data.end_verse
-          ? `${data.start_verse}`
-          : `${data.start_verse}-${data.end_verse}`)
-        : undefined;
+    for (const record of records) {
+      // bible_books 정보 별도 조회
+      const { data: bookInfo } = await supabase
+        .from('bible_books')
+        .select('*')
+        .eq('book_name', record.book_name)
+        .single();
       
-      setBibleData({
-        id: data.id,
-        bible_name: data.book_name,
-        chapter: data.chapter,
-        verse: verseLabel,
-        content: formattedContent,
-        bible_books: bookInfo || { book_order: 0 },
-      });
+      // 절 번호와 함께 포맷팅
+      const { data: verses } = await supabase
+        .from('bible_verses')
+        .select('*')
+        .eq('book_name', record.book_name)
+        .eq('chapter', record.chapter)
+        .gte('verse', record.start_verse || 1)
+        .lte('verse', record.end_verse || 999)
+        .order('verse', { ascending: true });
+      
+      if (verses && verses.length > 0) {
+        const formattedContent = verses.map(v => `${v.verse}. ${v.content}`).join('\n');
+        const hasVerseRange = typeof record.start_verse === 'number' && typeof record.end_verse === 'number';
+        const verseLabel = hasVerseRange
+          ? (record.start_verse === record.end_verse
+            ? `${record.start_verse}`
+            : `${record.start_verse}-${record.end_verse}`)
+          : undefined;
+        
+        pages.push({
+          id: record.id,
+          bible_name: record.book_name,
+          chapter: record.chapter,
+          verse: verseLabel,
+          content: formattedContent,
+          bible_books: bookInfo || { book_order: 0 },
+        });
+      }
+    }
+    
+    if (pages.length > 0) {
+      setRangePages(pages);
+      setCurrentPageIdx(0);
+      setBibleData(pages[0]);
+    } else {
+      setBibleData(null);
+      setNoReadingForDate(true);
     }
   } else if (!error) {
     setBibleData(null);
+    setRangePages([]);
     setNoReadingForDate(true);
   } else {
     console.error('말씀 로드 실패:', error);
     setBibleData(null);
+    setRangePages([]);
   }
 };
 
@@ -1400,15 +1416,8 @@ const loadRangePages = async () => {
       }
     }
 
-    // 로그인 확인 (전체 재생 모드가 아닐 때만 팝업)
-    // 인증 로딩 중이면 잠시 대기
-    if (isAuthLoading) {
-      console.log('인증 상태 확인 중...');
-      // 로딩이 끝날 때까지 잠시 대기 후 재시도
-      setTimeout(() => handleReadComplete(silent, chapterData), 500);
-      return;
-    }
-    
+    // 로그인 확인
+    // 비로그인 사용자는 로그인 모달 표시
     if (!user) {
       console.log('사용자 없음 - 로그인 모달 표시');
       if (!silent) {
