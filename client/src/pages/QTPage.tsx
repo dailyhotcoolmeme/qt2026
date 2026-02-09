@@ -398,6 +398,28 @@ export default function QTPage() {
     if (!deletingRecordId) return;
 
     try {
+      // 삭제할 레코드 찾기
+      const recordToDelete = meditationRecords.find(r => r.id === deletingRecordId);
+      
+      // R2 파일 삭제 (음성이 있는 경우)
+      if (recordToDelete?.audio_url) {
+        try {
+          const response = await fetch('/api/audio/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileUrl: recordToDelete.audio_url })
+          });
+          
+          if (!response.ok) {
+            console.warn('R2 파일 삭제 실패, DB는 삭제 진행');
+          }
+        } catch (error) {
+          console.warn('R2 파일 삭제 중 오류:', error);
+          // R2 삭제 실패해도 DB 삭제는 진행
+        }
+      }
+
+      // DB에서 삭제
       const { error } = await supabase
         .from('user_meditation_records')
         .delete()

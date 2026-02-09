@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
-import { uploadAudioToR2, checkAudioExistsInR2, getR2PublicUrl } from "./r2";
+import { uploadAudioToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
@@ -289,6 +289,36 @@ export async function registerRoutes(
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "조회 실패" 
+      });
+    }
+  });
+
+  // R2 오디오 파일 삭제
+  app.delete("/api/audio/delete", async (req, res) => {
+    try {
+      const { fileUrl } = req.body;
+      
+      if (!fileUrl) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "fileUrl이 필요합니다" 
+        });
+      }
+
+      // Public URL에서 파일명 추출
+      // 예: https://pub-xxx.r2.dev/audio/meditation/user_id/2026-02-09/qt_123.mp3
+      // -> audio/meditation/user_id/2026-02-09/qt_123.mp3
+      const fileName = fileUrl.split('/').slice(3).join('/');
+      
+      // R2에서 삭제
+      const result = await deleteAudioFromR2(fileName);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Audio delete error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "삭제 실패" 
       });
     }
   });

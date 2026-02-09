@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // R2 클라이언트 설정
@@ -70,4 +70,30 @@ export async function checkAudioExistsInR2(fileName: string): Promise<boolean> {
  */
 export function getR2PublicUrl(fileName: string): string {
   return `${PUBLIC_URL}/${fileName}`;
+}
+
+/**
+ * R2에서 파일 삭제
+ */
+export async function deleteAudioFromR2(
+  fileName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const command = new DeleteObjectCommand({
+      Bucket: BUCKET_NAME,
+      Key: fileName,
+    });
+
+    await r2Client.send(command);
+    
+    return {
+      success: true,
+    };
+  } catch (error) {
+    console.error("R2 삭제 실패:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "알 수 없는 오류",
+    };
+  }
 }
