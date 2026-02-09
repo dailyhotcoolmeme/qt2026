@@ -709,16 +709,18 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         .filter((q: string) => q.trim() !== "")
         .map((item: string, index: number, arr: string[]) => {
 
-          // 🔥 핵심: 첫 마침표 기준 분리
-          const firstDotIndex = item.indexOf(".");
-          
-          let description = item;
-          let question = "";
+          // 🔥 (25절) 같은 패턴 기준으로 분리
+const verseMatch = item.match(/\(\d+절\)/);
 
-          if (firstDotIndex !== -1) {
-            description = item.slice(0, firstDotIndex + 1).trim();
-            question = item.slice(firstDotIndex + 1).trim();
-          }
+let description = item;
+let question = "";
+
+if (verseMatch) {
+  const splitIndex = verseMatch.index! + verseMatch[0].length;
+
+  description = item.slice(0, splitIndex).trim();
+  question = item.slice(splitIndex).trim();
+}
 
           return (
             <div key={index}>
