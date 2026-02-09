@@ -741,7 +741,7 @@ if (verseMatch) {
               {/* 실제 질문 */}
               {question && (
                 <p
-                  className="mt-4 text-[#4A6741] font-bold opacity-80 leading-[1.9] break-keep"
+                  className="mt-4 text-[#4A6741] font-semibold opacity-80 leading-[1.9] break-keep"
                   style={{ fontSize: `${fontSize * 0.95}px` }}
                 >
                   {question}
