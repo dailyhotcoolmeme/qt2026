@@ -730,7 +730,7 @@ if (verseMatch) {
                 className="leading-[1.8] break-keep"
                 style={{ fontSize: `${fontSize * 0.95}px` }}
               >
-                <span className="font-bold text-[#4A6741] mr-1">
+                <span className="text-zinc-700 mr-1">
                   {index + 1}.
                 </span>
                 <span className="text-zinc-700">
