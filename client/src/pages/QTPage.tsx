@@ -43,16 +43,6 @@ export default function QTPage() {
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
-  
-  // 길게 누르기 관련 상태
-  const [isLongPressing, setIsLongPressing] = useState(false);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const longPressStartTimeRef = useRef<number>(0);
-  const longPressAnimationRef = useRef<number | null>(null);
-  const isLongPressingRef = useRef(false);
-  const longPressCancelledRef = useRef(false);
-  const pressStartedRef = useRef(false);
-  const meditationButtonRef = useRef<HTMLButtonElement | null>(null);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -82,64 +72,6 @@ export default function QTPage() {
     checkMeditationStatus();
     loadMeditationRecords();
   }, [user?.id, currentDate]);
-
-  // 길게 누르기 이벤트 리스너
-  useEffect(() => {
-    const button = meditationButtonRef.current;
-    if (!button) return;
-
-    const handleStart = (e: TouchEvent | MouseEvent) => {
-      pressStartedRef.current = true;
-      longPressStartTimeRef.current = Date.now();
-      
-      if (!isMeditationCompleted) return;
-      
-      isLongPressingRef.current = true;
-      setIsLongPressing(true);
-      
-      const animate = () => {
-        const elapsed = Date.now() - longPressStartTimeRef.current;
-        
-        if (elapsed >= 1500) {
-          handleMeditationCancel();
-          longPressCancelledRef.current = true;
-          isLongPressingRef.current = false;
-          setIsLongPressing(false);
-        } else if (isLongPressingRef.current) {
-          longPressAnimationRef.current = requestAnimationFrame(animate);
-        }
-      };
-      longPressAnimationRef.current = requestAnimationFrame(animate);
-    };
-
-    const handleEnd = () => {
-      if (pressStartedRef.current && !longPressCancelledRef.current) {
-        handleMeditationComplete();
-      }
-      
-      pressStartedRef.current = false;
-      longPressCancelledRef.current = false;
-      isLongPressingRef.current = false;
-      setIsLongPressing(false);
-      if (longPressAnimationRef.current) {
-        cancelAnimationFrame(longPressAnimationRef.current);
-      }
-    };
-
-    button.addEventListener('touchstart', handleStart, { passive: true });
-    button.addEventListener('touchend', handleEnd, { passive: true });
-    button.addEventListener('mousedown', handleStart);
-    button.addEventListener('mouseup', handleEnd);
-    button.addEventListener('mouseleave', handleEnd);
-
-    return () => {
-      button.removeEventListener('touchstart', handleStart);
-      button.removeEventListener('touchend', handleEnd);
-      button.removeEventListener('mousedown', handleStart);
-      button.removeEventListener('mouseup', handleEnd);
-      button.removeEventListener('mouseleave', handleEnd);
-    };
-  }, [isMeditationCompleted]);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
@@ -201,28 +133,7 @@ export default function QTPage() {
     setMeditationRecords(data || []);
   };
 
-  // 묵상 완료 취소
-  const handleMeditationCancel = async () => {
-    const formattedDate = currentDate.toISOString().split('T')[0];
 
-    try {
-      const { error } = await supabase
-        .from('user_meditation_records')
-        .delete()
-        .eq('user_id', user!.id)
-        .eq('date', formattedDate)
-        .eq('meditation_type', 'daily_qt');
-
-      if (error) throw error;
-      
-      setIsMeditationCompleted(false);
-      await loadMeditationRecords();
-      
-      if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
-    } catch (error) {
-      console.error('Error canceling meditation:', error);
-    }
-  };
 
   // 묵상 완료 버튼 클릭
   const handleMeditationComplete = async () => {
@@ -1057,26 +968,9 @@ if (verseMatch) {
             )}
           </AnimatePresence>
 
-          {/* 길게 누르기 원형 진행바 */}
-          {isLongPressing && (
-            <svg className="absolute inset-0 w-24 h-24 -rotate-90">
-              <circle
-                cx="48"
-                cy="48"
-                r="46"
-                stroke="#4A6741"
-                strokeWidth="4"
-                fill="none"
-                strokeDasharray={`${2 * Math.PI * 46}`}
-                strokeDashoffset={`${2 * Math.PI * 46 * (1 - (Date.now() - longPressStartTimeRef.current) / 1500)}`}
-                className="transition-all duration-100"
-              />
-            </svg>
-          )}
-
           {/* 실제 버튼 */}
           <motion.button 
-            ref={meditationButtonRef}
+            onClick={handleMeditationComplete}
             whileTap={{ scale: 0.9 }} 
             disabled={currentDate.toDateString() !== today.toDateString()}
             className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
@@ -1097,13 +991,6 @@ if (verseMatch) {
             </span>
           </motion.button>
         </div>
-        
-        {/* 길게 누르면 취소 힍트 */}
-        {isMeditationCompleted && (
-          <div className="text-xs text-gray-400 mt-1.5 opacity-60">
-            길게 누르면 취소
-          </div>
-        )}
       </div>
 
       {/* 묵상 기록 목록 */}
@@ -1372,7 +1259,7 @@ if (verseMatch) {
                   </button>
                 ) : audioBlob ? (
                   <div className="bg-white rounded-xl p-4 border border-zinc-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-[#4A6741]/10 rounded-full flex items-center justify-center">
                           <Mic size={20} className="text-[#4A6741]" />
@@ -1385,12 +1272,25 @@ if (verseMatch) {
                         </div>
                       </div>
                       <button
-                        onClick={deleteAudio}
-                        className="text-red-500 font-medium text-sm"
+                        onClick={() => {
+                          const url = URL.createObjectURL(audioBlob);
+                          playRecordAudio(url, -2);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full mr-2"
                       >
-                        삭제
+                        {playingAudioId === -2 ? (
+                          <Pause size={14} fill="white" />
+                        ) : (
+                          <Play size={14} fill="white" />
+                        )}
                       </button>
                     </div>
+                    <button
+                      onClick={deleteAudio}
+                      className="w-full py-2 text-red-500 font-medium text-sm"
+                    >
+                      삭제
+                    </button>
                   </div>
                 ) : null}
               </div>
