@@ -674,7 +674,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-  <div className="flex items-center gap-8 mt-3 mb-14"> 
+  <div className="flex items-center gap-8 mt-3 mb-8"> 
     <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
@@ -690,7 +690,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </div>
       {/* QT 묵상 질문 영역 */}
 {bibleData?.qt_question && (
-  <div className="w-full mt-10 mb-12 px-4">
+  <div className="w-full mt-8 mb-8 px-4">
 
     {/* 상단 구분선 */}
     <div className="w-full h-[1px] bg-zinc-200 mb-8" />
@@ -742,7 +742,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
               {/* 실제 질문 */}
               {question && (
                 <p
-                  className="mt-4 text-[#4A6741] opacity-80 leading-[1.9] break-keep"
+                  className="mt-4 text-[#4A6741] text-medium opacity-80 leading-[1.9] break-keep"
                   style={{ fontSize: `${fontSize * 0.95}px` }}
                 >
                   {question}
@@ -751,7 +751,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
               {/* 마지막 제외 얇은 구분선 */}
               {index < arr.length - 1 && (
-                <div className="w-full h-[1px] bg-zinc-100 mt-8" />
+                <div className="w-full h-[1px] bg-zinc-200 mt-8" />
               )}
             </div>
           );
