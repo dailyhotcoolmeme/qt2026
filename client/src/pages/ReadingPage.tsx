@@ -454,6 +454,8 @@ const loadAllReadingProgress = async () => {
 };
 
 const loadChapters = async (book: string) => {
+  console.log('loadChapters 호출됨:', book, 'selectionPhase:', selectionPhase);
+  
   if (selectionPhase === 'start') {
     setTempSelection(p => ({ ...p, start_book: book }));
   } else {
@@ -467,10 +469,14 @@ const loadChapters = async (book: string) => {
     .eq('book_name', book)
     .maybeSingle();
 
+  console.log('bookInfo:', bookInfo);
+
   if (bookInfo && bookInfo.total_chapters) {
     // 1부터 total_chapters까지 배열 생성
     const chapters = Array.from({ length: bookInfo.total_chapters }, (_, i) => i + 1);
     setAvailableChapters(chapters);
+    
+    console.log('장 목록 설정:', chapters.length, '개');
     
     // 먼저 장 선택 화면으로 전환
     setSelectionStep('chapter');
