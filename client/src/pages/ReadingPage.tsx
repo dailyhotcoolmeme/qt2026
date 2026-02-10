@@ -186,9 +186,12 @@ const loadDailyVerse = async (date: Date) => {
   // 오늘 날짜이고 rangePages가 비어있으면 localStorage 복원
   if (isToday && rangePages.length === 0) {
     const savedPages = localStorage.getItem('reading_pages');
+    const savedDate = localStorage.getItem('reading_date');
     const savedIdx = localStorage.getItem('reading_page_idx');
     
-    if (savedPages) {
+    // 날짜 확인: 저장된 날짜가 오늘이 아니면 무시
+    const todayStr = today.toISOString().split('T')[0];
+    if (savedPages && savedDate === todayStr) {
       try {
         const pages = JSON.parse(savedPages);
         const idx = Number(savedIdx) || 0;
@@ -204,6 +207,12 @@ const loadDailyVerse = async (date: Date) => {
       } catch (e) {
         console.error('복원 실패:', e);
       }
+    } else if (savedDate && savedDate !== todayStr) {
+      // 날짜가 다르면 localStorage 삭제
+      console.log('localStorage 날짜 불일치, 삭제');
+      localStorage.removeItem('reading_pages');
+      localStorage.removeItem('reading_date');
+      localStorage.removeItem('reading_page_idx');
     }
   }
   
@@ -374,7 +383,9 @@ useEffect(() => {
 
   useEffect(() => {
     if (rangePages.length > 0) {
+      const today = new Date().toISOString().split('T')[0];
       localStorage.setItem('reading_pages', JSON.stringify(rangePages));
+      localStorage.setItem('reading_date', today);
       localStorage.setItem('reading_page_idx', String(currentPageIdx));
       
       // 마지막 읽은 장으로 이동 (최초 로드 시에만)
