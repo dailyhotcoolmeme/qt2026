@@ -180,6 +180,9 @@ const loadDailyVerse = async (date: Date) => {
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
   
+  // 메시지 깜박임 방지
+  setNoReadingForDate(false);
+  
   // 오늘 날짜이고 범위 선택 모드일 때는 실행하지 않음
   if (isToday && rangePages.length > 0) return;
   
@@ -211,8 +214,6 @@ const loadDailyVerse = async (date: Date) => {
     // 범위 선택이 없으면 서버에서 오늘 읽은 기록 불러오기
     // (계속 아래 코드 실행)
   }
-  
-  setNoReadingForDate(false);
   
   const dateStr = date.toISOString().split('T')[0];
   
@@ -462,18 +463,19 @@ const loadChapters = async (book: string) => {
     setTempSelection(p => ({ ...p, end_book: book }));
   }
 
-  // bible_books 테이블에서 total_chapters 가져오기
-  const { data: bookInfo } = await supabase
-    .from('bible_books')
-    .select('total_chapters')
+  // bible_verses 테이블에서 장 목록을 가져와서 개수 확인
+  const { data: chapterData } = await supabase
+    .from('bible_verses')
+    .select('chapter')
     .eq('book_name', book)
-    .maybeSingle();
+    .order('chapter', { ascending: true });
 
-  console.log('bookInfo:', bookInfo);
+  console.log('chapterData:', chapterData);
 
-  if (bookInfo && bookInfo.total_chapters) {
-    // 1부터 total_chapters까지 배열 생성
-    const chapters = Array.from({ length: bookInfo.total_chapters }, (_, i) => i + 1);
+  if (chapterData && chapterData.length > 0) {
+    // 중복 제거 후 장 목록 생성
+    const uniqueChapters = Array.from(new Set(chapterData.map(d => d.chapter)));
+    const chapters = uniqueChapters.sort((a, b) => a - b);
     setAvailableChapters(chapters);
     
     console.log('장 목록 설정:', chapters.length, '개');
@@ -483,7 +485,7 @@ const loadChapters = async (book: string) => {
     
     // 로그인 상태면 읽기 진행률 백그라운드로 불러오기
     if (user) {
-      loadReadingProgress(book, chapters); // await 제거하여 비동기 실행
+      loadReadingProgress(book, chapters);
     }
   } else {
     console.error('책 정보를 찾을 수 없습니다:', book);
