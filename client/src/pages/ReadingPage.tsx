@@ -62,6 +62,7 @@ export default function ReadingPage() {
   const [showWarningToast, setShowWarningToast] = useState(false);
   const [showCancelToast, setShowCancelToast] = useState(false);
   const [noReadingForDate, setNoReadingForDate] = useState(false);
+  const [isLoadingVerse, setIsLoadingVerse] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -224,7 +225,8 @@ const loadDailyVerse = async (date: Date) => {
   
   // 과거 날짜만 서버에서 로드
   console.log('과거 날짜, 서버에서 로드');
-  setNoReadingForDate(true);
+  setIsLoadingVerse(true);
+  setNoReadingForDate(false);
   
   const dateStr = date.toISOString().split('T')[0];
   
@@ -306,18 +308,22 @@ const loadDailyVerse = async (date: Date) => {
       setRangePages(pages);
       setCurrentPageIdx(0);
       setBibleData(pages[0]);
+      setNoReadingForDate(false);
     } else {
       setBibleData(null);
       setNoReadingForDate(true);
     }
+    setIsLoadingVerse(false);
   } else if (!error) {
     setBibleData(null);
     setRangePages([]);
     setNoReadingForDate(true);
+    setIsLoadingVerse(false);
   } else {
     console.error('말씀 로드 실패:', error);
     setBibleData(null);
     setRangePages([]);
+    setIsLoadingVerse(false);
   }
 };
 
