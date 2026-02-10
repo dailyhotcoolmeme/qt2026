@@ -79,18 +79,22 @@ export async function deleteAudioFromR2(
   fileName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log('[R2 deleteAudioFromR2] 삭제 시도:', fileName);
+    console.log('[R2 deleteAudioFromR2] Bucket:', BUCKET_NAME);
+    
     const command = new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
     });
 
-    await r2Client.send(command);
+    const result = await r2Client.send(command);
+    console.log('[R2 deleteAudioFromR2] AWS SDK 응답:', result);
     
     return {
       success: true,
     };
   } catch (error) {
-    console.error("R2 삭제 실패:", error);
+    console.error('[R2 deleteAudioFromR2] 삭제 실패:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "알 수 없는 오류",

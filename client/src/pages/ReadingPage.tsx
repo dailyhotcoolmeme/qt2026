@@ -180,15 +180,11 @@ const loadDailyVerse = async (date: Date) => {
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
   
-  // 메시지 깜박임 방지
-  setNoReadingForDate(false);
+  console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
   
-  // 오늘 날짜이고 범위 선택 모드일 때는 실행하지 않음
-  if (isToday && rangePages.length > 0) return;
-  
-  // 오늘 날짜는 localStorage에 범위 선택이 있으면 복원하고, 없으면 서버에서 불러오기
+  // 오늘 날짜는 localStorage에서 복원
   if (isToday) {
-    // localStorage에서 범위 선택 복원 시도
+    setNoReadingForDate(false);
     const savedSelection = localStorage.getItem('reading_selection');
     const savedPages = localStorage.getItem('reading_pages');
     const savedIdx = localStorage.getItem('reading_page_idx');
@@ -198,6 +194,8 @@ const loadDailyVerse = async (date: Date) => {
         const selection = JSON.parse(savedSelection);
         const pages = JSON.parse(savedPages);
         const idx = Number(savedIdx) || 0;
+        
+        console.log('localStorage 복원:', pages.length, '페이지');
         
         setTempSelection(selection);
         setRangePages(pages);
@@ -211,8 +209,11 @@ const loadDailyVerse = async (date: Date) => {
       }
     }
     
-    // 범위 선택이 없으면 서버에서 오늘 읽은 기록 불러오기
-    // (계속 아래 코드 실행)
+    // localStorage 없으면 서버에서 오늘 읽은 기록 불러오기
+    console.log('localStorage 없음, 서버에서 로드');
+  } else {
+    // 과거 날짜는 항상 서버에서 로드
+    console.log('과거 날짜, 서버에서 로드');
   }
   
   const dateStr = date.toISOString().split('T')[0];
@@ -315,15 +316,15 @@ useEffect(() => {
   // 초기화 완료 후에만 실행
   if (!isInitialized) return;
   
-  // 날짜가 변경되면 localStorage 초기화 (오늘이 아닌 경우)
+  // 날짜가 변경되면 화면 상태만 초기화 (localStorage는 유지)
   const today = new Date();
-  if (currentDate.toDateString() !== today.toDateString()) {
-    localStorage.removeItem('reading_selection');
-    localStorage.removeItem('reading_pages');
-    localStorage.removeItem('reading_page_idx');
-    // 상태도 초기화
+  const isToday = currentDate.toDateString() === today.toDateString();
+  
+  if (!isToday) {
+    // 과거 날짜로 가면 화면만 클리어
     setRangePages([]);
     setBibleData(null);
+    setNoReadingForDate(false);
   }
   
   if (user) {
@@ -461,19 +462,14 @@ const loadChapters = async (book: string) => {
     setTempSelection(p => ({ ...p, end_book: book }));
   }
 
-  // bible_verses 테이블에서 장 목록을 가져와서 개수 확인
-  const { data: chapterData } = await supabase
-    .from('bible_verses')
-    .select('chapter')
-    .eq('book_name', book)
-    .order('chapter', { ascending: true });
+  // bibleData.ts에서 정확한 장 수 가져오기
+  const bookInfo = BIBLE_BOOKS.find(b => b.name === book);
+  
+  console.log('bookInfo:', bookInfo);
 
-  console.log('chapterData:', chapterData);
-
-  if (chapterData && chapterData.length > 0) {
-    // 중복 제거 후 장 목록 생성
-    const uniqueChapters = Array.from(new Set(chapterData.map(d => d.chapter)));
-    const chapters = uniqueChapters.sort((a, b) => a - b);
+  if (bookInfo && bookInfo.chapters) {
+    // 1부터 chapters까지 배열 생성
+    const chapters = Array.from({ length: bookInfo.chapters }, (_, i) => i + 1);
     setAvailableChapters(chapters);
     
     console.log('장 목록 설정:', chapters.length, '개');

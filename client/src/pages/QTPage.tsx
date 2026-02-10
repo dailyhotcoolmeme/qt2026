@@ -408,21 +408,27 @@ export default function QTPage() {
       // R2 파일 삭제 (음성이 있는 경우)
       if (recordToDelete?.audio_url) {
         try {
+          console.log('[R2 삭제] 시작:', recordToDelete.audio_url);
+          
           const response = await fetch('/api/audio/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileUrl: recordToDelete.audio_url })
           });
           
+          console.log('[R2 삭제] 응답 상태:', response.status, response.statusText);
+          
           const result = await response.json();
+          console.log('[R2 삭제] 결과:', result);
+          
           if (!response.ok || !result.success) {
-            console.error('R2 파일 삭제 실패:', result.error);
+            console.error('[R2 삭제] 실패:', result.error);
             console.warn('DB는 삭제 진행');
           } else {
-            console.log('R2 파일 삭제 성공:', recordToDelete.audio_url);
+            console.log('[R2 삭제] 성공:', recordToDelete.audio_url);
           }
         } catch (error) {
-          console.error('R2 파일 삭제 중 오류:', error);
+          console.error('[R2 삭제] 오류:', error);
           // R2 삭제 실패해도 DB 삭제는 진행
         }
       }
