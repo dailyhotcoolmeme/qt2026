@@ -50,6 +50,8 @@ export default function ReadingPage() {
 
   // --- 🔥 범위 선택 전용 상태 (복구 및 강화) ---
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingSelection, setPendingSelection] = useState<any>(null);
   const [rangePages, setRangePages] = useState<any[]>([]); 
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
 
@@ -2097,14 +2099,14 @@ const loadRangePages = async () => {
                       // 다른 책 선택하려면 뒤로가기 가능
                       loadChapters(tempSelection.start_book);
                     } else {
-                      // 종료 범위 선택 완료 -> 즉시 성경 본문 로드
+                      // 종료 범위 선택 완료 -> 확인 모달 표시
                       const updatedSelection = {
                         ...tempSelection,
                         end_chapter: ch
                       };
                       setTempSelection(updatedSelection);
-                      // 업데이트된 값으로 직접 로드
-                      loadRangePagesWithSelection(updatedSelection);
+                      setPendingSelection(updatedSelection);
+                      setShowConfirmModal(true);
                     }
                   }}
                   className={`py-3 rounded-xl font-bold relative overflow-hidden transition-all ${
@@ -2152,6 +2154,60 @@ const loadRangePages = async () => {
         open={showLoginModal} 
         onOpenChange={setShowLoginModal} 
       />
+
+      {/* 말씀 범위 확인 모달 */}
+      <AnimatePresence>
+        {showConfirmModal && pendingSelection && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4"
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-sm w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold mb-4 text-center">선택하신 말씀 범위</h3>
+              <div className="bg-zinc-50 rounded-xl p-4 mb-6 space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-600">시작:</span>
+                  <span className="font-bold">
+                    {pendingSelection.start_book} {pendingSelection.start_chapter}장
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-600">종료:</span>
+                  <span className="font-bold">
+                    {pendingSelection.end_book} {pendingSelection.end_chapter}장
+                  </span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowConfirmModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold hover:bg-zinc-200 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    loadRangePagesWithSelection(pendingSelection);
+                    setShowConfirmModal(false);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold hover:bg-[#3d5536] transition-colors"
+                >
+                  확인
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 재생 방식 선택 팝업 */}
       <AnimatePresence>
