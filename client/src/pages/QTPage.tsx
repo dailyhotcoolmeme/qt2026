@@ -1090,9 +1090,10 @@ if (verseMatch) {
                     {new Date(record.created_at).toLocaleString('ko-KR', {
                       month: 'short',
                       day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })}
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
                   </span>
                   <div className="flex gap-2">
                     <button

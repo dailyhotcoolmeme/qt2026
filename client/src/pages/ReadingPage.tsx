@@ -226,8 +226,6 @@ const loadDailyVerse = async (date: Date) => {
     .order('updated_at', { ascending: true });
   
   if (records && records.length > 0) {
-    setNoReadingForDate(false);
-    
     // 모든 읽은 장을 rangePages로 변환 (성경 순서대로 정렬)
     const pages = [];
     
