@@ -1602,6 +1602,7 @@ const loadRangePages = async () => {
       // 과거 날짜로 이동하면 범위 선택 해제
       setRangePages([]);
       setBibleData(null);
+      setNoReadingForDate(false); // 메시지 깜박임 방지
       setCurrentDate(d);
     } else if (info.offset.x < -100) { // 다음 날짜
       const d = new Date(currentDate);
@@ -1612,6 +1613,7 @@ const loadRangePages = async () => {
         if (!isGoingToToday) {
           setRangePages([]);
           setBibleData(null);
+          setNoReadingForDate(false); // 메시지 깜박임 방지
         }
         setCurrentDate(d);
       }
