@@ -220,6 +220,11 @@ const loadDailyVerse = async (date: Date) => {
   // 오늘 날짜면 아무것도 안 함 (rangePages 유지)
   if (isToday) {
     console.log('오늘 날짜, rangePages 유지');
+    // 상태 초기화
+    setIsLoadingVerse(false);
+    if (rangePages.length === 0) {
+      setNoReadingForDate(false);
+    }
     return;
   }
   
