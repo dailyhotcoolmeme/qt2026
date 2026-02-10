@@ -215,13 +215,17 @@ const loadDailyVerse = async (date: Date) => {
   
   const dateStr = date.toISOString().split('T')[0];
   
-  // 해당 날짜의 모든 읽은 장을 가져옵니다
+  // 해당 날짜의 모든 읽은 장을 가져옵니다 (성경 순서대로)
   const { data: records, error } = await supabase
     .from('user_reading_records')
-    .select('*')
+    .select(`
+      *,
+      bible_books!inner(book_order)
+    `)
     .eq('user_id', user.id)
     .eq('date', dateStr)
-    .order('updated_at', { ascending: true });
+    .order('bible_books.book_order', { ascending: true })
+    .order('chapter', { ascending: true });
   
   if (records && records.length > 0) {
     setNoReadingForDate(false);
@@ -291,10 +295,18 @@ useEffect(() => {
   // 초기화 완료 후에만 실행
   if (!isInitialized) return;
   
+  // 날짜가 변경되면 localStorage 초기화 (오늘이 아닌 경우)
+  const today = new Date();
+  if (currentDate.toDateString() !== today.toDateString()) {
+    localStorage.removeItem('reading_selection');
+    localStorage.removeItem('reading_pages');
+    localStorage.removeItem('reading_page_idx');
+  }
+  
   if (user) {
     loadDailyVerse(currentDate);
   }
-}, [user, currentDate, rangePages.length, isInitialized]);
+}, [user, currentDate, isInitialized]);
 
 // 모달이 열릴 때 전체 읽기 이력 로드
 useEffect(() => {
@@ -424,14 +436,16 @@ const loadChapters = async (book: string) => {
     setTempSelection(p => ({ ...p, end_book: book }));
   }
 
-  const { data } = await supabase
-    .from('bible_verses')
-    .select('chapter')
+  // bible_books 테이블에서 total_chapters 가져오기
+  const { data: bookInfo } = await supabase
+    .from('bible_books')
+    .select('total_chapters')
     .eq('book_name', book)
-    .order('chapter', { ascending: true });
+    .maybeSingle();
 
-  if (data) {
-    const chapters = Array.from(new Set(data.map(d => d.chapter)));
+  if (bookInfo && bookInfo.total_chapters) {
+    // 1부터 total_chapters까지 배열 생성
+    const chapters = Array.from({ length: bookInfo.total_chapters }, (_, i) => i + 1);
     setAvailableChapters(chapters);
     
     // 로그인 상태면 읽기 진행률 불러오기
@@ -1770,7 +1784,7 @@ const loadRangePages = async () => {
         {/* 선택 상태 표시 및 클릭 가능한 인디케이터 */}
         <div className="flex flex-wrap items-center gap-2 mb-6">
           {/* 시작 범위 */}
-          <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full text-[10px] font-bold text-[#4A6741]">
+          <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.625}px` }}>
             <span className="opacity-60">시작:</span>
             {tempSelection.start_testament && (
               <button 
@@ -1806,7 +1820,7 @@ const loadRangePages = async () => {
 
           {/* 종료 범위 */}
           {tempSelection.start_chapter > 0 && (
-            <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full text-[10px] font-bold text-blue-700">
+            <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700" style={{ fontSize: `${fontSize * 0.625}px` }}>
               <span className="opacity-60">종료:</span>
               {tempSelection.end_testament && (
                 <button 
@@ -1857,8 +1871,14 @@ const loadRangePages = async () => {
                 setSelectionStep('testament');
                 setRangePages([]);
                 setBibleData(null);
+                setAvailableChapters([]);
+                // localStorage 초기화
+                localStorage.removeItem('reading_selection');
+                localStorage.removeItem('reading_pages');
+                localStorage.removeItem('reading_page_idx');
               }}
-              className="py-2 px-4 bg-red-50 text-red-600 rounded-full text-[10px] font-bold hover:bg-red-100"
+              className="py-2 px-4 bg-red-50 text-red-600 rounded-full"
+              style={{ fontSize: `${fontSize * 0.625}px` }}
             >
               다시 정하기
             </button>
@@ -1984,6 +2004,15 @@ const loadRangePages = async () => {
                                  tempSelection.start_book === tempSelection.end_book && 
                                  ch < tempSelection.start_chapter;
               
+              // 시작/종료 장 표시
+              const isStartChapter = tempSelection.start_book === currentBook && tempSelection.start_chapter === ch;
+              const isEndChapter = tempSelection.end_book === currentBook && tempSelection.end_chapter === ch;
+              const isInRange = tempSelection.start_book === currentBook && 
+                                tempSelection.start_chapter > 0 && 
+                                tempSelection.end_chapter > 0 && 
+                                ch >= tempSelection.start_chapter && 
+                                ch <= tempSelection.end_chapter;
+              
               return (
                 <button
                   key={ch}
@@ -1993,11 +2022,14 @@ const loadRangePages = async () => {
                       const updatedSelection = { 
                         ...tempSelection, 
                         start_chapter: ch,
-                        end_testament: tempSelection.start_testament // 종료 범위도 동일하게 설정
+                        end_testament: tempSelection.start_testament, // 종료 범위도 동일하게 설정
+                        end_book: tempSelection.start_book // 종료 책도 시작 책과 동일하게 설정
                       };
                       setTempSelection(updatedSelection);
                       setSelectionPhase('end');
-                      setSelectionStep('book'); // 신구약 선택 건너뛰고 책 선택으로
+                      // 종료 범위는 바로 장 선택으로 (같은 책이므로)
+                      // 다른 책 선택하려면 뒤로가기 가능
+                      loadChapters(tempSelection.start_book);
                     } else {
                       // 종료 범위 선택 완료 -> 즉시 성경 본문 로드
                       const updatedSelection = {
@@ -2012,19 +2044,27 @@ const loadRangePages = async () => {
                   className={`py-3 rounded-xl font-bold relative overflow-hidden transition-all ${
                     isDisabled
                       ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                      : isStartChapter || isEndChapter
+                      ? 'bg-blue-500 text-white border-2 border-blue-600'
+                      : isInRange
+                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
                       : hasBeenRead
                       ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
                       : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
                   }`}
                 >
                   <div className="flex flex-col items-center gap-0.5">
-                    <span>{ch}</span>
-                    {user && hasBeenRead && !isDisabled && (
+                    <div className="flex items-center gap-1">
+                      {isStartChapter && <span className="text-[9px]">시작</span>}
+                      <span>{ch}</span>
+                      {isEndChapter && <span className="text-[9px]">종료</span>}
+                    </div>
+                    {user && hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && (
                       <span className="text-[9px] text-[#4A6741] font-bold">{readCount}회</span>
                     )}
                   </div>
                   
-                  {hasBeenRead && !isDisabled && <Check size={12} className="absolute top-0.5 right-0.5 text-[#4A6741]" />}
+                  {hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && <Check size={12} className="absolute top-0.5 right-0.5 text-[#4A6741]" />}
                 </button>
               );
             })}
