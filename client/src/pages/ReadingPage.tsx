@@ -216,25 +216,45 @@ const loadDailyVerse = async (date: Date) => {
   
   const dateStr = date.toISOString().split('T')[0];
   
-  // 해당 날짜의 모든 읽은 장을 가져옵니다 (성경 순서대로)
+  // 해당 날짜의 모든 읽은 장을 가져옵니다
   const { data: records, error } = await supabase
     .from('user_reading_records')
-    .select(`
-      *,
-      bible_books!inner(book_order)
-    `)
+    .select('*')
     .eq('user_id', user.id)
     .eq('date', dateStr)
-    .order('bible_books.book_order', { ascending: true })
-    .order('chapter', { ascending: true });
+    .order('updated_at', { ascending: true });
   
   if (records && records.length > 0) {
     setNoReadingForDate(false);
     
-    // 모든 읽은 장을 rangePages로 변환
+    // 모든 읽은 장을 rangePages로 변환 (성경 순서대로 정렬)
     const pages = [];
     
+    // 먼저 bible_books에서 book_order를 가져와서 정렬
+    const bookOrders: Record<string, number> = {};
     for (const record of records) {
+      if (!bookOrders[record.book_name]) {
+        const { data: bookInfo } = await supabase
+          .from('bible_books')
+          .select('book_order')
+          .eq('book_name', record.book_name)
+          .single();
+        
+        if (bookInfo) {
+          bookOrders[record.book_name] = bookInfo.book_order;
+        }
+      }
+    }
+    
+    // book_order로 정렬
+    const sortedRecords = [...records].sort((a, b) => {
+      const orderA = bookOrders[a.book_name] || 0;
+      const orderB = bookOrders[b.book_name] || 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.chapter - b.chapter;
+    });
+    
+    for (const record of sortedRecords) {
       // bible_books 정보 별도 조회
       const { data: bookInfo } = await supabase
         .from('bible_books')

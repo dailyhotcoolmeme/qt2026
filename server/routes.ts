@@ -305,13 +305,28 @@ export async function registerRoutes(
         });
       }
 
+      console.log('R2 삭제 요청:', fileUrl);
+
       // Public URL에서 파일명 추출
       // 예: https://pub-xxx.r2.dev/audio/meditation/user_id/2026-02-09/qt_123.mp3
       // -> audio/meditation/user_id/2026-02-09/qt_123.mp3
-      const fileName = fileUrl.split('/').slice(3).join('/');
+      let fileName = '';
+      
+      try {
+        const url = new URL(fileUrl);
+        // pathname은 /audio/meditation/... 형태
+        fileName = url.pathname.substring(1); // 첫 번째 / 제거
+      } catch (e) {
+        // URL 파싱 실패 시 기존 방식 사용
+        fileName = fileUrl.split('/').slice(3).join('/');
+      }
+      
+      console.log('추출된 파일명:', fileName);
       
       // R2에서 삭제
       const result = await deleteAudioFromR2(fileName);
+      
+      console.log('R2 삭제 결과:', result);
       
       res.json(result);
     } catch (error) {
