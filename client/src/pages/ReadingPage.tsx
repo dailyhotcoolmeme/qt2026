@@ -383,10 +383,17 @@ useEffect(() => {
 
   useEffect(() => {
     if (rangePages.length > 0) {
-      const today = new Date().toISOString().split('T')[0];
-      localStorage.setItem('reading_pages', JSON.stringify(rangePages));
-      localStorage.setItem('reading_date', today);
-      localStorage.setItem('reading_page_idx', String(currentPageIdx));
+      const today = new Date();
+      const isToday = currentDate.toDateString() === today.toDateString();
+      
+      // 오늘 날짜일 때만 localStorage에 저장
+      if (isToday) {
+        const todayStr = today.toISOString().split('T')[0];
+        localStorage.setItem('reading_pages', JSON.stringify(rangePages));
+        localStorage.setItem('reading_date', todayStr);
+        localStorage.setItem('reading_page_idx', String(currentPageIdx));
+        console.log('localStorage 저장:', todayStr, rangePages.length, '페이지');
+      }
       
       // 마지막 읽은 장으로 이동 (최초 로드 시에만)
       if (user && bibleData === null) {
