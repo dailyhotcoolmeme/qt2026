@@ -183,6 +183,30 @@ const loadDailyVerse = async (date: Date) => {
   
   console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
   
+  // 오늘 날짜이고 rangePages가 비어있으면 localStorage 복원
+  if (isToday && rangePages.length === 0) {
+    const savedPages = localStorage.getItem('reading_pages');
+    const savedIdx = localStorage.getItem('reading_page_idx');
+    
+    if (savedPages) {
+      try {
+        const pages = JSON.parse(savedPages);
+        const idx = Number(savedIdx) || 0;
+        
+        console.log('localStorage 복원:', pages.length, '페이지');
+        
+        setRangePages(pages);
+        setCurrentPageIdx(idx);
+        if (pages[idx]) {
+          setBibleData(pages[idx]);
+        }
+        return;
+      } catch (e) {
+        console.error('복원 실패:', e);
+      }
+    }
+  }
+  
   // 오늘 날짜면 아무것도 안 함 (rangePages 유지)
   if (isToday) {
     console.log('오늘 날짜, rangePages 유지');
