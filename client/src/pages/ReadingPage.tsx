@@ -322,15 +322,10 @@ useEffect(() => {
   // 초기화 완료 후에만 실행
   if (!isInitialized) return;
   
-  const today = new Date();
-  const isToday = currentDate.toDateString() === today.toDateString();
-  
-  // 오늘이 아닌 경우만 화면 클리어
-  if (!isToday) {
-    setRangePages([]);
-    setBibleData(null);
-    setNoReadingForDate(false);
-  }
+  // 날짜가 변경될 때마다 화면 클리어 (과거 데이터 방지)
+  setRangePages([]);
+  setBibleData(null);
+  setNoReadingForDate(false);
   
   if (user) {
     loadDailyVerse(currentDate);
