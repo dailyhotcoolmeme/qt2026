@@ -108,7 +108,7 @@ export default function QTPage() {
     setIsMeditationCompleted(data && data.length > 0);
   };
 
-  // 묵상 기록 목록 불러오기
+  // 묵상 기록 목록 불러오기 (텍스트나 음성이 있는 것만)
   const loadMeditationRecords = async () => {
     if (!user?.id) {
       setMeditationRecords([]);
@@ -130,7 +130,11 @@ export default function QTPage() {
       return;
     }
 
-    setMeditationRecords(data || []);
+    // 텍스트나 음성이 있는 기록만 필터링
+    const recordsWithContent = (data || []).filter(
+      record => record.meditation_text || record.audio_url
+    );
+    setMeditationRecords(recordsWithContent);
   };
 
 
@@ -410,11 +414,15 @@ export default function QTPage() {
             body: JSON.stringify({ fileUrl: recordToDelete.audio_url })
           });
           
-          if (!response.ok) {
-            console.warn('R2 파일 삭제 실패, DB는 삭제 진행');
+          const result = await response.json();
+          if (!response.ok || !result.success) {
+            console.error('R2 파일 삭제 실패:', result.error);
+            console.warn('DB는 삭제 진행');
+          } else {
+            console.log('R2 파일 삭제 성공:', recordToDelete.audio_url);
           }
         } catch (error) {
-          console.warn('R2 파일 삭제 중 오류:', error);
+          console.error('R2 파일 삭제 중 오류:', error);
           // R2 삭제 실패해도 DB 삭제는 진행
         }
       }

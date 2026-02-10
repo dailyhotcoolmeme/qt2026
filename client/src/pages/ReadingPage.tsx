@@ -177,12 +177,13 @@ const loadDailyVerse = async (date: Date) => {
   // 로그인하지 않았으면 실행 안 함
   if (!user) return;
   
-  // 오늘 날짜에서 범위 선택 모드일 때는 실행하지 않음
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
+  
+  // 오늘 날짜이고 범위 선택 모드일 때는 실행하지 않음
   if (isToday && rangePages.length > 0) return;
   
-  // 오늘 날짜는 localStorage에 범위 선택이 있으면 복원하고, 없으면 최근 기록 불러오기
+  // 오늘 날짜는 localStorage에 범위 선택이 있으면 복원하고, 없으면 서버에서 불러오기
   if (isToday) {
     // localStorage에서 범위 선택 복원 시도
     const savedSelection = localStorage.getItem('reading_selection');
@@ -301,6 +302,9 @@ useEffect(() => {
     localStorage.removeItem('reading_selection');
     localStorage.removeItem('reading_pages');
     localStorage.removeItem('reading_page_idx');
+    // 상태도 초기화
+    setRangePages([]);
+    setBibleData(null);
   }
   
   if (user) {
@@ -448,12 +452,15 @@ const loadChapters = async (book: string) => {
     const chapters = Array.from({ length: bookInfo.total_chapters }, (_, i) => i + 1);
     setAvailableChapters(chapters);
     
-    // 로그인 상태면 읽기 진행률 불러오기
-    if (user) {
-      await loadReadingProgress(book, chapters);
-    }
-    
+    // 먼저 장 선택 화면으로 전환
     setSelectionStep('chapter');
+    
+    // 로그인 상태면 읽기 진행률 백그라운드로 불러오기
+    if (user) {
+      loadReadingProgress(book, chapters); // await 제거하여 비동기 실행
+    }
+  } else {
+    console.error('책 정보를 찾을 수 없습니다:', book);
   }
 };
 
