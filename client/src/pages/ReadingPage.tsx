@@ -3,7 +3,8 @@ import confetti from 'canvas-confetti';
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Check, Calendar as CalendarIcon,
-  ChevronLeft, ChevronRight, Pencil, NotebookPen
+  ChevronLeft, ChevronRight, Pencil, NotebookPen,
+  BookX, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -1740,14 +1741,14 @@ const loadRangePages = async () => {
               </>
             ) : noReadingForDate ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
-                <NotebookPen size={48} className="text-zinc-200" strokeWidth={1.5} />
+                <BookX size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
                   읽은 말씀이 없습니다
                 </p>
               </div>
             ) : isLoadingVerse ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
-                <NotebookPen size={48} className="text-zinc-200" strokeWidth={1.5} />
+                <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
                   읽은 말씀 불러오는 중...
                 </p>
