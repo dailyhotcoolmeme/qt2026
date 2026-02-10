@@ -10,6 +10,7 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
+import { BIBLE_BOOKS as BOOK_CHAPTERS } from "../lib/bibleData";
 
 export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -182,9 +183,11 @@ const loadDailyVerse = async (date: Date) => {
   
   console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
   
+  // 항상 메시지 상태 초기화 (깜박임 방지)
+  setNoReadingForDate(false);
+  
   // 오늘 날짜는 localStorage에서 복원
   if (isToday) {
-    setNoReadingForDate(false);
     const savedSelection = localStorage.getItem('reading_selection');
     const savedPages = localStorage.getItem('reading_pages');
     const savedIdx = localStorage.getItem('reading_page_idx');
@@ -462,8 +465,8 @@ const loadChapters = async (book: string) => {
     setTempSelection(p => ({ ...p, end_book: book }));
   }
 
-  // bibleData.ts에서 정확한 장 수 가져오기
-  const bookInfo = BIBLE_BOOKS.find(b => b.name === book);
+  // lib/bibleData.ts에서 정확한 장 수 가져오기
+  const bookInfo = BOOK_CHAPTERS.find(b => b.name === book);
   
   console.log('bookInfo:', bookInfo);
 
