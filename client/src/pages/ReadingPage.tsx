@@ -183,10 +183,7 @@ const loadDailyVerse = async (date: Date) => {
   
   console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
   
-  // 항상 메시지 상태 초기화 (깜박임 방지)
-  setNoReadingForDate(false);
-  
-  // 오늘 날짜는 localStorage에서 복원
+  // 오늘 날짜는 localStorage에서 복원만
   if (isToday) {
     const savedSelection = localStorage.getItem('reading_selection');
     const savedPages = localStorage.getItem('reading_pages');
@@ -206,7 +203,8 @@ const loadDailyVerse = async (date: Date) => {
         if (pages[idx]) {
           setBibleData(pages[idx]);
         }
-        return;
+        setNoReadingForDate(false);
+        return; // 여기서 종료, 서버 조회 안 함
       } catch (e) {
         console.error('범위 복원 실패:', e);
       }
@@ -214,10 +212,15 @@ const loadDailyVerse = async (date: Date) => {
     
     // localStorage 없으면 서버에서 오늘 읽은 기록 불러오기
     console.log('localStorage 없음, 서버에서 로드');
-  } else {
-    // 과거 날짜는 항상 서버에서 로드
+  }
+  
+  // 과거 날짜는 항상 서버에서 로드
+  if (!isToday) {
     console.log('과거 날짜, 서버에서 로드');
   }
+  
+  // 메시지 초기 상태 (true로 시작)
+  setNoReadingForDate(true);
   
   const dateStr = date.toISOString().split('T')[0];
   
@@ -319,12 +322,11 @@ useEffect(() => {
   // 초기화 완료 후에만 실행
   if (!isInitialized) return;
   
-  // 날짜가 변경되면 화면 상태만 초기화 (localStorage는 유지)
   const today = new Date();
   const isToday = currentDate.toDateString() === today.toDateString();
   
+  // 오늘이 아닌 경우만 화면 클리어
   if (!isToday) {
-    // 과거 날짜로 가면 화면만 클리어
     setRangePages([]);
     setBibleData(null);
     setNoReadingForDate(false);

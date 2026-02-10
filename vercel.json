@@ -3,6 +3,7 @@
   "rewrites": [
     { "source": "/api/audio/check", "destination": "/api/audio/check" },
     { "source": "/api/audio/upload", "destination": "/api/audio/upload" },
+    { "source": "/api/audio/delete", "destination": "/api/audio/delete" },
     { "source": "/api/auth/user", "destination": "/api/auth/user" }
   ]
 }
