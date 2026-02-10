@@ -1719,8 +1719,7 @@ const loadRangePages = async () => {
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <NotebookPen size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  우측 상단 버튼을 눌러<br />
-                  읽을 범위를 선택해주세요
+                  읽은 말씀 불러오는 중...
                 </p>
               </div>
             )}
