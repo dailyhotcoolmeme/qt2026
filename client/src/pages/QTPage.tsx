@@ -31,6 +31,7 @@ export default function QTPage() {
 
   // 묵상 기록 관련 상태
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [showWriteSheet, setShowWriteSheet] = useState(false);
   const [meditationText, setMeditationText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -149,15 +150,61 @@ export default function QTPage() {
     // 당일만 활성화
     const isToday = currentDate.toDateString() === today.toDateString();
     if (!isToday) {
-      alert('묵상 완료는 당일에만 가능합니다.');
-      return;
+      return; // 과거 날짜는 클릭 불가
     }
 
     if (!isMeditationCompleted) {
       // 확인 모달 표시
       setShowConfirmModal(true);
+    } else {
+      // 완료 상태일 때 취소 모달 표시
+      setShowCancelConfirmModal(true);
     }
-    // 완료 상태일 때는 길게 누르기로만 취소 가능 (handleEnd에서 처리)
+  };
+
+  // 묵상 완료 취소
+  const handleCancelMeditation = async () => {
+    const formattedDate = currentDate.toISOString().split('T')[0];
+    
+    try {
+      // 해당 날짜의 모든 레코드 찾기
+      const recordsToDelete = meditationRecords.filter(
+        record => record.date === formattedDate
+      );
+
+      // 각 레코드의 음성 파일 삭제
+      for (const record of recordsToDelete) {
+        if (record.audio_url) {
+          try {
+            await fetch('/api/audio/delete', {
+              method: 'DELETE',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileUrl: record.audio_url })
+            });
+          } catch (error) {
+            console.error('[R2 삭제] 오류:', error);
+          }
+        }
+      }
+
+      // DB에서 해당 날짜의 모든 레코드 삭제
+      const { error } = await supabase
+        .from('user_meditation_records')
+        .delete()
+        .eq('user_id', user!.id)
+        .eq('date', formattedDate);
+
+      if (error) throw error;
+
+      setIsMeditationCompleted(false);
+      setShowCancelConfirmModal(false);
+      await loadMeditationRecords();
+      
+      if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
+    } catch (error) {
+      console.error('Error canceling meditation:', error);
+      alert('묵상 완료 취소 중 오류가 발생했습니다.');
+    }
   };
 
   // 묵상 완료만 체크 (기록 없이)
@@ -180,13 +227,6 @@ export default function QTPage() {
 
       setIsMeditationCompleted(true);
       setShowConfirmModal(false);
-      
-      // Confetti 효과
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -308,13 +348,6 @@ export default function QTPage() {
       
       // 기록 목록 새로고침
       await loadMeditationRecords();
-      
-      // Confetti 효과
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 }
-      });
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -1011,11 +1044,14 @@ if (verseMatch) {
             disabled={currentDate.toDateString() !== today.toDateString()}
             className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
               ${
-                currentDate.toDateString() !== today.toDateString()
-                  ? 'bg-zinc-200 text-zinc-400 cursor-not-allowed'
-                  : isMeditationCompleted
+                isMeditationCompleted
                   ? 'bg-[#4A6741] text-white border-none' 
                   : 'bg-white text-[#4A6741] border border-green-50'
+              }
+              ${
+                currentDate.toDateString() !== today.toDateString()
+                  ? 'cursor-not-allowed opacity-60'
+                  : ''
               }`}
           >
             <Heart 
@@ -1023,7 +1059,7 @@ if (verseMatch) {
               strokeWidth={isMeditationCompleted ? 0 : 2} 
             />
             <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-              {isMeditationCompleted ? '완료됨' : '묵상 완료'}
+              {isMeditationCompleted ? '묵상 완료' : '묵상 완료'}
             </span>
           </motion.button>
         </div>
@@ -1133,7 +1169,7 @@ if (verseMatch) {
               setRecordingTime(0);
               setShowWriteSheet(true);
             }}
-            className="w-full py-3 bg-white border-2 border-dashed border-[#4A6741]/30 text-[#4A6741] rounded-xl font-bold hover:bg-[#4A6741]/5 transition-colors"
+            className="w-full py-3 bg-white border border-dashed border-[#4A6741]/30 text-[#4A6741] rounded-xl font-bold hover:bg-[#4A6741]/5 transition-colors"
             style={{ fontSize: `${fontSize * 0.9}px` }}
           >
             + 묵상 기록 추가하기
@@ -1333,6 +1369,52 @@ if (verseMatch) {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* 묵상 완료 취소 확인 모달 */}
+      <AnimatePresence>
+        {showCancelConfirmModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCancelConfirmModal(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
+            >
+              <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
+                묵상 완료를 취소할까요?
+              </h4>
+              <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                오늘 날짜의 모든 묵상 기록이 삭제됩니다.
+              </p>
+              
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setShowCancelConfirmModal(false)}
+                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  아니오
+                </button>
+                <button 
+                  onClick={handleCancelMeditation}
+                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-active active:scale-95 shadow-lg"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  취소하기
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
