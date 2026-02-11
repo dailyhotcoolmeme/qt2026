@@ -26,7 +26,7 @@ export function BottomNav() {
       <NavItem
         href="/qt"
         icon={<BookHeart />}
-        label="묵상일기"
+        label="QT일기"
         active={location === "/qt"}
       />
 
