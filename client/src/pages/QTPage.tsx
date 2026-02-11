@@ -931,7 +931,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 재생</span>
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
     </button>
 {/* 말씀 복사 버튼 찾아서 수정 */}
 <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
