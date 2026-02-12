@@ -10,14 +10,14 @@ export default function PrayerPage() {
   const { user } = useAuth();
   const { fontSize = 16 } = useDisplaySettings();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  
+
   // 기도제목 관련 상태
   const [myTopics, setMyTopics] = useState<any[]>([]);
   const [publicTopics, setPublicTopics] = useState<any[]>([]);
   const [newTopic, setNewTopic] = useState("");
   const [isPublic, setIsPublic] = useState(false);
   const [showAddInput, setShowAddInput] = useState(false);
-  
+
   // 기도 녹음 관련 상태
   const [isPraying, setIsPraying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -25,11 +25,11 @@ export default function PrayerPage() {
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
   const [playingRecordId, setPlayingRecordId] = useState<number | null>(null);
-  
+
   // 스크롤 애니메이션 관련 상태
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
   const [scrollDirection, setScrollDirection] = useState(1);
-  
+
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -47,13 +47,13 @@ export default function PrayerPage() {
   // 자동 스크롤 애니메이션
   useEffect(() => {
     if (publicTopics.length === 0) return;
-    
+
     const interval = setInterval(() => {
       setCurrentTopicIndex(prev => {
         const next = (prev + scrollDirection + publicTopics.length) % publicTopics.length;
         return next;
       });
-    }, 3000);
+    }, 6000);
 
     return () => clearInterval(interval);
   }, [publicTopics, scrollDirection]);
@@ -61,7 +61,7 @@ export default function PrayerPage() {
   // 나의 기도제목 로드
   const loadMyTopics = async () => {
     if (!user) return;
-    
+
     const { data, error } = await supabase
       .from('prayer_topics')
       .select('*')
@@ -90,7 +90,7 @@ export default function PrayerPage() {
   // 기도 녹음 기록 로드
   const loadPrayerRecords = async () => {
     if (!user) return;
-    
+
     const { data, error } = await supabase
       .from('prayer_records')
       .select('*')
@@ -230,11 +230,11 @@ export default function PrayerPage() {
       // R2에 업로드
       const timestamp = Date.now();
       const fileName = `audio/prayer/${user!.id}/${new Date().toISOString().split('T')[0]}/prayer_${timestamp}.mp3`;
-      
+
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
-        
+
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -245,7 +245,7 @@ export default function PrayerPage() {
         });
 
         if (!response.ok) throw new Error('업로드 실패');
-        
+
         const { publicUrl } = await response.json();
 
         // DB에 저장
@@ -265,10 +265,10 @@ export default function PrayerPage() {
         setAudioBlob(null);
         setRecordingTime(0);
         await loadPrayerRecords();
-        
+
         if (window.navigator?.vibrate) window.navigator.vibrate(30);
       };
-      
+
       reader.readAsDataURL(audioBlob);
     } catch (error) {
       console.error('기도 저장 실패:', error);
@@ -338,18 +338,18 @@ export default function PrayerPage() {
               </div>
 
               {/* 현재 기도제목 */}
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <p className="text-zinc-800 text-center leading-relaxed mb-4" style={{ fontSize: `${fontSize}px` }}>
+              <div className="flex items-center justify-center gap-3">
+                <p className="text-zinc-800 text-center font-medium leading-relaxed" style={{ fontSize: `${fontSize * 1.1}px` }}>
                   {publicTopics[currentTopicIndex]?.topic_text}
                 </p>
                 <button
                   onClick={() => handlePrayForTopic(publicTopics[currentTopicIndex]?.id)}
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-[#4A6741]/5 rounded-xl text-[#4A6741] font-medium hover:bg-[#4A6741]/10 transition-colors"
+                  className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
+                  title="함께 기도하기"
                 >
-                  <Heart size={18} className="fill-current" />
-                  <span>함께 기도하기</span>
-                  <span className="text-sm opacity-60">
-                    ({publicTopics[currentTopicIndex]?.prayer_interactions?.[0]?.count || 0})
+                  <span className="text-xl">🙏</span>
+                  <span className="text-xs font-bold opacity-60">
+                    {publicTopics[currentTopicIndex]?.prayer_interactions?.[0]?.count || 0}
                   </span>
                 </button>
               </div>
@@ -394,7 +394,7 @@ export default function PrayerPage() {
           <h3 className="font-bold text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
             나의 기도제목
           </h3>
-          
+
           <div className="space-y-2">
             {myTopics.map((topic) => (
               <div key={topic.id} className="bg-white rounded-xl p-4 flex items-center justify-between">
@@ -587,9 +587,9 @@ export default function PrayerPage() {
       </AnimatePresence>
 
       {/* 로그인 모달 */}
-      <LoginModal 
-        open={showLoginModal} 
-        onOpenChange={setShowLoginModal} 
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
       />
     </div>
   );
