@@ -988,7 +988,7 @@ const loadRangePages = async () => {
         headers: {
           "Ocp-Apim-Subscription-Key": AZURE_KEY,
           "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+          "X-Microsoft-OutputFormat": "audio-16khz-64kbitrate-mono-mp3",
         },
         body: `
           <speak version='1.0' xml:lang='ko-KR'>
