@@ -577,32 +577,6 @@ export default function PrayerPage() {
     setTimeout(() => setShowCopyToast(false), 2000);
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
   };
-        .from('prayer_records')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
-      // R2에서 파일 삭제
-      await fetch('/api/audio/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl })
-      });
-
-      await loadPrayerRecords();
-      if (window.navigator?.vibrate) window.navigator.vibrate(20);
-    } catch (error) {
-      console.error('삭제 실패:', error);
-      alert('기도 기록 삭제 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 텍스트 복사
-  const handleCopyText = (text: string) => {
-    navigator.clipboard.writeText(text);
-    alert('텍스트가 복사되었습니다.');
-  };
 
   // 시간 포맷
   const formatTime = (seconds: number) => {
