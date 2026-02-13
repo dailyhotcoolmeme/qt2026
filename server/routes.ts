@@ -338,5 +338,39 @@ export async function registerRoutes(
     }
   });
 
+  // 기도 녹음 STT (로컬 개발용 - 모의 응답)
+  app.post("/api/prayer/transcribe", async (req, res) => {
+    try {
+      const { audioUrl } = req.body;
+      
+      if (!audioUrl) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "audioUrl이 필요합니다" 
+        });
+      }
+
+      // 로컬 개발 환경에서는 모의 응답 반환
+      // 실제 Vercel 배포에서는 api/prayer/transcribe.js가 처리함
+      console.log('STT 요청 (로컬 개발 - 모의 응답):', audioUrl);
+      
+      res.json({
+        success: true,
+        transcription: "하나님, 오늘도 감사드립니다. 이 기도를 들어주소서.",
+        keywords: [
+          { word: "하나님", count: 5 },
+          { word: "감사", count: 3 },
+          { word: "기도", count: 2 }
+        ]
+      });
+    } catch (error) {
+      console.error('Prayer transcribe error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "STT 처리 실패" 
+      });
+    }
+  });
+
   return httpServer;
 }

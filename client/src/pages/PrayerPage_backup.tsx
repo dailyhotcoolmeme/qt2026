@@ -5,16 +5,6 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "../components/ui/alert-dialog";
 
 // 타이핑 효과 컴포넌트
 const TypingText = ({ text }: { text: string }) => {
@@ -72,9 +62,6 @@ export default function PrayerPage() {
   const [playingRecordId, setPlayingRecordId] = useState<number | null>(null);
   const [expandedRecordId, setExpandedRecordId] = useState<number | null>(null);
   const [showKeywords, setShowKeywords] = useState<number | null>(null);
-  
-  // 삭제 모달
-  const [deleteTopicId, setDeleteTopicId] = useState<number | null>(null);
 
   // 스크롤 애니메이션 관련 상태 (한 줄씩 위로)
   const [visibleTopics, setVisibleTopics] = useState<any[]>([]);
@@ -198,18 +185,15 @@ export default function PrayerPage() {
   };
 
   // 기도제목 삭제
-  const handleDeleteTopic = async () => {
-    if (!deleteTopicId) return;
-    
+  const handleDeleteTopic = async (id: number) => {
     const { error } = await supabase
       .from('prayer_topics')
       .delete()
-      .eq('id', deleteTopicId);
+      .eq('id', id);
 
     if (!error) {
       await loadMyTopics();
       await loadPublicTopics();
-      setDeleteTopicId(null);
     }
   };
 
@@ -554,48 +538,50 @@ export default function PrayerPage() {
 
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pb-24">
-      {/* 상단: 공개된 기도제목 스크롤 영역 (한 줄씩 위로 스크롤, 깜빡임 없음) */}
-      <div className="relative h-[140px] pt-12 flex flex-col items-center justify-center px-6 overflow-hidden">
+      {/* 상단: 공개된 기도제목 스크롤 영역 (한 줄씩 위로) */}
+      <div className="relative h-[160px] pt-6 flex flex-col items-center justify-center px-6 overflow-hidden">
         {visibleTopics.length > 0 && (
-          <div className="w-full max-w-md flex flex-col items-center gap-1.5">
+          <div className="w-full max-w-md flex flex-col items-center gap-2">
             {visibleTopics.map((topic, index) => (
-              <motion.div
-                key={`topic-${topic?.id}-${topicOffset}-${index}`}
-                initial={false}
-                animate={{ 
-                  y: 0, 
-                  opacity: index === 1 ? 1 : 0.3,
-                  scale: index === 1 ? 1 : 0.9
-                }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                className="flex items-center justify-center gap-2 w-full min-h-[24px]"
-              >
-                <p 
-                  className={`text-zinc-800 text-center ${index === 1 ? 'font-bold' : 'font-normal'}`}
-                  style={{ fontSize: `${fontSize * (index === 1 ? 1.0 : 0.85)}px` }}
+              <AnimatePresence key={`topic-${topic?.id}-${topicOffset}-${index}`} mode="wait">
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ 
+                    y: 0, 
+                    opacity: index === 1 ? 1 : 0.3,
+                    scale: index === 1 ? 1 : 0.9
+                  }}
+                  exit={{ y: -20, opacity: 0 }}
+                  transition={{ duration: 0.6, ease: "easeInOut" }}
+                  className="flex items-center justify-center gap-2 w-full"
                 >
-                  {index === 1 ? <TypingText text={topic?.topic_text || ""} /> : topic?.topic_text}
-                </p>
-                {index === 1 && (
-                  <button
-                    onClick={() => handlePrayForTopic(topic?.id)}
-                    className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
-                    title="함께 기도하기"
+                  <p 
+                    className={`text-zinc-800 text-center ${index === 1 ? 'font-bold' : 'font-normal'}`}
+                    style={{ fontSize: `${fontSize * (index === 1 ? 1.0 : 0.85)}px` }}
                   >
-                    <HandHeart size={18} strokeWidth={1.5} />
-                    <span className="text-xs font-bold opacity-70">
-                      {getPrayerCount(topic)}
-                    </span>
-                  </button>
-                )}
-              </motion.div>
+                    {index === 1 ? <TypingText text={topic?.topic_text || ""} /> : topic?.topic_text}
+                  </p>
+                  {index === 1 && (
+                    <button
+                      onClick={() => handlePrayForTopic(topic?.id)}
+                      className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
+                      title="함께 기도하기"
+                    >
+                      <HandHeart size={18} className="fill-current" />
+                      <span className="text-xs font-bold opacity-70">
+                        {getPrayerCount(topic)}
+                      </span>
+                    </button>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             ))}
           </div>
         )}
       </div>
 
       {/* 중앙: 기도하기 버튼 */}
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-8">
         <motion.button
           onClick={handleStartPrayerMode}
           whileTap={{ scale: 0.95 }}
@@ -609,7 +595,7 @@ export default function PrayerPage() {
             ease: "easeInOut"
           }}
         >
-          <HandHeart size={32} strokeWidth={1.5} />
+          <HandHeart size={32} className="fill-current" />
           <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>
             기도하기
           </span>
@@ -619,43 +605,26 @@ export default function PrayerPage() {
       {/* 하단: 나의 기도제목 + 녹음 기록 */}
       <div className="px-6 pb-24">
         {/* 나의 기도제목 */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.95}px` }}>
-              나의 기도제목
-            </h3>
-            <button
-              onClick={() => {
-                if (!user) {
-                  setShowLoginModal(true);
-                  return;
-                }
-                setShowAddInput(true);
-              }}
-              className="text-[#4A6741] hover:text-[#3a5331] transition-colors"
-              title="기도제목 추가"
-            >
-              <Plus size={20} />
-            </button>
-          </div>
+        <div className="mb-6">
+          <h3 className="font-bold text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
+            나의 기도제목
+          </h3>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex items-start gap-2 py-1">
-                <span className="text-[#4A6741] mt-1.5" style={{ fontSize: '8px' }}>●</span>
-                <p className="text-zinc-700 flex-1" style={{ fontSize: `${fontSize * 0.95}px` }}>
+              <div key={topic.id} className="bg-white rounded-xl p-4 flex items-center justify-between">
+                <p className="text-zinc-700 flex-1" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   {topic.topic_text}
                 </p>
                 <div className="flex items-center gap-2">
                   {topic.is_public && (
-                    <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-0.5 rounded">공개</span>
+                    <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-1 rounded">공개</span>
                   )}
                   <button
-                    onClick={() => setDeleteTopicId(topic.id)}
-                    className="text-zinc-400 hover:text-red-500 transition-colors"
-                    title="삭제"
+                    onClick={() => handleDeleteTopic(topic.id)}
+                    className="text-zinc-400 hover:text-red-500"
                   >
-                    <Trash2 size={16} />
+                    <X size={18} />
                   </button>
                 </div>
               </div>
@@ -708,7 +677,21 @@ export default function PrayerPage() {
                     </div>
                   </div>
                 </motion.div>
-              ) : null}
+              ) : (
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setShowLoginModal(true);
+                      return;
+                    }
+                    setShowAddInput(true);
+                  }}
+                  className="w-full py-3 bg-white border border-dashed border-[#4A6741]/30 text-[#4A6741] rounded-xl font-medium hover:bg-[#4A6741]/5 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Plus size={20} />
+                  기도제목 추가하기
+                </button>
+              )}
             </AnimatePresence>
           </div>
         </div>
@@ -1067,24 +1050,6 @@ export default function PrayerPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* 기도제목 삭제 확인 모달 */}
-      <AlertDialog open={deleteTopicId !== null} onOpenChange={(open) => !open && setDeleteTopicId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>기도제목 삭제</AlertDialogTitle>
-            <AlertDialogDescription>
-              이 기도제목을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteTopicId(null)}>취소</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTopic} className="bg-red-500 hover:bg-red-600">
-              삭제
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* 로그인 모달 */}
       <LoginModal
