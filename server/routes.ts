@@ -372,5 +372,37 @@ export async function registerRoutes(
     }
   });
 
+  // R2 파일 이동 (로컬 개발용 - 모의 응답)
+  app.post("/api/audio/move", async (req, res) => {
+    try {
+      const { sourceUrl, targetPath } = req.body;
+      
+      if (!sourceUrl || !targetPath) {
+        return res.status(400).json({ 
+          success: false, 
+          error: "sourceUrl과 targetPath가 필요합니다" 
+        });
+      }
+
+      console.log('R2 파일 이동 요청 (로컬 개발 - 모의 응답)');
+      console.log('Source:', sourceUrl);
+      console.log('Target:', targetPath);
+      
+      // 모의 Public URL 생성
+      const publicUrl = `https://pub-mock.r2.dev/${targetPath}`;
+      
+      res.json({
+        success: true,
+        publicUrl
+      });
+    } catch (error) {
+      console.error('Audio move error:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: error instanceof Error ? error.message : "파일 이동 실패" 
+      });
+    }
+  });
+
   return httpServer;
 }

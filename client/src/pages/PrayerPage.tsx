@@ -16,32 +16,6 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 
-// 타이핑 효과 컴포넌트
-const TypingText = ({ text }: { text: string }) => {
-  const [displayedText, setDisplayedText] = useState("");
-
-  useEffect(() => {
-    let currentText = "";
-    setDisplayedText("");
-    const characters = text.split("");
-    let i = 0;
-
-    const interval = setInterval(() => {
-      if (i < characters.length) {
-        currentText += characters[i];
-        setDisplayedText(currentText);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 50);
-
-    return () => clearInterval(interval);
-  }, [text]);
-
-  return <>{displayedText}</>;
-};
-
 export default function PrayerPage() {
   const { user } = useAuth();
   const { fontSize = 16 } = useDisplaySettings();
@@ -67,6 +41,8 @@ export default function PrayerPage() {
   // 저장 모달 입력
   const [saveTitle, setSaveTitle] = useState("");
   const [saveHashtags, setSaveHashtags] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [savingProgress, setSavingProgress] = useState(0);
   
   // 기도 기록
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
@@ -82,9 +58,9 @@ export default function PrayerPage() {
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
   const [deleteRecordUrl, setDeleteRecordUrl] = useState<string | null>(null);
 
-  // 스크롤 애니메이션 관련 상태 (한 줄씩 위로)
-  const [visibleTopics, setVisibleTopics] = useState<any[]>([]);
-  const [topicOffset, setTopicOffset] = useState(0);
+  // 스크롤 애니메이션 관련 상태 (fade in/out)
+  const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
+  const [topicOpacity, setTopicOpacity] = useState(1);
 
   // Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -103,35 +79,27 @@ export default function PrayerPage() {
     loadPublicTopics();
   }, [user]);
 
-  // 자동 스크롤 애니메이션 (한 줄씩 6초마다)
+  // 자동 fade 애니메이션 (6초마다)
   useEffect(() => {
     if (publicTopics.length === 0) return;
 
-    // 초기 3줄 설정
-    setVisibleTopics([
-      publicTopics[0],
-      publicTopics[1 % publicTopics.length],
-      publicTopics[2 % publicTopics.length],
-    ]);
-
     const interval = setInterval(() => {
-      setTopicOffset(prev => (prev + 1) % publicTopics.length);
+      // 1. Fade out (2초)
+      setTopicOpacity(0);
+      
+      // 2. 2초 후 다음 주제로 변경
+      setTimeout(() => {
+        setCurrentTopicIndex(prev => (prev + 1) % publicTopics.length);
+        
+        // 3. Fade in (2초)
+        setTimeout(() => {
+          setTopicOpacity(1);
+        }, 100);
+      }, 2000);
     }, 6000);
 
     return () => clearInterval(interval);
   }, [publicTopics]);
-
-  // topicOffset이 변경될 때마다 visibleTopics 업데이트
-  useEffect(() => {
-    if (publicTopics.length === 0) return;
-    
-    const topics = [
-      publicTopics[(topicOffset) % publicTopics.length],
-      publicTopics[(topicOffset + 1) % publicTopics.length],
-      publicTopics[(topicOffset + 2) % publicTopics.length],
-    ];
-    setVisibleTopics(topics);
-  }, [topicOffset, publicTopics]);
 
   // 나의 기도제목 로드
   const loadMyTopics = async () => {
@@ -409,88 +377,115 @@ export default function PrayerPage() {
     if (!audioBlob || !user) return;
 
     try {
+      setIsSaving(true);
+      setSavingProgress(0);
+
       const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
       const timestamp = Date.now();
-      const fileName = `audio/prayer/${user.id}/${kstDate}/prayer_${timestamp}.webm`;
+      const targetPath = `audio/prayer/${user.id}/${kstDate}/prayer_${timestamp}.webm`;
 
-      // 정식 경로로 업로드
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
+      let publicUrl: string;
 
-        const response = await fetch('/api/audio/upload', {
+      // 1단계: 파일 이동 (20%)
+      setSavingProgress(10);
+      
+      if (tempAudioUrl) {
+        // R2 내부에서 이동 (빠름)
+        const moveResponse = await fetch('/api/audio/move', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, audioBase64: base64 })
+          body: JSON.stringify({ sourceUrl: tempAudioUrl, targetPath })
         });
 
-        if (!response.ok) throw new Error('업로드 실패');
+        if (!moveResponse.ok) throw new Error('파일 이동 실패');
 
-        const { publicUrl } = await response.json();
+        const moveData = await moveResponse.json();
+        publicUrl = moveData.publicUrl;
+      } else {
+        // Fallback: 직접 업로드
+        const reader = new FileReader();
+        const uploadPromise = new Promise<string>((resolve, reject) => {
+          reader.onloadend = async () => {
+            try {
+              const base64 = (reader.result as string).split(',')[1];
+              const response = await fetch('/api/audio/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: targetPath, audioBase64: base64 })
+              });
 
-        // DB에 즉시 저장
-        const hashtags = saveHashtags.trim() 
-          ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
-          : [];
+              if (!response.ok) throw new Error('업로드 실패');
 
-        const { data, error } = await supabase
-          .from('prayer_records')
-          .insert({
-            user_id: user.id,
-            audio_url: publicUrl,
-            audio_duration: recordingTime,
-            date: kstDate,
-            title: saveTitle.trim() || '제목 없는 기도',
-            hashtags,
-            transcription: null,
-            keywords: null
-          })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        // temp 삭제 (백그라운드)
-        if (tempAudioUrl) {
-          fetch('/api/audio/delete', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileUrl: tempAudioUrl })
-          }).catch(err => console.error('Temp 삭제 실패:', err));
-        }
-
-        // 상태 초기화
-        resetPrayerState();
-        await loadPrayerRecords();
-
-        if (window.navigator?.vibrate) window.navigator.vibrate(30);
-
-        // STT 백그라운드 처리
-        if (data) {
-          fetch('/api/prayer/transcribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audioUrl: publicUrl })
-          })
-          .then(res => res.json())
-          .then(sttData => {
-            if (sttData.transcription || sttData.keywords) {
-              return supabase
-                .from('prayer_records')
-                .update({
-                  transcription: sttData.transcription || null,
-                  keywords: sttData.keywords || null
-                })
-                .eq('id', data.id);
+              const { publicUrl: url } = await response.json();
+              resolve(url);
+            } catch (error) {
+              reject(error);
             }
-          })
-          .catch(err => console.error('STT 실패:', err));
-        }
-      };
+          };
+          reader.readAsDataURL(audioBlob);
+        });
 
-      reader.readAsDataURL(audioBlob);
+        publicUrl = await uploadPromise;
+      }
+
+      setSavingProgress(30);
+
+      // 2단계: STT 처리 (30% → 70%)
+      const sttResponse = await fetch('/api/prayer/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audioUrl: publicUrl })
+      });
+
+      let transcription = null;
+      let keywords = null;
+      
+      if (sttResponse.ok) {
+        const sttData = await sttResponse.json();
+        transcription = sttData.transcription || null;
+        keywords = sttData.keywords || null;
+      }
+
+      setSavingProgress(70);
+
+      // 3단계: DB 저장 (70% → 90%)
+      const hashtags = saveHashtags.trim() 
+        ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
+        : [];
+
+      const { error } = await supabase
+        .from('prayer_records')
+        .insert({
+          user_id: user.id,
+          audio_url: publicUrl,
+          audio_duration: recordingTime,
+          date: kstDate,
+          title: saveTitle.trim() || '제목 없는 기도',
+          hashtags,
+          transcription,
+          keywords
+        });
+
+      if (error) throw error;
+
+      setSavingProgress(90);
+
+      // 4단계: 완료 (90% → 100%)
+      resetPrayerState();
+      await loadPrayerRecords();
+      
+      setSavingProgress(100);
+      
+      setTimeout(() => {
+        setIsSaving(false);
+        setSavingProgress(0);
+      }, 500);
+
+      if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('기도 저장 실패:', error);
+      setIsSaving(false);
+      setSavingProgress(0);
       alert('기도 저장 중 오류가 발생했습니다.');
     }
   };
@@ -648,43 +643,31 @@ export default function PrayerPage() {
 
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pb-24">
-      {/* 상단: 공개된 기도제목 스크롤 영역 (한 줄씩 위로 스크롤, 깜빡임 없음) */}
-      <div className="relative h-[140px] pt-12 flex flex-col items-center justify-center px-6 overflow-hidden">
-        {visibleTopics.length > 0 && (
-          <div className="w-full max-w-md flex flex-col items-center gap-1.5">
-            {visibleTopics.map((topic, index) => (
-              <motion.div
-                key={`topic-${topic?.id}-${topicOffset}-${index}`}
-                initial={false}
-                animate={{ 
-                  y: 0, 
-                  opacity: index === 1 ? 1 : 0.3,
-                  scale: index === 1 ? 1 : 0.9
-                }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-                className="flex items-center justify-center gap-2 w-full min-h-[24px]"
-              >
-                <p 
-                  className={`text-zinc-800 text-center ${index === 1 ? 'font-bold' : 'font-normal'}`}
-                  style={{ fontSize: `${fontSize * (index === 1 ? 1.0 : 0.85)}px` }}
-                >
-                  {index === 1 ? <TypingText text={topic?.topic_text || ""} /> : topic?.topic_text}
-                </p>
-                {index === 1 && (
-                  <button
-                    onClick={() => handlePrayForTopic(topic?.id)}
-                    className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
-                    title="함께 기도하기"
-                  >
-                    <HandHeart size={18} strokeWidth={1.5} />
-                    <span className="text-xs font-bold opacity-70">
-                      {getPrayerCount(topic)}
-                    </span>
-                  </button>
-                )}
-              </motion.div>
-            ))}
-          </div>
+      {/* 상단: 공개된 기도제목 fade in/out */}
+      <div className="relative h-[100px] pt-12 flex flex-col items-center justify-center px-6">
+        {publicTopics.length > 0 && (
+          <motion.div 
+            className="w-full max-w-md flex items-center justify-center gap-2"
+            animate={{ opacity: topicOpacity }}
+            transition={{ duration: 2, ease: "easeInOut" }}
+          >
+            <p 
+              className="text-zinc-800 text-center font-bold"
+              style={{ fontSize: `${fontSize * 1.0}px` }}
+            >
+              {publicTopics[currentTopicIndex]?.topic_text || ""}
+            </p>
+            <button
+              onClick={() => handlePrayForTopic(publicTopics[currentTopicIndex]?.id)}
+              className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
+              title="함께 기도하기"
+            >
+              <HandHeart size={18} strokeWidth={1.5} />
+              <span className="text-xs font-bold opacity-70">
+                {getPrayerCount(publicTopics[currentTopicIndex])}
+              </span>
+            </button>
+          </motion.div>
         )}
       </div>
 
@@ -1138,46 +1121,73 @@ export default function PrayerPage() {
                 animate={{ scale: 1, opacity: 1 }}
                 className="bg-white rounded-2xl p-6 w-full max-w-md mx-6"
               >
-                <h3 className="text-xl font-bold text-zinc-800 mb-4">기도 저장</h3>
-                
-                <div className="space-y-4 mb-6">
-                  <div>
-                    <label className="block text-sm text-zinc-600 mb-1">제목 (선택)</label>
-                    <input
-                      type="text"
-                      value={saveTitle}
-                      onChange={(e) => setSaveTitle(e.target.value)}
-                      placeholder="제목을 입력하세요"
-                      className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm text-zinc-600 mb-1">해그태그 (선택)</label>
-                    <input
-                      type="text"
-                      value={saveHashtags}
-                      onChange={(e) => setSaveHashtags(e.target.value)}
-                      placeholder="#감사 #회개"
-                      className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
-                    />
-                  </div>
-                </div>
+                {!isSaving ? (
+                  <>
+                    <h3 className="text-xl font-bold text-zinc-800 mb-4">기도 저장</h3>
+                    
+                    <div className="space-y-4 mb-6">
+                      <div>
+                        <label className="block text-sm text-zinc-600 mb-1">제목 (선택)</label>
+                        <input
+                          type="text"
+                          value={saveTitle}
+                          onChange={(e) => setSaveTitle(e.target.value)}
+                          placeholder="제목을 입력하세요"
+                          className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
+                        />
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm text-zinc-600 mb-1">해그태그 (선택)</label>
+                        <input
+                          type="text"
+                          value={saveHashtags}
+                          onChange={(e) => setSaveHashtags(e.target.value)}
+                          placeholder="#감사 #회개"
+                          className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
+                        />
+                      </div>
+                    </div>
 
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => setShowSaveModal(false)}
-                    className="flex-1 py-3 rounded-lg bg-zinc-200 text-zinc-700 font-medium"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleSavePrayer}
-                    className="flex-1 py-3 rounded-lg bg-[#4A6741] text-white font-medium"
-                  >
-                    저장
-                  </button>
-                </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowSaveModal(false)}
+                        className="flex-1 py-3 rounded-lg bg-zinc-200 text-zinc-700 font-medium"
+                      >
+                        취소
+                      </button>
+                      <button
+                        onClick={handleSavePrayer}
+                        className="flex-1 py-3 rounded-lg bg-[#4A6741] text-white font-medium"
+                      >
+                        저장
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="py-8 text-center">
+                    <h3 className="text-xl font-bold text-zinc-800 mb-6">기도를 저장하는 중...</h3>
+                    
+                    {/* 에너지바 */}
+                    <div className="relative w-full h-8 bg-zinc-200 rounded-full overflow-hidden mb-4">
+                      <motion.div
+                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#4A6741] to-[#6B9A5E] rounded-full"
+                        initial={{ width: '0%' }}
+                        animate={{ width: `${savingProgress}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-sm font-bold text-zinc-700">{savingProgress}%</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-sm text-zinc-500">
+                      {savingProgress < 30 ? '파일을 이동하는 중...' : 
+                       savingProgress < 70 ? '텍스트를 분석하는 중...' :
+                       savingProgress < 90 ? '기도를 저장하는 중...' : '완료!'}
+                    </p>
+                  </div>
+                )}
               </motion.div>
             )}
           </motion.div>
