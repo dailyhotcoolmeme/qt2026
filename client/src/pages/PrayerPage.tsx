@@ -25,7 +25,7 @@ export default function PrayerPage() {
   const [myTopics, setMyTopics] = useState<any[]>([]);
   const [publicTopics, setPublicTopics] = useState<any[]>([]);
   const [newTopic, setNewTopic] = useState("");
-  const [isPublic, setIsPublic] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [showAddInput, setShowAddInput] = useState(false);
 
   // 기도 녹음 관련 상태
@@ -642,7 +642,7 @@ export default function PrayerPage() {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pb-24">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-24">
       {/* 상단: 공개된 기도제목 fade in/out */}
       <div className="relative h-[100px] pt-12 flex flex-col items-center justify-center px-6">
         {publicTopics.length > 0 && (
@@ -652,8 +652,8 @@ export default function PrayerPage() {
             transition={{ duration: 2, ease: "easeInOut" }}
           >
             <p 
-              className="text-zinc-800 text-center font-bold"
-              style={{ fontSize: `${fontSize * 1.0}px` }}
+              className="text-zinc-500 text-left font-semibold flex-1 opacity-50"
+              style={{ fontSize: `${fontSize * 0.85}px` }}
             >
               {publicTopics[currentTopicIndex]?.topic_text || ""}
             </p>
@@ -662,8 +662,8 @@ export default function PrayerPage() {
               className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
               title="함께 기도하기"
             >
-              <HandHeart size={18} strokeWidth={1.5} />
-              <span className="text-xs font-bold opacity-70">
+              <HandHeart size={18} strokeWidth={0.5} />
+              <span className="text-xs font-medium opacity-50">
                 {getPrayerCount(publicTopics[currentTopicIndex])}
               </span>
             </button>
@@ -672,7 +672,7 @@ export default function PrayerPage() {
       </div>
 
       {/* 중앙: 기도하기 버튼 */}
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-36">
         <motion.button
           onClick={handleStartPrayerMode}
           whileTap={{ scale: 0.95 }}
@@ -686,8 +686,8 @@ export default function PrayerPage() {
             ease: "easeInOut"
           }}
         >
-          <HandHeart size={32} strokeWidth={1.5} />
-          <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          <HandHeart size={32} strokeWidth={1.0} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.9}px` }}>
             기도하기
           </span>
         </motion.button>
@@ -696,10 +696,10 @@ export default function PrayerPage() {
       {/* 하단: 나의 기도제목 + 녹음 기록 */}
       <div className="px-6 pb-24">
         {/* 나의 기도제목 */}
-        <div className="mb-8">
+        <div className="mb-16">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.95}px` }}>
-              나의 기도제목
+            <h3 className="font-medium text-[#4A6741]" style={{ fontSize: `${fontSize * 0.95}px` }}>
+              기도 제목
             </h3>
             <button
               onClick={() => {
@@ -712,15 +712,15 @@ export default function PrayerPage() {
               className="text-[#4A6741] hover:text-[#3a5331] transition-colors"
               title="기도제목 추가"
             >
-              <Plus size={20} />
+              <Plus size={18} />
             </button>
           </div>
 
           <div className="space-y-1">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex items-start gap-2 py-1">
-                <span className="text-[#4A6741] mt-1.5" style={{ fontSize: '8px' }}>●</span>
-                <p className="text-zinc-700 flex-1" style={{ fontSize: `${fontSize * 0.95}px` }}>
+              <div key={topic.id} className="flex items-start gap-2 py-1.5">
+                <span className="text-[#4A6741] mt-1.5" style={{ fontSize: '4px' }}>●</span>
+                <p className="text-zinc-600 flex-1" style={{ fontSize: `${fontSize * 0.85}px` }}>
                   {topic.topic_text}
                 </p>
                 <div className="flex items-center gap-2">
@@ -729,7 +729,7 @@ export default function PrayerPage() {
                   )}
                   <button
                     onClick={() => setDeleteTopicId(topic.id)}
-                    className="text-zinc-400 hover:text-red-500 transition-colors"
+                    className="text-zinc-300 hover:text-red-500 transition-colors"
                     title="삭제"
                   >
                     <Trash2 size={16} />
@@ -745,14 +745,14 @@ export default function PrayerPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-white rounded-xl p-4 space-y-3"
+                  className="bg-white rounded-lg p-4 space-y-1"
                 >
                   <textarea
                     value={newTopic}
                     onChange={(e) => setNewTopic(e.target.value)}
                     placeholder="기도제목을 입력하세요"
-                    className="w-full h-20 bg-zinc-50 rounded-lg p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
-                    style={{ fontSize: `${fontSize * 0.9}px` }}
+                    className="w-full h-15 bg-zinc-50 rounded-lg p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
+                    style={{ fontSize: `${fontSize * 0.85}px` }}
                     autoFocus
                   />
                   <div className="flex items-center justify-between">
@@ -772,13 +772,13 @@ export default function PrayerPage() {
                           setNewTopic("");
                           setIsPublic(false);
                         }}
-                        className="px-4 py-2 rounded-lg text-zinc-600 hover:bg-zinc-100"
+                        className="px-4 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100"
                       >
                         취소
                       </button>
                       <button
                         onClick={handleAddTopic}
-                        className="px-4 py-2 rounded-lg bg-[#4A6741] text-white font-medium"
+                        className="px-4 py-2 rounded-full text-sm bg-[#4A6741] text-white font-medium"
                       >
                         추가
                       </button>
@@ -793,7 +793,7 @@ export default function PrayerPage() {
         {/* 기도 녹음 기록 */}
         {prayerRecords.length > 0 && (
           <div>
-            <h3 className="font-bold text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
+            <h3 className="font-medium text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
               기도 기록
             </h3>
             <div className="space-y-3">
@@ -801,8 +801,8 @@ export default function PrayerPage() {
                 <div key={record.id} className="bg-white rounded-xl p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h4 className="font-bold text-zinc-800 mb-1" style={{ fontSize: `${fontSize * 0.95}px` }}>
-                        {record.title || '제목 없는 기도'}
+                      <h4 className="font-normal text-[#4A6741] text-zinc-800 mb-1" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                        {record.title || '제목없음'}
                       </h4>
                       {record.hashtags && record.hashtags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mb-2">
@@ -813,7 +813,7 @@ export default function PrayerPage() {
                           ))}
                         </div>
                       )}
-                      <p className="text-sm text-zinc-500">
+                      <p className="text-xs text-zinc-500">
                         {new Date(record.created_at).toLocaleDateString('ko-KR', {
                           month: 'long',
                           day: 'numeric',
@@ -821,13 +821,12 @@ export default function PrayerPage() {
                           minute: '2-digit'
                         })}
                       </p>
-                      <p className="text-xs text-zinc-400">{formatTime(record.audio_duration)}</p>
                     </div>
                     <button
                       onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                      className="text-zinc-400 hover:text-red-500"
+                      className="text-zinc-300 hover:text-red-500"
                     >
-                      <Trash2 size={18} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
 
@@ -835,7 +834,7 @@ export default function PrayerPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={() => playRecording(record.audio_url, record.id)}
-                      className="w-10 h-10 flex-shrink-0 rounded-lg bg-[#4A6741] text-white flex items-center justify-center"
+                      className="w-10 h-10 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
                     >
                       {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
                         <Pause size={16} fill="white" />
@@ -843,7 +842,7 @@ export default function PrayerPage() {
                         <Play size={16} fill="white" />
                       )}
                     </button>
-                    <div className="flex-1 flex flex-col gap-1">
+                    <div className="flex-1 flex flex-col justify-center pt-0.5 gap-1.5 h-15">
                       <input
                         type="range"
                         min="0"
@@ -857,7 +856,7 @@ export default function PrayerPage() {
                             : '#e4e4e7'
                         }}
                       />
-                      <div className="flex items-center justify-between text-[10px] text-zinc-500">
+                      <div className="flex items-center justify-between text-xs text-zinc-500">
                         <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
                         <span>{Math.floor((recordDuration[record.id] || record.audio_duration) / 60)}:{String(Math.floor((recordDuration[record.id] || record.audio_duration) % 60)).padStart(2, '0')}</span>
                       </div>
@@ -885,12 +884,12 @@ export default function PrayerPage() {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="mt-2 p-3 bg-zinc-50 rounded-lg text-sm text-zinc-700 overflow-hidden"
+                          className="mt-2 p-3 bg-zinc-50 rounded-lg text-xs text-zinc-700 overflow-hidden"
                         >
                           <p className="whitespace-pre-wrap">{record.transcription}</p>
                           <button
                             onClick={() => handleCopyText(record.transcription)}
-                            className="mt-2 text-xs text-[#4A6741] flex items-center gap-1"
+                            className="mt-4 text-xs text-[#4A6741] text-zinc-400 text-xs flex items-center gap-1"
                           >
                             <Copy size={12} />
                             복사
@@ -926,8 +925,8 @@ export default function PrayerPage() {
                           <div className="space-y-2">
                             {record.keywords.slice(0, 10).map((kw: any, idx: number) => (
                               <div key={idx} className="flex items-center gap-2">
-                                <span className="text-sm text-zinc-700 w-20">{kw.word}</span>
-                                <div className="flex-1 h-5 bg-zinc-200 rounded-full overflow-hidden">
+                                <span className="text-xs text-zinc-700 w-20">{kw.word}</span>
+                                <div className="flex-1 h-3 bg-zinc-200 rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-[#4A6741]"
                                     style={{ width: `${(kw.count / record.keywords[0].count) * 100}%` }}
