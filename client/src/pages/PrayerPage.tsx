@@ -642,7 +642,7 @@ export default function PrayerPage() {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-24">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-6">
       {/* 상단: 공개된 기도제목 fade in/out */}
       <div className="relative h-[100px] pt-12 flex flex-col items-center justify-center px-6">
         {publicTopics.length > 0 && (
@@ -694,7 +694,7 @@ export default function PrayerPage() {
       </div>
 
       {/* 하단: 나의 기도제목 + 녹음 기록 */}
-      <div className="px-6 pb-24">
+      <div className="px-6 pb-6">
         {/* 나의 기도제목 */}
         <div className="mb-16">
           <div className="flex items-center justify-between mb-3">
