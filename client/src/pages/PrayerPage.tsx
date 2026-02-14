@@ -377,7 +377,8 @@ export default function PrayerPage() {
     try {
       // R2에 업로드
       const timestamp = Date.now();
-      const fileName = `audio/prayer/${user.id}/${new Date().toISOString().split('T')[0]}/prayer_${timestamp}.mp3`;
+      const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+      const fileName = `audio/prayer/${user.id}/${kstDate}/prayer_${timestamp}.webm`;
 
       const reader = new FileReader();
       reader.onloadend = async () => {
@@ -396,49 +397,58 @@ export default function PrayerPage() {
 
         const { publicUrl } = await response.json();
 
-        // STT 처리 요청
-        const sttResponse = await fetch('/api/prayer/transcribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            audioUrl: publicUrl
-          })
-        });
-
-        let transcription = '';
-        let keywords = [];
-        
-        if (sttResponse.ok) {
-          const sttData = await sttResponse.json();
-          transcription = sttData.transcription || '';
-          keywords = sttData.keywords || [];
-        }
-
-        // DB에 저장
+        // DB에 먼저 저장 (즉시 완료)
         const hashtags = saveHashtags.trim() 
           ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
           : [];
 
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('prayer_records')
           .insert({
             user_id: user.id,
             audio_url: publicUrl,
             audio_duration: recordingTime,
-            date: new Date().toISOString().split('T')[0],
+            date: kstDate,
             title: saveTitle.trim() || '제목 없는 기도',
             hashtags,
-            transcription,
-            keywords
-          });
+            transcription: null,  // 나중에 업데이트
+            keywords: null  // 나중에 업데이트
+          })
+          .select()
+          .single();
 
         if (error) throw error;
 
-        // 상태 초기화
+        // 상태 초기화 및 목록 새로고침 (즉시)
         resetPrayerState();
         await loadPrayerRecords();
 
         if (window.navigator?.vibrate) window.navigator.vibrate(30);
+
+        // STT 처리는 백그라운드에서 (비동기)
+        if (data) {
+          fetch('/api/prayer/transcribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioUrl: publicUrl
+            })
+          })
+          .then(res => res.json())
+          .then(sttData => {
+            // STT 결과로 DB 업데이트
+            if (sttData.transcription || sttData.keywords) {
+              return supabase
+                .from('prayer_records')
+                .update({
+                  transcription: sttData.transcription || null,
+                  keywords: sttData.keywords || null
+                })
+                .eq('id', data.id);
+            }
+          })
+          .catch(err => console.error('백그라운드 STT 실패:', err));
+        }
       };
 
       reader.readAsDataURL(audioBlob);
@@ -547,9 +557,9 @@ export default function PrayerPage() {
 
       // R2에서 파일 삭제
       await fetch('/api/audio/delete', {
-        method: 'POST',
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl: deleteRecordUrl })
+        body: JSON.stringify({ fileUrl: deleteRecordUrl })
       });
 
       await loadPrayerRecords();

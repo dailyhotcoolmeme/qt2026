@@ -296,14 +296,14 @@ export default function QTPage() {
       return;
     }
 
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
     let audioUrl: string | null = null;
 
     try {
       // 음성 파일이 있으면 R2에 업로드
       if (audioBlob) {
         const timestamp = Date.now();
-        const fileName = `audio/meditation/${user!.id}/${formattedDate}/qt_${timestamp}.mp3`;
+        const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
         
         // Blob을 File로 변환
         const audioFile = new File([audioBlob], `qt_${timestamp}.webm`, { type: 'audio/webm' });
@@ -380,9 +380,9 @@ export default function QTPage() {
     try {
       // 새 음성 파일이 있으면 업로드
       if (audioBlob) {
-        const formattedDate = currentDate.toISOString().split('T')[0];
+        const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const timestamp = Date.now();
-        const fileName = `audio/meditation/${user!.id}/${formattedDate}/qt_${timestamp}.mp3`;
+        const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
         
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
