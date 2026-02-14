@@ -884,12 +884,12 @@ export default function PrayerPage() {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="mt-2 p-3 bg-zinc-50 rounded-lg text-xs text-zinc-700 overflow-hidden"
+                          className="mt-2 p-3 bg-zinc-50 rounded-lg text-sm text-zinc-700 overflow-hidden"
                         >
                           <p className="whitespace-pre-wrap">{record.transcription}</p>
                           <button
                             onClick={() => handleCopyText(record.transcription)}
-                            className="mt-4 text-xs text-[#4A6741] text-zinc-400 text-xs flex items-center gap-1"
+                            className="mt-4 text-xs text-[#4A6741] text-zinc-400 text-sm flex items-center gap-1"
                           >
                             <Copy size={12} />
                             복사
@@ -925,8 +925,8 @@ export default function PrayerPage() {
                           <div className="space-y-2">
                             {record.keywords.slice(0, 10).map((kw: any, idx: number) => (
                               <div key={idx} className="flex items-center gap-2">
-                                <span className="text-xs text-zinc-700 w-20">{kw.word}</span>
-                                <div className="flex-1 h-3 bg-zinc-200 rounded-full overflow-hidden">
+                                <span className="text-sm text-zinc-700 w-20">{kw.word}</span>
+                                <div className="flex-1 h-4 bg-zinc-200 rounded-full overflow-hidden">
                                   <div
                                     className="h-full bg-[#4A6741]"
                                     style={{ width: `${(kw.count / record.keywords[0].count) * 100}%` }}
