@@ -60,6 +60,7 @@ export default function PrayerPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [tempAudioUrl, setTempAudioUrl] = useState<string | null>(null); // temp 폴더 URL
   const [showPlayback, setShowPlayback] = useState(false); // 재생 화면
   const [showSaveModal, setShowSaveModal] = useState(false); // 저장 모달
   
@@ -276,6 +277,11 @@ export default function PrayerPage() {
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
         }
+        
+        // temp 폴더로 업로드 (백그라운드)
+        if (user) {
+          uploadToTemp(blob);
+        }
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -323,6 +329,34 @@ export default function PrayerPage() {
       setIsRecording(false);
       setIsPaused(false);
       setShowPlayback(true);
+    }
+  };
+
+  // temp 폴더 업로드 (백그라운드)
+  const uploadToTemp = async (blob: Blob) => {
+    try {
+      const timestamp = Date.now();
+      const fileName = `audio/temp/${user!.id}/prayer_${timestamp}.webm`;
+      
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = (reader.result as string).split(',')[1];
+        
+        const response = await fetch('/api/audio/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileName, audioBase64: base64 })
+        });
+        
+        if (response.ok) {
+          const { publicUrl } = await response.json();
+          setTempAudioUrl(publicUrl);
+          console.log('[PrayerPage] Temp 업로드 완료:', publicUrl);
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch (error) {
+      console.error('[PrayerPage] Temp 업로드 실패:', error);
     }
   };
 
@@ -375,11 +409,11 @@ export default function PrayerPage() {
     if (!audioBlob || !user) return;
 
     try {
-      // R2에 업로드
-      const timestamp = Date.now();
       const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+      const timestamp = Date.now();
       const fileName = `audio/prayer/${user.id}/${kstDate}/prayer_${timestamp}.webm`;
 
+      // 정식 경로로 업로드
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
@@ -387,17 +421,14 @@ export default function PrayerPage() {
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName,
-            audioBase64: base64
-          })
+          body: JSON.stringify({ fileName, audioBase64: base64 })
         });
 
         if (!response.ok) throw new Error('업로드 실패');
 
         const { publicUrl } = await response.json();
 
-        // DB에 먼저 저장 (즉시 완료)
+        // DB에 즉시 저장
         const hashtags = saveHashtags.trim() 
           ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
           : [];
@@ -411,32 +442,38 @@ export default function PrayerPage() {
             date: kstDate,
             title: saveTitle.trim() || '제목 없는 기도',
             hashtags,
-            transcription: null,  // 나중에 업데이트
-            keywords: null  // 나중에 업데이트
+            transcription: null,
+            keywords: null
           })
           .select()
           .single();
 
         if (error) throw error;
 
-        // 상태 초기화 및 목록 새로고침 (즉시)
+        // temp 삭제 (백그라운드)
+        if (tempAudioUrl) {
+          fetch('/api/audio/delete', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileUrl: tempAudioUrl })
+          }).catch(err => console.error('Temp 삭제 실패:', err));
+        }
+
+        // 상태 초기화
         resetPrayerState();
         await loadPrayerRecords();
 
         if (window.navigator?.vibrate) window.navigator.vibrate(30);
 
-        // STT 처리는 백그라운드에서 (비동기)
+        // STT 백그라운드 처리
         if (data) {
           fetch('/api/prayer/transcribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              audioUrl: publicUrl
-            })
+            body: JSON.stringify({ audioUrl: publicUrl })
           })
           .then(res => res.json())
           .then(sttData => {
-            // STT 결과로 DB 업데이트
             if (sttData.transcription || sttData.keywords) {
               return supabase
                 .from('prayer_records')
@@ -447,7 +484,7 @@ export default function PrayerPage() {
                 .eq('id', data.id);
             }
           })
-          .catch(err => console.error('백그라운드 STT 실패:', err));
+          .catch(err => console.error('STT 실패:', err));
         }
       };
 
@@ -481,6 +518,14 @@ export default function PrayerPage() {
 
   // 닫기
   const handleClosePrayer = () => {
+    // temp 파일 삭제 (저장 안 한 경우)
+    if (tempAudioUrl) {
+      fetch('/api/audio/delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileUrl: tempAudioUrl })
+      }).catch(err => console.error('Temp 삭제 실패:', err));
+    }
     resetPrayerState();
   };
 
@@ -491,6 +536,7 @@ export default function PrayerPage() {
     setIsPaused(false);
     setRecordingTime(0);
     setAudioBlob(null);
+    setTempAudioUrl(null);
     setShowPlayback(false);
     setShowSaveModal(false);
     setSaveTitle("");
