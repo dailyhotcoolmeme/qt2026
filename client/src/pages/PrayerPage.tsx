@@ -647,7 +647,7 @@ export default function PrayerPage() {
       <div className="relative h-[100px] pt-12 flex flex-col items-center justify-center px-6">
         {publicTopics.length > 0 && (
           <motion.div 
-            className="w-full max-w-md flex items-center justify-center gap-2"
+            className="w-full max-w-md flex items-center justify-center gap-3"
             animate={{ opacity: topicOpacity }}
             transition={{ duration: 5, delay: 2, ease: "easeInOut" }}
           >
@@ -971,7 +971,7 @@ export default function PrayerPage() {
                 <motion.button
                   onClick={handleStartRecording}
                   whileTap={{ scale: 0.95 }}
-                  className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center opacity-70 justify-center mb-6"
+                  className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center opacity-70 justify-center mb-24"
                   animate={{
                     scale: [1, 1.05, 1],
                   }}
@@ -985,14 +985,14 @@ export default function PrayerPage() {
                   <Mic size={48} />
                 </motion.button>
 
-                <p className="text-gray-100 opacity-50 text-xs max-w-md text-center leading-relaxed mb-18">
+                <p className="text-gray-100 opacity-50 text-xs max-w-md text-center leading-relaxed">
                   소리내어 울부짖지 않아도, 속삭이는 기도에도,<br />
                   마음속 외침에도 모두 듣고 계십니다
                 </p>
 
                 <button
                   onClick={handleClosePrayer}
-                  className="mt-24 text-gray-100 opacity-50 text-xs underline"
+                  className="mt-24 text-gray-100 opacity-50 text-xs underline w-full max-w-md flex items- justify-end gap-3"
                 >
                   닫기
                 </button>
