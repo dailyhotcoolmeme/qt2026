@@ -649,7 +649,7 @@ export default function PrayerPage() {
           <motion.div 
             className="w-full max-w-md flex items-center justify-center gap-2"
             animate={{ opacity: topicOpacity }}
-            transition={{ duration: 2, ease: "easeInOut" }}
+            transition={{ duration: 5, delay: 2, ease: "easeInOut" }}
           >
             <p 
               className="text-zinc-500 text-left font-semibold flex-1 opacity-50"
@@ -681,8 +681,9 @@ export default function PrayerPage() {
             scale: [1, 1.05, 1],
           }}
           transition={{
-            duration: 2,
+            duration: 20,
             repeat: Infinity,
+            repeatDelay: 3,
             ease: "easeInOut"
           }}
         >
@@ -963,34 +964,35 @@ export default function PrayerPage() {
                 exit={{ scale: 0.8, opacity: 0 }}
                 className="text-center px-6 flex flex-col items-center"
               >
-                <h2 className="text-white text-2xl font-bold mb-8">
+                <h2 className="text-gray-100 opacity-50 font-semibold mb-24" style={{ fontSize: `${fontSize * 1.2}px` }}>
                   주여, 내 기도를 들으소서
                 </h2>
                 
                 <motion.button
                   onClick={handleStartRecording}
                   whileTap={{ scale: 0.95 }}
-                  className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center mb-8"
+                  className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center opacity-70 justify-center mb-6"
                   animate={{
                     scale: [1, 1.05, 1],
                   }}
                   transition={{
-                    duration: 2,
+                    duration: 20,
                     repeat: Infinity,
+                    repeatDelay: 2,
                     ease: "easeInOut"
                   }}
                 >
                   <Mic size={48} />
                 </motion.button>
 
-                <p className="text-gray-400 text-sm max-w-md text-center leading-relaxed">
+                <p className="text-gray-100 opacity-50 text-xs max-w-md text-center leading-relaxed mb-18">
                   소리내어 울부짖지 않아도, 속삭이는 기도에도,<br />
                   마음속 외침에도 모두 듣고 계십니다
                 </p>
 
                 <button
                   onClick={handleClosePrayer}
-                  className="mt-8 text-gray-500 underline"
+                  className="mt-24 text-gray-100 opacity-50 text-xs underline"
                 >
                   닫기
                 </button>
@@ -1009,7 +1011,7 @@ export default function PrayerPage() {
                     scale: isPaused ? 1 : [1, 1.1, 1]
                   }}
                   transition={{ 
-                    duration: 3, 
+                    duration: 20, 
                     repeat: isPaused ? 0 : Infinity,
                     ease: "easeInOut"
                   }}
