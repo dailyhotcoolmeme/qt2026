@@ -992,7 +992,7 @@ export default function PrayerPage() {
 
                 <button
                   onClick={handleClosePrayer}
-                  className="mt-24 text-gray-100 opacity-50 text-xs underline w-full max-w-md flex items- justify-end gap-3"
+                  className="mt-24 text-gray-100 opacity-50 underline w-full max-w-md flex items- justify-end gap-3" style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
                   닫기
                 </button>
