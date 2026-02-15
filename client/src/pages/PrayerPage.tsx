@@ -985,7 +985,7 @@ export default function PrayerPage() {
                   <Mic size={48} />
                 </motion.button>
 
-                <p className="text-gray-100 opacity-50 text-xs max-w-md text-center leading-relaxed">
+                <p className="text-gray-100 opacity-50 max-w-md text-center leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   소리내어 울부짖지 않아도, 속삭이는 기도에도,<br />
                   마음속 외침에도 모두 듣고 계십니다
                 </p>
