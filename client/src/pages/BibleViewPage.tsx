@@ -14,7 +14,7 @@ export default function BibleViewPage() {
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 파라미터 추출 (해시 기반 라우팅 대응)
-  // wouter의 useHashLocation 환경에서는 window.location.hash에서 쿼리 파라미터를 파싱해야 함
+  // 예: #/bible/1/4?verse=40&keyword=상기
   const getQueryParams = () => {
     const hash = window.location.hash;
     const queryIdx = hash.indexOf('?');
@@ -56,17 +56,19 @@ export default function BibleViewPage() {
   // 하이라이트된 절로 스크롤 (강화된 로직)
   useEffect(() => {
     if (!loading && verses.length > 0 && highlightVerse) {
-      // 렌더링 완료를 보장하기 위해 약간의 지연 시간을 둠
-      const timer = setTimeout(() => {
+      // 렌더링 후 DOM에 요소가 생길 시간을 줌
+      const executeScroll = () => {
         const element = document.getElementById(`verse-${highlightVerse}`);
         if (element) {
           element.scrollIntoView({ behavior: 'auto', block: 'center' });
-          // 스크롤 후 한 번 더 시도 (이미지 로드 등 대응)
+          // 약간의 시간차를 두고 한 번 더 정밀하게 위치 조정
           setTimeout(() => {
             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }, 100);
+          }, 50);
         }
-      }, 300);
+      };
+
+      const timer = setTimeout(executeScroll, 300);
       return () => clearTimeout(timer);
     }
   }, [loading, verses, highlightVerse]);
@@ -80,8 +82,8 @@ export default function BibleViewPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
-        <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold">
+      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14">
+        <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
@@ -97,15 +99,15 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 shadow-sm">
-        <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold">
+      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
+        <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
       </div>
 
-      <div className="pt-[108px] pb-20 px-5 space-y-6 max-w-2xl mx-auto">
-        <h2 className="font-extrabold text-zinc-900 mb-8 border-b pb-4" style={{ fontSize: `${fontSize * 1.2}px` }}>
+      <div className="pt-[108px] pb-24 px-5 space-y-6 max-w-2xl mx-auto">
+        <h2 className="font-extrabold text-zinc-900 mb-8 border-b pb-4" style={{ fontSize: `${fontSize * 1.25}px` }}>
           {displayBookName} {displayBookName === '시편' ? `${displayChapter}편` : `${displayChapter}장`}
         </h2>
 
@@ -129,12 +131,12 @@ export default function BibleViewPage() {
             <div
               key={v.id}
               id={`verse-${v.verse}`}
-              className={`leading-relaxed transition-all duration-500 p-4 rounded-xl ${isHighlighted ? 'bg-yellow-50 border-l-4 border-[#4A6741] font-medium shadow-md' : ''}`}
+              className={`leading-relaxed transition-all duration-500 p-4 rounded-xl ${isHighlighted ? 'bg-yellow-50 border-l-4 border-[#4A6741] font-medium shadow-md scale-[1.02]' : ''}`}
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
             >
               <sup
                 className={`mr-2 font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-blue-500'}`}
-                style={{ fontSize: `${fontSize * 0.6}px` }}
+                style={{ fontSize: `${fontSize * 0.7}px` }}
               >
                 {v.verse}
               </sup>

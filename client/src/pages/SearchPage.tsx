@@ -223,18 +223,16 @@ export default function SearchPage() {
         if (qVerse) query = query.eq('verse', qVerse);
 
         let kw = input;
-        if (identifiedBook) {
-          const reg = new RegExp(`^${identifiedBook.name}|^${input.match(/^([가-힣]{1,5})/)?.[1]}`, 'g');
+        if (qBook) {
+          const reg = new RegExp(`^${qBook.name}|^${input.match(/^([가-힣]{1,5})/)?.[1]}`, 'g');
           kw = kw.replace(reg, '').replace(/\s*\d*(장|편)?(:(\d+))?/, '').trim();
         }
         if (kw) query = query.ilike('content', `%${kw}%`);
 
-        // 필터 명시적 적용 (identifiedBook이 없는 경우 또는 키워드와 함께 필터링하는 경우)
+        // 필터 명시적 적용 (identifiedBook이 없는 경우)
         if (!qBook) {
-          if (tFilter !== 'ALL') query = query.eq('testament', tFilter === 'OT' ? 'old' : 'new');
+          if (tFilter !== 'ALL') query = query.eq('testament', tFilter);
           if (bFilter !== 'ALL') query = query.eq('book_id', parseInt(bFilter));
-        } else if (kw) {
-          // 책이 식별되었더라도 키워드가 있다면 필터링 유지 가능 (여기선 식별된 책이 우선)
         }
 
         const from = startPage * PAGE_SIZE, to = from + PAGE_SIZE - 1;
@@ -315,7 +313,7 @@ export default function SearchPage() {
                 <button
                   key={f}
                   onClick={() => handleTestamentChange(f)}
-                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741]' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
                   disabled={!!identifiedBook}
                 >
                   {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
