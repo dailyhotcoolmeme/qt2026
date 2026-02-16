@@ -1575,38 +1575,38 @@ export default function GroupDashboard() {
         </div>
 
         <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
-          <div className="bg-white rounded-3xl border border-zinc-100 p-5">
+          <div className="bg-white rounded-md border border-zinc-100 p-5">
             <div className="text-sm text-zinc-600 whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
             {group.is_closed && (
-              <div className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 font-bold">
+              <div className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-sm bg-rose-50 text-rose-700 font-bold">
                 <Lock size={13} /> 현재 폐쇄된 모임입니다.
               </div>
             )}
           </div>
 
-          <div className="bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <h2 className="font-black text-zinc-900">가입 신청</h2>
             <input
               type="password"
               value={joinPassword}
               onChange={(e) => setJoinPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="모임 가입 비밀번호"
               disabled={!user || guestJoinPending || group.is_closed}
             />
             <textarea
               value={joinMessage}
               onChange={(e) => setJoinMessage(e.target.value)}
-              className="w-full min-h-[96px] px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="가입 메시지 (선택)"
               disabled={!user || guestJoinPending || group.is_closed}
             />
             {!user ? (
               <button
                 onClick={() => setLocation("/login")}
-                className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold"
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold"
               >
                 로그인 후 가입 신청
               </button>
@@ -1616,7 +1616,7 @@ export default function GroupDashboard() {
               <button
                 onClick={submitJoinRequest}
                 disabled={joinSubmitting || group.is_closed}
-                className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
               >
                 <SendHorizontal size={15} />
                 {joinSubmitting ? "신청 중..." : "가입 신청 보내기"}
@@ -1641,7 +1641,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-10 min-h-[190px] flex flex-col justify-between">
+        <div className="max-w-2xl mx-auto px-4 pt-4 pb-14 min-h-[220px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -1653,7 +1653,7 @@ export default function GroupDashboard() {
             {isManager && (
               <button
                 onClick={() => setShowHeaderEditModal(true)}
-                className="px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold inline-flex items-center gap-1 backdrop-blur"
+                className="px-3 py-1.5 rounded-sm bg-white/20 text-white text-xs font-bold inline-flex items-center gap-1 backdrop-blur"
               >
                 <Edit3 size={13} />
                 헤더 편집
@@ -1663,12 +1663,12 @@ export default function GroupDashboard() {
 
           <div className="text-white">
             <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
-            <div className="text-[13px] text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
+            <div className="text-sm text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
               <span>{group.group_slug ? `코드: ${group.group_slug}` : ""}</span>
-              <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">{toLabel(role)}</span>
+              <span className="px-2 py-0.5 rounded-sm bg-white/20 font-bold">{toLabel(role)}</span>
               <button
                 onClick={() => setActiveTab("members")}
-                className="px-2 py-0.5 rounded-full bg-white/20 font-bold inline-flex items-center gap-1"
+                className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
               >
                 <Users size={12} />
                 멤버
@@ -1676,20 +1676,21 @@ export default function GroupDashboard() {
               {isManager && (
                 <button
                   onClick={() => setActiveTab("admin")}
-                  className="px-2 py-0.5 rounded-full bg-white/20 font-bold inline-flex items-center gap-1"
+                  className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
                 >
                   <Settings size={12} />
                   관리
                 </button>
               )}
-              {group.is_closed && <span className="px-2 py-0.5 rounded-full bg-rose-500/70 font-bold">폐쇄됨</span>}
+              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/70 font-bold">폐쇄됨</span>}
             </div>
           </div>
         </div>
       </header>
 
-      <div className="sticky top-14 z-30 bg-[#F6F7F8]/95 backdrop-blur border-b border-zinc-100">
-        <div className="max-w-2xl mx-auto px-2 py-2 flex gap-1 overflow-x-auto no-scrollbar">
+      <div className="sticky top-14 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
+        <div className="max-w-2xl mx-auto px-4">
+          <nav className="flex items-center">
           {([
             ["faith", "신앙생활"],
             ["prayer", "중보기도"],
@@ -1698,44 +1699,47 @@ export default function GroupDashboard() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${
-                activeTab === id ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+              className={`flex-1 min-w-[6.5rem] py-3 text-sm font-bold border-b-2 transition-colors ${
+                activeTab === id
+                  ? "border-[#4A6741] text-zinc-900 bg-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700"
               }`}
             >
               {label}
             </button>
           ))}
+          </nav>
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 pt-8 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 pt-10 space-y-4">
 
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-3xl border border-zinc-100 p-5">
+            <section className="bg-white rounded-md border border-zinc-100 p-5">
               <h2 className="font-black text-zinc-900 mb-3">모임원 기도제목</h2>
               <div className="space-y-2">
                 {groupPrayerTopics.map((topic) => {
                   const author = authorMap[topic.author_id];
                   const authorName = author?.nickname || author?.username || "모임원";
                   return (
-                    <div key={topic.id} className="rounded-2xl bg-zinc-50 px-4 py-3">
+                    <div key={topic.id} className="rounded-sm bg-zinc-50 px-4 py-3">
                       <div className="text-sm text-zinc-900 whitespace-pre-wrap">{topic.content}</div>
-                      <div className="text-[11px] text-zinc-500 mt-2">
+                      <div className="text-xs text-zinc-500 mt-2">
                         {authorName} · {formatDateTime(topic.created_at)}
                       </div>
                     </div>
                   );
                 })}
                 {groupPrayerTopics.length === 0 && (
-                  <div className="rounded-2xl border border-dashed border-zinc-200 px-4 py-5 text-center text-sm text-zinc-500">
+                  <div className="rounded-sm border border-dashed border-zinc-200 px-4 py-5 text-center text-sm text-zinc-500">
                     아직 등록된 기도제목이 없습니다.
                   </div>
                 )}
               </div>
             </section>
 
-            <section className="bg-white rounded-3xl border border-zinc-100 p-6">
+            <section className="bg-white rounded-md border border-zinc-100 p-6">
               <div className="flex items-center justify-center gap-6">
                 <button
                   onClick={() => setShowPrayerComposer(true)}
@@ -1755,13 +1759,13 @@ export default function GroupDashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
                 <button
                   onClick={() => setShowPrayerLinkModal(true)}
-                  className="py-3 rounded-2xl bg-zinc-100 text-zinc-700 font-bold inline-flex items-center justify-center gap-2"
+                  className="py-3 rounded-sm bg-zinc-100 text-zinc-700 font-bold inline-flex items-center justify-center gap-2"
                 >
                   <Link2 size={16} /> PrayerPage 기록 연결
                 </button>
                 <button
                   onClick={() => setLocation("/prayer")}
-                  className="py-3 rounded-2xl bg-[#4A6741] text-white font-bold"
+                  className="py-3 rounded-sm bg-[#4A6741] text-white font-bold"
                 >
                   PrayerPage 이동
                 </button>
@@ -1771,7 +1775,7 @@ export default function GroupDashboard() {
             <div className="space-y-2">
               <h3 className="font-black text-zinc-900 px-1">기도 저장 목록</h3>
               {groupPrayers.map((record) => (
-                <div key={record.id} className="bg-white rounded-3xl border border-zinc-100 p-4">
+                <div key={record.id} className="bg-white rounded-md border border-zinc-100 p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <div className="font-bold text-zinc-900">{record.title || "제목 없는 기도"}</div>
@@ -1779,7 +1783,7 @@ export default function GroupDashboard() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                        className={`px-2 py-0.5 rounded-sm text-xs font-bold ${
                           record.source_type === "direct"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-blue-100 text-blue-700"
@@ -1802,7 +1806,7 @@ export default function GroupDashboard() {
               ))}
 
               {groupPrayers.length === 0 && (
-                <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
+                <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
                   아직 모임 기도 기록이 없습니다.
                 </div>
               )}
@@ -1812,7 +1816,7 @@ export default function GroupDashboard() {
 
         {activeTab === "faith" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-3xl border border-zinc-100 p-4">
+            <section className="bg-white rounded-md border border-zinc-100 p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h2 className="font-black text-zinc-900">오늘의 신앙생활</h2>
                 {isManager && (
@@ -1822,24 +1826,24 @@ export default function GroupDashboard() {
                       type="date"
                       value={faithBoardDate}
                       onChange={(e) => setFaithBoardDate(e.target.value)}
-                      className="px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-xs"
+                      className="px-3 py-2 rounded-sm bg-zinc-50 border border-zinc-200 text-xs"
                     />
                   </div>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-                <div className="rounded-2xl bg-zinc-50 p-3">
-                  <div className="text-[11px] text-zinc-500">내 완료 항목</div>
+                <div className="rounded-sm bg-zinc-50 p-3">
+                  <div className="text-xs text-zinc-500">내 완료 항목</div>
                   <div className="text-lg font-black text-zinc-900">
                     {myFaithCompletedCount}/{faithItems.length}
                   </div>
                 </div>
-                <div className="rounded-2xl bg-zinc-50 p-3">
-                  <div className="text-[11px] text-zinc-500">내 활동 점수</div>
+                <div className="rounded-sm bg-zinc-50 p-3">
+                  <div className="text-xs text-zinc-500">내 활동 점수</div>
                   <div className="text-lg font-black text-zinc-900">{myFaithScore}</div>
                 </div>
-                <div className="rounded-2xl bg-zinc-50 p-3">
-                  <div className="text-[11px] text-zinc-500">연동 항목 수</div>
+                <div className="rounded-sm bg-zinc-50 p-3">
+                  <div className="text-xs text-zinc-500">연동 항목 수</div>
                   <div className="text-lg font-black text-zinc-900">
                     {faithItems.filter((item) => item.linked_feature !== "none").length}
                   </div>
@@ -1847,7 +1851,7 @@ export default function GroupDashboard() {
               </div>
             </section>
 
-            <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-3">
+            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-3">
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-1">
                   <BarChart3 size={15} />
@@ -1856,7 +1860,7 @@ export default function GroupDashboard() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setFaithTrendRange(7)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                    className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
                       faithTrendRange === 7 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                     }`}
                   >
@@ -1864,7 +1868,7 @@ export default function GroupDashboard() {
                   </button>
                   <button
                     onClick={() => setFaithTrendRange(30)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                    className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
                       faithTrendRange === 30 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                     }`}
                   >
@@ -1874,7 +1878,7 @@ export default function GroupDashboard() {
                     <>
                       <button
                         onClick={() => setFaithTrendMode("me")}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
                           faithTrendMode === "me" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
@@ -1882,7 +1886,7 @@ export default function GroupDashboard() {
                       </button>
                       <button
                         onClick={() => setFaithTrendMode("group")}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                        className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
                           faithTrendMode === "group" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
                         }`}
                       >
@@ -1894,15 +1898,15 @@ export default function GroupDashboard() {
               </div>
 
               {faithTrendLoading ? (
-                <div className="h-36 rounded-2xl bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
+                <div className="h-36 rounded-sm bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
                   집계 중...
                 </div>
               ) : faithTrendPoints.length === 0 ? (
-                <div className="h-36 rounded-2xl bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
+                <div className="h-36 rounded-sm bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
                   조회된 활동이 없습니다.
                 </div>
               ) : (
-                <div className="h-40 rounded-2xl bg-zinc-50 px-3 py-3">
+                <div className="h-40 rounded-sm bg-zinc-50 px-3 py-3">
                   <div className="h-28 flex items-end gap-1">
                     {faithTrendPoints.map((point) => {
                       const max = Math.max(...faithTrendPoints.map((item) => item.total), 1);
@@ -1918,7 +1922,7 @@ export default function GroupDashboard() {
                       );
                     })}
                   </div>
-                  <div className="flex gap-1 mt-2 text-[10px] text-zinc-500">
+                  <div className="flex gap-1 mt-2 text-xs text-zinc-500">
                     {faithTrendPoints.map((point, index) => (
                       <div key={`trend-label-${point.date}`} className="flex-1 text-center truncate">
                         {faithTrendRange === 30 ? (index % 5 === 0 ? point.label : "") : point.label}
@@ -1930,7 +1934,7 @@ export default function GroupDashboard() {
             </section>
 
             {isManager && (
-              <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-3">
+              <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-3">
                 <h3 className="font-black text-zinc-900 text-sm">전체 멤버 일일 현황</h3>
                 {faithBoardLoading ? (
                   <div className="py-6 text-sm text-zinc-500 text-center">현황 불러오는 중...</div>
@@ -1961,7 +1965,7 @@ export default function GroupDashboard() {
                               return (
                                 <td key={`cell-${row.user_id}-${item.id}`} className="py-2 pr-3 whitespace-nowrap">
                                   {value > 0 ? (
-                                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold">
+                                    <span className="px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-700 font-bold">
                                       {value}
                                     </span>
                                   ) : (
@@ -1981,10 +1985,10 @@ export default function GroupDashboard() {
             )}
 
             {isManager && (
-              <div className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-2">
+              <div className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
                 <h3 className="font-black text-zinc-900 text-sm">신앙생활 항목 관리</h3>
                 <input
-                  className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                   placeholder="새 항목 이름"
                   value={newFaithName}
                   onChange={(e) => setNewFaithName(e.target.value)}
@@ -1993,7 +1997,7 @@ export default function GroupDashboard() {
                   <select
                     value={newFaithType}
                     onChange={(e) => setNewFaithType(e.target.value as FaithType)}
-                    className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                    className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                   >
                     <option value="check">체크형</option>
                     <option value="count">횟수형</option>
@@ -2009,7 +2013,7 @@ export default function GroupDashboard() {
                         setNewFaithLinkedFeature("qt");
                       }
                     }}
-                    className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                    className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                   >
                     <option value="manual">직접 입력만</option>
                     <option value="linked">외부 연결만</option>
@@ -2021,7 +2025,7 @@ export default function GroupDashboard() {
                   <select
                     value={newFaithLinkedFeature}
                     onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
-                    className="w-full px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                    className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                   >
                     <option value="qt">QT 연결</option>
                     <option value="prayer">기도 연결</option>
@@ -2031,7 +2035,7 @@ export default function GroupDashboard() {
 
                 <button
                   onClick={addFaithItem}
-                  className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
+                  className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
                 >
                   <Plus size={14} /> 항목 추가
                 </button>
@@ -2046,7 +2050,7 @@ export default function GroupDashboard() {
                   : false;
 
               return (
-                <div key={item.id} className="bg-white rounded-3xl border border-zinc-100 p-4">
+                <div key={item.id} className="bg-white rounded-md border border-zinc-100 p-4">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-bold text-zinc-900">{item.name}</div>
@@ -2086,7 +2090,7 @@ export default function GroupDashboard() {
                       ) : (
                         <button
                           onClick={() => setFaithValue(item, value > 0 ? 0 : 1)}
-                          className={`px-4 py-2 rounded-xl text-sm font-bold ${
+                          className={`px-4 py-2 rounded-sm text-sm font-bold ${
                             value > 0 ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"
                           }`}
                         >
@@ -2106,14 +2110,14 @@ export default function GroupDashboard() {
                     <div className="mt-3 flex gap-2">
                       <button
                         onClick={() => openFaithLinkModal(item)}
-                        className="px-3 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1"
+                        className="px-3 py-2 rounded-sm bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1"
                       >
                         <Link2 size={14} /> 외부 활동 연결
                       </button>
                       {item.linked_feature === "qt" && (
                         <button
                           onClick={() => setLocation("/qt")}
-                          className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
+                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
                           QT 이동
                         </button>
@@ -2121,7 +2125,7 @@ export default function GroupDashboard() {
                       {item.linked_feature === "prayer" && (
                         <button
                           onClick={() => setLocation("/prayer")}
-                          className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
+                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
                           Prayer 이동
                         </button>
@@ -2129,7 +2133,7 @@ export default function GroupDashboard() {
                       {item.linked_feature === "reading" && (
                         <button
                           onClick={() => setLocation("/reading")}
-                          className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
+                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
                           성경읽기 이동
                         </button>
@@ -2141,7 +2145,7 @@ export default function GroupDashboard() {
             })}
 
             {faithItems.length === 0 && (
-              <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
+              <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
                 아직 등록된 신앙생활 항목이 없습니다.
               </div>
             )}
@@ -2150,12 +2154,12 @@ export default function GroupDashboard() {
 
         {activeTab === "social" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-white rounded-3xl border border-zinc-100 p-4 flex items-center justify-between gap-3">
+            <div className="bg-white rounded-md border border-zinc-100 p-4 flex items-center justify-between gap-3">
               <h2 className="font-black text-zinc-900">모임 소통</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSocialViewMode("board")}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1 ${
+                  className={`px-3 py-2 rounded-sm text-xs font-bold inline-flex items-center gap-1 ${
                     socialViewMode === "board" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                   }`}
                 >
@@ -2164,7 +2168,7 @@ export default function GroupDashboard() {
                 </button>
                 <button
                   onClick={() => setSocialViewMode("blog")}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold inline-flex items-center gap-1 ${
+                  className={`px-3 py-2 rounded-sm text-xs font-bold inline-flex items-center gap-1 ${
                     socialViewMode === "blog" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                   }`}
                 >
@@ -2184,7 +2188,7 @@ export default function GroupDashboard() {
                 return (
                   <div
                     key={post.id}
-                    className={`bg-white rounded-3xl border border-zinc-100 p-4 ${
+                    className={`bg-white rounded-md border border-zinc-100 p-4 ${
                       socialViewMode === "blog" ? "shadow-sm" : ""
                     }`}
                   >
@@ -2192,7 +2196,7 @@ export default function GroupDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            className={`px-2 py-0.5 rounded-sm text-xs font-bold ${
                               post.post_type === "notice"
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-zinc-100 text-zinc-600"
@@ -2223,7 +2227,7 @@ export default function GroupDashboard() {
                     {post.image_urls && post.image_urls.length > 0 && (
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         {post.image_urls.slice(0, 6).map((url, index) => (
-                          <div key={`post-image-${post.id}-${index}`} className="rounded-xl overflow-hidden bg-zinc-100">
+                          <div key={`post-image-${post.id}-${index}`} className="rounded-sm overflow-hidden bg-zinc-100">
                             <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-32 object-cover" />
                           </div>
                         ))}
@@ -2234,7 +2238,7 @@ export default function GroupDashboard() {
               })}
 
               {posts.length === 0 && (
-                <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
+                <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
                   아직 게시글이 없습니다.
                 </div>
               )}
@@ -2253,7 +2257,7 @@ export default function GroupDashboard() {
         {activeTab === "members" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
-              <div className="bg-white rounded-3xl border border-zinc-100 p-4">
+              <div className="bg-white rounded-md border border-zinc-100 p-4">
                 <h3 className="font-black text-zinc-900 mb-2 text-sm flex items-center gap-2">
                   <Shield size={14} /> 가입 요청
                 </h3>
@@ -2262,7 +2266,7 @@ export default function GroupDashboard() {
                 ) : (
                   <div className="space-y-2">
                     {joinRequests.map((request) => (
-                      <div key={request.id} className="bg-zinc-50 rounded-2xl p-3">
+                      <div key={request.id} className="bg-zinc-50 rounded-sm p-3">
                         <div className="text-sm font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
@@ -2271,13 +2275,13 @@ export default function GroupDashboard() {
                         <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => resolveJoinRequest(request.id, request.user_id, true)}
-                            className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
+                            className="px-3 py-2 rounded-sm bg-emerald-600 text-white text-xs font-bold"
                           >
                             승인
                           </button>
                           <button
                             onClick={() => resolveJoinRequest(request.id, request.user_id, false)}
-                            className="px-3 py-2 rounded-xl bg-zinc-200 text-zinc-700 text-xs font-bold"
+                            className="px-3 py-2 rounded-sm bg-zinc-200 text-zinc-700 text-xs font-bold"
                           >
                             거절
                           </button>
@@ -2289,7 +2293,7 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-white rounded-3xl border border-zinc-100 p-4">
+            <div className="bg-white rounded-md border border-zinc-100 p-4">
               <h3 className="font-black text-zinc-900 mb-3 text-sm flex items-center gap-2">
                 <Users size={14} /> 멤버 목록
               </h3>
@@ -2303,7 +2307,7 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-zinc-50 rounded-2xl p-3 flex items-center justify-between gap-2"
+                      className="bg-zinc-50 rounded-sm p-3 flex items-center justify-between gap-2"
                     >
                       <div>
                         <div className="font-bold text-zinc-900">{name}</div>
@@ -2314,7 +2318,7 @@ export default function GroupDashboard() {
                         {canPromoteDemote && member.role === "member" && (
                           <button
                             onClick={() => changeMemberRole(member.user_id, "leader")}
-                            className="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold"
+                            className="px-2 py-1 rounded-sm bg-blue-100 text-blue-700 text-xs font-bold"
                           >
                             리더승급
                           </button>
@@ -2322,7 +2326,7 @@ export default function GroupDashboard() {
                         {canPromoteDemote && member.role === "leader" && (
                           <button
                             onClick={() => changeMemberRole(member.user_id, "member")}
-                            className="px-2 py-1 rounded-lg bg-zinc-200 text-zinc-700 text-xs font-bold"
+                            className="px-2 py-1 rounded-sm bg-zinc-200 text-zinc-700 text-xs font-bold"
                           >
                             멤버전환
                           </button>
@@ -2356,7 +2360,7 @@ export default function GroupDashboard() {
             {role !== "owner" && (
               <button
                 onClick={leaveGroup}
-                className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-sm"
+                className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-sm"
               >
                 모임 나가기
               </button>
@@ -2366,10 +2370,10 @@ export default function GroupDashboard() {
 
         {activeTab === "admin" && isManager && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm">신앙활동 항목 관리</h3>
               <input
-                className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                 placeholder="새 항목 이름"
                 value={newFaithName}
                 onChange={(e) => setNewFaithName(e.target.value)}
@@ -2378,7 +2382,7 @@ export default function GroupDashboard() {
                 <select
                   value={newFaithType}
                   onChange={(e) => setNewFaithType(e.target.value as FaithType)}
-                  className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                 >
                   <option value="check">체크형</option>
                   <option value="count">횟수형</option>
@@ -2392,7 +2396,7 @@ export default function GroupDashboard() {
                     if (next === "manual") setNewFaithLinkedFeature("none");
                     if (next !== "manual" && newFaithLinkedFeature === "none") setNewFaithLinkedFeature("qt");
                   }}
-                  className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                 >
                   <option value="manual">직접 입력만</option>
                   <option value="linked">외부 연결만</option>
@@ -2403,7 +2407,7 @@ export default function GroupDashboard() {
                 <select
                   value={newFaithLinkedFeature}
                   onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
-                  className="w-full px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                 >
                   <option value="qt">QT 연결</option>
                   <option value="prayer">기도 연결</option>
@@ -2412,13 +2416,13 @@ export default function GroupDashboard() {
               )}
               <button
                 onClick={addFaithItem}
-                className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
               >
                 <Plus size={14} /> 항목 추가
               </button>
             </section>
 
-            <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-2">
                 <Crown size={14} />
                 모임 상위 리더 등록
@@ -2426,7 +2430,7 @@ export default function GroupDashboard() {
               <select
                 value={scopeLeaderUserId}
                 onChange={(e) => setScopeLeaderUserId(e.target.value)}
-                className="w-full px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               >
                 <option value="">멤버 선택</option>
                 {members.map((member) => {
@@ -2441,38 +2445,38 @@ export default function GroupDashboard() {
               <button
                 onClick={registerScopeLeader}
                 disabled={!scopeLeaderUserId}
-                className="w-full py-3 rounded-2xl bg-zinc-900 text-white font-bold text-sm disabled:opacity-50"
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-sm disabled:opacity-50"
               >
                 상위 리더 등록
               </button>
               <p className="text-xs text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
             </section>
 
-            <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm">하위 모임 연결</h3>
               <input
                 value={childGroupCode}
                 onChange={(e) => setChildGroupCode(e.target.value)}
-                className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
                 placeholder="하위 모임 코드 입력"
               />
               <button
                 onClick={linkChildGroup}
                 disabled={linkingChildGroup || !childGroupCode.trim()}
-                className="w-full py-3 rounded-2xl bg-zinc-900 text-white font-bold text-sm disabled:opacity-60"
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-sm disabled:opacity-60"
               >
                 {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
               </button>
               <p className="text-xs text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
             </section>
 
-            <section className="bg-white rounded-3xl border border-rose-100 p-4 space-y-3">
+            <section className="bg-white rounded-md border border-rose-100 p-4 space-y-3">
               <h3 className="font-black text-rose-700 text-sm">모임 폐쇄</h3>
               <p className="text-sm text-zinc-600">폐쇄 시 신규 가입 신청이 차단됩니다. 기존 멤버 데이터는 유지됩니다.</p>
               <button
                 onClick={closeGroup}
                 disabled={closingGroup || group.is_closed}
-                className="w-full py-3 rounded-2xl bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
+                className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
               >
                 {group.is_closed ? "이미 폐쇄된 모임" : closingGroup ? "처리 중..." : "모임 폐쇄하기"}
               </button>
@@ -2487,7 +2491,7 @@ export default function GroupDashboard() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowPrayerLinkModal(false)}
           />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl border border-zinc-100 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-md border border-zinc-100 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
               <button
@@ -2500,12 +2504,12 @@ export default function GroupDashboard() {
 
             <div className="space-y-2">
               {personalPrayers.map((record) => (
-                <div key={record.id} className="bg-zinc-50 rounded-2xl p-3">
+                <div key={record.id} className="bg-zinc-50 rounded-sm p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
                     <div className="font-bold text-sm text-zinc-900">{record.title || "제목 없는 기도"}</div>
                     <button
                       onClick={() => linkPrayerToGroup(record)}
-                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold"
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-xs font-bold"
                     >
                       연결
                     </button>
@@ -2526,7 +2530,7 @@ export default function GroupDashboard() {
       {showPrayerComposer && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerComposer(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도하기</h3>
               <button
@@ -2538,7 +2542,7 @@ export default function GroupDashboard() {
             </div>
 
             <input
-              className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="기도 제목 (선택)"
               value={recordTitle}
               onChange={(e) => setRecordTitle(e.target.value)}
@@ -2555,7 +2559,7 @@ export default function GroupDashboard() {
               {!isRecording ? (
                 <button
                   onClick={startRecording}
-                  className="flex-1 py-3 rounded-2xl bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
+                  className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
                 >
                   <Mic size={16} /> 녹음 시작
                 </button>
@@ -2564,21 +2568,21 @@ export default function GroupDashboard() {
                   {isPaused ? (
                     <button
                       onClick={resumeRecording}
-                      className="flex-1 py-3 rounded-2xl bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
+                      className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
                     >
                       <Play size={16} /> 재개
                     </button>
                   ) : (
                     <button
                       onClick={pauseRecording}
-                      className="flex-1 py-3 rounded-2xl bg-zinc-800 text-white font-bold inline-flex items-center justify-center gap-2"
+                      className="flex-1 py-3 rounded-sm bg-zinc-800 text-white font-bold inline-flex items-center justify-center gap-2"
                     >
                       <Pause size={16} /> 일시정지
                     </button>
                   )}
                   <button
                     onClick={stopRecording}
-                    className="px-4 py-3 rounded-2xl bg-rose-600 text-white font-bold inline-flex items-center gap-2"
+                    className="px-4 py-3 rounded-sm bg-rose-600 text-white font-bold inline-flex items-center gap-2"
                   >
                     <Square size={16} /> 종료
                   </button>
@@ -2592,7 +2596,7 @@ export default function GroupDashboard() {
                 <button
                   onClick={saveDirectPrayer}
                   disabled={savingPrayer}
-                  className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold disabled:opacity-60"
+                  className="w-full py-3 rounded-sm bg-emerald-600 text-white font-bold disabled:opacity-60"
                 >
                   {savingPrayer ? "저장 중..." : "모임 기도 저장"}
                 </button>
@@ -2605,7 +2609,7 @@ export default function GroupDashboard() {
       {showPrayerTopicModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도제목 등록</h3>
               <button
@@ -2618,13 +2622,13 @@ export default function GroupDashboard() {
             <textarea
               value={newPrayerTopic}
               onChange={(e) => setNewPrayerTopic(e.target.value)}
-              className="w-full min-h-[120px] px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[120px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="모임원과 나눌 기도제목을 입력해주세요."
             />
             <button
               onClick={addPrayerTopic}
               disabled={!newPrayerTopic.trim()}
-              className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm disabled:opacity-60"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm disabled:opacity-60"
             >
               등록하기
             </button>
@@ -2635,7 +2639,7 @@ export default function GroupDashboard() {
       {showPostComposerModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">글 작성</h3>
               <button
@@ -2649,7 +2653,7 @@ export default function GroupDashboard() {
             <div className="flex gap-2">
               <button
                 onClick={() => setPostType("post")}
-                className={`px-3 py-2 rounded-xl text-sm font-bold ${
+                className={`px-3 py-2 rounded-sm text-sm font-bold ${
                   postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                 }`}
               >
@@ -2658,7 +2662,7 @@ export default function GroupDashboard() {
               <button
                 onClick={() => setPostType("notice")}
                 disabled={!isManager}
-                className={`px-3 py-2 rounded-xl text-sm font-bold ${
+                className={`px-3 py-2 rounded-sm text-sm font-bold ${
                   postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                 } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
               >
@@ -2669,20 +2673,20 @@ export default function GroupDashboard() {
             <input
               value={postTitle}
               onChange={(e) => setPostTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="제목"
             />
             <textarea
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
-              className="w-full min-h-[140px] px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
               placeholder="모임 내부 공유 글을 작성하세요."
             />
 
-            <div className="rounded-2xl bg-zinc-50 border border-zinc-100 p-3 space-y-3">
+            <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
-                <label className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
                   <ImagePlus size={13} />
                   사진 선택
                   <input
@@ -2698,7 +2702,7 @@ export default function GroupDashboard() {
               {postImagePreviews.length > 0 && (
                 <div className="grid grid-cols-3 gap-2">
                   {postImagePreviews.map((preview, index) => (
-                    <div key={`preview-${index}`} className="relative rounded-xl overflow-hidden bg-zinc-100">
+                    <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
                       <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
                       <button
                         onClick={() => removePostImage(index)}
@@ -2714,7 +2718,7 @@ export default function GroupDashboard() {
 
             <button
               onClick={addPost}
-              className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
             >
               글 등록
             </button>
@@ -2725,7 +2729,7 @@ export default function GroupDashboard() {
       {showInviteModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowInviteModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">회원 초대</h3>
               <button
@@ -2735,7 +2739,7 @@ export default function GroupDashboard() {
                 <X size={14} />
               </button>
             </div>
-            <div className="rounded-2xl bg-zinc-50 p-4 space-y-2 text-sm">
+            <div className="rounded-sm bg-zinc-50 p-4 space-y-2 text-sm">
               <div>
                 <div className="text-xs text-zinc-500">모임명</div>
                 <div className="font-bold text-zinc-900">{group.name}</div>
@@ -2751,7 +2755,7 @@ export default function GroupDashboard() {
                 const text = `[${group.name}] 모임 코드: ${group.group_slug || "-"}`;
                 navigator.clipboard.writeText(text).then(() => alert("초대 정보가 복사되었습니다."));
               }}
-              className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
             >
               초대 문구 복사
             </button>
@@ -2762,7 +2766,7 @@ export default function GroupDashboard() {
       {showHeaderEditModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">헤더 설정</h3>
               <button
@@ -2791,9 +2795,9 @@ export default function GroupDashboard() {
 
             <div>
               <label className="text-xs text-zinc-500">헤더 이미지 업로드</label>
-              <div className="mt-2 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 space-y-3">
+              <div className="mt-2 rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-3">
                 <div className="flex items-center gap-2">
-                  <label className="px-3 py-2 rounded-lg bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
                     <ImagePlus size={13} />
                     이미지 선택
                     <input
@@ -2808,12 +2812,12 @@ export default function GroupDashboard() {
                 <button
                   onClick={uploadHeaderImage}
                   disabled={!headerImageFile || headerImageUploading}
-                  className="w-full py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-bold disabled:opacity-60"
+                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-xs font-bold disabled:opacity-60"
                 >
                   {headerImageUploading ? "업로드 중..." : "이미지 업로드"}
                 </button>
                 {headerImageDraft && (
-                  <div className="rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                  <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
                     <img src={headerImageDraft} alt="header-preview" className="w-full h-28 object-cover" />
                   </div>
                 )}
@@ -2821,7 +2825,7 @@ export default function GroupDashboard() {
             </div>
             <button
               onClick={saveHeaderSettings}
-              className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
             >
               저장
             </button>
@@ -2832,7 +2836,7 @@ export default function GroupDashboard() {
       {showFaithLinkModal && selectedFaithItem && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl border border-zinc-100 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-md border border-zinc-100 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">
                 외부 활동 연결 - {selectedFaithItem.name}
@@ -2847,7 +2851,7 @@ export default function GroupDashboard() {
 
             <div className="space-y-2">
               {availableActivities.map((activity) => (
-                <div key={activity.id} className="bg-zinc-50 rounded-2xl p-3">
+                <div key={activity.id} className="bg-zinc-50 rounded-sm p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
                       <div className="font-bold text-sm text-zinc-900">{getActivityTitle(activity)}</div>
@@ -2856,7 +2860,7 @@ export default function GroupDashboard() {
                     <button
                       onClick={() => linkActivityToFaith(activity)}
                       disabled={linkingActivityId === activity.id}
-                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
                     >
                       {linkingActivityId === activity.id ? "연결 중..." : "연결"}
                     </button>
@@ -2876,3 +2880,5 @@ export default function GroupDashboard() {
     </div>
   );
 }
+
+
