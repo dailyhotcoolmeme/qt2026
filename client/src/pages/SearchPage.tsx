@@ -334,7 +334,7 @@ export default function SearchPage() {
                 <button
                   key={f}
                   onClick={() => handleTestamentChange(f)}
-                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741]' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`px-5 h-full rounded-xl text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741]' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
                   disabled={!!identifiedBook}
                 >
                   {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
@@ -346,7 +346,7 @@ export default function SearchPage() {
               <div className="relative h-full">
                 <select
                   disabled={!!identifiedBook}
-                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
                   value={selectedBook}
                   onChange={(e) => handleBookChange(e.target.value)}
                 >
