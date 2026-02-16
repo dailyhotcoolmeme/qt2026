@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { Search, ChevronDown, ArrowUp, BookOpen, CheckCircle2, RotateCcw } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { BIBLE_BOOKS } from "@/lib/bibleData";
-import { useAuth } from "@/lib/auth-utils";
+import { useAuth } from "@/hooks/use-auth";
 
 // 페이지당 불러올 개수
 const PAGE_SIZE = 50;
@@ -273,8 +273,8 @@ export default function SearchPage() {
                   setResults([]); // 필터 변경 시 결과 초기화
                 }}
                 className={`px-5 h-9 rounded-full text-xs font-dm-sans font-bold whitespace-nowrap transition-all border ${testamentFilter === f
-                    ? 'bg-[#4A6741] text-white border-[#4A6741] shadow-md shadow-[#4A6741]/20'
-                    : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
+                  ? 'bg-[#4A6741] text-white border-[#4A6741] shadow-md shadow-[#4A6741]/20'
+                  : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
                   }`}
               >
                 {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
@@ -334,8 +334,8 @@ export default function SearchPage() {
             <button
               onClick={toggleReadStatus}
               className={`flex flex-col items-center justify-center w-20 h-20 rounded-2xl transition-all duration-500 ${isRead
-                  ? 'bg-green-50 text-green-600 scale-105 border-green-100'
-                  : 'bg-zinc-50 text-zinc-300 border-zinc-100 hover:border-zinc-200'
+                ? 'bg-green-50 text-green-600 scale-105 border-green-100'
+                : 'bg-zinc-50 text-zinc-300 border-zinc-100 hover:border-zinc-200'
                 } border`}
             >
               <CheckCircle2 className={`w-8 h-8 ${isRead ? 'animate-bounce' : ''}`} />
@@ -389,8 +389,8 @@ export default function SearchPage() {
 
                 <div
                   className={`group p-4 rounded-2xl transition-all ${viewMode === 'CHAPTER'
-                      ? 'hover:bg-white underline-offset-8 decoration-green-100'
-                      : 'bg-white border border-zinc-100 shadow-sm hover:shadow-md hover:border-[#4A6741]/20'
+                    ? 'hover:bg-white underline-offset-8 decoration-green-100'
+                    : 'bg-white border border-zinc-100 shadow-sm hover:shadow-md hover:border-[#4A6741]/20'
                     }`}
                   onClick={() => {
                     if (viewMode === 'SEARCH') {
