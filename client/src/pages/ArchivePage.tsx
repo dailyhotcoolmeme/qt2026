@@ -46,28 +46,28 @@ function getTitle(log: ActivityLogRow) {
     const text = payload.meditation_excerpt;
     if (typeof text === "string" && text.trim()) return text;
     const date = payload.target_date;
-    if (typeof date === "string") return `QT ±â·Ï (${date})`;
-    return "QT ±â·Ï";
+    if (typeof date === "string") return `QT ê¸°ë¡ (${date})`;
+    return "QT ê¸°ë¡";
   }
 
   if (log.activity_type === "prayer") {
     const title = payload.title;
     if (typeof title === "string" && title.trim()) return title;
-    return "±âµµ ±â·Ï";
+    return "ê¸°ë„ ê¸°ë¡";
   }
 
   if (log.activity_type === "reading") {
     const book = payload.book_name;
     const chapter = payload.chapter;
     if (typeof book === "string" && (typeof chapter === "number" || typeof chapter === "string")) {
-      return `${book} ${chapter}Àå`;
+      return `${book} ${chapter}ì¥`;
     }
-    return "¼º°æÀĞ±â ±â·Ï";
+    return "ì„±ê²½ì½ê¸° ê¸°ë¡";
   }
 
   const verseRef = payload.verse_ref;
   if (typeof verseRef === "string" && verseRef.trim()) return verseRef;
-  return "¸»¾¸ Áñ°ÜÃ£±â";
+  return "ë§ì”€ ì¦ê²¨ì°¾ê¸°";
 }
 
 export default function ArchivePage() {
@@ -178,9 +178,9 @@ export default function ArchivePage() {
 
   const typeConfig: Record<ArchiveType, { label: string; icon: React.ReactNode }> = {
     qt: { label: "QT", icon: <BookOpen size={16} /> },
-    prayer: { label: "±âµµ", icon: <HandHeart size={16} /> },
-    reading: { label: "¼º°æÀĞ±â", icon: <Library size={16} /> },
-    bookmark: { label: "¸»¾¸ Áñ°ÜÃ£±â", icon: <Bookmark size={16} /> },
+    prayer: { label: "ê¸°ë„", icon: <HandHeart size={16} /> },
+    reading: { label: "ì„±ê²½ì½ê¸°", icon: <Library size={16} /> },
+    bookmark: { label: "ë§ì”€ ì¦ê²¨ì°¾ê¸°", icon: <Bookmark size={16} /> },
   };
 
   if (isLoading || loading) {
@@ -195,12 +195,12 @@ export default function ArchivePage() {
     return (
       <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white rounded-3xl border border-zinc-100 p-6 text-center">
-          <p className="text-sm text-zinc-600 font-bold mb-4">·Î±×ÀÎ ÈÄ ³» ±â·ÏÇÔÀ» º¼ ¼ö ÀÖ½À´Ï´Ù.</p>
+          <p className="text-sm text-zinc-600 font-bold mb-4">ë¡œê·¸ì¸ í›„ ë‚´ ê¸°ë¡í•¨ì„ ë³¼ ìˆ˜ ìˆìŠµë‹ˆë‹¤.</p>
           <button
             onClick={() => setLocation("/")}
             className="px-4 py-2 rounded-xl bg-[#4A6741] text-white text-sm font-bold"
           >
-            È¨À¸·Î
+            í™ˆìœ¼ë¡œ
           </button>
         </div>
       </div>
@@ -211,8 +211,8 @@ export default function ArchivePage() {
     <div className="min-h-screen bg-[#F6F7F8] pt-24 pb-28 px-4">
       <div className="max-w-2xl mx-auto space-y-4">
         <div>
-          <h1 className="text-xl font-black text-zinc-900">³» ±â·ÏÇÔ</h1>
-          <p className="text-xs text-zinc-500 mt-1">¸ğÀÓ ³» ¼öÇà / °³ÀÎ ¼öÇà / °³ÀÎ¡æ¸ğÀÓ ¿¬°á Èå¸§À» ÇÔ²² È®ÀÎÇÒ ¼ö ÀÖ½À´Ï´Ù.</p>
+          <h1 className="text-xl font-black text-zinc-900">ë‚´ ê¸°ë¡í•¨</h1>
+          <p className="text-xs text-zinc-500 mt-1">ëª¨ì„ ë‚´ ìˆ˜í–‰ / ê°œì¸ ìˆ˜í–‰ / ê°œì¸â†’ëª¨ì„ ì—°ê²° íë¦„ì„ í•¨ê»˜ í™•ì¸í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.</p>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-1 rounded-2xl border border-zinc-100">
@@ -235,10 +235,10 @@ export default function ArchivePage() {
 
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
           {[
-            ["all", "ÀüÃ¼"],
-            ["group_direct", "¸ğÀÓ ³» ¼öÇà"],
-            ["personal", "°³ÀÎ ¼öÇà"],
-            ["linked", "°³ÀÎ¡æ¸ğÀÓ ¿¬°á"],
+            ["all", "ì „ì²´"],
+            ["group_direct", "ëª¨ì„ ë‚´ ìˆ˜í–‰"],
+            ["personal", "ê°œì¸ ìˆ˜í–‰"],
+            ["linked", "ê°œì¸â†’ëª¨ì„ ì—°ê²°"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -257,10 +257,10 @@ export default function ArchivePage() {
             const relatedLinks = linkMap.get(log.id) ?? [];
             const contextLabel =
               log.source_kind === "group_direct"
-                ? "¸ğÀÓ ³» ¼öÇà"
+                ? "ëª¨ì„ ë‚´ ìˆ˜í–‰"
                 : relatedLinks.length > 0
-                ? "°³ÀÎ ¼öÇà¡æ¸ğÀÓ ¿¬°á"
-                : "°³ÀÎ ¼öÇà";
+                ? "ê°œì¸ ìˆ˜í–‰â†’ëª¨ì„ ì—°ê²°"
+                : "ê°œì¸ ìˆ˜í–‰";
 
             const groupNames =
               log.source_kind === "group_direct"
@@ -296,7 +296,7 @@ export default function ArchivePage() {
 
           {filteredLogs.length === 0 && (
             <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
-              Ç¥½ÃÇÒ ±â·ÏÀÌ ¾ø½À´Ï´Ù.
+              í‘œì‹œí•  ê¸°ë¡ì´ ì—†ìŠµë‹ˆë‹¤.
             </div>
           )}
         </motion.div>

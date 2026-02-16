@@ -123,9 +123,9 @@ function formatDateTime(iso?: string | null) {
 }
 
 function toLabel(role: string) {
-  if (role === "owner") return "»ı¼ºÀÚ";
-  if (role === "leader") return "¸®´õ";
-  if (role === "member") return "¸â¹ö";
+  if (role === "owner") return "ìƒì„±ì";
+  if (role === "leader") return "ë¦¬ë”";
+  if (role === "member") return "ë©¤ë²„";
   return role;
 }
 
@@ -294,7 +294,7 @@ export default function GroupDashboard() {
 
     if (nextRole === "guest") {
       setLoading(false);
-      alert("¸ğÀÓ ¸â¹ö¸¸ Á¢±ÙÇÒ ¼ö ÀÖ½À´Ï´Ù.");
+      alert("ëª¨ì„ ë©¤ë²„ë§Œ ì ‘ê·¼í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.");
       setLocation("/community");
       return;
     }
@@ -498,7 +498,7 @@ export default function GroupDashboard() {
       timerRef.current = setInterval(() => setRecordingTime((prev) => prev + 1), 1000);
     } catch (error) {
       console.error(error);
-      alert("¸¶ÀÌÅ© ±ÇÇÑÀÌ ÇÊ¿äÇÕ´Ï´Ù.");
+      alert("ë§ˆì´í¬ ê¶Œí•œì´ í•„ìš”í•©ë‹ˆë‹¤.");
     }
   };
 
@@ -551,7 +551,7 @@ export default function GroupDashboard() {
       await loadGroupPrayers(group.id);
     } catch (error) {
       console.error(error);
-      alert("¸ğÀÓ ±âµµ ÀúÀå¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ëª¨ì„ ê¸°ë„ ì €ì¥ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
     } finally {
       setSavingPrayer(false);
     }
@@ -573,7 +573,7 @@ export default function GroupDashboard() {
 
       if (error) {
         if (error.code === "23505") {
-          alert("ÀÌ¹Ì ÀÌ ¸ğÀÓ¿¡ ¿¬°áµÈ ±âµµ ±â·ÏÀÔ´Ï´Ù.");
+          alert("ì´ë¯¸ ì´ ëª¨ì„ì— ì—°ê²°ëœ ê¸°ë„ ê¸°ë¡ì…ë‹ˆë‹¤.");
           return;
         }
         throw error;
@@ -582,17 +582,17 @@ export default function GroupDashboard() {
       await loadGroupPrayers(group.id);
     } catch (error) {
       console.error(error);
-      alert("±âµµ ¿¬°á¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ê¸°ë„ ì—°ê²°ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
     }
   };
 
   const removeGroupPrayer = async (record: GroupPrayerRecord) => {
     if (!group || !user || !(isManager || record.user_id === user.id)) return;
-    if (!confirm("ÀÌ ±âµµ ±â·ÏÀ» »èÁ¦ÇÒ±î¿ä?")) return;
+    if (!confirm("ì´ ê¸°ë„ ê¸°ë¡ì„ ì‚­ì œí• ê¹Œìš”?")) return;
 
     const { error } = await supabase.from("group_prayer_records").delete().eq("id", record.id);
     if (error) {
-      alert("»èÁ¦¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ì‚­ì œì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
 
@@ -622,7 +622,7 @@ export default function GroupDashboard() {
 
     const { error } = await supabase.from("group_faith_items").insert(payload);
     if (error) {
-      alert("Ç×¸ñ Ãß°¡¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("í•­ëª© ì¶”ê°€ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
 
@@ -635,11 +635,11 @@ export default function GroupDashboard() {
 
   const removeFaithItem = async (itemId: string) => {
     if (!group || !user || !isManager) return;
-    if (!confirm("ÀÌ Ç×¸ñÀ» »èÁ¦ÇÒ±î¿ä?")) return;
+    if (!confirm("ì´ í•­ëª©ì„ ì‚­ì œí• ê¹Œìš”?")) return;
 
     const { error } = await supabase.from("group_faith_items").delete().eq("id", itemId);
     if (error) {
-      alert("»èÁ¦¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ì‚­ì œì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     await loadFaith(group.id, user.id);
@@ -675,7 +675,7 @@ export default function GroupDashboard() {
     );
 
     if (error) {
-      alert("ÀúÀå¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ì €ì¥ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     await loadFaith(group.id, user.id);
@@ -715,25 +715,25 @@ export default function GroupDashboard() {
 
     if (activity.activity_type === "prayer") {
       const title = payload.title;
-      return typeof title === "string" && title.trim() ? title : "±âµµ ±â·Ï";
+      return typeof title === "string" && title.trim() ? title : "ê¸°ë„ ê¸°ë¡";
     }
 
     if (activity.activity_type === "qt") {
       const excerpt = payload.meditation_excerpt;
       if (typeof excerpt === "string" && excerpt.trim()) return excerpt;
-      return "QT ±â·Ï";
+      return "QT ê¸°ë¡";
     }
 
     if (activity.activity_type === "reading") {
       const book = payload.book_name;
       const chapter = payload.chapter;
       if (typeof book === "string" && (typeof chapter === "string" || typeof chapter === "number")) {
-        return `${book} ${chapter}Àå`;
+        return `${book} ${chapter}ì¥`;
       }
-      return "¼º°æ ÀĞ±â ±â·Ï";
+      return "ì„±ê²½ ì½ê¸° ê¸°ë¡";
     }
 
-    return "±â·Ï";
+    return "ê¸°ë¡";
   };
 
   const linkActivityToFaith = async (activity: ActivityLogRow) => {
@@ -775,7 +775,7 @@ export default function GroupDashboard() {
       setAvailableActivities((prev) => prev.filter((row) => row.id !== activity.id));
     } catch (error) {
       console.error(error);
-      alert("¿ÜºÎ È°µ¿ ¿¬°á¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ì™¸ë¶€ í™œë™ ì—°ê²°ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
     } finally {
       setLinkingActivityId(null);
     }
@@ -784,7 +784,7 @@ export default function GroupDashboard() {
   const addPost = async () => {
     if (!group || !user || !postContent.trim()) return;
     if (postType === "notice" && !isManager) {
-      alert("°øÁö ÀÛ¼ºÀº ¸®´õ/»ı¼ºÀÚ¸¸ °¡´ÉÇÕ´Ï´Ù.");
+      alert("ê³µì§€ ì‘ì„±ì€ ë¦¬ë”/ìƒì„±ìë§Œ ê°€ëŠ¥í•©ë‹ˆë‹¤.");
       return;
     }
 
@@ -796,7 +796,7 @@ export default function GroupDashboard() {
     });
 
     if (error) {
-      alert("°Ô½Ã±Û µî·Ï¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ê²Œì‹œê¸€ ë“±ë¡ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
 
@@ -808,11 +808,11 @@ export default function GroupDashboard() {
   const removePost = async (post: GroupPostRow) => {
     if (!group || !user) return;
     if (!(isManager || post.author_id === user.id)) return;
-    if (!confirm("ÀÌ °Ô½Ã±ÛÀ» »èÁ¦ÇÒ±î¿ä?")) return;
+    if (!confirm("ì´ ê²Œì‹œê¸€ì„ ì‚­ì œí• ê¹Œìš”?")) return;
 
     const { error } = await supabase.from("group_posts").delete().eq("id", post.id);
     if (error) {
-      alert("»èÁ¦¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ì‚­ì œì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     await loadPosts(group.id);
@@ -828,7 +828,7 @@ export default function GroupDashboard() {
       .eq("user_id", targetUserId);
 
     if (error) {
-      alert("±ÇÇÑ º¯°æ¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ê¶Œí•œ ë³€ê²½ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     await loadMembers(group.id, group.owner_id);
@@ -836,7 +836,7 @@ export default function GroupDashboard() {
 
   const removeMember = async (targetUserId: string) => {
     if (!group || !isManager || targetUserId === group.owner_id) return;
-    if (!confirm("ÀÌ ¸â¹ö¸¦ ¸ğÀÓ¿¡¼­ °­ÅğÇÒ±î¿ä?")) return;
+    if (!confirm("ì´ ë©¤ë²„ë¥¼ ëª¨ì„ì—ì„œ ê°•í‡´í• ê¹Œìš”?")) return;
 
     const { error } = await supabase
       .from("group_members")
@@ -845,7 +845,7 @@ export default function GroupDashboard() {
       .eq("user_id", targetUserId);
 
     if (error) {
-      alert("°­Åğ¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ê°•í‡´ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     await loadMembers(group.id, group.owner_id);
@@ -864,7 +864,7 @@ export default function GroupDashboard() {
         { onConflict: "group_id,user_id" }
       );
       if (memberErr) {
-        alert("½ÂÀÎ Ã³¸®¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+        alert("ìŠ¹ì¸ ì²˜ë¦¬ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
         return;
       }
     }
@@ -879,7 +879,7 @@ export default function GroupDashboard() {
       .eq("id", requestId);
 
     if (error) {
-      alert("¿äÃ» Ã³¸®¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ìš”ì²­ ì²˜ë¦¬ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
 
@@ -889,10 +889,10 @@ export default function GroupDashboard() {
   const leaveGroup = async () => {
     if (!group || !user) return;
     if (role === "owner") {
-      alert("»ı¼ºÀÚ´Â ¸ğÀÓÀ» ³ª°¥ ¼ö ¾ø½À´Ï´Ù. ¸ÕÀú ¼ÒÀ¯±ÇÀ» ÀÌÀüÇÏ¼¼¿ä.");
+      alert("ìƒì„±ìëŠ” ëª¨ì„ì„ ë‚˜ê°ˆ ìˆ˜ ì—†ìŠµë‹ˆë‹¤. ë¨¼ì € ì†Œìœ ê¶Œì„ ì´ì „í•˜ì„¸ìš”.");
       return;
     }
-    if (!confirm("¸ğÀÓ¿¡¼­ ³ª°¡½Ã°Ú½À´Ï±î?")) return;
+    if (!confirm("ëª¨ì„ì—ì„œ ë‚˜ê°€ì‹œê² ìŠµë‹ˆê¹Œ?")) return;
 
     const { error } = await supabase
       .from("group_members")
@@ -901,7 +901,7 @@ export default function GroupDashboard() {
       .eq("user_id", user.id);
 
     if (error) {
-      alert("¸ğÀÓ ³ª°¡±â¿¡ ½ÇÆĞÇß½À´Ï´Ù.");
+      alert("ëª¨ì„ ë‚˜ê°€ê¸°ì— ì‹¤íŒ¨í–ˆìŠµë‹ˆë‹¤.");
       return;
     }
     setLocation("/community");
@@ -921,12 +921,12 @@ export default function GroupDashboard() {
     return (
       <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
         <div className="max-w-sm w-full bg-white rounded-3xl border border-zinc-100 p-6 text-center">
-          <p className="text-sm text-zinc-600 font-bold mb-4">·Î±×ÀÎ ÈÄ ¸ğÀÓÀ» ÀÌ¿ëÇÒ ¼ö ÀÖ½À´Ï´Ù.</p>
+          <p className="text-sm text-zinc-600 font-bold mb-4">ë¡œê·¸ì¸ í›„ ëª¨ì„ì„ ì´ìš©í•  ìˆ˜ ìˆìŠµë‹ˆë‹¤.</p>
           <button
             onClick={() => setLocation("/community")}
             className="px-4 py-2 rounded-xl bg-[#4A6741] text-white text-sm font-bold"
           >
-            µ¹¾Æ°¡±â
+            ëŒì•„ê°€ê¸°
           </button>
         </div>
       </div>
@@ -949,7 +949,7 @@ export default function GroupDashboard() {
           <div className="text-center min-w-0">
             <div className="font-black text-zinc-900 truncate">{group.name}</div>
             <div className="text-[11px] text-zinc-500">
-              {group.group_slug ? `ÄÚµå: ${group.group_slug}` : ""}
+              {group.group_slug ? `ì½”ë“œ: ${group.group_slug}` : ""}
               <span className="ml-2 px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">
                 {toLabel(role)}
               </span>
@@ -961,11 +961,11 @@ export default function GroupDashboard() {
 
         <div className="max-w-2xl mx-auto px-2 pb-2 flex gap-1 overflow-x-auto no-scrollbar">
           {[
-            ["home", "È¨"],
-            ["prayer", "±âµµ"],
-            ["faith", "½Å¾Ó»ıÈ°"],
-            ["social", "¼ÒÅë"],
-            ["members", "¸â¹ö"],
+            ["home", "í™ˆ"],
+            ["prayer", "ê¸°ë„"],
+            ["faith", "ì‹ ì•™ìƒí™œ"],
+            ["social", "ì†Œí†µ"],
+            ["members", "ë©¤ë²„"],
           ].map(([id, label]) => (
             <button
               key={id}
@@ -984,22 +984,22 @@ export default function GroupDashboard() {
         {activeTab === "home" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <div className="bg-white rounded-3xl border border-zinc-100 p-5">
-              <h2 className="font-black text-zinc-900 mb-2">¸ğÀÓ ¿ä¾à</h2>
+              <h2 className="font-black text-zinc-900 mb-2">ëª¨ì„ ìš”ì•½</h2>
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">¸â¹ö</div>
+                  <div className="text-[11px] text-zinc-500">ë©¤ë²„</div>
                   <div className="text-lg font-black">{summary.members}</div>
                 </div>
                 <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">±âµµ</div>
+                  <div className="text-[11px] text-zinc-500">ê¸°ë„</div>
                   <div className="text-lg font-black">{summary.prayers}</div>
                 </div>
                 <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">½Å¾Ó»ıÈ°</div>
+                  <div className="text-[11px] text-zinc-500">ì‹ ì•™ìƒí™œ</div>
                   <div className="text-lg font-black">{summary.faithDone}</div>
                 </div>
                 <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">°Ô½Ã±Û</div>
+                  <div className="text-[11px] text-zinc-500">ê²Œì‹œê¸€</div>
                   <div className="text-lg font-black">{summary.posts}</div>
                 </div>
               </div>
@@ -1007,32 +1007,32 @@ export default function GroupDashboard() {
 
             <div className="bg-white rounded-3xl border border-zinc-100 p-5">
               <h3 className="font-black text-zinc-900 mb-2 flex items-center gap-2">
-                <Calendar size={16} /> ¹Ù·Î°¡±â
+                <Calendar size={16} /> ë°”ë¡œê°€ê¸°
               </h3>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   onClick={() => setActiveTab("prayer")}
                   className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
                 >
-                  ±âµµ ÅÇ ÀÌµ¿
+                  ê¸°ë„ íƒ­ ì´ë™
                 </button>
                 <button
                   onClick={() => setLocation("/prayer")}
                   className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
                 >
-                  PrayerPage ÀÌµ¿
+                  PrayerPage ì´ë™
                 </button>
                 <button
                   onClick={() => setLocation("/qt")}
                   className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
                 >
-                  QT ÀÌµ¿
+                  QT ì´ë™
                 </button>
                 <button
                   onClick={() => setLocation("/reading")}
                   className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
                 >
-                  ¼º°æÀĞ±â ÀÌµ¿
+                  ì„±ê²½ì½ê¸° ì´ë™
                 </button>
               </div>
             </div>
@@ -1042,16 +1042,16 @@ export default function GroupDashboard() {
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <div className="bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
-              <h2 className="font-black text-zinc-900">¸ğÀÓ¿¡¼­ Á÷Á¢ ±âµµÇÏ±â</h2>
+              <h2 className="font-black text-zinc-900">ëª¨ì„ì—ì„œ ì§ì ‘ ê¸°ë„í•˜ê¸°</h2>
               <input
                 className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
-                placeholder="±âµµ Á¦¸ñ (¼±ÅÃ)"
+                placeholder="ê¸°ë„ ì œëª© (ì„ íƒ)"
                 value={recordTitle}
                 onChange={(e) => setRecordTitle(e.target.value)}
               />
 
               <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-500">³ìÀ½ ½Ã°£</span>
+                <span className="text-zinc-500">ë…¹ìŒ ì‹œê°„</span>
                 <span className="font-black text-zinc-900">
                   {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")}
                 </span>
@@ -1063,7 +1063,7 @@ export default function GroupDashboard() {
                     onClick={startRecording}
                     className="flex-1 py-3 rounded-2xl bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
                   >
-                    <Mic size={16} /> ³ìÀ½ ½ÃÀÛ
+                    <Mic size={16} /> ë…¹ìŒ ì‹œì‘
                   </button>
                 ) : (
                   <>
@@ -1072,21 +1072,21 @@ export default function GroupDashboard() {
                         onClick={resumeRecording}
                         className="flex-1 py-3 rounded-2xl bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
                       >
-                        <Play size={16} /> Àç°³
+                        <Play size={16} /> ì¬ê°œ
                       </button>
                     ) : (
                       <button
                         onClick={pauseRecording}
                         className="flex-1 py-3 rounded-2xl bg-zinc-800 text-white font-bold inline-flex items-center justify-center gap-2"
                       >
-                        <Pause size={16} /> ÀÏ½ÃÁ¤Áö
+                        <Pause size={16} /> ì¼ì‹œì •ì§€
                       </button>
                     )}
                     <button
                       onClick={stopRecording}
                       className="px-4 py-3 rounded-2xl bg-rose-600 text-white font-bold inline-flex items-center gap-2"
                     >
-                      <Square size={16} /> Á¾·á
+                      <Square size={16} /> ì¢…ë£Œ
                     </button>
                   </>
                 )}
@@ -1100,26 +1100,26 @@ export default function GroupDashboard() {
                     disabled={savingPrayer}
                     className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold disabled:opacity-60"
                   >
-                    {savingPrayer ? "ÀúÀå Áß..." : "¸ğÀÓ ±âµµ ÀúÀå"}
+                    {savingPrayer ? "ì €ì¥ ì¤‘..." : "ëª¨ì„ ê¸°ë„ ì €ì¥"}
                   </button>
                 </>
               )}
             </div>
 
             <div className="bg-white rounded-3xl border border-zinc-100 p-5 space-y-3">
-              <h2 className="font-black text-zinc-900">PrayerPage ±â·Ï ¿¬°á</h2>
+              <h2 className="font-black text-zinc-900">PrayerPage ê¸°ë¡ ì—°ê²°</h2>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowPrayerLinkModal(true)}
                   className="flex-1 py-3 rounded-2xl bg-zinc-100 text-zinc-700 font-bold inline-flex items-center justify-center gap-2"
                 >
-                  <Link2 size={16} /> ³» ±âµµ¿¡¼­ ¿¬°á
+                  <Link2 size={16} /> ë‚´ ê¸°ë„ì—ì„œ ì—°ê²°
                 </button>
                 <button
                   onClick={() => setLocation("/prayer")}
                   className="flex-1 py-3 rounded-2xl bg-[#4A6741] text-white font-bold"
                 >
-                  PrayerPage ÀÌµ¿
+                  PrayerPage ì´ë™
                 </button>
               </div>
             </div>
@@ -1129,7 +1129,7 @@ export default function GroupDashboard() {
                 <div key={record.id} className="bg-white rounded-3xl border border-zinc-100 p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
-                      <div className="font-bold text-zinc-900">{record.title || "Á¦¸ñ ¾ø´Â ±âµµ"}</div>
+                      <div className="font-bold text-zinc-900">{record.title || "ì œëª© ì—†ëŠ” ê¸°ë„"}</div>
                       <div className="text-xs text-zinc-500 mt-1">{formatDateTime(record.created_at)}</div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -1140,7 +1140,7 @@ export default function GroupDashboard() {
                             : "bg-blue-100 text-blue-700"
                         }`}
                       >
-                        {record.source_type === "direct" ? "¸ğÀÓ Á÷Á¢" : "Prayer ¿¬°á"}
+                        {record.source_type === "direct" ? "ëª¨ì„ ì§ì ‘" : "Prayer ì—°ê²°"}
                       </span>
                       {(isManager || record.user_id === user.id) && (
                         <button
@@ -1158,7 +1158,7 @@ export default function GroupDashboard() {
 
               {groupPrayers.length === 0 && (
                 <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
-                  ¾ÆÁ÷ ¸ğÀÓ ±âµµ ±â·ÏÀÌ ¾ø½À´Ï´Ù.
+                  ì•„ì§ ëª¨ì„ ê¸°ë„ ê¸°ë¡ì´ ì—†ìŠµë‹ˆë‹¤.
                 </div>
               )}
             </div>
@@ -1169,10 +1169,10 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
               <div className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-2">
-                <h3 className="font-black text-zinc-900 text-sm">½Å¾Ó»ıÈ° Ç×¸ñ °ü¸®</h3>
+                <h3 className="font-black text-zinc-900 text-sm">ì‹ ì•™ìƒí™œ í•­ëª© ê´€ë¦¬</h3>
                 <input
                   className="w-full px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
-                  placeholder="»õ Ç×¸ñ ÀÌ¸§"
+                  placeholder="ìƒˆ í•­ëª© ì´ë¦„"
                   value={newFaithName}
                   onChange={(e) => setNewFaithName(e.target.value)}
                 />
@@ -1182,9 +1182,9 @@ export default function GroupDashboard() {
                     onChange={(e) => setNewFaithType(e.target.value as FaithType)}
                     className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
                   >
-                    <option value="check">Ã¼Å©Çü</option>
-                    <option value="count">È½¼öÇü</option>
-                    <option value="attendance">Ãâ¼®Çü</option>
+                    <option value="check">ì²´í¬í˜•</option>
+                    <option value="count">íšŸìˆ˜í˜•</option>
+                    <option value="attendance">ì¶œì„í˜•</option>
                   </select>
                   <select
                     value={newFaithSourceMode}
@@ -1198,9 +1198,9 @@ export default function GroupDashboard() {
                     }}
                     className="px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
                   >
-                    <option value="manual">Á÷Á¢ ÀÔ·Â¸¸</option>
-                    <option value="linked">¿ÜºÎ ¿¬°á¸¸</option>
-                    <option value="both">Á÷Á¢+¿ÜºÎ¿¬°á</option>
+                    <option value="manual">ì§ì ‘ ì…ë ¥ë§Œ</option>
+                    <option value="linked">ì™¸ë¶€ ì—°ê²°ë§Œ</option>
+                    <option value="both">ì§ì ‘+ì™¸ë¶€ì—°ê²°</option>
                   </select>
                 </div>
 
@@ -1210,9 +1210,9 @@ export default function GroupDashboard() {
                     onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
                     className="w-full px-3 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
                   >
-                    <option value="qt">QT ¿¬°á</option>
-                    <option value="prayer">±âµµ ¿¬°á</option>
-                    <option value="reading">¼º°æÀĞ±â ¿¬°á</option>
+                    <option value="qt">QT ì—°ê²°</option>
+                    <option value="prayer">ê¸°ë„ ì—°ê²°</option>
+                    <option value="reading">ì„±ê²½ì½ê¸° ì—°ê²°</option>
                   </select>
                 )}
 
@@ -1220,7 +1220,7 @@ export default function GroupDashboard() {
                   onClick={addFaithItem}
                   className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
                 >
-                  <Plus size={14} /> Ç×¸ñ Ãß°¡
+                  <Plus size={14} /> í•­ëª© ì¶”ê°€
                 </button>
               </div>
             )}
@@ -1238,7 +1238,7 @@ export default function GroupDashboard() {
                     <div>
                       <div className="font-bold text-zinc-900">{item.name}</div>
                       <div className="text-xs text-zinc-500 mt-1">
-                        À¯Çü: {item.item_type} / ÀÔ·Â: {item.source_mode}
+                        ìœ í˜•: {item.item_type} / ì…ë ¥: {item.source_mode}
                         {item.linked_feature !== "none" && ` (${item.linked_feature})`}
                       </div>
                     </div>
@@ -1279,10 +1279,10 @@ export default function GroupDashboard() {
                         >
                           {value > 0 ? (
                             <span className="inline-flex items-center gap-1">
-                              <Check size={14} /> ¿Ï·áµÊ
+                              <Check size={14} /> ì™„ë£Œë¨
                             </span>
                           ) : (
-                            "¿Ï·á Ã³¸®"
+                            "ì™„ë£Œ ì²˜ë¦¬"
                           )}
                         </button>
                       )}
@@ -1295,14 +1295,14 @@ export default function GroupDashboard() {
                         onClick={() => openFaithLinkModal(item)}
                         className="px-3 py-2 rounded-xl bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1"
                       >
-                        <Link2 size={14} /> ¿ÜºÎ È°µ¿ ¿¬°á
+                        <Link2 size={14} /> ì™¸ë¶€ í™œë™ ì—°ê²°
                       </button>
                       {item.linked_feature === "qt" && (
                         <button
                           onClick={() => setLocation("/qt")}
                           className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
-                          QT ÀÌµ¿
+                          QT ì´ë™
                         </button>
                       )}
                       {item.linked_feature === "prayer" && (
@@ -1310,7 +1310,7 @@ export default function GroupDashboard() {
                           onClick={() => setLocation("/prayer")}
                           className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
-                          Prayer ÀÌµ¿
+                          Prayer ì´ë™
                         </button>
                       )}
                       {item.linked_feature === "reading" && (
@@ -1318,7 +1318,7 @@ export default function GroupDashboard() {
                           onClick={() => setLocation("/reading")}
                           className="px-3 py-2 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-xs"
                         >
-                          ¼º°æÀĞ±â ÀÌµ¿
+                          ì„±ê²½ì½ê¸° ì´ë™
                         </button>
                       )}
                     </div>
@@ -1329,7 +1329,7 @@ export default function GroupDashboard() {
 
             {faithItems.length === 0 && (
               <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
-                ¾ÆÁ÷ µî·ÏµÈ ½Å¾Ó»ıÈ° Ç×¸ñÀÌ ¾ø½À´Ï´Ù.
+                ì•„ì§ ë“±ë¡ëœ ì‹ ì•™ìƒí™œ í•­ëª©ì´ ì—†ìŠµë‹ˆë‹¤.
               </div>
             )}
           </motion.div>
@@ -1345,7 +1345,7 @@ export default function GroupDashboard() {
                     postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                   }`}
                 >
-                  ÀÏ¹İ±Û
+                  ì¼ë°˜ê¸€
                 </button>
                 <button
                   onClick={() => setPostType("notice")}
@@ -1354,7 +1354,7 @@ export default function GroupDashboard() {
                     postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                   } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  °øÁö
+                  ê³µì§€
                 </button>
               </div>
 
@@ -1362,21 +1362,21 @@ export default function GroupDashboard() {
                 value={postContent}
                 onChange={(e) => setPostContent(e.target.value)}
                 className="w-full min-h-[120px] px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
-                placeholder="¸ğÀÓ ³»ºÎ °øÀ¯ ±ÛÀ» ÀÛ¼ºÇÏ¼¼¿ä."
+                placeholder="ëª¨ì„ ë‚´ë¶€ ê³µìœ  ê¸€ì„ ì‘ì„±í•˜ì„¸ìš”."
               />
 
               <button
                 onClick={addPost}
                 className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-2"
               >
-                <MessageSquare size={16} /> ±Û µî·Ï
+                <MessageSquare size={16} /> ê¸€ ë“±ë¡
               </button>
             </div>
 
             <div className="space-y-2">
               {posts.map((post) => {
                 const author = authorMap[post.author_id];
-                const authorName = author?.nickname || author?.username || "ÀÌ¸§ ¾øÀ½";
+                const authorName = author?.nickname || author?.username || "ì´ë¦„ ì—†ìŒ";
                 const canDelete = isManager || post.author_id === user.id;
 
                 return (
@@ -1391,7 +1391,7 @@ export default function GroupDashboard() {
                                 : "bg-zinc-100 text-zinc-600"
                             }`}
                           >
-                            {post.post_type === "notice" ? "°øÁö" : "ÀÏ¹İ"}
+                            {post.post_type === "notice" ? "ê³µì§€" : "ì¼ë°˜"}
                           </span>
                           <span className="text-xs text-zinc-500">{authorName}</span>
                         </div>
@@ -1413,7 +1413,7 @@ export default function GroupDashboard() {
 
               {posts.length === 0 && (
                 <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
-                  ¾ÆÁ÷ °Ô½Ã±ÛÀÌ ¾ø½À´Ï´Ù.
+                  ì•„ì§ ê²Œì‹œê¸€ì´ ì—†ìŠµë‹ˆë‹¤.
                 </div>
               )}
             </div>
@@ -1425,16 +1425,16 @@ export default function GroupDashboard() {
             {isManager && (
               <div className="bg-white rounded-3xl border border-zinc-100 p-4">
                 <h3 className="font-black text-zinc-900 mb-2 text-sm flex items-center gap-2">
-                  <Shield size={14} /> °¡ÀÔ ¿äÃ»
+                  <Shield size={14} /> ê°€ì… ìš”ì²­
                 </h3>
                 {joinRequests.length === 0 ? (
-                  <div className="text-sm text-zinc-500">´ë±â ÁßÀÎ ¿äÃ»ÀÌ ¾ø½À´Ï´Ù.</div>
+                  <div className="text-sm text-zinc-500">ëŒ€ê¸° ì¤‘ì¸ ìš”ì²­ì´ ì—†ìŠµë‹ˆë‹¤.</div>
                 ) : (
                   <div className="space-y-2">
                     {joinRequests.map((request) => (
                       <div key={request.id} className="bg-zinc-50 rounded-2xl p-3">
                         <div className="text-sm font-bold text-zinc-900">
-                          {request.profile?.nickname || request.profile?.username || "ÀÌ¸§ ¾øÀ½"}
+                          {request.profile?.nickname || request.profile?.username || "ì´ë¦„ ì—†ìŒ"}
                         </div>
                         <div className="text-xs text-zinc-500 mt-1">{formatDateTime(request.created_at)}</div>
                         {request.message && <div className="text-sm text-zinc-700 mt-2">{request.message}</div>}
@@ -1443,13 +1443,13 @@ export default function GroupDashboard() {
                             onClick={() => resolveJoinRequest(request.id, request.user_id, true)}
                             className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold"
                           >
-                            ½ÂÀÎ
+                            ìŠ¹ì¸
                           </button>
                           <button
                             onClick={() => resolveJoinRequest(request.id, request.user_id, false)}
                             className="px-3 py-2 rounded-xl bg-zinc-200 text-zinc-700 text-xs font-bold"
                           >
-                            °ÅÀı
+                            ê±°ì ˆ
                           </button>
                         </div>
                       </div>
@@ -1461,14 +1461,14 @@ export default function GroupDashboard() {
 
             <div className="bg-white rounded-3xl border border-zinc-100 p-4">
               <h3 className="font-black text-zinc-900 mb-3 text-sm flex items-center gap-2">
-                <Users size={14} /> ¸â¹ö ¸ñ·Ï
+                <Users size={14} /> ë©¤ë²„ ëª©ë¡
               </h3>
               <div className="space-y-2">
                 {members.map((member) => {
                   const isOwner = member.role === "owner";
                   const canPromoteDemote = role === "owner" && !isOwner;
                   const canKick = isManager && !isOwner;
-                  const name = member.profile?.nickname || member.profile?.username || "ÀÌ¸§ ¾øÀ½";
+                  const name = member.profile?.nickname || member.profile?.username || "ì´ë¦„ ì—†ìŒ";
 
                   return (
                     <div
@@ -1486,7 +1486,7 @@ export default function GroupDashboard() {
                             onClick={() => changeMemberRole(member.user_id, "leader")}
                             className="px-2 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-bold"
                           >
-                            ¸®´õ½Â±Ş
+                            ë¦¬ë”ìŠ¹ê¸‰
                           </button>
                         )}
                         {canPromoteDemote && member.role === "leader" && (
@@ -1494,14 +1494,14 @@ export default function GroupDashboard() {
                             onClick={() => changeMemberRole(member.user_id, "member")}
                             className="px-2 py-1 rounded-lg bg-zinc-200 text-zinc-700 text-xs font-bold"
                           >
-                            ¸â¹öÀüÈ¯
+                            ë©¤ë²„ì „í™˜
                           </button>
                         )}
                         {canKick && member.user_id !== user.id && (
                           <button
                             onClick={() => removeMember(member.user_id)}
                             className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
-                            title="°­Åğ"
+                            title="ê°•í‡´"
                           >
                             <UserMinus size={14} />
                           </button>
@@ -1518,7 +1518,7 @@ export default function GroupDashboard() {
                 onClick={leaveGroup}
                 className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-sm"
               >
-                ¸ğÀÓ ³ª°¡±â
+                ëª¨ì„ ë‚˜ê°€ê¸°
               </button>
             )}
           </motion.div>
@@ -1533,7 +1533,7 @@ export default function GroupDashboard() {
           />
           <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl border border-zinc-100 p-4">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-black text-zinc-900">PrayerPage ±â·Ï ¿¬°á</h3>
+              <h3 className="font-black text-zinc-900">PrayerPage ê¸°ë¡ ì—°ê²°</h3>
               <button
                 onClick={() => setShowPrayerLinkModal(false)}
                 className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
@@ -1546,12 +1546,12 @@ export default function GroupDashboard() {
               {personalPrayers.map((record) => (
                 <div key={record.id} className="bg-zinc-50 rounded-2xl p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="font-bold text-sm text-zinc-900">{record.title || "Á¦¸ñ ¾ø´Â ±âµµ"}</div>
+                    <div className="font-bold text-sm text-zinc-900">{record.title || "ì œëª© ì—†ëŠ” ê¸°ë„"}</div>
                     <button
                       onClick={() => linkPrayerToGroup(record)}
                       className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold"
                     >
-                      ¿¬°á
+                      ì—°ê²°
                     </button>
                   </div>
                   <div className="text-xs text-zinc-500 mb-2">{formatDateTime(record.created_at)}</div>
@@ -1560,7 +1560,7 @@ export default function GroupDashboard() {
               ))}
 
               {personalPrayers.length === 0 && (
-                <div className="text-sm text-zinc-500 text-center py-8">¿¬°á °¡´ÉÇÑ °³ÀÎ ±âµµ ±â·ÏÀÌ ¾ø½À´Ï´Ù.</div>
+                <div className="text-sm text-zinc-500 text-center py-8">ì—°ê²° ê°€ëŠ¥í•œ ê°œì¸ ê¸°ë„ ê¸°ë¡ì´ ì—†ìŠµë‹ˆë‹¤.</div>
               )}
             </div>
           </div>
@@ -1573,7 +1573,7 @@ export default function GroupDashboard() {
           <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-3xl border border-zinc-100 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">
-                ¿ÜºÎ È°µ¿ ¿¬°á - {selectedFaithItem.name}
+                ì™¸ë¶€ í™œë™ ì—°ê²° - {selectedFaithItem.name}
               </h3>
               <button
                 onClick={() => setShowFaithLinkModal(false)}
@@ -1596,7 +1596,7 @@ export default function GroupDashboard() {
                       disabled={linkingActivityId === activity.id}
                       className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
                     >
-                      {linkingActivityId === activity.id ? "¿¬°á Áß..." : "¿¬°á"}
+                      {linkingActivityId === activity.id ? "ì—°ê²° ì¤‘..." : "ì—°ê²°"}
                     </button>
                   </div>
                 </div>
@@ -1604,7 +1604,7 @@ export default function GroupDashboard() {
 
               {availableActivities.length === 0 && (
                 <div className="text-sm text-zinc-500 text-center py-8">
-                  ¿¬°á °¡´ÉÇÑ ¿ÜºÎ È°µ¿ÀÌ ¾ø½À´Ï´Ù.
+                  ì—°ê²° ê°€ëŠ¥í•œ ì™¸ë¶€ í™œë™ì´ ì—†ìŠµë‹ˆë‹¤.
                 </div>
               )}
             </div>

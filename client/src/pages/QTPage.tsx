@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  Headphones, Share2, Copy, Bookmark,
+import { 
+  Headphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase";
+import { supabase } from "../lib/supabase"; 
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter";
 import { useAuth } from "../hooks/use-auth";
@@ -13,23 +13,23 @@ import confetti from "canvas-confetti";
 import { uploadFileToR2 } from "../utils/upload";
 
 export default function QTPage() {
-  const [location, setLocation] = useLocation();
+  const [location, setLocation] = useLocation(); 
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
-  // ?ъ슜??愿???곹깭
+  // 사용자 관련 상태
   const [showLoginModal, setShowLoginModal] = useState(false);
 
-  // ?깃꼍 諛?UI 愿???곹깭
+  // 성경 및 UI 관련 상태
   const [bibleData, setBibleData] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [isMeditationCompleted, setIsMeditationCompleted] = useState(false);
 
-  // 臾듭긽 湲곕줉 愿???곹깭
+  // 묵상 기록 관련 상태
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelConfirmModal, setShowCancelConfirmModal] = useState(false);
   const [showWriteSheet, setShowWriteSheet] = useState(false);
@@ -51,24 +51,24 @@ export default function QTPage() {
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recordAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // ?ㅻ뵒??而⑦듃濡??쒖떆 ?곹깭 (TTS ?ъ깮??
+  // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
 
   const { fontSize = 16 } = useDisplaySettings();
 
-  // voiceType??諛붾????ㅻ뵒??而⑦듃濡ㅼ씠 耳쒖졇 ?덉쑝硫??ㅼ떆 ?ъ깮
+  // voiceType이 바뀔 때 오디오 컨트롤이 켜져 있으면 다시 재생
   useEffect(() => {
     if (showAudioControl) {
       handlePlayTTS();
     }
   }, [voiceType]);
 
-  // currentDate媛 蹂寃쎈맆 ??留먯? 媛?몄삤湲?
+  // currentDate가 변경될 때 말씀 가져오기
   useEffect(() => {
     fetchVerse();
   }, [currentDate]);
 
-  // user??currentDate媛 蹂寃쎈맆 ??臾듭긽 ?꾨즺 ?곹깭 ?뺤씤
+  // user나 currentDate가 변경될 때 묵상 완료 상태 확인
   useEffect(() => {
     checkMeditationStatus();
     loadMeditationRecords();
@@ -78,14 +78,14 @@ export default function QTPage() {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
-        alert("?ㅻ뒛 ?댄썑??留먯?? 誘몃━ 蹂????놁뒿?덈떎.");
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
         return;
       }
       setCurrentDate(selectedDate);
     }
   };
 
-  // 臾듭긽 ?꾨즺 ?곹깭 ?뺤씤
+  // 묵상 완료 상태 확인
   const checkMeditationStatus = async () => {
     if (!user?.id) {
       setIsMeditationCompleted(false);
@@ -93,7 +93,7 @@ export default function QTPage() {
     }
 
     const formattedDate = currentDate.toISOString().split('T')[0];
-
+    
     const { data, error } = await supabase
       .from('user_meditation_records')
       .select('*')
@@ -109,7 +109,7 @@ export default function QTPage() {
     setIsMeditationCompleted(data && data.length > 0);
   };
 
-  // 臾듭긽 湲곕줉 紐⑸줉 遺덈윭?ㅺ린 (?띿뒪?몃굹 ?뚯꽦???덈뒗 寃껊쭔)
+  // 묵상 기록 목록 불러오기 (텍스트나 음성이 있는 것만)
   const loadMeditationRecords = async () => {
     if (!user?.id) {
       setMeditationRecords([]);
@@ -117,7 +117,7 @@ export default function QTPage() {
     }
 
     const formattedDate = currentDate.toISOString().split('T')[0];
-
+    
     const { data, error } = await supabase
       .from('user_meditation_records')
       .select('*')
@@ -131,7 +131,7 @@ export default function QTPage() {
       return;
     }
 
-    // ?띿뒪?몃굹 ?뚯꽦???덈뒗 湲곕줉留??꾪꽣留?
+    // 텍스트나 음성이 있는 기록만 필터링
     const recordsWithContent = (data || []).filter(
       record => record.meditation_text || record.audio_url
     );
@@ -140,39 +140,39 @@ export default function QTPage() {
 
 
 
-  // 臾듭긽 ?꾨즺 踰꾪듉 ?대┃
+  // 묵상 완료 버튼 클릭
   const handleMeditationComplete = async () => {
     if (!user?.id) {
       setShowLoginModal(true);
       return;
     }
 
-    // ?뱀씪留??쒖꽦??
+    // 당일만 활성화
     const isToday = currentDate.toDateString() === today.toDateString();
     if (!isToday) {
-      return; // 怨쇨굅 ?좎쭨???대┃ 遺덇?
+      return; // 과거 날짜는 클릭 불가
     }
 
     if (!isMeditationCompleted) {
-      // ?뺤씤 紐⑤떖 ?쒖떆
+      // 확인 모달 표시
       setShowConfirmModal(true);
     } else {
-      // ?꾨즺 ?곹깭????痍⑥냼 紐⑤떖 ?쒖떆
+      // 완료 상태일 때 취소 모달 표시
       setShowCancelConfirmModal(true);
     }
   };
 
-  // 臾듭긽 ?꾨즺 痍⑥냼
+  // 묵상 완료 취소
   const handleCancelMeditation = async () => {
     const formattedDate = currentDate.toISOString().split('T')[0];
-
+    
     try {
-      // ?대떦 ?좎쭨??紐⑤뱺 ?덉퐫??李얘린
+      // 해당 날짜의 모든 레코드 찾기
       const recordsToDelete = meditationRecords.filter(
         record => record.date === formattedDate
       );
 
-      // 媛??덉퐫?쒖쓽 ?뚯꽦 ?뚯씪 ??젣
+      // 각 레코드의 음성 파일 삭제
       for (const record of recordsToDelete) {
         if (record.audio_url) {
           try {
@@ -182,12 +182,12 @@ export default function QTPage() {
               body: JSON.stringify({ fileUrl: record.audio_url })
             });
           } catch (error) {
-            console.error('[R2 ??젣] ?ㅻ쪟:', error);
+            console.error('[R2 삭제] 오류:', error);
           }
         }
       }
 
-      // DB?먯꽌 ?대떦 ?좎쭨??紐⑤뱺 ?덉퐫????젣
+      // DB에서 해당 날짜의 모든 레코드 삭제
       const { error } = await supabase
         .from('user_meditation_records')
         .delete()
@@ -199,18 +199,18 @@ export default function QTPage() {
       setIsMeditationCompleted(false);
       setShowCancelConfirmModal(false);
       await loadMeditationRecords();
-
+      
       if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
     } catch (error) {
       console.error('Error canceling meditation:', error);
-      alert('臾듭긽 ?꾨즺 痍⑥냼 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('묵상 완료 취소 중 오류가 발생했습니다.');
     }
   };
 
-  // 臾듭긽 ?꾨즺留?泥댄겕 (湲곕줉 ?놁씠)
+  // 묵상 완료만 체크 (기록 없이)
   const handleCompleteOnly = async () => {
     const formattedDate = currentDate.toISOString().split('T')[0];
-
+    
     try {
       const { error } = await supabase
         .from('user_meditation_records')
@@ -231,11 +231,11 @@ export default function QTPage() {
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error completing meditation:', error);
-      alert('臾듭긽 ?꾨즺 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('묵상 완료 중 오류가 발생했습니다.');
     }
   };
 
-  // ?뚯꽦 ?뱀쓬 ?쒖옉
+  // 음성 녹음 시작
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -265,17 +265,17 @@ export default function QTPage() {
       setIsRecording(true);
       setRecordingTime(0);
 
-      // ?뱀쓬 ?쒓컙 移댁슫??
+      // 녹음 시간 카운터
       recordingTimerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
     } catch (error) {
       console.error('Error starting recording:', error);
-      alert('留덉씠??沅뚰븳???꾩슂?⑸땲??');
+      alert('마이크 권한이 필요합니다.');
     }
   };
 
-  // ?뚯꽦 ?뱀쓬 以묒?
+  // 음성 녹음 중지
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
@@ -283,16 +283,16 @@ export default function QTPage() {
     }
   };
 
-  // ?뚯꽦 ??젣
+  // 음성 삭제
   const deleteAudio = () => {
     setAudioBlob(null);
     setRecordingTime(0);
   };
 
-  // 臾듭긽 湲곕줉 ???
+  // 묵상 기록 저장
   const handleSubmitMeditation = async () => {
     if (!meditationText && !audioBlob) {
-      alert('臾듭긽 湲곕줉???낅젰?섍굅???뚯꽦???뱀쓬?댁＜?몄슂.');
+      alert('묵상 기록을 입력하거나 음성을 녹음해주세요.');
       return;
     }
 
@@ -300,15 +300,15 @@ export default function QTPage() {
     let audioUrl: string | null = null;
 
     try {
-      // ?뚯꽦 ?뚯씪???덉쑝硫?R2???낅줈??
+      // 음성 파일이 있으면 R2에 업로드
       if (audioBlob) {
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
-
-        // Blob??File濡?蹂??
+        
+        // Blob을 File로 변환
         const audioFile = new File([audioBlob], `qt_${timestamp}.webm`, { type: 'audio/webm' });
-
-        // R2 ?낅줈??(湲곗〈 ?⑥닔 ?쒖슜, 寃쎈줈留??꾨떖)
+        
+        // R2 업로드 (기존 함수 활용, 경로만 전달)
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -318,13 +318,13 @@ export default function QTPage() {
           })
         });
 
-        if (!response.ok) throw new Error('?뚯꽦 ?낅줈???ㅽ뙣');
-
+        if (!response.ok) throw new Error('음성 업로드 실패');
+        
         const { publicUrl } = await response.json();
         audioUrl = publicUrl;
       }
 
-      // DB?????
+      // DB에 저장
       const { error } = await supabase
         .from('user_meditation_records')
         .insert({
@@ -348,42 +348,42 @@ export default function QTPage() {
       setMeditationText('');
       setAudioBlob(null);
       setRecordingTime(0);
-
-      // 湲곕줉 紐⑸줉 ?덈줈怨좎묠
+      
+      // 기록 목록 새로고침
       await loadMeditationRecords();
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error saving meditation:', error);
-      alert('臾듭긽 湲곕줉 ???以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('묵상 기록 저장 중 오류가 발생했습니다.');
     }
   };
 
-  // 湲곕줉 ?섏젙 ?쒖옉
+  // 기록 수정 시작
   const startEditRecord = (record: any) => {
     setEditingRecord(record);
     setMeditationText(record.meditation_text || '');
-    setAudioBlob(null); // 湲곗〈 ?뚯꽦? URL濡?愿由?
+    setAudioBlob(null); // 기존 음성은 URL로 관리
     setRecordingTime(record.audio_duration || 0);
     setShowWriteSheet(true);
   };
 
-  // 湲곕줉 ?섏젙 ???
+  // 기록 수정 저장
   const handleUpdateMeditation = async () => {
     if (!meditationText && !audioBlob && !editingRecord.audio_url) {
-      alert('臾듭긽 湲곕줉???낅젰?섍굅???뚯꽦???뱀쓬?댁＜?몄슂.');
+      alert('묵상 기록을 입력하거나 음성을 녹음해주세요.');
       return;
     }
 
     let audioUrl = editingRecord.audio_url;
 
     try {
-      // ???뚯꽦 ?뚯씪???덉쑝硫??낅줈??
+      // 새 음성 파일이 있으면 업로드
       if (audioBlob) {
         const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
-
+        
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -393,13 +393,13 @@ export default function QTPage() {
           })
         });
 
-        if (!response.ok) throw new Error('?뚯꽦 ?낅줈???ㅽ뙣');
-
+        if (!response.ok) throw new Error('음성 업로드 실패');
+        
         const { publicUrl } = await response.json();
         audioUrl = publicUrl;
       }
 
-      // DB ?낅뜲?댄듃
+      // DB 업데이트
       const { error } = await supabase
         .from('user_meditation_records')
         .update({
@@ -417,59 +417,59 @@ export default function QTPage() {
       setMeditationText('');
       setAudioBlob(null);
       setRecordingTime(0);
-
+      
       await loadMeditationRecords();
-
+      
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error updating meditation:', error);
-      alert('臾듭긽 湲곕줉 ?섏젙 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('묵상 기록 수정 중 오류가 발생했습니다.');
     }
   };
 
-  // 湲곕줉 ??젣 ?뺤씤
+  // 기록 삭제 확인
   const confirmDeleteRecord = (recordId: number) => {
     setDeletingRecordId(recordId);
     setShowDeleteConfirm(true);
   };
 
-  // 湲곕줉 ??젣 ?ㅽ뻾
+  // 기록 삭제 실행
   const handleDeleteRecord = async () => {
     if (!deletingRecordId) return;
 
     try {
-      // ??젣???덉퐫??李얘린
+      // 삭제할 레코드 찾기
       const recordToDelete = meditationRecords.find(r => r.id === deletingRecordId);
-
-      // R2 ?뚯씪 ??젣 (?뚯꽦???덈뒗 寃쎌슦)
+      
+      // R2 파일 삭제 (음성이 있는 경우)
       if (recordToDelete?.audio_url) {
         try {
-          console.log('[R2 ??젣] ?쒖옉:', recordToDelete.audio_url);
-
+          console.log('[R2 삭제] 시작:', recordToDelete.audio_url);
+          
           const response = await fetch('/api/audio/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileUrl: recordToDelete.audio_url })
           });
-
-          console.log('[R2 ??젣] ?묐떟 ?곹깭:', response.status, response.statusText);
-
+          
+          console.log('[R2 삭제] 응답 상태:', response.status, response.statusText);
+          
           const result = await response.json();
-          console.log('[R2 ??젣] 寃곌낵:', result);
-
+          console.log('[R2 삭제] 결과:', result);
+          
           if (!response.ok || !result.success) {
-            console.error('[R2 ??젣] ?ㅽ뙣:', result.error);
-            console.warn('DB????젣 吏꾪뻾');
+            console.error('[R2 삭제] 실패:', result.error);
+            console.warn('DB는 삭제 진행');
           } else {
-            console.log('[R2 ??젣] ?깃났:', recordToDelete.audio_url);
+            console.log('[R2 삭제] 성공:', recordToDelete.audio_url);
           }
         } catch (error) {
-          console.error('[R2 ??젣] ?ㅻ쪟:', error);
-          // R2 ??젣 ?ㅽ뙣?대룄 DB ??젣??吏꾪뻾
+          console.error('[R2 삭제] 오류:', error);
+          // R2 삭제 실패해도 DB 삭제는 진행
         }
       }
 
-      // DB?먯꽌 ??젣
+      // DB에서 삭제
       const { error } = await supabase
         .from('user_meditation_records')
         .delete()
@@ -481,15 +481,15 @@ export default function QTPage() {
       setDeletingRecordId(null);
       await loadMeditationRecords();
       await checkMeditationStatus();
-
+      
       if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
     } catch (error) {
       console.error('Error deleting meditation:', error);
-      alert('臾듭긽 湲곕줉 ??젣 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('묵상 기록 삭제 중 오류가 발생했습니다.');
     }
   };
 
-  // ?뚯꽦 ?ъ깮
+  // 음성 재생
   const playRecordAudio = (audioUrl: string, recordId: number) => {
     if (playingAudioId === recordId && recordAudioRef.current) {
       recordAudioRef.current.pause();
@@ -522,14 +522,14 @@ export default function QTPage() {
     audio.play();
   };
 
-  // ?뚯꽦 吏꾪뻾諛??대┃
+  // 음성 진행바 클릭
   const seekAudio = (progress: number) => {
     if (recordAudioRef.current) {
       recordAudioRef.current.currentTime = progress;
     }
   };
 
-  // 湲곗〈 ?뚯꽦 ??젣 (?섏젙 紐⑤떖?먯꽌)
+  // 기존 음성 삭제 (수정 모달에서)
   const deleteExistingAudio = async () => {
     if (!editingRecord) return;
 
@@ -549,11 +549,11 @@ export default function QTPage() {
       await loadMeditationRecords();
     } catch (error) {
       console.error('Error deleting audio:', error);
-      alert('?뚯꽦 ??젣 以??ㅻ쪟媛 諛쒖깮?덉뒿?덈떎.');
+      alert('음성 삭제 중 오류가 발생했습니다.');
     }
   };
 
-  // Blob??Base64濡?蹂??
+  // Blob을 Base64로 변환
   const blobToBase64 = (blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -566,89 +566,131 @@ export default function QTPage() {
     });
   };
 
-  // ?뱀쓬 ?쒓컙 ?щ㎎??
+  // 녹음 시간 포맷팅
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
+  useEffect(() => {
+    // 오디오 컨트롤러가 켜져 있을 때만 성별 변경을 반영하여 다시 재생함
+    if (showAudioControl) {
+      handlePlayTTS();
+    }
+  }, [voiceType]);
+
+  useEffect(() => {
+    fetchVerse();
+  }, [currentDate]);
+  
+  const fetchVerse = async () => {
+  const formattedDate = currentDate.toISOString().split('T')[0];
+  
+  // 1. 오늘의 말씀 가져오기
+  const { data: verse } = await supabase
+    .from('daily_qt_verses')
+    .select('*')
+    .eq('display_date', formattedDate)
+    .maybeSingle();
+  
+  if (verse) {
+    // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
+    const { data: book } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', verse.bible_name) // bible_name으로 매칭
+      .maybeSingle();
+
+    // 3. bible_books 데이터를 포함해서 상태 업데이트
+    setBibleData({ ...verse, bible_books: book });
+  }
+};
+
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
-      .replace(/^[.\s]+/, "")
-      .replace(/\d+장/g, "")
+      .replace(/^[.\s]+/, "") 
+      .replace(/\d+절/g, "")
       .replace(/\d+/g, "")
-      .replace(/[.\"'“”‘’]/g, "")
+      .replace(/[."'“”‘’]/g, "")
       .replace(/\.$/, "")
       .trim();
   };
 
   const handleCopy = () => {
-    if (!bibleData) return;
+  if (bibleData) {
+    // 실제 복사 로직
     navigator.clipboard.writeText(cleanContent(bibleData.content));
+    
+    // 토스트 켜고 2초 뒤 끄기
     setShowCopyToast(true);
     setTimeout(() => setShowCopyToast(false), 2000);
+    
+    // 햅틱 반응 (선택)
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
+  }
+};
+const handleShare = async () => {
+  if (window.navigator?.vibrate) window.navigator.vibrate(20);
+
+  const shareDate = bibleData?.display_date;
+  const shareUrl = shareDate
+    ? `${window.location.origin}/?date=${shareDate}#/qt`
+    : window.location.href;
+
+  const shareData = {
+    title: '성경 말씀',
+    text: bibleData?.content
+      ? cleanContent(bibleData.content)
+      : '말씀을 공유해요.',
+    url: shareUrl,
   };
 
-  const handleShare = async () => {
-    if (window.navigator?.vibrate) window.navigator.vibrate(20);
-
-    const shareDate = bibleData?.display_date;
-    const shareUrl = shareDate
-      ? `${window.location.origin}/?date=${shareDate}#/qt`
-      : window.location.href;
-
-    const shareData = {
-      title: "성경 말씀",
-      text: bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해요.",
-      url: shareUrl,
-    };
-
-    try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("링크를 클립보드에 복사했습니다.");
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name !== "AbortError") {
-        console.error("share failed:", error);
-      }
+  try {
+    if (navigator.share) {
+      await navigator.share(shareData);
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      alert("링크가 클립보드에 복사되었습니다.");
     }
-  };
+  } catch (error) {
+    if (error instanceof Error && error.name !== 'AbortError') {
+      console.error("공유 실패:", error);
+    }
+  }
+};
 
-  // 1. 재생/일시정지 토글
-  const handleBookmark = async () => {
-    if (!bibleData) return;
-    if (!user?.id) {
-      setShowLoginModal(true);
+const handleBookmark = async () => {
+  if (!bibleData) return;
+  if (!user?.id) {
+    setShowLoginModal(true);
+    return;
+  }
+
+  const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
+  const { error } = await supabase.from("verse_bookmarks").insert({
+    user_id: user.id,
+    source: "qt",
+    verse_ref: verseRef,
+    content: cleanContent(bibleData.content),
+    memo: null,
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      alert("이미 저장한 말씀입니다.");
       return;
     }
+    alert("기록함 저장에 실패했습니다.");
+    return;
+  }
 
-    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
-    const { error } = await supabase.from("verse_bookmarks").insert({
-      user_id: user.id,
-      source: "qt",
-      verse_ref: verseRef,
-      content: cleanContent(bibleData.content),
-      memo: null,
-    });
-
-    if (error) {
-      if (error.code === "23505") {
-        alert("이미 저장된 말씀입니다.");
-        return;
-      }
-      alert("즐겨찾기 저장에 실패했습니다.");
-      return;
-    }
-
-    alert("기록함에 저장되었습니다.");
-  };
-
+  alert("기록함에 저장되었습니다.");
+};
+  
+// 1. 재생/일시정지 토글
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
@@ -656,10 +698,10 @@ export default function QTPage() {
     }
   };
 
-  // 2. 오디오 이벤트 설정
+  // 2. 오디오 이벤트 설정 (원래 빠른 속도의 핵심)
   const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
     audioRef.current = audio;
-    audio.currentTime = startTime; // ?댁뼱?ｊ린 ?곸슜
+    audio.currentTime = startTime; // 이어듣기 적용
 
     audio.onended = () => {
       setIsPlaying(false);
@@ -669,13 +711,13 @@ export default function QTPage() {
 
     setShowAudioControl(true);
     setIsPlaying(true);
-    audio.play().catch(e => console.log("?ъ깮 ?쒖옉 ?ㅻ쪟:", e));
+    audio.play().catch(e => console.log("재생 시작 오류:", e));
   };
 
-  // 3. TTS ?ㅽ뻾 ?⑥닔 (azure tts)
+  // 3. TTS 실행 함수 (azure tts)
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
-
+  
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
   if (selectedVoice) {
@@ -697,17 +739,17 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     audioRef.current = null;
   }
 
-  // ?뚯씪 寃쎈줈 ?ㅼ젙 (qt ?대뜑)
+  // 파일 경로 설정 (qt 폴더)
   const bookOrder = bibleData.bible_books?.book_order || '0';
   const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
   const fileName = `qt_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
-  const storagePath = `qt/${fileName}`;
+  const storagePath = `qt/${fileName}`; 
   const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
 
   try {
     const checkRes = await fetch(publicUrl, { method: 'HEAD' });
-
-    // 1. ?대? ?뚯씪???덈뒗 寃쎌슦 泥섎━ (?대? 濡쒖쭅?쇰줈 ?섏슜)
+    
+    // 1. 이미 파일이 있는 경우 처리 (내부 로직으로 수용)
     if (checkRes.ok) {
       const savedAudio = new Audio(publicUrl);
       audioRef.current = savedAudio;
@@ -718,28 +760,39 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         audioRef.current = null;
       };
       setIsPlaying(true);
-      savedAudio.play().catch(e => console.log("?ъ깮 ?ㅻ쪟:", e));
+      savedAudio.play().catch(e => console.log("재생 오류:", e));
       return;
     }
 
-    const toKoreanNumberText = (num: number | string) => String(num).trim();
-    const mainContent = cleanContent(bibleData.tts_content || bibleData.content);
-    const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const chapterKor = toKoreanNumberText(bibleData.chapter);
-    const verseRaw = String(bibleData.verse).trim();
-    let verseKor = verseRaw;
+    // 2. 숫자 변환 및 텍스트 정제 (함수 내부 정의)
+    const toKorNum = (num: number | string) => {
+      const n = Number(num);
+      if (isNaN(n)) return String(num);
+      const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+      const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
+      if (n === 0) return "영";
+      if (n < 10) return units[n];
+      if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+      return String(n);
+    };
 
-    if (verseRaw.includes("-") || verseRaw.includes(":")) {
-      const separator = verseRaw.includes("-") ? "-" : ":";
-      const [start, end] = verseRaw.split(separator);
-      verseKor = `${toKoreanNumberText(start)}에서 ${toKoreanNumberText(end)}`;
-    } else {
-      verseKor = toKoreanNumberText(verseRaw);
-    }
+    const cleanText = (text: string) => {
+      return text.replace(/^[.\s]+/, "").replace(/\d+절/g, "").replace(/\d+/g, "").replace(/[."'“”‘’]/g, "").replace(/\.$/, "").trim();
+    };
+
+    const mainContent = cleanContent(
+  bibleData.tts_content || bibleData.content
+);
+    const unit = bibleData.bible_name === "시편" ? "편" : "장";
+    const chapterKor = toKorNum(bibleData.chapter);
+    const verseRaw = String(bibleData.verse);
+    let verseKor = verseRaw.includes('-') || verseRaw.includes(':') 
+      ? `${toKorNum(verseRaw.split(/[-:]/)[0])}절에서 ${toKorNum(verseRaw.split(/[-:]/)[1])}`
+      : toKorNum(verseRaw);
 
     const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
 
-    // 3. Azure API ?몄텧
+    // 3. Azure API 호출
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
     const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
     const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
@@ -760,13 +813,13 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       `,
     });
 
-    if (!response.ok) throw new Error("API ?몄텧 ?ㅽ뙣");
+    if (!response.ok) throw new Error("API 호출 실패");
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const ttsAudio = new Audio(audioUrl);
-
-    // 4. ?ㅻ뵒???ㅼ젙 諛??ъ깮
+    
+    // 4. 오디오 설정 및 재생
     audioRef.current = ttsAudio;
     ttsAudio.currentTime = lastTime;
     ttsAudio.onended = () => {
@@ -775,27 +828,27 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       audioRef.current = null;
     };
     setIsPlaying(true);
-    ttsAudio.play().catch(e => console.log("?ъ깮 ?ㅻ쪟:", e));
+    ttsAudio.play().catch(e => console.log("재생 오류:", e));
 
-    // ?ㅽ넗由ъ? ?낅줈??
-    supabase.storage.from('bible-assets').upload(storagePath, audioBlob, {
-      contentType: 'audio/mp3',
-      upsert: true
+    // 스토리지 업로드
+    supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
+      contentType: 'audio/mp3', 
+      upsert: true 
     });
 
   } catch (error) {
-    console.error("Azure TTS ?먮윭:", error);
+    console.error("Azure TTS 에러:", error);
     setIsPlaying(false);
   }
 };
 
-  // ?좊젮癒뱀뿀???ㅼ??댄봽 濡쒖쭅 蹂듦뎄
+  // 날려먹었던 스와이프 로직 복구
   const onDragEnd = (event: any, info: any) => {
-    if (info.offset.x > 100) { // ?댁쟾 ?좎쭨
+    if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
-    } else if (info.offset.x < -100) { // ?ㅼ쓬 ?좎쭨
+    } else if (info.offset.x < -100) { // 다음 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) setCurrentDate(d);
@@ -804,83 +857,83 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-
-      {/* ?곷떒 ?좎쭨 ?곸뿭 */}
+      
+      {/* 상단 날짜 영역 */}
             <header className="text-center mb-3 flex flex-col items-center w-full relative">
               <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
                 {currentDate.getFullYear()}
               </p>
-               {/* ?좎쭨 ?뺣젹 ?곸뿭 */}
+               {/* 날짜 정렬 영역 */}
               <div className="flex items-center justify-center w-full">
-              {/* 1. ?쇱そ 怨듦컙 ?뺣낫??(?щ젰 踰꾪듉 ?ы븿) */}
+              {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
           <div className="flex-1 flex justify-end pr-3">
-            <button
-              onClick={() => dateInputRef.current?.showPicker()}
+            <button 
+              onClick={() => dateInputRef.current?.showPicker()} 
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
             </button>
           </div>
-          {/* 2. 以묒븰 ?좎쭨 (怨좎젙?? */}
+          {/* 2. 중앙 날짜 (고정석) */}
           <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
-           {/* 3. ?ㅻⅨ履? 媛?곸쓽 鍮?怨듦컙 (?고븘 踰꾪듉怨??묎컳? ?덈퉬瑜??뺣낫?섏뿬 ?좎쭨瑜?以묒븰?쇰줈 諛?댁쨲) */}
+           {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
     <div className="flex-1 flex justify-start pl-3">
-      {/* ?꾩씠肄섏씠 ?녿뜑?쇰룄 踰꾪듉怨??묎컳? ?ш린(w-[32px] h-[32px])??
-          ?щ챸??諛뺤뒪瑜??먯뼱 ?쇱そ 踰꾪듉怨?臾닿쾶 以묒떖??留욎땅?덈떎.
+      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
+          투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
       */}
       <div className="w-[28px] h-[28px]" aria-hidden="true" />
     </div>
-    {/* ?④꺼吏??좎쭨 ?낅젰 input */}
-    <input
+    {/* 숨겨진 날짜 입력 input */}
+    <input 
       type="date"
       ref={dateInputRef}
       onChange={handleDateChange}
-      max={new Date().toISOString().split("T")[0]}
+      max={new Date().toISOString().split("T")[0]} 
       className="absolute opacity-0 pointer-events-none"
     />
   </div>
 </header>
 
-      {/* 2. 留먯? 移대뱶 (?묒쁿 ?뚰듃 移대뱶 ?붿옄??蹂듦뎄) */}
+      {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-
-  {/* ?쇱そ ?뚰듃 移대뱶 (?댁젣) */}
+  
+  {/* 왼쪽 힌트 카드 (어제) */}
 <div className="absolute left-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-
+  
   <AnimatePresence mode="wait">
-  <motion.div
+  <motion.div 
     key={currentDate.toISOString()}
-    drag="x"
+    drag="x" 
     dragConstraints={{ left: 0, right: 0 }}
     dragElastic={0.2}
     onDragEnd={onDragEnd}
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
+    initial={{ opacity: 0, x: 20 }} 
+    animate={{ opacity: 1, x: 0 }} 
     exit={{ opacity: 0, x: -20 }}
     className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
   >
     {bibleData ? (
       <>
-        {/* 異쒖쿂 ?곸뿭 - ?곷떒?쇰줈 ?대룞 */}
+        {/* 출처 영역 - 상단으로 이동 */}
         <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === "시편" ? "편" : "장"} {bibleData.verse}절
+          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
         </span>
 
-        {/* 留먯? 蹂몃Ц ?곸뿭 - ?믪씠 怨좎젙 諛??ㅽ겕濡?異붽? */}
-    <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium"
-         style={{ fontSize: `${fontSize}px`,maxHeight: "320px" // ??媛믪쓣 議곗젅?섏뿬 移대뱶???꾩껜?곸씤 ?믪씠媛먯쓣 寃곗젙?섏꽭??
+        {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
+    <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium" 
+         style={{ fontSize: `${fontSize}px`,maxHeight: "320px" // 이 값을 조절하여 카드의 전체적인 높이감을 결정하세요
         }}>
           {bibleData.content.split('\n').map((line: string, i: number) => {
-            // ?뺢퇋???섏젙: ?レ옄(\d+) ?ㅼ뿉 ??\.)???덉쑝硫?臾댁떆?섍퀬 ?レ옄? ?섎㉧吏 ?띿뒪?몃쭔 媛?몄샂
+            // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
             const match = line.match(/^(\d+)\.?\s*(.*)/);
-
+            
             if (match) {
               const [_, verseNum, textContent] = match;
               return (
                 <p key={i} className="flex items-start gap-2">
-                  {/* ???놁씠 ?レ옄留?異쒕젰 */}
+                  {/* 점 없이 숫자만 출력 */}
                   <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
                     {verseNum}
                   </span>
@@ -894,54 +947,54 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       </>
     ) : (
       <div className="animate-pulse text-zinc-200 w-full text-center">
-        留먯???遺덈윭?ㅻ뒗 以?..
+        말씀을 불러오는 중...
       </div>
     )}
   </motion.div>
 </AnimatePresence>
 
-  {/* ?ㅻⅨ履??뚰듃 移대뱶 (?댁씪) */}
+  {/* 오른쪽 힌트 카드 (내일) */}
 <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      {/* 3. ?대컮 (移대뱶? 醫곴쾶, ?꾨옒? ?볤쾶) */}
-  <div className="flex items-center gap-8 mt-3 mb-4">
-    <button onClick={() => handlePlayTTS()}  // 諛섎뱶??鍮?愿꾪샇瑜??ｌ뼱二쇱꽭??
+      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
+  <div className="flex items-center gap-8 mt-3 mb-4"> 
+    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>?뚯꽦 ?ъ깮</span>
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
     </button>
-{/* 留먯? 蹂듭궗 踰꾪듉 李얠븘???섏젙 */}
+{/* 말씀 복사 버튼 찾아서 수정 */}
 <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
   <Copy size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>留먯? 蹂듭궗</span>
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
 </button>
     <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>怨듭쑀</span></button>
+    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
-      {/* QT 臾듭긽 吏덈Ц ?곸뿭 */}
+      {/* QT 묵상 질문 영역 */}
 {bibleData?.qt_question && (
   <div className="w-full mt-8 mb-8 px-4">
 
-    {/* ?쒕ぉ */}
+    {/* 제목 */}
     <div className="flex items-center gap-2 mb-6">
       <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
       <h4
         className="font-bold text-[#4A6741] opacity-80"
         style={{ fontSize: `${fontSize * 0.95}px` }}
       >
-        臾듭긽 吏덈Ц
+        묵상 질문
       </h4>
     </div>
 
     <div className="space-y-10">
       {bibleData.qt_question
-        .split(/\n?\d+\.\s/) // 踰덊샇 湲곗? 遺꾨━
+        .split(/\n?\d+\.\s/) // 번호 기준 분리
         .filter((q: string) => q.trim() !== "")
         .map((item: string, index: number, arr: string[]) => {
 
-          // ?뵦 (25?? 媛숈? ?⑦꽩 湲곗??쇰줈 遺꾨━
-const verseMatch = item.match(/\(\d+\)\s*[.!?]*/);
+          // 🔥 (25절) 같은 패턴 기준으로 분리
+const verseMatch = item.match(/\(\d+절\)[\.\!\?…"”"]*/);
 
 let description = item;
 let question = "";
@@ -956,7 +1009,7 @@ if (verseMatch) {
           return (
             <div key={index}>
 
-              {/* 踰덊샇 + ?ㅻ챸 */}
+              {/* 번호 + 설명 */}
               <p
                 className="leading-[1.8] break-keep"
                 style={{ fontSize: `${fontSize * 0.95}px` }}
@@ -969,7 +1022,7 @@ if (verseMatch) {
                 </span>
               </p>
 
-              {/* ?ㅼ젣 吏덈Ц */}
+              {/* 실제 질문 */}
               {question && (
                 <p
                   className="mt-4 text-[#4A6741] font-semibold opacity-80 leading-[1.9] break-keep"
@@ -979,7 +1032,7 @@ if (verseMatch) {
                 </p>
               )}
 
-              {/* 留덉?留??쒖쇅 ?뉗? 援щ텇??*/}
+              {/* 마지막 제외 얇은 구분선 */}
               {index < arr.length - 1 && (
                 <div className="w-full h-[1px] bg-zinc-200 mt-8" />
               )}
@@ -990,10 +1043,10 @@ if (verseMatch) {
   </div>
 )}
 
-      {/* 臾듭긽 ?꾨즺 踰꾪듉 (?꾨찘 踰꾪듉 ?ㅽ??? */}
+      {/* 묵상 완료 버튼 (아멘 버튼 스타일) */}
       <div className="flex flex-col items-center gap-3 pb-6 mt-8">
         <div className="relative w-24 h-24 flex items-center justify-center">
-          {/* 鍮쏆쓽 ?뚮룞 ?④낵 */}
+          {/* 빛의 파동 효과 */}
           <AnimatePresence>
             {isMeditationCompleted && (
               <>
@@ -1015,15 +1068,15 @@ if (verseMatch) {
             )}
           </AnimatePresence>
 
-          {/* ?ㅼ젣 踰꾪듉 */}
-          <motion.button
+          {/* 실제 버튼 */}
+          <motion.button 
             onClick={handleMeditationComplete}
-            whileTap={{ scale: 0.9 }}
+            whileTap={{ scale: 0.9 }} 
             disabled={currentDate.toDateString() !== today.toDateString()}
             className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
               ${
                 isMeditationCompleted
-                  ? 'bg-[#4A6741] text-white border-none'
+                  ? 'bg-[#4A6741] text-white border-none' 
                   : 'bg-white text-[#4A6741] border border-green-50'
               }
               ${
@@ -1032,34 +1085,34 @@ if (verseMatch) {
                   : ''
               }`}
           >
-            <Heart
-              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`}
-              strokeWidth={isMeditationCompleted ? 0 : 2}
+            <Heart 
+              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`} 
+              strokeWidth={isMeditationCompleted ? 0 : 2} 
             />
             <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-              {isMeditationCompleted ? '臾듭긽 ?꾨즺' : '臾듭긽 ?꾨즺'}
+              {isMeditationCompleted ? '묵상 완료' : '묵상 완료'}
             </span>
           </motion.button>
         </div>
       </div>
 
-      {/* 臾듭긽 湲곕줉 紐⑸줉 */}
+      {/* 묵상 기록 목록 */}
       {meditationRecords.length > 0 && (
         <div className="w-full max-w-md px-4 mb-6">
           <h3 className="font-bold text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
-            臾듭긽 湲곕줉
+            묵상 기록
           </h3>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
               <div key={record.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
-                {/* ?띿뒪???댁슜 */}
+                {/* 텍스트 내용 */}
                 {record.meditation_text && (
                   <p className="text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap" style={{ fontSize: `${fontSize * 0.9}px` }}>
                     {record.meditation_text}
                   </p>
                 )}
-
-                {/* ?뚯꽦 ?ъ깮 */}
+                
+                {/* 음성 재생 */}
                 {record.audio_url && (
                   <div className="bg-[#4A6741]/5 rounded-xl p-3 mb-3">
                     <div className="flex items-center gap-3 mb-2">
@@ -1079,7 +1132,7 @@ if (verseMatch) {
                             ? `${formatTime(Math.floor(audioProgress))} / ${formatTime(Math.floor(audioDuration))}`
                             : formatTime(record.audio_duration || 0)}
                         </div>
-                        <div
+                        <div 
                           className="h-1.5 bg-zinc-200 rounded-full overflow-hidden cursor-pointer"
                           onClick={(e) => {
                             if (playingAudioId === record.id && audioDuration > 0) {
@@ -1090,9 +1143,9 @@ if (verseMatch) {
                             }
                           }}
                         >
-                          <div
+                          <div 
                             className="h-full bg-[#4A6741] transition-all"
-                            style={{
+                            style={{ 
                               width: playingAudioId === record.id && audioDuration > 0
                                 ? `${(audioProgress / audioDuration) * 100}%`
                                 : '0%'
@@ -1103,8 +1156,8 @@ if (verseMatch) {
                     </div>
                   </div>
                 )}
-
-                {/* ?섏젙/??젣 踰꾪듉 */}
+                
+                {/* 수정/삭제 버튼 */}
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
                   <span className="text-xs text-zinc-400">
                     {new Date(record.created_at).toLocaleString('ko-KR', {
@@ -1113,20 +1166,20 @@ if (verseMatch) {
                       hour: 'numeric',
                       minute: '2-digit',
                       hour12: true
-                    }).replace(/\s?ㅼ쟾\s0(\d):/, ' ?ㅼ쟾 $1:').replace(/\s?ㅽ썑\s0(\d):/, ' ?ㅽ썑 $1:')}
+                    }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
                   </span>
                   <div className="flex gap-2">
                     <button
                       onClick={() => startEditRecord(record)}
                       className="text-sm text-[#4A6741] font-medium"
                     >
-                      ?섏젙
+                      수정
                     </button>
                     <button
                       onClick={() => confirmDeleteRecord(record.id)}
                       className="text-sm text-red-500 font-medium"
                     >
-                      ??젣
+                      삭제
                     </button>
                   </div>
                 </div>
@@ -1136,7 +1189,7 @@ if (verseMatch) {
         </div>
       )}
 
-      {/* 臾듭긽 湲곕줉 異붽??섍린 踰꾪듉 */}
+      {/* 묵상 기록 추가하기 버튼 */}
       {isMeditationCompleted && (
         <div className="w-full max-w-md px-4 mb-6">
           <button
@@ -1150,38 +1203,38 @@ if (verseMatch) {
             className="w-full py-3 bg-white border border-dashed border-[#4A6741]/30 text-[#4A6741] rounded-xl font-bold hover:bg-[#4A6741]/5 transition-colors"
             style={{ fontSize: `${fontSize * 0.9}px` }}
           >
-            + 臾듭긽 湲곕줉 異붽??섍린
+            + 묵상 기록 추가하기
           </button>
         </div>
       )}
 
-      {/* 臾듭긽 湲곕줉 ?뺤씤 紐⑤떖 */}
+      {/* 묵상 기록 확인 모달 */}
       <AnimatePresence>
         {showConfirmModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
               onClick={() => setShowConfirmModal(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[320px] shadow-2xl text-center"
             >
               <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                臾듭긽 湲곕줉???④린?쒓쿋?듬땲源?
+                묵상 기록을 남기시겠습니까?
               </h4>
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                ?ㅻ뒛??臾듭긽??湲?대굹 ?뚯꽦?쇰줈 湲곕줉?????덉뒿?덈떎.
+                오늘의 묵상을 글이나 음성으로 기록할 수 있습니다.
               </p>
-
+              
               <div className="flex flex-col gap-3">
-                <button
+                <button 
                   onClick={() => {
                     setShowConfirmModal(false);
                     setShowWriteSheet(true);
@@ -1189,14 +1242,14 @@ if (verseMatch) {
                   className="w-full py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-active active:scale-95 shadow-lg"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  湲곕줉 ?④린湲?
+                  기록 남기기
                 </button>
-                <button
+                <button 
                   onClick={handleCompleteOnly}
                   className="w-full py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  ?꾨즺留?泥댄겕
+                  완료만 체크
                 </button>
               </div>
             </motion.div>
@@ -1204,54 +1257,54 @@ if (verseMatch) {
         )}
       </AnimatePresence>
 
-      {/* 臾듭긽 湲곕줉 ?묒꽦 ?쒗듃 */}
+      {/* 묵상 기록 작성 시트 */}
       <AnimatePresence>
         {showWriteSheet && (
           <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
               onClick={() => setShowWriteSheet(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400]"
             />
-
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
+            
+            <motion.div 
+              initial={{ y: "100%" }} 
+              animate={{ y: 0 }} 
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
             >
               <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
-
+              
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>
-                  {editingRecord ? '臾듭긽 湲곕줉 ?섏젙' : '臾듭긽 湲곕줉'}
+                  {editingRecord ? '묵상 기록 수정' : '묵상 기록'}
                 </h3>
-                <button
+                <button 
                   onClick={editingRecord ? handleUpdateMeditation : handleSubmitMeditation}
-                  className="text-[#4A6741] font-bold"
+                  className="text-[#4A6741] font-bold" 
                   style={{ fontSize: `${fontSize}px` }}
                 >
-                  {editingRecord ? "저장" : "등록"}
+                  {editingRecord ? '저장' : '등록'}
                 </button>
               </div>
 
-              {/* ?띿뒪???낅젰 ?곸뿭 */}
-              <textarea
+              {/* 텍스트 입력 영역 */}
+              <textarea 
                 value={meditationText}
                 onChange={(e) => setMeditationText(e.target.value)}
-                placeholder="?ㅻ뒛 留먯??????臾듭긽??湲곕줉?대낫?몄슂"
+                placeholder="오늘 말씀에 대한 묵상을 기록해보세요"
                 className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
                 style={{ fontSize: `${fontSize * 0.9}px` }}
               />
 
-              {/* ?뚯꽦 ?뱀쓬 ?곸뿭 */}
+              {/* 음성 녹음 영역 */}
               <div className="space-y-3">
-                <p className="text-zinc-600 font-medium text-sm">?뚯꽦?쇰줈 湲곕줉</p>
-
-                {/* 湲곗〈 ?뚯꽦 ?뚯씪 (?섏젙 紐⑤뱶) */}
+                <p className="text-zinc-600 font-medium text-sm">음성으로 기록</p>
+                
+                {/* 기존 음성 파일 (수정 모드) */}
                 {editingRecord?.audio_url && !audioBlob && (
                   <div className="bg-white rounded-xl p-4 border border-zinc-200">
                     <div className="flex items-center justify-between mb-3">
@@ -1261,7 +1314,7 @@ if (verseMatch) {
                         </div>
                         <div>
                           <p className="font-bold text-zinc-700" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                            湲곗〈 ?뚯꽦 ?뱀쓬
+                            기존 음성 녹음
                           </p>
                           <p className="text-zinc-400 text-sm">{formatTime(editingRecord.audio_duration || 0)}</p>
                         </div>
@@ -1281,11 +1334,11 @@ if (verseMatch) {
                       onClick={deleteExistingAudio}
                       className="w-full py-2 text-red-500 font-medium text-sm"
                     >
-                      湲곗〈 ?뚯꽦 ??젣
+                      기존 음성 삭제
                     </button>
                   </div>
                 )}
-
+                
                 {!audioBlob && (!editingRecord || !editingRecord.audio_url) ? (
                   <button
                     onClick={isRecording ? stopRecording : startRecording}
@@ -1299,12 +1352,12 @@ if (verseMatch) {
                     {isRecording ? (
                       <div className="flex items-center justify-center gap-2">
                         <Square size={20} className="fill-current" />
-                        <span>?뱀쓬 以묒? ({formatTime(recordingTime)})</span>
+                        <span>녹음 중지 ({formatTime(recordingTime)})</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-center gap-2">
                         <Mic size={20} />
-                        <span>?뚯꽦 ?뱀쓬 ?쒖옉</span>
+                        <span>음성 녹음 시작</span>
                       </div>
                     )}
                   </button>
@@ -1317,7 +1370,7 @@ if (verseMatch) {
                         </div>
                         <div>
                           <p className="font-bold text-zinc-700" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                            ?뚯꽦 ?뱀쓬 ?꾨즺
+                            음성 녹음 완료
                           </p>
                           <p className="text-zinc-400 text-sm">{formatTime(recordingTime)}</p>
                         </div>
@@ -1340,7 +1393,7 @@ if (verseMatch) {
                       onClick={deleteAudio}
                       className="w-full py-2 text-red-500 font-medium text-sm"
                     >
-                      ??젣
+                      삭제
                     </button>
                   </div>
                 ) : null}
@@ -1350,45 +1403,45 @@ if (verseMatch) {
         )}
       </AnimatePresence>
 
-      {/* 臾듭긽 ?꾨즺 痍⑥냼 ?뺤씤 紐⑤떖 */}
+      {/* 묵상 완료 취소 확인 모달 */}
       <AnimatePresence>
         {showCancelConfirmModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
               onClick={() => setShowCancelConfirmModal(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
             >
               <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
-                臾듭긽 ?꾨즺瑜?痍⑥냼?좉퉴??
+                묵상 완료를 취소할까요?
               </h4>
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                ?ㅻ뒛 ?좎쭨??紐⑤뱺 臾듭긽 湲곕줉????젣?⑸땲??
+                오늘 날짜의 모든 묵상 기록이 삭제됩니다.
               </p>
-
+              
               <div className="flex gap-3">
-                <button
+                <button 
                   onClick={() => setShowCancelConfirmModal(false)}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  ?꾨땲??
+                  아니오
                 </button>
-                <button
+                <button 
                   onClick={handleCancelMeditation}
                   className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-active active:scale-95 shadow-lg"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  痍⑥냼?섍린
+                  취소하기
                 </button>
               </div>
             </motion.div>
@@ -1396,45 +1449,45 @@ if (verseMatch) {
         )}
       </AnimatePresence>
 
-      {/* ??젣 ?뺤씤 紐⑤떖 */}
+      {/* 삭제 확인 모달 */}
       <AnimatePresence>
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
               onClick={() => setShowDeleteConfirm(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+            
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
             >
               <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
-                臾듭긽 湲곕줉????젣?좉퉴??
+                묵상 기록을 삭제할까요?
               </h4>
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                ??젣??湲곕줉? 蹂듦뎄?????놁뒿?덈떎.
+                삭제된 기록은 복구할 수 없습니다.
               </p>
-
+              
               <div className="flex gap-3">
-                <button
+                <button 
                   onClick={() => setShowDeleteConfirm(false)}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  痍⑥냼
+                  취소
                 </button>
-                <button
+                <button 
                   onClick={handleDeleteRecord}
                   className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-active active:scale-95 shadow-lg shadow-red-200"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  ??젣
+                  삭제
                 </button>
               </div>
             </motion.div>
@@ -1442,51 +1495,51 @@ if (verseMatch) {
         )}
       </AnimatePresence>
 
-      {/* TTS ?쒖뼱 ?앹뾽 遺遺?*/}
+      {/* TTS 제어 팝업 부분 */}
 <AnimatePresence>
   {showAudioControl && (
-    <motion.div
-      initial={{ y: 80, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: 80, opacity: 0 }}
+    <motion.div 
+      initial={{ y: 80, opacity: 0 }} 
+      animate={{ y: 0, opacity: 1 }} 
+      exit={{ y: 80, opacity: 0 }} 
       className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
     >
       <div className="flex flex-col gap-4">
-        {/* ?곷떒 而⑦듃濡??곸뿭 */}
+        {/* 상단 컨트롤 영역 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={togglePlay}
+            <button 
+              onClick={togglePlay} 
               className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors"
             >
               {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
             </button>
             <p className="text-[13px] font-bold">
-              {isPlaying ? "留먯????뚯꽦?쇰줈 ?쎄퀬 ?덉뒿?덈떎" : "?쇱떆 ?뺤? ?곹깭?낅땲??"}
+              {isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}
             </p>
           </div>
-          <button onClick={() => {
-            if(audioRef.current) audioRef.current.pause();
-            setShowAudioControl(false);
-            setIsPlaying(false);
+          <button onClick={() => { 
+            if(audioRef.current) audioRef.current.pause(); 
+            setShowAudioControl(false); 
+            setIsPlaying(false); 
           }}>
             <X size={20}/>
           </button>
         </div>
-
-        {/* 紐⑹냼由??좏깮 ?곸뿭 (?섏젙蹂? */}
+        
+        {/* 목소리 선택 영역 (수정본) */}
         <div className="flex gap-2">
-          <button
-            onClick={() => setVoiceType('F')}
+          <button 
+            onClick={() => setVoiceType('F')} 
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
-            ?ъ꽦 紐⑹냼由?
+            여성 목소리
           </button>
-          <button
-            onClick={() => setVoiceType('M')}
+          <button 
+            onClick={() => setVoiceType('M')} 
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
-            ?⑥꽦 紐⑹냼由?
+            남성 목소리
           </button>
         </div>
       </div>
@@ -1495,25 +1548,25 @@ if (verseMatch) {
 </AnimatePresence>
 <AnimatePresence>
   {showCopyToast && (
-    <motion.div
-      initial={{ opacity: 0, x: "-50%", y: 20 }} // x??以묒븰 怨좎젙, y留??吏곸엫
-      animate={{ opacity: 1, x: "-50%", y: 0 }}
-      exit={{ opacity: 0, x: "-50%", y: 20 }}
+    <motion.div 
+      initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
+      animate={{ opacity: 1, x: "-50%", y: 0 }} 
+      exit={{ opacity: 0, x: "-50%", y: 20 }} 
       transition={{ duration: 0.3 }}
       className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
-      style={{ left: '50%', transform: 'translateX(-50%)' }} // ?몃씪???ㅽ??쇰줈 ??踰???媛뺤젣
+      style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
     >
-      留먯???蹂듭궗?섏뿀?듬땲??
+      말씀이 복사되었습니다
     </motion.div>
   )}
 </AnimatePresence>
 
-{/* 濡쒓렇??紐⑤떖 */}
-<LoginModal
-  open={showLoginModal}
+{/* 로그인 모달 */}
+<LoginModal 
+  open={showLoginModal} 
   onOpenChange={setShowLoginModal}
   returnTo={`${window.location.origin}/#/qt`}
-/>
+/> 
     </div>
   );
 }
