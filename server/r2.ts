@@ -22,11 +22,22 @@ export async function uploadAudioToR2(
   audioBuffer: Uint8Array,
   contentType: string = "audio/mp3"
 ): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
+  return uploadFileToR2(fileName, audioBuffer, contentType);
+}
+
+/**
+ * R2에 임의 파일 업로드
+ */
+export async function uploadFileToR2(
+  fileName: string,
+  fileBuffer: Uint8Array,
+  contentType: string = "application/octet-stream"
+): Promise<{ success: boolean; publicUrl?: string; error?: string }> {
   try {
     const command = new PutObjectCommand({
       Bucket: BUCKET_NAME,
       Key: fileName,
-      Body: audioBuffer,
+      Body: fileBuffer,
       ContentType: contentType,
     });
 

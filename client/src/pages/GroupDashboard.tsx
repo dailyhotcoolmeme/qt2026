@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
-  Calendar,
+  BarChart3,
   Check,
   ChevronLeft,
   Crown,
   Edit3,
+  ImagePlus,
   LayoutGrid,
   LayoutList,
   Link2,
@@ -17,6 +18,7 @@ import {
   Play,
   Plus,
   SendHorizontal,
+  Settings,
   Shield,
   Square,
   Trash2,
@@ -28,7 +30,7 @@ import {
 import { supabase } from "../lib/supabase";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
-type TabKey = "home" | "prayer" | "faith" | "social" | "members" | "admin";
+type TabKey = "faith" | "prayer" | "social" | "members" | "admin";
 type FaithType = "check" | "count" | "attendance";
 type FaithSourceMode = "manual" | "linked" | "both";
 type LinkedFeature = "none" | "qt" | "prayer" | "reading";
@@ -97,6 +99,14 @@ type GroupPostRow = {
   title: string | null;
   content: string;
   created_at: string;
+  image_urls?: string[];
+};
+
+type GroupPostImageRow = {
+  id: number;
+  post_id: number;
+  image_url: string;
+  sort_order: number;
 };
 
 type GroupPrayerTopic = {
@@ -137,6 +147,12 @@ type FaithBoardRow = {
   name: string;
   role: string;
   values: Record<string, number>;
+  total: number;
+};
+
+type FaithTrendPoint = {
+  date: string;
+  label: string;
   total: number;
 };
 
@@ -186,7 +202,25 @@ async function uploadToR2(fileName: string, blob: Blob): Promise<string> {
   return data.publicUrl as string;
 }
 
+function sanitizeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
+  const fileBase64 = await blobToBase64(blob);
+  const response = await fetch("/api/file/upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fileName, fileBase64, contentType }),
+  });
+
+  if (!response.ok) throw new Error("failed to upload file");
+  const data = await response.json();
+  return data.publicUrl as string;
+}
+
 const LAST_GROUP_KEY = "last_group_id";
+const HEADER_PALETTE = ["#4A6741", "#1F4E5F", "#7C3A2D", "#3E335A", "#2F4858", "#5C4A3D", "#4B3F72", "#374151"];
 
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
@@ -197,7 +231,7 @@ export default function GroupDashboard() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
-  const [activeTab, setActiveTab] = useState<TabKey>("home");
+  const [activeTab, setActiveTab] = useState<TabKey>("faith");
   const [loading, setLoading] = useState(true);
 
   const [groupPrayers, setGroupPrayers] = useState<GroupPrayerRecord[]>([]);
@@ -233,6 +267,10 @@ export default function GroupDashboard() {
   const [faithBoardDate, setFaithBoardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [faithBoardRows, setFaithBoardRows] = useState<FaithBoardRow[]>([]);
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
+  const [faithTrendRange, setFaithTrendRange] = useState<7 | 30>(7);
+  const [faithTrendMode, setFaithTrendMode] = useState<"me" | "group">("me");
+  const [faithTrendLoading, setFaithTrendLoading] = useState(false);
+  const [faithTrendPoints, setFaithTrendPoints] = useState<FaithTrendPoint[]>([]);
 
   const [posts, setPosts] = useState<GroupPostRow[]>([]);
   const [postType, setPostType] = useState<"post" | "notice">("post");
@@ -240,6 +278,8 @@ export default function GroupDashboard() {
   const [postContent, setPostContent] = useState("");
   const [socialViewMode, setSocialViewMode] = useState<"board" | "blog">("board");
   const [showPostComposerModal, setShowPostComposerModal] = useState(false);
+  const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
+  const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
@@ -258,6 +298,8 @@ export default function GroupDashboard() {
 
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
+  const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
+  const [headerImageUploading, setHeaderImageUploading] = useState(false);
   const [headerColorDraft, setHeaderColorDraft] = useState("#4A6741");
 
   useEffect(() => {
@@ -282,6 +324,7 @@ export default function GroupDashboard() {
 
   useEffect(() => {
     if (!groupId) return;
+    setActiveTab("faith");
     void loadAll(groupId, user?.id ?? null);
   }, [groupId, user?.id]);
 
@@ -306,6 +349,14 @@ export default function GroupDashboard() {
   }, [recordedBlob]);
 
   useEffect(() => {
+    const urls = postImageFiles.map((file) => URL.createObjectURL(file));
+    setPostImagePreviews(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [postImageFiles]);
+
+  useEffect(() => {
     if (!group?.id) return;
     localStorage.setItem(LAST_GROUP_KEY, group.id);
     setHeaderColorDraft(group.header_color || "#4A6741");
@@ -319,17 +370,18 @@ export default function GroupDashboard() {
     void loadFaithBoard(group.id, faithBoardDate);
   }, [group?.id, role, members, faithBoardDate]);
 
-  const isManager = role === "owner" || role === "leader";
+  useEffect(() => {
+    if ((role === "owner" || role === "leader") && faithTrendMode === "group") return;
+    if (faithTrendMode !== "me") setFaithTrendMode("me");
+  }, [role, faithTrendMode]);
 
-  const summary = useMemo(
-    () => ({
-      members: members.length,
-      prayers: groupPrayers.length,
-      faithDone: Object.keys(faithValues).length,
-      posts: posts.length,
-    }),
-    [members.length, groupPrayers.length, faithValues, posts.length]
-  );
+  useEffect(() => {
+    if (!group?.id || !user?.id || role === "guest") return;
+    const mode = role === "owner" || role === "leader" ? faithTrendMode : "me";
+    void loadFaithTrend(group.id, user.id, faithTrendRange, mode);
+  }, [group?.id, user?.id, role, faithTrendRange, faithTrendMode]);
+
+  const isManager = role === "owner" || role === "leader";
 
   const myFaithCompletedCount = useMemo(
     () => faithItems.filter((item) => (faithValues[item.id] ?? 0) > 0).length,
@@ -352,7 +404,7 @@ export default function GroupDashboard() {
 
     if (groupErr || !groupData) {
       setLoading(false);
-      setLocation("/community");
+      setLocation("/community?list=1");
       return;
     }
 
@@ -427,6 +479,13 @@ export default function GroupDashboard() {
     } else {
       setFaithBoardRows([]);
     }
+
+    await loadFaithTrend(
+      targetGroupId,
+      userId!,
+      faithTrendRange,
+      nextRole === "owner" || nextRole === "leader" ? faithTrendMode : "me"
+    );
 
     setLoading(false);
   };
@@ -536,6 +595,30 @@ export default function GroupDashboard() {
         ...row,
         title: null,
       }));
+    }
+
+    const postIds = nextPosts.map((post) => post.id);
+    if (postIds.length > 0) {
+      const { data: imageRows, error: imageErr } = await supabase
+        .from("group_post_images")
+        .select("id, post_id, image_url, sort_order")
+        .in("post_id", postIds)
+        .order("sort_order", { ascending: true })
+        .order("id", { ascending: true });
+
+      if (!imageErr) {
+        const imageMap = new Map<number, string[]>();
+        ((imageRows ?? []) as GroupPostImageRow[]).forEach((row) => {
+          const prev = imageMap.get(row.post_id) ?? [];
+          prev.push(row.image_url);
+          imageMap.set(row.post_id, prev);
+        });
+
+        nextPosts = nextPosts.map((post) => ({
+          ...post,
+          image_urls: imageMap.get(post.id) ?? [],
+        }));
+      }
     }
 
     setPosts(nextPosts);
@@ -657,6 +740,62 @@ export default function GroupDashboard() {
 
     setFaithBoardRows(boardRows);
     setFaithBoardLoading(false);
+  };
+
+  const loadFaithTrend = async (
+    targetGroupId: string,
+    userId: string,
+    rangeDays: 7 | 30,
+    mode: "me" | "group"
+  ) => {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end);
+    start.setDate(end.getDate() - (rangeDays - 1));
+
+    const startDate = start.toISOString().slice(0, 10);
+    const endDate = end.toISOString().slice(0, 10);
+
+    setFaithTrendLoading(true);
+    let query = supabase
+      .from("group_faith_records")
+      .select("record_date, value")
+      .eq("group_id", targetGroupId)
+      .gte("record_date", startDate)
+      .lte("record_date", endDate);
+
+    if (mode === "me") {
+      query = query.eq("user_id", userId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error("failed to load faith trend:", error);
+      setFaithTrendPoints([]);
+      setFaithTrendLoading(false);
+      return;
+    }
+
+    const dateMap = new Map<string, number>();
+    (data ?? []).forEach((row: { record_date: string; value: number | string }) => {
+      const prev = dateMap.get(row.record_date) ?? 0;
+      dateMap.set(row.record_date, prev + Number(row.value ?? 0));
+    });
+
+    const points: FaithTrendPoint[] = [];
+    for (let i = 0; i < rangeDays; i += 1) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      const key = day.toISOString().slice(0, 10);
+      points.push({
+        date: key,
+        label: `${day.getMonth() + 1}/${day.getDate()}`,
+        total: dateMap.get(key) ?? 0,
+      });
+    }
+
+    setFaithTrendPoints(points);
+    setFaithTrendLoading(false);
   };
 
   const loadJoinRequests = async (targetGroupId: string) => {
@@ -1067,6 +1206,16 @@ export default function GroupDashboard() {
     }
   };
 
+  const handlePostImageSelect = (files: FileList | null) => {
+    if (!files) return;
+    const selected = Array.from(files).slice(0, 10);
+    setPostImageFiles((prev) => [...prev, ...selected].slice(0, 10));
+  };
+
+  const removePostImage = (index: number) => {
+    setPostImageFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const addPost = async () => {
     if (!group || !user || !postContent.trim()) return;
     if (postType === "notice" && !isManager) {
@@ -1074,25 +1223,41 @@ export default function GroupDashboard() {
       return;
     }
 
-    let { error } = await supabase.from("group_posts").insert({
+    const payload = {
       group_id: group.id,
       author_id: user.id,
       post_type: postType,
       title: postTitle.trim() || null,
       content: postContent.trim(),
-    });
+    };
+
+    let createdPostId: number | null = null;
+    let { data: createdPost, error } = await supabase
+      .from("group_posts")
+      .insert(payload)
+      .select("id")
+      .single();
+
+    if (!error) {
+      createdPostId = createdPost?.id ?? null;
+    }
 
     if (error && error.code === "42703") {
       const merged = postTitle.trim()
         ? `[${postTitle.trim()}]\n${postContent.trim()}`
         : postContent.trim();
-      const fallback = await supabase.from("group_posts").insert({
+      const fallback = await supabase
+        .from("group_posts")
+        .insert({
         group_id: group.id,
         author_id: user.id,
         post_type: postType,
         content: merged,
-      });
+        })
+        .select("id")
+        .single();
       error = fallback.error;
+      createdPostId = fallback.data?.id ?? null;
     }
 
     if (error) {
@@ -1100,9 +1265,37 @@ export default function GroupDashboard() {
       return;
     }
 
+    if (createdPostId && postImageFiles.length > 0) {
+      try {
+        const uploadedUrls = await Promise.all(
+          postImageFiles.map(async (file, index) => {
+            const safeName = sanitizeFileName(file.name || `image_${index + 1}.jpg`);
+            const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
+            return uploadFileToR2(key, file, file.type || "image/jpeg");
+          })
+        );
+
+        const { error: imageInsertError } = await supabase.from("group_post_images").insert(
+          uploadedUrls.map((url, index) => ({
+            post_id: createdPostId,
+            uploader_id: user.id,
+            image_url: url,
+            sort_order: index,
+          }))
+        );
+
+        if (imageInsertError && imageInsertError.code !== "42P01") {
+          console.error("post image insert error:", imageInsertError);
+        }
+      } catch (uploadError) {
+        console.error("post image upload error:", uploadError);
+      }
+    }
+
     setPostType("post");
     setPostTitle("");
     setPostContent("");
+    setPostImageFiles([]);
     setShowPostComposerModal(false);
     await loadPosts(group.id);
   };
@@ -1216,6 +1409,24 @@ export default function GroupDashboard() {
     setShowHeaderEditModal(false);
   };
 
+  const uploadHeaderImage = async () => {
+    if (!group || !user || !headerImageFile) return;
+    setHeaderImageUploading(true);
+    try {
+      const safeName = sanitizeFileName(headerImageFile.name || "header.jpg");
+      const key = `images/group-header/${group.id}/${user.id}/${Date.now()}_${safeName}`;
+      const imageUrl = await uploadFileToR2(key, headerImageFile, headerImageFile.type || "image/jpeg");
+      setHeaderImageDraft(imageUrl);
+      setHeaderImageFile(null);
+      alert("헤더 이미지를 업로드했습니다.");
+    } catch (error) {
+      console.error(error);
+      alert("헤더 이미지 업로드에 실패했습니다.");
+    } finally {
+      setHeaderImageUploading(false);
+    }
+  };
+
   const registerScopeLeader = async () => {
     if (!group || !isManager || !scopeLeaderUserId) return;
 
@@ -1322,7 +1533,7 @@ export default function GroupDashboard() {
       alert("모임 나가기에 실패했습니다.");
       return;
     }
-    setLocation("/community");
+    setLocation("/community?list=1");
   };
 
   if (!groupId) return null;
@@ -1351,7 +1562,7 @@ export default function GroupDashboard() {
         >
           <div className="max-w-2xl mx-auto px-4">
             <button
-              onClick={() => setLocation("/community")}
+              onClick={() => setLocation("/community?list=1")}
               className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
             >
               <ChevronLeft size={18} />
@@ -1421,59 +1632,72 @@ export default function GroupDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F6F7F8] pb-28">
-      <div className="sticky top-14 z-30 bg-white border-b border-zinc-100">
-        <div
-          className="relative overflow-hidden"
-          style={{
-            background:
-              group.header_image_url && group.header_image_url.trim()
-                ? `linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.5)), url(${group.header_image_url}) center/cover`
-                : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
-          }}
-        >
-          <div className="max-w-2xl mx-auto px-4 pt-4 pb-7 min-h-[170px] flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setLocation("/community")}
-                className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
-              >
-                <ChevronLeft size={18} />
-              </button>
+      <header
+        className="relative overflow-hidden"
+        style={{
+          background:
+            group.header_image_url && group.header_image_url.trim()
+              ? `linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.52)), url(${group.header_image_url}) center/cover`
+              : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
+        }}
+      >
+        <div className="max-w-2xl mx-auto px-4 pt-4 pb-10 min-h-[190px] flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setLocation("/community?list=1")}
+              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+            >
+              <ChevronLeft size={18} />
+            </button>
 
+            {isManager && (
+              <button
+                onClick={() => setShowHeaderEditModal(true)}
+                className="px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold inline-flex items-center gap-1 backdrop-blur"
+              >
+                <Edit3 size={13} />
+                헤더 편집
+              </button>
+            )}
+          </div>
+
+          <div className="text-white">
+            <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
+            <div className="text-[13px] text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
+              <span>{group.group_slug ? `코드: ${group.group_slug}` : ""}</span>
+              <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">{toLabel(role)}</span>
+              <button
+                onClick={() => setActiveTab("members")}
+                className="px-2 py-0.5 rounded-full bg-white/20 font-bold inline-flex items-center gap-1"
+              >
+                <Users size={12} />
+                멤버
+              </button>
               {isManager && (
                 <button
-                  onClick={() => setShowHeaderEditModal(true)}
-                  className="px-3 py-1.5 rounded-full bg-white/20 text-white text-xs font-bold inline-flex items-center gap-1 backdrop-blur"
+                  onClick={() => setActiveTab("admin")}
+                  className="px-2 py-0.5 rounded-full bg-white/20 font-bold inline-flex items-center gap-1"
                 >
-                  <Edit3 size={13} />
-                  헤더 편집
+                  <Settings size={12} />
+                  관리
                 </button>
               )}
-            </div>
-
-            <div className="text-white">
-              <div className="text-2xl font-black truncate">{group.name}</div>
-              <div className="text-[13px] text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
-                <span>{group.group_slug ? `코드: ${group.group_slug}` : ""}</span>
-                <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">{toLabel(role)}</span>
-                {group.is_closed && <span className="px-2 py-0.5 rounded-full bg-rose-500/70 font-bold">폐쇄됨</span>}
-              </div>
+              {group.is_closed && <span className="px-2 py-0.5 rounded-full bg-rose-500/70 font-bold">폐쇄됨</span>}
             </div>
           </div>
         </div>
+      </header>
 
+      <div className="sticky top-14 z-30 bg-[#F6F7F8]/95 backdrop-blur border-b border-zinc-100">
         <div className="max-w-2xl mx-auto px-2 py-2 flex gap-1 overflow-x-auto no-scrollbar">
           {([
-            ["home", "홈"],
-            ["prayer", "기도"],
             ["faith", "신앙생활"],
-            ["social", "소통"],
-            ["members", "멤버"],
-            ...(isManager ? [["admin", "관리"]] : []),
-          ] as Array<[string, string]>).map(([id, label]) => (
+            ["prayer", "중보기도"],
+            ["social", "교제나눔"],
+          ] as Array<[TabKey, string]>).map(([id, label]) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id as TabKey)}
+              onClick={() => setActiveTab(id)}
               className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap ${
                 activeTab === id ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
               }`}
@@ -1484,64 +1708,7 @@ export default function GroupDashboard() {
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 pt-6 space-y-4">
-        {activeTab === "home" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-white rounded-3xl border border-zinc-100 p-5">
-              <h2 className="font-black text-zinc-900 mb-2">모임 요약</h2>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">멤버</div>
-                  <div className="text-lg font-black">{summary.members}</div>
-                </div>
-                <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">기도</div>
-                  <div className="text-lg font-black">{summary.prayers}</div>
-                </div>
-                <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">신앙생활</div>
-                  <div className="text-lg font-black">{summary.faithDone}</div>
-                </div>
-                <div className="bg-zinc-50 rounded-2xl p-3">
-                  <div className="text-[11px] text-zinc-500">게시글</div>
-                  <div className="text-lg font-black">{summary.posts}</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-3xl border border-zinc-100 p-5">
-              <h3 className="font-black text-zinc-900 mb-2 flex items-center gap-2">
-                <Calendar size={16} /> 바로가기
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => setActiveTab("prayer")}
-                  className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
-                >
-                  기도 탭 이동
-                </button>
-                <button
-                  onClick={() => setLocation("/prayer")}
-                  className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
-                >
-                  PrayerPage 이동
-                </button>
-                <button
-                  onClick={() => setLocation("/qt")}
-                  className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
-                >
-                  QT 이동
-                </button>
-                <button
-                  onClick={() => setLocation("/reading")}
-                  className="bg-zinc-50 rounded-2xl py-3 text-sm font-bold"
-                >
-                  성경읽기 이동
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
+      <main className="max-w-2xl mx-auto px-4 pt-8 space-y-4">
 
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
@@ -1678,6 +1845,88 @@ export default function GroupDashboard() {
                   </div>
                 </div>
               </div>
+            </section>
+
+            <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-3">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-1">
+                  <BarChart3 size={15} />
+                  기간 활동 추이
+                </h3>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setFaithTrendRange(7)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                      faithTrendRange === 7 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    7일
+                  </button>
+                  <button
+                    onClick={() => setFaithTrendRange(30)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                      faithTrendRange === 30 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                    }`}
+                  >
+                    30일
+                  </button>
+                  {isManager && (
+                    <>
+                      <button
+                        onClick={() => setFaithTrendMode("me")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                          faithTrendMode === "me" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        개인
+                      </button>
+                      <button
+                        onClick={() => setFaithTrendMode("group")}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold ${
+                          faithTrendMode === "group" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
+                        }`}
+                      >
+                        모임
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {faithTrendLoading ? (
+                <div className="h-36 rounded-2xl bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
+                  집계 중...
+                </div>
+              ) : faithTrendPoints.length === 0 ? (
+                <div className="h-36 rounded-2xl bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
+                  조회된 활동이 없습니다.
+                </div>
+              ) : (
+                <div className="h-40 rounded-2xl bg-zinc-50 px-3 py-3">
+                  <div className="h-28 flex items-end gap-1">
+                    {faithTrendPoints.map((point) => {
+                      const max = Math.max(...faithTrendPoints.map((item) => item.total), 1);
+                      const height = Math.max((point.total / max) * 100, point.total > 0 ? 8 : 2);
+                      return (
+                        <div key={`trend-${point.date}`} className="flex-1 flex flex-col items-center justify-end">
+                          <div
+                            className="w-full rounded-t-md bg-[#4A6741]/85"
+                            style={{ height: `${height}%` }}
+                            title={`${point.label}: ${point.total}`}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="flex gap-1 mt-2 text-[10px] text-zinc-500">
+                    {faithTrendPoints.map((point, index) => (
+                      <div key={`trend-label-${point.date}`} className="flex-1 text-center truncate">
+                        {faithTrendRange === 30 ? (index % 5 === 0 ? point.label : "") : point.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {isManager && (
@@ -1969,6 +2218,16 @@ export default function GroupDashboard() {
                       <p className="text-sm text-zinc-800 whitespace-pre-wrap">{post.content}</p>
                     ) : (
                       <p className="text-sm text-zinc-800 whitespace-pre-wrap line-clamp-5">{post.content}</p>
+                    )}
+
+                    {post.image_urls && post.image_urls.length > 0 && (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {post.image_urls.slice(0, 6).map((url, index) => (
+                          <div key={`post-image-${post.id}-${index}`} className="rounded-xl overflow-hidden bg-zinc-100">
+                            <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-32 object-cover" />
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
                 );
@@ -2420,6 +2679,39 @@ export default function GroupDashboard() {
               placeholder="모임 내부 공유 글을 작성하세요."
             />
 
+            <div className="rounded-2xl bg-zinc-50 border border-zinc-100 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
+                <label className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                  <ImagePlus size={13} />
+                  사진 선택
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handlePostImageSelect(e.target.files)}
+                  />
+                </label>
+              </div>
+
+              {postImagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {postImagePreviews.map((preview, index) => (
+                    <div key={`preview-${index}`} className="relative rounded-xl overflow-hidden bg-zinc-100">
+                      <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
+                      <button
+                        onClick={() => removePostImage(index)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button
               onClick={addPost}
               className="w-full py-3 rounded-2xl bg-[#4A6741] text-white font-bold text-sm"
@@ -2481,22 +2773,51 @@ export default function GroupDashboard() {
               </button>
             </div>
             <div>
-              <label className="text-xs text-zinc-500">헤더 배경 색상</label>
-              <input
-                value={headerColorDraft}
-                onChange={(e) => setHeaderColorDraft(e.target.value)}
-                className="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
-                placeholder="#4A6741"
-              />
+              <label className="text-xs text-zinc-500">헤더 색상 팔레트</label>
+              <div className="grid grid-cols-8 gap-2 mt-2">
+                {HEADER_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setHeaderColorDraft(color)}
+                    className={`w-8 h-8 rounded-full border-2 ${
+                      headerColorDraft === color ? "border-black scale-110" : "border-white"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
             </div>
+
             <div>
-              <label className="text-xs text-zinc-500">헤더 이미지 URL (선택)</label>
-              <input
-                value={headerImageDraft}
-                onChange={(e) => setHeaderImageDraft(e.target.value)}
-                className="w-full mt-1 px-4 py-3 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm"
-                placeholder="https://..."
-              />
+              <label className="text-xs text-zinc-500">헤더 이미지 업로드</label>
+              <div className="mt-2 rounded-2xl border border-zinc-100 bg-zinc-50 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-2 rounded-lg bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={13} />
+                    이미지 선택
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setHeaderImageFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {headerImageFile && <span className="text-xs text-zinc-600 truncate">{headerImageFile.name}</span>}
+                </div>
+                <button
+                  onClick={uploadHeaderImage}
+                  disabled={!headerImageFile || headerImageUploading}
+                  className="w-full py-2.5 rounded-xl bg-zinc-900 text-white text-xs font-bold disabled:opacity-60"
+                >
+                  {headerImageUploading ? "업로드 중..." : "이미지 업로드"}
+                </button>
+                {headerImageDraft && (
+                  <div className="rounded-xl overflow-hidden border border-zinc-200 bg-zinc-100">
+                    <img src={headerImageDraft} alt="header-preview" className="w-full h-28 object-cover" />
+                  </div>
+                )}
+              </div>
             </div>
             <button
               onClick={saveHeaderSettings}

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
-import { uploadAudioToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
+import { uploadAudioToR2, uploadFileToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
@@ -258,6 +258,31 @@ export async function registerRoutes(
       res.status(500).json({ 
         success: false, 
         error: error instanceof Error ? error.message : "업로드 실패" 
+      });
+    }
+  });
+
+  // R2 일반 파일 업로드 (이미지 포함)
+  app.post("/api/file/upload", async (req, res) => {
+    try {
+      const { fileName, fileBase64, contentType } = req.body;
+
+      if (!fileName || !fileBase64) {
+        return res.status(400).json({
+          success: false,
+          error: "fileName과 fileBase64가 필요합니다",
+        });
+      }
+
+      const fileBuffer = Buffer.from(fileBase64, "base64");
+      const result = await uploadFileToR2(fileName, fileBuffer, contentType || "application/octet-stream");
+
+      res.json(result);
+    } catch (error) {
+      console.error("File upload error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "업로드 실패",
       });
     }
   });
