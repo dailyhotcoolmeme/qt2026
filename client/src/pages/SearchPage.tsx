@@ -31,7 +31,14 @@ export default function SearchPage() {
   // 필터 상태
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
-  const [availableBookIds, setAvailableBookIds] = useState<number[] | null>(null);
+
+  // 검색 결과 통계 상태
+  const [searchStats, setSearchStats] = useState<{
+    total: number;
+    ot: number;
+    nt: number;
+    bookCounts: Record<number, number>;
+  } | null>(null);
 
   // 뷰 모드 및 정보
   const [viewMode, setViewMode] = useState<'SEARCH' | 'CHAPTER'>('SEARCH');
@@ -43,7 +50,6 @@ export default function SearchPage() {
   const scrollObserver = useRef<IntersectionObserver | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // 롱프레스 관련 refs
   const readCompleteButtonRef = useRef<HTMLButtonElement | null>(null);
   const longPressStartTimeRef = useRef<number>(0);
   const isLongPressingRef = useRef(false);
@@ -81,19 +87,40 @@ export default function SearchPage() {
     return null;
   }, [searchInput, bookAliasMap]);
 
-  // 키워드 기반 성경권 필터링 (드롭다운 노출 최적화용)
+  // 키워드 기반 전체 통계 및 검색 가능 책 필터링
   useEffect(() => {
-    const fetchFilteredBooks = async () => {
+    const fetchStats = async () => {
       const input = searchInput.trim();
       if (!input || input.length < 2 || identifiedBook) {
-        setAvailableBookIds(null); return;
+        setSearchStats(null); return;
       }
       try {
-        const { data } = await supabase.from('bible_verses').select('book_id').ilike('content', `%${input}%`).limit(1000);
-        if (data) setAvailableBookIds(Array.from(new Set(data.map(d => d.book_id))));
-      } catch (e) { console.error(e); }
+        // 모든 검색 결과의 book_id와 testament를 가져옴 (데이터가 아주 많지 않으므로 가능)
+        const { data, error } = await supabase
+          .from('bible_verses')
+          .select('book_id, testament')
+          .ilike('content', `%${input}%`);
+
+        if (data && !error) {
+          const stats = {
+            total: data.length,
+            ot: data.filter(d => d.testament === 'OT').length,
+            nt: data.filter(d => d.testament === 'NT').length,
+            bookCounts: data.reduce((acc: Record<number, number>, d) => {
+              acc[d.book_id] = (acc[d.book_id] || 0) + 1;
+              return acc;
+            }, {})
+          };
+          setSearchStats(stats);
+        } else {
+          setSearchStats(null);
+        }
+      } catch (e) {
+        console.error(e);
+        setSearchStats(null);
+      }
     };
-    const tid = setTimeout(fetchFilteredBooks, 500);
+    const tid = setTimeout(fetchStats, 500);
     return () => clearTimeout(tid);
   }, [searchInput, identifiedBook]);
 
@@ -208,7 +235,6 @@ export default function SearchPage() {
       let query = supabase.from('bible_verses').select('*', { count: 'exact' });
 
       if (qBook && qChapter && !qVerse) {
-        // 단일 장 모드
         setViewMode('CHAPTER'); setCurrentChapterInfo({ bookName: qBook.name, bookId: qBook.id, chapter: qChapter });
         checkReadStatus(qBook.name, qChapter);
         query = query.eq('book_id', qBook.id).eq('chapter', qChapter);
@@ -216,7 +242,6 @@ export default function SearchPage() {
         if (error) throw error;
         setResults(data || []); setHasMore(false); setPage(0);
       } else {
-        // 일반 검색 모드
         setViewMode('SEARCH'); setCurrentChapterInfo(null);
         if (qBook) query = query.eq('book_id', qBook.id);
         if (qChapter) query = query.eq('chapter', qChapter);
@@ -229,7 +254,6 @@ export default function SearchPage() {
         }
         if (kw) query = query.ilike('content', `%${kw}%`);
 
-        // 필터 명시적 적용 (identifiedBook이 없는 경우)
         if (!qBook) {
           if (tFilter !== 'ALL') query = query.eq('testament', tFilter);
           if (bFilter !== 'ALL') query = query.eq('book_id', parseInt(bFilter));
@@ -245,7 +269,6 @@ export default function SearchPage() {
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, [searchInput, identifiedBook, testamentFilter, selectedBook, page, results, checkReadStatus]);
 
-  // 필터 클릭 시 바로 검색
   const handleTestamentChange = (f: 'ALL' | 'OT' | 'NT') => {
     setTestamentFilter(f);
     performSearch(true, { testament: f, book: selectedBook });
@@ -255,7 +278,6 @@ export default function SearchPage() {
     performSearch(true, { testament: testamentFilter, book: b });
   };
 
-  // 무한 스크롤 관찰
   useEffect(() => {
     if (loading || !hasMore || viewMode === 'CHAPTER') return;
     if (scrollObserver.current) scrollObserver.current.disconnect();
@@ -282,13 +304,12 @@ export default function SearchPage() {
   };
 
   const resetAll = () => {
-    setSearchInput(''); setTestamentFilter('ALL'); setSelectedBook('ALL'); setResults([]); setViewMode('SEARCH'); setAvailableBookIds(null);
+    setSearchInput(''); setTestamentFilter('ALL'); setSelectedBook('ALL'); setResults([]); setViewMode('SEARCH'); setSearchStats(null);
     sessionStorage.removeItem('searchPageState');
   };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
-      {/* 헤더 */}
       <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           <div className="flex gap-2 h-11">
@@ -325,15 +346,20 @@ export default function SearchPage() {
               <div className="relative h-full">
                 <select
                   disabled={!!identifiedBook}
-                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[150px] ${!!identifiedBook ? 'opacity-40' : ''}`}
                   value={selectedBook}
                   onChange={(e) => handleBookChange(e.target.value)}
                 >
                   <option value="ALL">권 선택</option>
                   {BIBLE_BOOKS.map((b, idx) => {
                     const bid = idx + 1;
-                    if (availableBookIds && !availableBookIds.includes(bid)) return null;
-                    return <option key={b.name} value={bid}>{b.name}</option>;
+                    const count = searchStats?.bookCounts[bid];
+                    if (searchStats && !count) return null;
+                    return (
+                      <option key={b.name} value={bid}>
+                        {b.name}{count ? ` (${count})` : ''}
+                      </option>
+                    );
                   })}
                 </select>
                 <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
@@ -344,9 +370,31 @@ export default function SearchPage() {
       </div>
 
       <div className="pt-48 px-4 max-w-2xl mx-auto">
+        {/* 검색 결과 요약 바 */}
+        {viewMode === 'SEARCH' && searchStats && (
+          <div className="mb-6 py-3 px-5 bg-white border border-zinc-100 rounded-2xl shadow-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-500">
+            <div className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#4A6741]" />
+              <span className="text-zinc-500 font-bold" style={{ fontSize: `${fontSize * 0.8}px` }}>
+                총 <span className="text-zinc-900">{searchStats.total.toLocaleString()}건</span>의 말씀이 검색되었습니다.
+              </span>
+            </div>
+            <div className="flex items-center gap-3 border-l pl-4 border-zinc-100">
+              <div className={`flex items-center gap-1.5 ${testamentFilter === 'OT' ? 'text-[#4A6741] font-black scale-105 transition-all' : 'text-zinc-400'}`} style={{ fontSize: `${fontSize * 0.75}px` }}>
+                <span>구약</span>
+                <span className={testamentFilter === 'OT' ? 'bg-[#4A6741] text-white px-1.5 rounded-md' : ''}>{searchStats.ot}</span>
+              </div>
+              <div className={`flex items-center gap-1.5 ${testamentFilter === 'NT' ? 'text-[#4A6741] font-black scale-105 transition-all' : 'text-zinc-400'}`} style={{ fontSize: `${fontSize * 0.75}px` }}>
+                <span>신약</span>
+                <span className={testamentFilter === 'NT' ? 'bg-[#4A6741] text-white px-1.5 rounded-md' : ''}>{searchStats.nt}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {viewMode === 'CHAPTER' && currentChapterInfo && (
           <div className="mt-4 mb-10 text-center animate-in zoom-in-95 duration-300">
-            <h1 className="text-2xl font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.2}px` }}>{currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}</h1>
+            <h1 className="text-2xl font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.25}px` }}>{currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}</h1>
           </div>
         )}
 
@@ -360,7 +408,7 @@ export default function SearchPage() {
           {!loading && results.length === 0 && !searchInput && selectedBook === 'ALL' && (
             <div className="py-20 text-center animate-in fade-in duration-1000">
               <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Search className="w-8 h-8 text-zinc-300" /></div>
-              <h2 className="text-xl font-bold text-zinc-800 mb-2">어떤 말씀을 찾으시나요?</h2>
+              <h2 className="text-xl font-bold text-zinc-800 mb-2 font-dm-sans">어떤 말씀을 찾으시나요?</h2>
               <p className="text-zinc-400 text-sm px-10">키워드나 성경 구절(창 1:1)을 입력하여<br />하나님의 말씀을 검색해보세요.</p>
             </div>
           )}
@@ -390,8 +438,8 @@ export default function SearchPage() {
                 >
                   <div className="flex items-start gap-4">
                     <span
-                      className={`font-dm-sans font-black min-w-[28px] text-center pt-1 ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}
-                      style={{ fontSize: `${fontSize * 0.7}px` }}
+                      className={`font-dm-sans font-black min-w-[32px] text-center pt-1 ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}
+                      style={{ fontSize: `${fontSize * 0.75}px` }}
                     >
                       {v.verse}
                     </span>
