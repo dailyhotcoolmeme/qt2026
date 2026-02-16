@@ -1,15 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useLocation } from "wouter";
 import { Search, ChevronDown, ArrowUp, RotateCcw, Check } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { BIBLE_BOOKS } from "@/lib/bibleData";
-import { useAuth } from "@/hooks/use-auth";
-import { useDisplaySettings } from "@/components/DisplaySettingsProvider";
+import { supabase } from "../lib/supabase";
+import { BIBLE_BOOKS } from "../lib/bibleData";
+import { useAuth } from "../hooks/use-auth";
+import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import confetti from 'canvas-confetti';
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 // 페이지당 불러올 개수
 const PAGE_SIZE = 50;
+
+// 정규식 특수문자 이스케이프 함수
+const escapeRegExp = (str: string) => {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
 
 export default function SearchPage() {
   const [, setLocation] = useLocation();
@@ -47,33 +52,25 @@ export default function SearchPage() {
   const [isLongPressing, setIsLongPressing] = useState(false);
 
   // 성경 서적 데이터 맵핑
-  const bookAliasMap = React.useMemo(() => {
+  const bookAliasMap = useMemo(() => {
     const map: Record<string, { id: number, name: string }> = {};
     BIBLE_BOOKS.forEach((b, idx) => {
       const id = idx + 1;
       map[b.name] = { id, name: b.name };
       map[b.name.substring(0, 1)] = { id, name: b.name };
       map[b.name.substring(0, 2)] = { id, name: b.name };
-      if (b.name === "창세기") map["창"] = { id, name: b.name };
-      if (b.name === "출애굽기") map["출"] = { id, name: b.name };
-      if (b.name === "레위기") map["레"] = { id, name: b.name };
-      if (b.name === "민수기") map["민"] = { id, name: b.name };
-      if (b.name === "신명기") map["신"] = { id, name: b.name };
-      if (b.name === "여호수아") map["여"] = { id, name: b.name };
-      if (b.name === "사사기") map["삿"] = { id, name: b.name };
-      if (b.name === "마태복음") map["마"] = { id, name: b.name };
-      if (b.name === "마가복음") map["막"] = { id, name: b.name };
-      if (b.name === "누가복음") map["눅"] = { id, name: b.name };
-      if (b.name === "요한복음") map["요"] = { id, name: b.name };
-      if (b.name === "사도행전") map["행"] = { id, name: b.name };
-      if (b.name === "고린도전서") map["고전"] = { id, name: b.name };
-      if (b.name === "고린도후서") map["고후"] = { id, name: b.name };
+      const commonAlts: Record<string, string> = {
+        "창세기": "창", "출애굽기": "출", "레위기": "레", "민수기": "민", "신명기": "신",
+        "여호수아": "여", "사사기": "삿", "마태복음": "마", "마가복음": "막", "누가복음": "눅",
+        "요한복음": "요", "사도행전": "행", "고린도전서": "고전", "고린도후서": "고후"
+      };
+      if (commonAlts[b.name]) map[commonAlts[b.name]] = { id, name: b.name };
     });
     return map;
   }, []);
 
-  // 검색어에서 책 정보 추출
-  const identifiedBook = React.useMemo(() => {
+  // 검색어에서 책 정보 미리 추출
+  const identifiedBook = useMemo(() => {
     const input = searchInput.trim();
     if (!input) return null;
     const refMatch = input.match(/^([가-힣]{1,5})\s*(\d+)?(?::(\d+))?\s*(장|편)?$/);
@@ -84,36 +81,23 @@ export default function SearchPage() {
     return null;
   }, [searchInput, bookAliasMap]);
 
-  // 키워드 기반 성경권 필터링 (드롭다운 노출용)
+  // 키워드 기반 성경권 필터링 (드롭다운 노출 최적화용)
   useEffect(() => {
     const fetchFilteredBooks = async () => {
       const input = searchInput.trim();
-      if (!input || input.length < 2) {
-        setAvailableBookIds(null);
-        return;
-      }
-      // "창 1" 같이 책이 식별된 경우는 필터링 불필요
-      if (identifiedBook) {
-        setAvailableBookIds(null);
-        return;
+      if (!input || input.length < 2 || identifiedBook) {
+        setAvailableBookIds(null); return;
       }
       try {
-        const { data, error } = await supabase
-          .from('bible_verses')
-          .select('book_id')
-          .ilike('content', `%${input}%`)
-          .limit(2000);
-        if (data && !error) {
-          const ids = Array.from(new Set(data.map(d => d.book_id)));
-          setAvailableBookIds(ids);
-        }
+        const { data } = await supabase.from('bible_verses').select('book_id').ilike('content', `%${input}%`).limit(1000);
+        if (data) setAvailableBookIds(Array.from(new Set(data.map(d => d.book_id))));
       } catch (e) { console.error(e); }
     };
-    const debounce = setTimeout(fetchFilteredBooks, 400);
-    return () => clearTimeout(debounce);
+    const tid = setTimeout(fetchFilteredBooks, 500);
+    return () => clearTimeout(tid);
   }, [searchInput, identifiedBook]);
 
-  // 세션 스토리지 관리
+  // 세션 스토리지 복원
   useEffect(() => {
     const saved = sessionStorage.getItem('searchPageState');
     if (saved) {
@@ -137,15 +121,15 @@ export default function SearchPage() {
     sessionStorage.setItem('searchPageState', JSON.stringify(state));
   }, [searchInput, results, viewMode, page, hasMore, testamentFilter, selectedBook, currentChapterInfo]);
 
-  // 통독 상태
-  const checkReadStatus = async (bookName: string, chapter: number) => {
+  // 성경 읽기 상태 체크
+  const checkReadStatus = useCallback(async (bookName: string, chapter: number) => {
     if (!user) return;
     try {
       const { data } = await supabase.from('user_reading_records').select('read_count').eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter).maybeSingle();
       const count = data?.read_count || 0;
       setReadCount(count); setIsRead(count > 0);
     } catch (e) { console.error(e); }
-  };
+  }, [user]);
 
   const handleReadComplete = async () => {
     if (!currentChapterInfo || !user) return;
@@ -166,16 +150,16 @@ export default function SearchPage() {
     try {
       const { data: ex } = await supabase.from('user_reading_records').select('read_count').eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter).maybeSingle();
       if (ex && ex.read_count > 0) {
-        const newCount = ex.read_count - 1;
-        if (newCount === 0) await supabase.from('user_reading_records').delete().eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter);
-        else await supabase.from('user_reading_records').update({ read_count: newCount, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter);
+        const nc = ex.read_count - 1;
+        if (nc === 0) await supabase.from('user_reading_records').delete().eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter);
+        else await supabase.from('user_reading_records').update({ read_count: nc, updated_at: new Date().toISOString() }).eq('user_id', user.id).eq('book_name', bookName).eq('chapter', chapter);
         await checkReadStatus(bookName, chapter);
         if (window.navigator?.vibrate) window.navigator.vibrate([100, 50, 100]);
       }
     } catch (e) { console.error(e); }
   };
 
-  // 롱프레스
+  // 롱프레스 이벤트 핸들러
   useEffect(() => {
     const btn = readCompleteButtonRef.current;
     if (!btn) return;
@@ -183,12 +167,12 @@ export default function SearchPage() {
       pressStartedRef.current = true; longPressStartTimeRef.current = Date.now();
       if (!isRead) return;
       isLongPressingRef.current = true; setIsLongPressing(true);
-      const anim = () => {
+      const loop = () => {
         if (Date.now() - longPressStartTimeRef.current >= 1000) {
-          handleReadCancel(); longPressCancelledRef.current = true; isLongPressingRef.current = false; setIsLongPressing(false);
-        } else if (isLongPressingRef.current) requestAnimationFrame(anim);
+          handleReadCancel(); longPressCancelledRef.current = true; setIsLongPressing(false); isLongPressingRef.current = false;
+        } else if (isLongPressingRef.current) requestAnimationFrame(loop);
       };
-      requestAnimationFrame(anim);
+      requestAnimationFrame(loop);
     };
     const end = () => {
       if (pressStartedRef.current && !longPressCancelledRef.current) handleReadComplete();
@@ -200,40 +184,43 @@ export default function SearchPage() {
       btn.removeEventListener('touchstart', start); btn.removeEventListener('touchend', end);
       btn.removeEventListener('mousedown', start); btn.removeEventListener('mouseup', end); btn.removeEventListener('mouseleave', end);
     };
-  }, [isRead, currentChapterInfo]);
+  }, [isRead, currentChapterInfo, user, handleReadComplete, handleReadCancel]);
 
   // 검색 로직
-  const performSearch = async (newSearch: boolean = true) => {
+  const performSearch = useCallback(async (newSearch: boolean = true, overrideFilters?: any) => {
     const input = searchInput.trim();
-    if (!input && selectedBook === 'ALL' && testamentFilter === 'ALL') {
+    const tFilter = overrideFilters?.testament || testamentFilter;
+    const bFilter = overrideFilters?.book || selectedBook;
+
+    if (!input && bFilter === 'ALL' && tFilter === 'ALL') {
       setResults([]); setViewMode('SEARCH'); return;
     }
     setLoading(true);
     const startPage = newSearch ? 0 : page + 1;
     try {
-      const queryBook = identifiedBook;
-      let queryChapter = null, queryVerse = null;
-      if (queryBook) {
+      const qBook = identifiedBook;
+      let qChapter = null, qVerse = null;
+      if (qBook) {
         const m = input.match(/^([가-힣]{1,5})\s*(\d+)?(?::(\d+))?\s*(장|편)?$/);
-        if (m) { queryChapter = m[2] ? parseInt(m[2]) : null; queryVerse = m[3] ? parseInt(m[3]) : null; }
+        if (m) { qChapter = m[2] ? parseInt(m[2]) : null; qVerse = m[3] ? parseInt(m[3]) : null; }
       }
 
       let query = supabase.from('bible_verses').select('*', { count: 'exact' });
 
-      // 1. 단일 장 모드 (책 + 장 정확히 명시)
-      if (queryBook && queryChapter && !queryVerse) {
-        setViewMode('CHAPTER'); setCurrentChapterInfo({ bookName: queryBook.name, bookId: queryBook.id, chapter: queryChapter });
-        checkReadStatus(queryBook.name, queryChapter);
-        query = query.eq('book_id', queryBook.id).eq('chapter', queryChapter);
+      if (qBook && qChapter && !qVerse) {
+        // 단일 장 모드
+        setViewMode('CHAPTER'); setCurrentChapterInfo({ bookName: qBook.name, bookId: qBook.id, chapter: qChapter });
+        checkReadStatus(qBook.name, qChapter);
+        query = query.eq('book_id', qBook.id).eq('chapter', qChapter);
         const { data, error } = await query.order('verse', { ascending: true });
         if (error) throw error;
         setResults(data || []); setHasMore(false); setPage(0);
       } else {
-        // 2. 검색 모드
+        // 일반 검색 모드
         setViewMode('SEARCH'); setCurrentChapterInfo(null);
-        if (queryBook) query = query.eq('book_id', queryBook.id);
-        if (queryChapter) query = query.eq('chapter', queryChapter);
-        if (queryVerse) query = query.eq('verse', queryVerse);
+        if (qBook) query = query.eq('book_id', qBook.id);
+        if (qChapter) query = query.eq('chapter', qChapter);
+        if (qVerse) query = query.eq('verse', qVerse);
 
         let kw = input;
         if (identifiedBook) {
@@ -242,41 +229,40 @@ export default function SearchPage() {
         }
         if (kw) query = query.ilike('content', `%${kw}%`);
 
-        // 필터 적용 (queryBook이 없을 때만 필터 명시)
-        if (!queryBook) {
-          if (testamentFilter !== 'ALL') query = query.eq('testament', testamentFilter);
-          if (selectedBook !== 'ALL') query = query.eq('book_id', parseInt(selectedBook));
+        // 필터 명시적 적용 (identifiedBook이 없는 경우)
+        if (!qBook) {
+          if (tFilter !== 'ALL') query = query.eq('testament', tFilter === 'OT' ? 'old' : 'new');
+          if (bFilter !== 'ALL') query = query.eq('book_id', parseInt(bFilter));
         }
 
         const from = startPage * PAGE_SIZE, to = from + PAGE_SIZE - 1;
-        const { data, error, count } = await query
-          .order('book_id', { ascending: true })
-          .order('chapter', { ascending: true })
-          .order('verse', { ascending: true })
-          .range(from, to);
+        const { data, error, count } = await query.order('book_id', { ascending: true }).order('chapter', { ascending: true }).order('verse', { ascending: true }).range(from, to);
         if (error) throw error;
-
-        const newResults = newSearch ? (data || []) : [...results, ...(data || [])];
-        setResults(newResults);
-        setHasMore(count ? newResults.length < count : false);
-        setPage(startPage);
+        const nr = newSearch ? (data || []) : [...results, ...(data || [])];
+        setResults(nr); setHasMore(count ? nr.length < count : false); setPage(startPage);
       }
       if (newSearch) window.scrollTo({ top: 0 });
     } catch (e) { console.error(e); } finally { setLoading(false); }
+  }, [searchInput, identifiedBook, testamentFilter, selectedBook, page, results, checkReadStatus]);
+
+  // 필터 클릭 시 바로 검색
+  const handleTestamentChange = (f: 'ALL' | 'OT' | 'NT') => {
+    setTestamentFilter(f);
+    performSearch(true, { testament: f, book: selectedBook });
+  };
+  const handleBookChange = (b: string) => {
+    setSelectedBook(b);
+    performSearch(true, { testament: testamentFilter, book: b });
   };
 
-  // 필터 변경 시 자동 검색
-  useEffect(() => {
-    if (searchInput.trim() || selectedBook !== 'ALL') performSearch(true);
-  }, [testamentFilter, selectedBook]);
-
+  // 무한 스크롤 관찰
   useEffect(() => {
     if (loading || !hasMore || viewMode === 'CHAPTER') return;
     if (scrollObserver.current) scrollObserver.current.disconnect();
     scrollObserver.current = new IntersectionObserver(es => { if (es[0].isIntersecting) performSearch(false); });
     if (bottomRef.current) scrollObserver.current.observe(bottomRef.current);
     return () => scrollObserver.current?.disconnect();
-  }, [loading, hasMore, results, viewMode]);
+  }, [loading, hasMore, viewMode, performSearch]);
 
   useEffect(() => {
     const fn = () => setShowScrollTop(window.scrollY > 500);
@@ -285,15 +271,24 @@ export default function SearchPage() {
   }, []);
 
   const highlightKeyword = (text: string) => {
-    if (viewMode === 'CHAPTER' || !searchInput) return text;
-    const kw = identifiedBook ? searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?(:(\d+))?/, '').trim() : searchInput.trim();
-    if (!kw || kw.length < 1) return text;
-    const ps = text.split(new RegExp(`(${kw})`, 'gi'));
-    return ps.map((p, i) => p.toLowerCase() === kw.toLowerCase() ? <mark key={i} className="bg-yellow-200 font-bold px-0.5 rounded shadow-sm">{p}</mark> : p);
+    if (!text || viewMode === 'CHAPTER' || !searchInput) return text;
+    const rawKw = identifiedBook ? searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?(:(\d+))?/, '').trim() : searchInput.trim();
+    if (!rawKw || rawKw.length < 1) return text;
+    const escaped = escapeRegExp(rawKw);
+    try {
+      const ps = text.split(new RegExp(`(${escaped})`, 'gi'));
+      return ps.map((p, i) => p.toLowerCase() === rawKw.toLowerCase() ? <mark key={i} className="bg-yellow-200 font-bold px-0.5 rounded shadow-sm">{p}</mark> : p);
+    } catch (e) { return text; }
+  };
+
+  const resetAll = () => {
+    setSearchInput(''); setTestamentFilter('ALL'); setSelectedBook('ALL'); setResults([]); setViewMode('SEARCH'); setAvailableBookIds(null);
+    sessionStorage.removeItem('searchPageState');
   };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
+      {/* 헤더 */}
       <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           <div className="flex gap-2 h-11">
@@ -305,11 +300,11 @@ export default function SearchPage() {
                 placeholder="예: 창세기 1, 요 3:16, 사랑, 은혜..."
                 className="w-full h-full pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-[15px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
               />
-              <Search className="absolute left-4 top-3 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741] transition-colors" />
+              <Search className="absolute left-4 top-3 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741]" />
             </div>
             <div className="flex gap-1.5 shrink-0 h-full">
-              <button onClick={() => performSearch(true)} className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-xl hover:bg-[#3d5636] shadow-sm">검색</button>
-              <button onClick={resetAll} className="w-11 h-11 flex items-center justify-center bg-zinc-100 text-zinc-500 rounded-xl hover:bg-zinc-200 transition-colors"><RotateCcw className="w-5 h-5" /></button>
+              <button onClick={() => performSearch(true)} className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-xl active:scale-95 shadow-sm">검색</button>
+              <button onClick={resetAll} className="w-11 h-11 flex items-center justify-center bg-zinc-100 text-zinc-500 rounded-xl active:rotate-180 transition-all"><RotateCcw className="w-5 h-5" /></button>
             </div>
           </div>
           <div className="flex gap-2 items-center justify-between h-11">
@@ -317,8 +312,8 @@ export default function SearchPage() {
               {(['ALL', 'OT', 'NT'] as const).map(f => (
                 <button
                   key={f} disabled={!!identifiedBook}
-                  onClick={() => { setTestamentFilter(f); setResults([]); }}
-                  className={`px-5 h-full rounded-full text-xs font-dm-sans font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741] shadow-md shadow-[#4A6741]/20' : 'bg-white text-zinc-500 border-zinc-200'} ${!!identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  onClick={() => handleTestamentChange(f)}
+                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white' : 'bg-white text-zinc-500 border-zinc-200'} ${!!identifiedBook ? 'opacity-40' : ''}`}
                 >
                   {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
                 </button>
@@ -329,15 +324,14 @@ export default function SearchPage() {
               <div className="relative h-full">
                 <select
                   disabled={!!identifiedBook}
-                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
                   value={selectedBook}
-                  onChange={(e) => { setSelectedBook(e.target.value); setResults([]); }}
+                  onChange={(e) => handleBookChange(e.target.value)}
                 >
                   <option value="ALL">권 선택</option>
                   {BIBLE_BOOKS.map((b, idx) => {
-                    const id = idx + 1;
-                    if (availableBookIds && !availableBookIds.includes(id)) return null;
-                    return <option key={b.name} value={id}>{b.name}</option>;
+                    if (availableBookIds && !availableBookIds.includes(idx + 1)) return null;
+                    return <option key={b.name} value={idx + 1}>{b.name}</option>;
                   })}
                 </select>
                 <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
@@ -350,9 +344,7 @@ export default function SearchPage() {
       <div className="pt-48 px-4 max-w-2xl mx-auto">
         {viewMode === 'CHAPTER' && currentChapterInfo && (
           <div className="mt-4 mb-10 text-center animate-in zoom-in-95 duration-300">
-            <h1 className="text-2xl font-black text-zinc-900 tracking-tight">
-              {currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}
-            </h1>
+            <h1 className="text-2xl font-black text-zinc-900">{currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}</h1>
           </div>
         )}
 
@@ -366,12 +358,12 @@ export default function SearchPage() {
           {!loading && results.length === 0 && !searchInput && selectedBook === 'ALL' && (
             <div className="py-20 text-center animate-in fade-in duration-1000">
               <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6"><Search className="w-8 h-8 text-zinc-300" /></div>
-              <h2 className="text-xl font-bold text-zinc-800 mb-2 font-dm-sans">어떤 말씀을 찾으시나요?</h2>
+              <h2 className="text-xl font-bold text-zinc-800 mb-2">어떤 말씀을 찾으시나요?</h2>
               <p className="text-zinc-400 text-sm px-10">키워드나 성경 구절(창 1:1)을 입력하여<br />하나님의 말씀을 검색해보세요.</p>
             </div>
           )}
           {!loading && results.length === 0 && (searchInput || selectedBook !== 'ALL') && (
-            <div className="py-20 text-center text-zinc-400">검색 결과가 없습니다.</div>
+            <div className="py-20 text-center text-zinc-400 font-medium">검색 결과가 없습니다.</div>
           )}
 
           {results.map((v, idx) => {
@@ -381,12 +373,12 @@ export default function SearchPage() {
                 {viewMode === 'SEARCH' && isNew && (
                   <div className="flex items-center gap-3 mb-4 mt-8">
                     <div className="h-[1px] flex-1 bg-zinc-100" />
-                    <span className="font-black text-zinc-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-zinc-100" style={{ fontSize: `${fontSize * 0.7}px` }}>{v.book_name} {v.chapter}</span>
+                    <span className="font-black text-zinc-400 uppercase tracking-widest bg-gray-50/50 px-3 py-1 rounded-full border border-zinc-100" style={{ fontSize: `${fontSize * 0.7}px` }}>{v.book_name} {v.chapter}</span>
                     <div className="h-[1px] flex-1 bg-zinc-100" />
                   </div>
                 )}
                 <div
-                  className={`group transition-all ${viewMode === 'CHAPTER' ? 'px-4 py-1 hover:bg-zinc-50' : 'p-4 bg-white border border-zinc-100 shadow-sm hover:shadow-md rounded-2xl cursor-pointer'}`}
+                  className={`group transition-all ${viewMode === 'CHAPTER' ? 'px-4 py-1 hover:bg-zinc-50' : 'p-4 bg-white border border-zinc-100 shadow-sm hover:shadow-md rounded-2xl cursor-pointer active:scale-[0.98]'}`}
                   onClick={() => {
                     if (viewMode === 'SEARCH') {
                       const kw = identifiedBook ? searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?(:(\d+))?/, '').trim() : searchInput.trim();
@@ -395,7 +387,7 @@ export default function SearchPage() {
                   }}
                 >
                   <div className="flex items-start gap-4">
-                    <span className={`text-[11px] pt-1.5 font-dm-sans font-black min-w-[24px] text-center ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}>{v.verse}</span>
+                    <span className={`text-[11px] pt-1.5 font-bold min-w-[24px] text-center ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}>{v.verse}</span>
                     <p className={`leading-relaxed text-zinc-700 flex-1 ${viewMode === 'CHAPTER' ? 'font-medium' : ''}`} style={{ fontSize: `${fontSize * 0.9}px` }}>{highlightKeyword(v.content)}</p>
                   </div>
                 </div>
