@@ -12,6 +12,7 @@ import QTPage from "./pages/QTPage";
 import ReadingPage from "./pages/ReadingPage";
 import CommunityPage from "./pages/CommunityPage";
 import GroupDashboard from "./pages/GroupDashboard"; 
+import LeadershipPage from "./pages/LeadershipPage";
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage"; 
@@ -49,6 +50,7 @@ function AppContent() {
                   <Route path="/reading" component={ReadingPage} />
                   <Route path="/community" component={CommunityPage} />
                   <Route path="/group/:id" component={GroupDashboard} />
+                  <Route path="/leadership" component={LeadershipPage} />
                   <Route path="/archive" component={ArchivePage} />
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
                   <Route path="/search" component={SearchPage} />

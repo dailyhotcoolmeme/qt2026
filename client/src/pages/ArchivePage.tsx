@@ -1,148 +1,306 @@
-import { useEffect, useState } from "react"; // ì—ëŸ¬ í•´ê²°ì„ ìœ„í•œ í•µì‹¬ ì„ ì–¸
-import { supabase } from "../lib/supabase"; // íŒŒì¼ëª…ì— ë§ì¶° ê²½ë¡œ ìˆ˜ì •
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import AuthPage from "./AuthPage"; 
-import { 
-  Trophy, BookOpen, MessageCircle, 
-  ChevronLeft, Settings, Star, LogOut, UserMinus, ChevronRight, UserCircle,
-  Copy, Share2
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import { useLocation } from "wouter";
+import { Bookmark, BookOpen, HandHeart, Library, Link2 } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/use-auth";
 
-// --- ìƒì„¸ í˜ì´ì§€ ì»´í¬ë„ŒíŠ¸ ---
+type ArchiveType = "qt" | "prayer" | "reading" | "bookmark";
+type ContextFilter = "all" | "group_direct" | "personal" | "linked";
 
-const SharingCard = ({ item, type }: { item: any, type: 'word' | 'meditation' }) => (
-  <div className="bg-white p-6 rounded-[28px] border border-gray-100 shadow-sm space-y-4 w-full text-left">
-    <div className="flex justify-between items-center">
-      <span className="text-[11px] font-bold text-gray-300">
-        {new Date(item.created_at).toLocaleDateString()}
-      </span>
-      <span className={`${type === 'word' ? 'text-primary' : 'text-[#7180B9]'} font-black text-[14px]`}>
-        {item.verse}
-      </span>
-    </div>
-    
-    <div className="relative w-full">
-      <div className="p-5 bg-gray-50/50 rounded-2xl border border-gray-100 h-32 overflow-y-auto custom-scrollbar w-full">
-        <p className="text-[14px] text-gray-600 leading-relaxed font-medium pr-2">
-          {item.content}
-        </p>
-      </div>
-      <div className="flex justify-end gap-2 mt-2">
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full text-gray-300"><Star className="w-4 h-4" /></Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full text-gray-300"><Copy className="w-4 h-4" /></Button>
-        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full text-gray-300"><Share2 className="w-4 h-4" /></Button>
-      </div>
-    </div>
+type ActivityLogRow = {
+  id: number;
+  activity_type: ArchiveType;
+  source_kind: "personal" | "group_direct";
+  source_group_id: string | null;
+  source_table: string;
+  source_row_id: string;
+  payload: Record<string, unknown> | null;
+  occurred_at: string;
+};
 
-    <div className="space-y-4 pt-1 w-full">
-      <div className="space-y-1">
-        <p className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">
-          {type === 'word' ? 'ë‚˜ì˜ ë‚˜ëˆ”' : 'ë¬µìƒ ê¸°ë¡'}
-        </p>
-        <p className="text-[15px] text-gray-800 font-medium leading-relaxed">
-          {type === 'word' ? item.my_text : item.my_meditation}
-        </p>
-      </div>
-      {item.my_prayer && (
-        <div className="pt-4 border-t border-gray-50 space-y-1">
-          <p className="text-[11px] font-black text-gray-400 uppercase tracking-tighter">ë¬µìƒ ê¸°ë„</p>
-          <p className="text-[15px] text-[#7180B9] font-medium leading-relaxed">{item.my_prayer}</p>
-        </div>
-      )}
-    </div>
-  </div>
-);
+type ActivityLinkRow = {
+  activity_log_id: number;
+  group_id: string;
+  linked_at: string;
+};
 
-// --- ë©”ì¸ ì•„ì¹´ì´ë¸Œ í˜ì´ì§€ ---
+type GroupRow = {
+  id: string;
+  name: string;
+};
 
-export default function ArchivePage() {
-  const [session, setSession] = useState<any>(null);
-  const [currentView, setCurrentView] = useState<string>("menu");
-  const [loading, setLoading] = useState(true);
-  
-  // ì‹¤ì œ DB ë°ì´í„°ë¥¼ ë‹´ì„ ê³µê°„
-  const [meditationRecords, setMeditationRecords] = useState<any[]>([]);
-  const [userData, setUserData] = useState({ 
-    id: "", name: "", title: "", nickname: "", church: "", rank: "ì‹ ì‹¤í•œ ë™ë°˜ì" 
+function formatDateTime(iso: string) {
+  return new Date(iso).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
-
-  useEffect(() => {
-    async function loadAllData() {
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-      setSession(currentSession);
-
-      if (currentSession?.user) {
-        // 1. í”„ë¡œí•„ ë¶ˆëŸ¬ì˜¤ê¸°
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentSession.user.id).single();
-        if (profile) setUserData(profile);
-
-        // 2. meditations í…Œì´ë¸”ì—ì„œ ë‚´ ë¬µìƒ ê¸°ë¡ë§Œ ê°€ì ¸ì˜¤ê¸°
-        const { data: meditations } = await supabase
-          .from('meditations')
-          .select('*')
-          .eq('user_id', currentSession.user.id)
-          .order('created_at', { ascending: false });
-        
-        if (meditations) setMeditationRecords(meditations);
-      }
-      setLoading(false);
-    }
-    loadAllData();
-  }, []);
-
-  if (loading) return <div className="h-screen flex items-center justify-center font-black text-primary italic">ê¸°ë¡ì„ ë¶ˆëŸ¬ì˜¤ëŠ” ì¤‘...</div>;
-  if (!session) return <AuthPage />;
-
-  // í™”ë©´ ì „í™˜ ë¡œì§
-  if (currentView === "meditationLog") return (
-    <div className="flex flex-col h-full bg-gray-50/50 w-full overflow-hidden">
-      <header className="p-4 bg-white border-b flex items-center gap-4 sticky top-0 z-10">
-        <Button variant="ghost" size="icon" onClick={() => setCurrentView("menu")}><ChevronLeft className="w-6 h-6" /></Button>
-        <h2 className="font-black text-lg text-gray-900">ì˜¤ëŠ˜ì˜ ë¬µìƒ ë‚˜ëˆ” ê¸°ë¡</h2>
-      </header>
-      <div className="flex-1 p-5 space-y-4 overflow-y-auto w-full pb-10">
-        {meditationRecords.length > 0 ? (
-          meditationRecords.map((m) => <SharingCard key={m.id} item={m} type="meditation" />)
-        ) : (
-          <div className="text-center py-20 text-gray-400 font-bold">ì•„ì§ ì‘ì„±ëœ ë¬µìƒì´ ì—†ìŠµë‹ˆë‹¤.</div>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col h-screen bg-white font-sans overflow-x-hidden w-full">
-      <header className="flex-none pt-12 pb-8 bg-white w-full border-b border-gray-100">
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-[#7180B9]/10 rounded-[32px] flex items-center justify-center text-[#7180B9]"><Trophy className="w-10 h-10" /></div>
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-gray-900">{userData.name || "ì„±ë„"} {userData.title || ""}</h2>
-            <p className="text-[13px] font-bold text-[#7180B9]">{userData.rank}</p>
-            <p className="text-[11px] font-bold text-gray-300">{userData.church || "ì„¬ê¸°ëŠ” êµíšŒ ì •ë³´ ì—†ìŒ"}</p>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 p-6 space-y-4 w-full bg-gray-50/30 pb-32">
-        <MenuButton icon={<UserCircle className="w-5 h-5 text-gray-400" />} label="í”„ë¡œí•„ ìˆ˜ì •" onClick={() => {}} />
-        <MenuButton icon={<MessageCircle className="w-5 h-5 text-primary" />} label="ì˜¤ëŠ˜ì˜ ë§ì”€ ë‚˜ëˆ” ê¸°ë¡" onClick={() => {}} />
-        <MenuButton icon={<BookOpen className="w-5 h-5 text-[#7180B9]" />} label="ì˜¤ëŠ˜ì˜ ë¬µìƒ ë‚˜ëˆ” ê¸°ë¡" onClick={() => setCurrentView("meditationLog")} />
-        
-        <div className="grid grid-cols-2 gap-3 w-full mt-6">
-          <Button onClick={async () => await supabase.auth.signOut()} variant="ghost" className="h-14 bg-white rounded-2xl border border-gray-100 text-gray-500 font-black"><LogOut className="w-4 h-4 mr-2" /> ë¡œê·¸ì•„ì›ƒ</Button>
-          <Button variant="ghost" className="h-14 bg-white rounded-2xl border border-gray-100 text-red-400 font-black"><UserMinus className="w-4 h-4 mr-2" /> íšŒì›íƒˆí‡´</Button>
-        </div>
-      </main>
-    </div>
-  );
 }
 
-function MenuButton({ icon, label, onClick }: any) {
+function getTitle(log: ActivityLogRow) {
+  const payload = log.payload ?? {};
+
+  if (log.activity_type === "qt") {
+    const text = payload.meditation_excerpt;
+    if (typeof text === "string" && text.trim()) return text;
+    const date = payload.target_date;
+    if (typeof date === "string") return `QT ±â·Ï (${date})`;
+    return "QT ±â·Ï";
+  }
+
+  if (log.activity_type === "prayer") {
+    const title = payload.title;
+    if (typeof title === "string" && title.trim()) return title;
+    return "±âµµ ±â·Ï";
+  }
+
+  if (log.activity_type === "reading") {
+    const book = payload.book_name;
+    const chapter = payload.chapter;
+    if (typeof book === "string" && (typeof chapter === "number" || typeof chapter === "string")) {
+      return `${book} ${chapter}Àå`;
+    }
+    return "¼º°æÀĞ±â ±â·Ï";
+  }
+
+  const verseRef = payload.verse_ref;
+  if (typeof verseRef === "string" && verseRef.trim()) return verseRef;
+  return "¸»¾¸ Áñ°ÜÃ£±â";
+}
+
+export default function ArchivePage() {
+  const { user, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  const [activeType, setActiveType] = useState<ArchiveType>("qt");
+  const [contextFilter, setContextFilter] = useState<ContextFilter>("all");
+  const [loading, setLoading] = useState(true);
+
+  const [logs, setLogs] = useState<ActivityLogRow[]>([]);
+  const [links, setLinks] = useState<ActivityLinkRow[]>([]);
+  const [groupsMap, setGroupsMap] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!user?.id) {
+      setLogs([]);
+      setLinks([]);
+      setGroupsMap({});
+      setLoading(false);
+      return;
+    }
+    void loadData(user.id, activeType);
+  }, [user?.id, activeType]);
+
+  const loadData = async (userId: string, type: ArchiveType) => {
+    setLoading(true);
+
+    const { data: logRows, error: logErr } = await supabase
+      .from("activity_logs")
+      .select("id, activity_type, source_kind, source_group_id, source_table, source_row_id, payload, occurred_at")
+      .eq("user_id", userId)
+      .eq("activity_type", type)
+      .order("occurred_at", { ascending: false })
+      .limit(300);
+
+    if (logErr) {
+      setLogs([]);
+      setLinks([]);
+      setGroupsMap({});
+      setLoading(false);
+      return;
+    }
+
+    const nextLogs = (logRows ?? []) as ActivityLogRow[];
+    setLogs(nextLogs);
+
+    const logIds = nextLogs.map((row) => row.id);
+    if (logIds.length === 0) {
+      setLinks([]);
+      setGroupsMap({});
+      setLoading(false);
+      return;
+    }
+
+    const { data: linkRows } = await supabase
+      .from("activity_group_links")
+      .select("activity_log_id, group_id, linked_at")
+      .in("activity_log_id", logIds);
+
+    const nextLinks = (linkRows ?? []) as ActivityLinkRow[];
+    setLinks(nextLinks);
+
+    const groupIds = Array.from(
+      new Set([
+        ...nextLogs.map((row) => row.source_group_id).filter(Boolean),
+        ...nextLinks.map((row) => row.group_id),
+      ])
+    ) as string[];
+
+    if (groupIds.length === 0) {
+      setGroupsMap({});
+      setLoading(false);
+      return;
+    }
+
+    const { data: groups } = await supabase.from("groups").select("id, name").in("id", groupIds);
+    const map: Record<string, string> = {};
+    (groups ?? []).forEach((group: GroupRow) => {
+      map[group.id] = group.name;
+    });
+    setGroupsMap(map);
+    setLoading(false);
+  };
+
+  const linkMap = useMemo(() => {
+    const map = new Map<number, ActivityLinkRow[]>();
+    links.forEach((link) => {
+      const prev = map.get(link.activity_log_id) ?? [];
+      prev.push(link);
+      map.set(link.activity_log_id, prev);
+    });
+    return map;
+  }, [links]);
+
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      const relatedLinks = linkMap.get(log.id) ?? [];
+      const isLinked = log.source_kind === "personal" && relatedLinks.length > 0;
+
+      if (contextFilter === "all") return true;
+      if (contextFilter === "group_direct") return log.source_kind === "group_direct";
+      if (contextFilter === "personal") return log.source_kind === "personal" && relatedLinks.length === 0;
+      if (contextFilter === "linked") return isLinked;
+      return true;
+    });
+  }, [logs, linkMap, contextFilter]);
+
+  const typeConfig: Record<ArchiveType, { label: string; icon: React.ReactNode }> = {
+    qt: { label: "QT", icon: <BookOpen size={16} /> },
+    prayer: { label: "±âµµ", icon: <HandHeart size={16} /> },
+    reading: { label: "¼º°æÀĞ±â", icon: <Library size={16} /> },
+    bookmark: { label: "¸»¾¸ Áñ°ÜÃ£±â", icon: <Bookmark size={16} /> },
+  };
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F6F7F8]">
+        <div className="w-8 h-8 rounded-full border-4 border-[#4A6741] border-t-transparent animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full bg-white rounded-3xl border border-zinc-100 p-6 text-center">
+          <p className="text-sm text-zinc-600 font-bold mb-4">·Î±×ÀÎ ÈÄ ³» ±â·ÏÇÔÀ» º¼ ¼ö ÀÖ½À´Ï´Ù.</p>
+          <button
+            onClick={() => setLocation("/")}
+            className="px-4 py-2 rounded-xl bg-[#4A6741] text-white text-sm font-bold"
+          >
+            È¨À¸·Î
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Button onClick={onClick} className="w-full h-[72px] justify-between px-6 bg-white hover:bg-white rounded-2xl border border-gray-100 text-gray-800 shadow-sm active:scale-[0.98] transition-all">
-      <div className="flex items-center gap-4">{icon}<span className="font-black text-[15px]">{label}</span></div>
-      <ChevronRight className="w-5 h-5 text-gray-200" />
-    </Button>
+    <div className="min-h-screen bg-[#F6F7F8] pt-24 pb-28 px-4">
+      <div className="max-w-2xl mx-auto space-y-4">
+        <div>
+          <h1 className="text-xl font-black text-zinc-900">³» ±â·ÏÇÔ</h1>
+          <p className="text-xs text-zinc-500 mt-1">¸ğÀÓ ³» ¼öÇà / °³ÀÎ ¼öÇà / °³ÀÎ¡æ¸ğÀÓ ¿¬°á Èå¸§À» ÇÔ²² È®ÀÎÇÒ ¼ö ÀÖ½À´Ï´Ù.</p>
+        </div>
+
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-white p-1 rounded-2xl border border-zinc-100">
+          {(Object.keys(typeConfig) as ArchiveType[]).map((type) => (
+            <button
+              key={type}
+              onClick={() => {
+                setActiveType(type);
+                setContextFilter("all");
+              }}
+              className={`py-2 rounded-xl text-sm font-bold inline-flex items-center justify-center gap-1 ${
+                activeType === type ? "bg-[#4A6741] text-white" : "text-zinc-500"
+              }`}
+            >
+              {typeConfig[type].icon}
+              {typeConfig[type].label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          {[
+            ["all", "ÀüÃ¼"],
+            ["group_direct", "¸ğÀÓ ³» ¼öÇà"],
+            ["personal", "°³ÀÎ ¼öÇà"],
+            ["linked", "°³ÀÎ¡æ¸ğÀÓ ¿¬°á"],
+          ].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setContextFilter(id as ContextFilter)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold whitespace-nowrap ${
+                contextFilter === id ? "bg-[#4A6741] text-white" : "bg-white text-zinc-600 border border-zinc-100"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          {filteredLogs.map((log) => {
+            const relatedLinks = linkMap.get(log.id) ?? [];
+            const contextLabel =
+              log.source_kind === "group_direct"
+                ? "¸ğÀÓ ³» ¼öÇà"
+                : relatedLinks.length > 0
+                ? "°³ÀÎ ¼öÇà¡æ¸ğÀÓ ¿¬°á"
+                : "°³ÀÎ ¼öÇà";
+
+            const groupNames =
+              log.source_kind === "group_direct"
+                ? log.source_group_id
+                  ? [groupsMap[log.source_group_id]].filter(Boolean)
+                  : []
+                : relatedLinks.map((link) => groupsMap[link.group_id]).filter(Boolean);
+
+            return (
+              <div key={log.id} className="bg-white rounded-3xl border border-zinc-100 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="font-bold text-zinc-900 text-sm">{getTitle(log)}</div>
+                  <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 text-[11px] font-bold">
+                    {contextLabel}
+                  </span>
+                </div>
+
+                <div className="text-xs text-zinc-500 mt-2">{formatDateTime(log.occurred_at)}</div>
+
+                {groupNames.length > 0 && (
+                  <div className="mt-2 flex items-center gap-1 flex-wrap">
+                    <Link2 size={12} className="text-zinc-400" />
+                    {groupNames.map((name, idx) => (
+                      <span key={`${name}-${idx}`} className="text-xs text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {filteredLogs.length === 0 && (
+            <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
+              Ç¥½ÃÇÒ ±â·ÏÀÌ ¾ø½À´Ï´Ù.
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </div>
   );
 }

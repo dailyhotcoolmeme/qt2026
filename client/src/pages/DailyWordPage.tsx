@@ -1,22 +1,26 @@
 import React, { useState, useEffect, useRef } from "react";
-import { 
-  Heart, Headphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon 
+import {
+  Heart, Headphones, Share2, Copy, Bookmark,
+  Play, Pause, X, Calendar as CalendarIcon
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase"; 
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { useAuth } from "../hooks/use-auth";
+import { LoginModal } from "../components/LoginModal";
 
 export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null); 
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
-        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+        alert("?ㅻ뒛 ?댄썑??留먯?? 誘몃━ 蹂????놁뒿?덈떎.");
         return;
       }
       setCurrentDate(selectedDate);
@@ -28,13 +32,13 @@ export default function DailyWordPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
-  const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
+  const [showCopyToast, setShowCopyToast] = useState(false); // ?좎뒪???쒖떆 ?щ?
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
- // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
+ // 1. ?깅퀎(voiceType)??諛붾????ㅽ뻾?섎뒗 媛먯떆??
   useEffect(() => {
-    // 오디오 컨트롤러가 켜져 있을 때만 성별 변경을 반영하여 다시 재생함
+    // ?ㅻ뵒??而⑦듃濡ㅻ윭媛 耳쒖졇 ?덉쓣 ?뚮쭔 ?깅퀎 蹂寃쎌쓣 諛섏쁺?섏뿬 ?ㅼ떆 ?ъ깮??
     if (showAudioControl) {
       handlePlayTTS();
     }
@@ -43,26 +47,26 @@ export default function DailyWordPage() {
   useEffect(() => {
     fetchVerse();
   }, [currentDate]);
-  
+
   const fetchVerse = async () => {
   const formattedDate = currentDate.toISOString().split('T')[0];
-  
-  // 1. 오늘의 말씀 가져오기
+
+  // 1. ?ㅻ뒛??留먯? 媛?몄삤湲?
   const { data: verse } = await supabase
     .from('daily_bible_verses')
     .select('*')
     .eq('display_date', formattedDate)
     .maybeSingle();
-  
+
   if (verse) {
-    // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
+    // 2. 以묒슂: bible_books ?뚯씠釉붿뿉???대떦 ?깃꼍???쒖꽌(book_order)瑜?媛?몄샂
     const { data: book } = await supabase
       .from('bible_books')
       .select('book_order')
-      .eq('book_name', verse.bible_name) // bible_name으로 매칭
+      .eq('book_name', verse.bible_name) // bible_name?쇰줈 留ㅼ묶
       .maybeSingle();
 
-    // 3. bible_books 데이터를 포함해서 상태 업데이트
+    // 3. bible_books ?곗씠?곕? ?ы븿?댁꽌 ?곹깭 ?낅뜲?댄듃
     setBibleData({ ...verse, bible_books: book });
     setAmenCount(verse.amen_count || 0);
     setHasAmened(false);
@@ -72,20 +76,20 @@ export default function DailyWordPage() {
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
-      .replace(/^[.\s]+/, "") 
-      .replace(/\d+절/g, "")
+      .replace(/^[.\s]+/, "")
+      .replace(/\d+장/g, "")
       .replace(/\d+/g, "")
-      .replace(/[."'“”‘’]/g, "")
+      .replace(/[.\"'“”‘’]/g, "")
       .replace(/\.$/, "")
       .trim();
   };
 
   const handleAmenClick = async () => {
     if (hasAmened || !bibleData) return;
-    // 햅틱 반응 추가 (Success 패턴: 툭, 툭 두 번 혹은 짧게 한 번)
+    // ?낇떛 諛섏쓳 異붽? (Success ?⑦꽩: ?? ????踰??뱀? 吏㏐쾶 ??踰?
   if (window.navigator && window.navigator.vibrate) {
-    // 30ms 동안 아주 짧게 진동 (iOS는 브라우저 정책에 따라 제한적일 수 있음)
-    window.navigator.vibrate(30); 
+    // 30ms ?숈븞 ?꾩＜ 吏㏐쾶 吏꾨룞 (iOS??釉뚮씪?곗? ?뺤콉???곕씪 ?쒗븳?곸씪 ???덉쓬)
+    window.navigator.vibrate(30);
   }
     setHasAmened(true);
     setAmenCount(prev => prev + 1);
@@ -94,19 +98,19 @@ export default function DailyWordPage() {
 
   const handleCopy = () => {
   if (bibleData) {
-    // 실제 복사 로직
+    // ?ㅼ젣 蹂듭궗 濡쒖쭅
     navigator.clipboard.writeText(cleanContent(bibleData.content));
-    
-    // 토스트 켜고 2초 뒤 끄기
+
+    // ?좎뒪??耳쒓퀬 2珥????꾧린
     setShowCopyToast(true);
     setTimeout(() => setShowCopyToast(false), 2000);
-    
-    // 햅틱 반응 (선택)
+
+    // ?낇떛 諛섏쓳 (?좏깮)
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
   }
 };
 
-// 1. 재생/일시정지 토글
+// 1. ?ъ깮/?쇱떆?뺤? ?좉?
   const togglePlay = () => {
     if (audioRef.current) {
       if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
@@ -114,10 +118,10 @@ export default function DailyWordPage() {
     }
   };
 
-  // 2. 오디오 이벤트 설정 (원래 빠른 속도의 핵심)
+  // 2. ?ㅻ뵒???대깽???ㅼ젙 (?먮옒 鍮좊Ⅸ ?띾룄???듭떖)
   const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
     audioRef.current = audio;
-    audio.currentTime = startTime; // 이어듣기 적용
+    audio.currentTime = startTime; // ?댁뼱?ｊ린 ?곸슜
 
     audio.onended = () => {
       setIsPlaying(false);
@@ -127,10 +131,10 @@ export default function DailyWordPage() {
 
     setShowAudioControl(true);
     setIsPlaying(true);
-    audio.play().catch(e => console.log("재생 시작 오류:", e));
+    audio.play().catch(e => console.log("?ъ깮 ?쒖옉 ?ㅻ쪟:", e));
   };
-  
-  // 3. TTS 실행 함수
+
+  // 3. TTS ?ㅽ뻾 ?⑥닔
 const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   if (!bibleData) return;
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
@@ -154,56 +158,37 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     audioRef.current = null;
   }
 
-  // 파일명 생성 시 특수문자 제거
+  // ?뚯씪紐??앹꽦 ???뱀닔臾몄옄 ?쒓굅
   const bookOrder = bibleData.bible_books?.book_order || '0';
   const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
   const fileName = `daily/daily_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
 
   try {
-    // R2에서 파일 확인
+    // R2?먯꽌 ?뚯씪 ?뺤씤
     const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
-    
+
     if (checkRes.ok) {
       const { publicUrl } = await checkRes.json();
       const savedAudio = new Audio(publicUrl);
       setupAudioEvents(savedAudio, lastTime);
-      return; 
+      return;
     }
 
-    // [핵심] 숫자 발음 치환 함수
-    const toKorNum = (num: number | string) => {
-      const n = Number(num);
-      if (isNaN(n)) return String(num);
-      const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-      const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
-      if (n === 0) return "영";
-      if (n < 10) return units[n];
-      if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-      return String(n);
-    };
-
-    const mainContent = cleanContent(
-  bibleData.tts_content || bibleData.content
-);
+    const toKoreanNumberText = (num: number | string) => String(num).trim();
+    const mainContent = cleanContent(bibleData.tts_content || bibleData.content);
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    
-    // 장(Chapter) 한글화
-    const chapterKor = toKorNum(bibleData.chapter);
+    const chapterKor = toKoreanNumberText(bibleData.chapter);
 
-    // 절(Verse) 한글화: 하이픈(-)이나 콜론(:)이 있으면 "절에서"로 강제 변경
-    const verseRaw = String(bibleData.verse);
-    let verseKor = "";
-
-    if (verseRaw.includes('-') || verseRaw.includes(':')) {
-      const separator = verseRaw.includes('-') ? '-' : ':';
+    const verseRaw = String(bibleData.verse).trim();
+    let verseKor = verseRaw;
+    if (verseRaw.includes("-") || verseRaw.includes(":")) {
+      const separator = verseRaw.includes("-") ? "-" : ":";
       const [start, end] = verseRaw.split(separator);
-      // "일절에서 삼" 형식으로 텍스트를 완전히 조립
-      verseKor = `${toKorNum(start.trim())}절에서 ${toKorNum(end.trim())}`;
+      verseKor = `${toKoreanNumberText(start)}에서 ${toKoreanNumberText(end)}`;
     } else {
-      verseKor = toKorNum(verseRaw.trim());
+      verseKor = toKoreanNumberText(verseRaw);
     }
 
-    // 최종 낭독 문장: 엔진이 기호를 아예 못 보게 텍스트로만 구성
     const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
 
     const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
@@ -228,14 +213,14 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       `,
     });
 
-    if (!response.ok) throw new Error("API 호출 실패");
+    if (!response.ok) throw new Error("API ?몄텧 ?ㅽ뙣");
 
     const audioBlob = await response.blob();
     const audioUrl = URL.createObjectURL(audioBlob);
     const ttsAudio = new Audio(audioUrl);
     setupAudioEvents(ttsAudio, lastTime);
 
-    // R2 업로드 (백그라운드)
+    // R2 ?낅줈??(諛깃렇?쇱슫??
     const reader = new FileReader();
     reader.onloadend = async () => {
       const base64Audio = (reader.result as string).split(',')[1];
@@ -248,7 +233,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     reader.readAsDataURL(audioBlob);
 
   } catch (error) {
-    console.error("TTS 에러:", error);
+    console.error("TTS ?먮윭:", error);
     setIsPlaying(false);
   }
 };
@@ -259,12 +244,12 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
 
   const handleShare = async () => {
-    // 햅틱 반응 추가
+    // ?낇떛 諛섏쓳 異붽?
   if (window.navigator?.vibrate) window.navigator.vibrate(20);
     const shareData = {
-      title: '성경 말씀',
-      text: bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.',
-      url: window.location.href, 
+      title: '?깃꼍 留먯?',
+      text: bibleData?.content ? cleanContent(bibleData.content) : '留먯???怨듭쑀?댁슂.',
+      url: window.location.href,
     };
 
     try {
@@ -272,21 +257,49 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert("링크가 클립보드에 복사되었습니다.");
+        alert("留곹겕媛 ?대┰蹂대뱶??蹂듭궗?섏뿀?듬땲??");
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        console.error("공유 실패:", error);
+        console.error("怨듭쑀 ?ㅽ뙣:", error);
       }
     }
   };
-  // 날려먹었던 스와이프 로직 복구
+  // ?좊젮癒뱀뿀???ㅼ??댄봽 濡쒖쭅 蹂듦뎄
+  const handleBookmark = async () => {
+    if (!bibleData) return;
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === "시편" ? "편" : "장"} ${bibleData.verse}절`;
+    const { error } = await supabase.from("verse_bookmarks").insert({
+      user_id: user.id,
+      source: "daily_word",
+      verse_ref: verseRef,
+      content: cleanContent(bibleData.content),
+      memo: null,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        alert("?대? ??λ맂 留먯??낅땲??");
+        return;
+      }
+      alert("利먭꺼李얘린 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.");
+      return;
+    }
+
+    alert("湲곕줉?⑥뿉 ??λ릺?덉뒿?덈떎.");
+  };
+
   const onDragEnd = (event: any, info: any) => {
-    if (info.offset.x > 100) { // 이전 날짜
+    if (info.offset.x > 100) { // ?댁쟾 ?좎쭨
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
       setCurrentDate(d);
-    } else if (info.offset.x < -100) { // 다음 날짜
+    } else if (info.offset.x < -100) { // ?ㅼ쓬 ?좎쭨
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) setCurrentDate(d);
@@ -295,76 +308,76 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-      
-      {/* 상단 날짜 영역 */}
+
+      {/* ?곷떒 ?좎쭨 ?곸뿭 */}
             <header className="text-center mb-3 flex flex-col items-center w-full relative">
               <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
                 {currentDate.getFullYear()}
               </p>
-               {/* 날짜 정렬 영역 */}
+               {/* ?좎쭨 ?뺣젹 ?곸뿭 */}
               <div className="flex items-center justify-center w-full">
-              {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
+              {/* 1. ?쇱そ 怨듦컙 ?뺣낫??(?щ젰 踰꾪듉 ?ы븿) */}
           <div className="flex-1 flex justify-end pr-3">
-            <button 
-              onClick={() => dateInputRef.current?.showPicker()} 
+            <button
+              onClick={() => dateInputRef.current?.showPicker()}
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
             </button>
           </div>
-          {/* 2. 중앙 날짜 (고정석) */}
+          {/* 2. 以묒븰 ?좎쭨 (怨좎젙?? */}
           <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
-           {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
+           {/* 3. ?ㅻⅨ履? 媛?곸쓽 鍮?怨듦컙 (?고븘 踰꾪듉怨??묎컳? ?덈퉬瑜??뺣낫?섏뿬 ?좎쭨瑜?以묒븰?쇰줈 諛?댁쨲) */}
     <div className="flex-1 flex justify-start pl-3">
-      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
-          투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
+      {/* ?꾩씠肄섏씠 ?녿뜑?쇰룄 踰꾪듉怨??묎컳? ?ш린(w-[32px] h-[32px])??
+          ?щ챸??諛뺤뒪瑜??먯뼱 ?쇱そ 踰꾪듉怨?臾닿쾶 以묒떖??留욎땅?덈떎.
       */}
       <div className="w-[28px] h-[28px]" aria-hidden="true" />
     </div>
-    {/* 숨겨진 날짜 입력 input */}
-    <input 
+    {/* ?④꺼吏??좎쭨 ?낅젰 input */}
+    <input
       type="date"
       ref={dateInputRef}
       onChange={handleDateChange}
-      max={new Date().toISOString().split("T")[0]} 
+      max={new Date().toISOString().split("T")[0]}
       className="absolute opacity-0 pointer-events-none"
     />
   </div>
 </header>
 
-      {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
+      {/* 2. 留먯? 移대뱶 (?묒쁿 ?뚰듃 移대뱶 ?붿옄??蹂듦뎄) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-  
-  {/* 왼쪽 힌트 카드 (어제) */}
+
+  {/* ?쇱そ ?뚰듃 移대뱶 (?댁젣) */}
 <div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-  
+
   <AnimatePresence mode="wait">
-  <motion.div 
+  <motion.div
     key={currentDate.toISOString()}
-    drag="x" 
+    drag="x"
     dragConstraints={{ left: 0, right: 0 }}
     dragElastic={0.2}
     onDragEnd={onDragEnd}
-    initial={{ opacity: 0, x: 20 }} 
-    animate={{ opacity: 1, x: 0 }} 
+    initial={{ opacity: 0, x: 20 }}
+    animate={{ opacity: 1, x: 0 }}
     exit={{ opacity: 0, x: -20 }}
     className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center p-10 pb-8 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
   >
     {bibleData ? (
       <>
-        {/* 말씀 본문 영역 */}
+        {/* 留먯? 蹂몃Ц ?곸뿭 */}
         <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-10 w-full" style={{ fontSize: `${fontSize}px` }}>
           {bibleData.content.split('\n').map((line: string, i: number) => {
-            // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
+            // ?뺢퇋???섏젙: ?レ옄(\d+) ?ㅼ뿉 ??\.)???덉쑝硫?臾댁떆?섍퀬 ?レ옄? ?섎㉧吏 ?띿뒪?몃쭔 媛?몄샂
             const match = line.match(/^(\d+)\.?\s*(.*)/);
-            
+
             if (match) {
               const [_, verseNum, textContent] = match;
               return (
                 <p key={i} className="flex items-start gap-2">
-                  {/* 점 없이 숫자만 출력 */}
+                  {/* ???놁씠 ?レ옄留?異쒕젰 */}
                   <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
                     {verseNum}
                   </span>
@@ -376,45 +389,45 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
           })}
         </div>
 
-        {/* 출처 영역 */}
+        {/* 異쒖쿂 ?곸뿭 */}
         <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === "시편" ? "편" : "장"} {bibleData.verse}절
         </span>
       </>
     ) : (
       <div className="animate-pulse text-zinc-200 w-full text-center">
-        말씀을 불러오는 중...
+        留먯???遺덈윭?ㅻ뒗 以?..
       </div>
     )}
   </motion.div>
 </AnimatePresence>
 
-  {/* 오른쪽 힌트 카드 (내일) */}
+  {/* ?ㅻⅨ履??뚰듃 移대뱶 (?댁씪) */}
 <div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-  <div className="flex items-center gap-8 mt-3 mb-14"> 
-    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+      {/* 3. ?대컮 (移대뱶? 醫곴쾶, ?꾨옒? ?볤쾶) */}
+  <div className="flex items-center gap-8 mt-3 mb-14">
+    <button onClick={() => handlePlayTTS()}  // 諛섎뱶??鍮?愿꾪샇瑜??ｌ뼱二쇱꽭??
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>?뚯꽦 ?ъ깮</span>
     </button>
-{/* 말씀 복사 버튼 찾아서 수정 */}
+{/* 留먯? 蹂듭궗 踰꾪듉 李얠븘???섏젙 */}
 <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
   <Copy size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>留먯? 蹂듭궗</span>
 </button>
-    <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+    <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
     <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
   </div>
 
-{/* 4. 아멘 버튼 영역 */}
+{/* 4. ?꾨찘 踰꾪듉 ?곸뿭 */}
 <div className="flex flex-col items-center gap-3 pb-6">
-  {/* 파동 레이어와 버튼을 겹치기 위해 relative 컨테이너 사용 */}
+  {/* ?뚮룞 ?덉씠?댁? 踰꾪듉??寃뱀튂湲??꾪빐 relative 而⑦뀒?대꼫 ?ъ슜 */}
   <div className="relative w-24 h-24 flex items-center justify-center">
-    
-    {/* 빛의 파동 효과 (hasAmened가 true일 때만 실행) */}
+
+    {/* 鍮쏆쓽 ?뚮룞 ?④낵 (hasAmened媛 true???뚮쭔 ?ㅽ뻾) */}
     <AnimatePresence>
       {hasAmened && (
         <>
@@ -436,21 +449,21 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       )}
     </AnimatePresence>
 
-    {/* 실제 버튼 (색상 로직 복구) */}
-    <motion.button 
-      whileTap={{ scale: 0.9 }} 
+    {/* ?ㅼ젣 踰꾪듉 (?됱긽 濡쒖쭅 蹂듦뎄) */}
+    <motion.button
+      whileTap={{ scale: 0.9 }}
       onClick={handleAmenClick}
       className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-        ${hasAmened 
-          ? 'bg-[#4A6741] text-white border-none' 
+        ${hasAmened
+          ? 'bg-[#4A6741] text-white border-none'
           : 'bg-white text-[#4A6741] border border-green-50'
         }`}
     >
-      <Heart 
-        className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} 
-        strokeWidth={hasAmened ? 0 : 2} 
+      <Heart
+        className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`}
+        strokeWidth={hasAmened ? 0 : 2}
       />
-      <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
+      <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>?꾨찘</span>
       <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>
         {amenCount.toLocaleString()}
       </span>
@@ -458,51 +471,51 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   </div>
 </div>
 
-      {/* 5. TTS 제어 팝업 부분 */}
+      {/* 5. TTS ?쒖뼱 ?앹뾽 遺遺?*/}
 <AnimatePresence>
   {showAudioControl && (
-    <motion.div 
-      initial={{ y: 80, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      exit={{ y: 80, opacity: 0 }} 
+    <motion.div
+      initial={{ y: 80, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 80, opacity: 0 }}
       className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
     >
       <div className="flex flex-col gap-4">
-        {/* 상단 컨트롤 영역 */}
+        {/* ?곷떒 而⑦듃濡??곸뿭 */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={togglePlay} 
+            <button
+              onClick={togglePlay}
               className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors"
             >
               {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
             </button>
             <p className="text-[13px] font-bold">
-              {isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}
+              {isPlaying ? "留먯????뚯꽦?쇰줈 ?쎄퀬 ?덉뒿?덈떎" : "?쇱떆 ?뺤? ?곹깭?낅땲??"}
             </p>
           </div>
-          <button onClick={() => { 
-            if(audioRef.current) audioRef.current.pause(); 
-            setShowAudioControl(false); 
-            setIsPlaying(false); 
+          <button onClick={() => {
+            if(audioRef.current) audioRef.current.pause();
+            setShowAudioControl(false);
+            setIsPlaying(false);
           }}>
             <X size={20}/>
           </button>
         </div>
-        
-        {/* 목소리 선택 영역 (수정본) */}
+
+        {/* 紐⑹냼由??좏깮 ?곸뿭 (?섏젙蹂? */}
         <div className="flex gap-2">
-          <button 
-            onClick={() => setVoiceType('F')} 
+          <button
+            onClick={() => setVoiceType('F')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
-            여성 목소리
+            ?ъ꽦 紐⑹냼由?
           </button>
-          <button 
-            onClick={() => setVoiceType('M')} 
+          <button
+            onClick={() => setVoiceType('M')}
             className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
           >
-            남성 목소리
+            ?⑥꽦 紐⑹냼由?
           </button>
         </div>
       </div>
@@ -511,18 +524,23 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 </AnimatePresence>
 <AnimatePresence>
   {showCopyToast && (
-    <motion.div 
-      initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
-      animate={{ opacity: 1, x: "-50%", y: 0 }} 
-      exit={{ opacity: 0, x: "-50%", y: 20 }} 
+    <motion.div
+      initial={{ opacity: 0, x: "-50%", y: 20 }} // x??以묒븰 怨좎젙, y留??吏곸엫
+      animate={{ opacity: 1, x: "-50%", y: 0 }}
+      exit={{ opacity: 0, x: "-50%", y: 20 }}
       transition={{ duration: 0.3 }}
       className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
-      style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
+      style={{ left: '50%', transform: 'translateX(-50%)' }} // ?몃씪???ㅽ??쇰줈 ??踰???媛뺤젣
     >
-      말씀이 복사되었습니다
+      留먯???蹂듭궗?섏뿀?듬땲??
     </motion.div>
   )}
 </AnimatePresence>
+<LoginModal
+  open={showLoginModal}
+  onOpenChange={setShowLoginModal}
+  returnTo={`${window.location.origin}/#/`}
+/>
     </div>
   );
 }

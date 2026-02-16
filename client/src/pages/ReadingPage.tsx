@@ -1411,6 +1411,34 @@ const loadRangePages = async () => {
   };
 
   // 읽기 완료 취소
+  const handleBookmark = async () => {
+    if (!bibleData) return;
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
+
+    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}`;
+    const { error } = await supabase.from("verse_bookmarks").insert({
+      user_id: user.id,
+      source: "reading",
+      verse_ref: verseRef,
+      content: cleanContent(bibleData.content),
+      memo: null,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        alert("이미 저장된 말씀입니다.");
+        return;
+      }
+      alert("즐겨찾기 저장에 실패했습니다.");
+      return;
+    }
+
+    alert("기록함에 저장되었습니다.");
+  };
+
   const handleReadCancel = useCallback(async () => {
     if (!user || !bibleData) return;
 
@@ -1775,7 +1803,7 @@ const loadRangePages = async () => {
         <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
-        <button className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+        <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
         <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 

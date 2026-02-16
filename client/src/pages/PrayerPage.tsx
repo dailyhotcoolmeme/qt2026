@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { HandHeart, Plus, X, Mic, Square, Play, Pause, Check, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import { HandHeart, Plus, X, Mic, Square, Play, Pause, Check, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Link2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
@@ -20,6 +20,10 @@ export default function PrayerPage() {
   const { user } = useAuth();
   const { fontSize = 16 } = useDisplaySettings();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
+  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
+  const [targetRecordForLink, setTargetRecordForLink] = useState<any | null>(null);
+  const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
 
   // 기도제목 관련 상태
   const [myTopics, setMyTopics] = useState<any[]>([]);
@@ -75,6 +79,7 @@ export default function PrayerPage() {
     if (user) {
       loadMyTopics();
       loadPrayerRecords();
+      loadMyGroups();
     }
     loadPublicTopics();
   }, [user]);
@@ -141,6 +146,35 @@ export default function PrayerPage() {
       .order('created_at', { ascending: false });
 
     if (data) setPrayerRecords(data);
+  };
+
+  const loadMyGroups = async () => {
+    if (!user) return;
+
+    const [{ data: memberships }, { data: ownerGroups }] = await Promise.all([
+      supabase
+        .from("group_members")
+        .select("group_id, groups(id, name)")
+        .eq("user_id", user.id),
+      supabase.from("groups").select("id, name").eq("owner_id", user.id),
+    ]);
+
+    const map = new Map<string, { id: string; name: string }>();
+
+    (memberships ?? []).forEach((row: any) => {
+      const group = row.groups;
+      if (group?.id && group?.name) {
+        map.set(group.id, { id: group.id, name: group.name });
+      }
+    });
+
+    (ownerGroups ?? []).forEach((group: any) => {
+      if (group?.id && group?.name) {
+        map.set(group.id, { id: group.id, name: group.name });
+      }
+    });
+
+    setMyGroups(Array.from(map.values()));
   };
 
   // 기도제목 추가
@@ -636,6 +670,49 @@ export default function PrayerPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const openGroupLinkModal = (record: any) => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setTargetRecordForLink(record);
+    setShowGroupLinkModal(true);
+  };
+
+  const linkRecordToGroup = async (groupId: string) => {
+    if (!user || !targetRecordForLink) return;
+    setLinkingGroupId(groupId);
+
+    try {
+      const { error } = await supabase.from("group_prayer_records").insert({
+        group_id: groupId,
+        user_id: user.id,
+        source_type: "linked",
+        source_prayer_record_id: targetRecordForLink.id,
+        title: targetRecordForLink.title || null,
+        audio_url: targetRecordForLink.audio_url,
+        audio_duration: targetRecordForLink.audio_duration || 0,
+      });
+
+      if (error) {
+        if (error.code === "23505") {
+          alert("이미 해당 모임에 연결된 기도 기록입니다.");
+          return;
+        }
+        throw error;
+      }
+
+      setShowGroupLinkModal(false);
+      setTargetRecordForLink(null);
+      alert("모임 기도 탭으로 연결되었습니다.");
+    } catch (error) {
+      console.error("group link error:", error);
+      alert("모임 연결에 실패했습니다.");
+    } finally {
+      setLinkingGroupId(null);
+    }
+  };
+
   // 총 카운트 가져오기 (비로그인 사용자도 볼 수 있게)
   const getPrayerCount = (topic: any) => {
     return topic.prayer_count || 0;
@@ -823,12 +900,21 @@ export default function PrayerPage() {
                         })}
                       </p>
                     </div>
-                    <button
-                      onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                      className="text-zinc-300 hover:text-red-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openGroupLinkModal(record)}
+                        className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-500 hover:text-[#4A6741] flex items-center justify-center"
+                        title="모임 연결"
+                      >
+                        <Link2 size={13} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+                        className="text-zinc-300 hover:text-red-500"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* 재생 버튼 및 재생바 */}
@@ -1255,6 +1341,62 @@ export default function PrayerPage() {
                 >
                   삭제
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGroupLinkModal && targetRecordForLink && (
+          <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowGroupLinkModal(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
+                  모임에 기도 기록 연결
+                </h4>
+                <button
+                  onClick={() => setShowGroupLinkModal(false)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="text-xs text-zinc-500 mb-3">
+                {targetRecordForLink.title || "제목 없는 기도"}
+              </div>
+
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {myGroups.map((group) => (
+                  <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
+                    <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
+                    <button
+                      onClick={() => linkRecordToGroup(group.id)}
+                      disabled={linkingGroupId === group.id}
+                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60 inline-flex items-center gap-1"
+                    >
+                      <Link2 size={12} />
+                      {linkingGroupId === group.id ? "연결 중..." : "연결"}
+                    </button>
+                  </div>
+                ))}
+                {myGroups.length === 0 && (
+                  <div className="text-sm text-zinc-500 text-center py-6">연결할 수 있는 모임이 없습니다.</div>
+                )}
               </div>
             </motion.div>
           </div>
