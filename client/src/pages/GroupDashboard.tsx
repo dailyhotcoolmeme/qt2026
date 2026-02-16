@@ -1662,7 +1662,7 @@ export default function GroupDashboard() {
         </div>
 
         <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
-          <div className="bg-white border-b border-zinc-200 p-5">
+          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
             <div className="text-base text-zinc-600 whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
@@ -1673,7 +1673,7 @@ export default function GroupDashboard() {
             )}
           </div>
 
-          <div className="bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <h2 className="font-black text-zinc-900">가입 신청</h2>
             <input
               type="password"
@@ -1903,7 +1903,7 @@ export default function GroupDashboard() {
 
         {activeTab === "faith" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white px-1">
+            <section className="bg-[#F6F7F8] px-1">
               <div className="text-center text-[#4A6741] font-bold py-3 border-b border-zinc-200">{getTodayKoreanLabel()}</div>
               <div className="py-2">
                 {faithItemSlots.map((slot) => {
@@ -1942,7 +1942,7 @@ export default function GroupDashboard() {
             </section>
 
             {isManager && (
-              <section className="bg-white border-t border-zinc-200 pt-4">
+              <section className="bg-[#F6F7F8] border-t border-zinc-200 pt-4">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
                   <h3 className="font-black text-zinc-900 text-base">전체 멤버 오늘 현황</h3>
                   <input
@@ -2107,7 +2107,7 @@ export default function GroupDashboard() {
         {activeTab === "members" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
-              <div className="bg-white border-b border-zinc-200 p-4">
+              <div className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
                 <h3 className="font-black text-zinc-900 mb-2 text-base flex items-center gap-2">
                   <Shield size={14} /> 가입 요청
                 </h3>
@@ -2143,7 +2143,7 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-white border-b border-zinc-200 p-4">
+            <div className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
               <h3 className="font-black text-zinc-900 mb-3 text-base flex items-center gap-2">
                 <Users size={14} /> 멤버 목록
               </h3>
@@ -2220,7 +2220,7 @@ export default function GroupDashboard() {
 
         {activeTab === "admin" && isManager && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-base">신앙활동 항목 관리</h3>
               <input
                 className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
@@ -2272,7 +2272,7 @@ export default function GroupDashboard() {
               </button>
             </section>
 
-            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-base inline-flex items-center gap-2">
                 <Crown size={14} />
                 모임 상위 리더 등록
@@ -2302,7 +2302,7 @@ export default function GroupDashboard() {
               <p className="text-base text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
             </section>
 
-            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-base">하위 모임 연결</h3>
               <input
                 value={childGroupCode}
@@ -2320,7 +2320,7 @@ export default function GroupDashboard() {
               <p className="text-base text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
             </section>
 
-            <section className="bg-white border-b border-rose-200 p-4 space-y-3">
+            <section className="bg-[#F6F7F8] border-b border-rose-200 p-4 space-y-3">
               <h3 className="font-black text-rose-700 text-base">모임 완전 삭제</h3>
               <p className="text-base text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
               <button
@@ -2341,7 +2341,7 @@ export default function GroupDashboard() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowPrayerLinkModal(false)}
           />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border-b border-zinc-200 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
               <button
@@ -2380,7 +2380,7 @@ export default function GroupDashboard() {
       {showPrayerComposer && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerComposer(false)} />
-          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도하기</h3>
               <button
@@ -2459,7 +2459,7 @@ export default function GroupDashboard() {
       {showPrayerTopicModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-          <div className="relative w-full max-w-lg bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도제목 등록</h3>
               <button
@@ -2489,7 +2489,7 @@ export default function GroupDashboard() {
       {showPostComposerModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">글 작성</h3>
               <button
@@ -2579,7 +2579,7 @@ export default function GroupDashboard() {
       {showInviteModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowInviteModal(false)} />
-          <div className="relative w-full max-w-lg bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">회원 초대</h3>
               <button
@@ -2616,7 +2616,7 @@ export default function GroupDashboard() {
       {showHeaderEditModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
-          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">헤더 설정</h3>
               <button
@@ -2686,7 +2686,7 @@ export default function GroupDashboard() {
       {showFaithLinkModal && selectedFaithItem && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border-b border-zinc-200 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">
                 외부 활동 연결 - {selectedFaithItem.name}
@@ -2730,6 +2730,7 @@ export default function GroupDashboard() {
     </div>
   );
 }
+
 
 
 
