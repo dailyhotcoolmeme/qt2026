@@ -4,6 +4,7 @@ import { Search, ChevronDown, ArrowUp, BookOpen, CheckCircle2, RotateCcw } from 
 import { supabase } from "@/lib/supabase";
 import { BIBLE_BOOKS } from "@/lib/bibleData";
 import { useAuth } from "@/hooks/use-auth";
+import { useDisplaySettings } from "@/components/DisplaySettingsProvider";
 
 // 페이지당 불러올 개수
 const PAGE_SIZE = 50;
@@ -11,6 +12,7 @@ const PAGE_SIZE = 50;
 export default function SearchPage() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
+  const { fontSize } = useDisplaySettings();
 
   // 상태 관리
   const [searchInput, setSearchInput] = useState('');
@@ -59,6 +61,58 @@ export default function SearchPage() {
     });
     return map;
   }, []);
+
+  // 검색어에서 책 정보 미리 추출 (필터 잠금용)
+  const identifiedBook = React.useMemo(() => {
+    const input = searchInput.trim();
+    const refMatch = input.match(/^([가-힣]{1,5})\s*(\d+)?(?::(\d+))?\s*(장|편)?$/);
+    if (refMatch) {
+      const bookName = refMatch[1];
+      return bookAliasMap[bookName] || Object.values(bookAliasMap).find(b => b.name.includes(bookName));
+    }
+    return null;
+  }, [searchInput, bookAliasMap]);
+
+  // 세션 스토리지에서 상태 복원
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('searchPageState');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        setSearchInput(state.searchInput || '');
+        setResults(state.results || []);
+        setViewMode(state.viewMode || 'SEARCH');
+        setPage(state.page || 0);
+        setHasMore(state.hasMore || false);
+        setTestamentFilter(state.testamentFilter || 'ALL');
+        setSelectedBook(state.selectedBook || 'ALL');
+        setCurrentChapterInfo(state.currentChapterInfo || null);
+
+        // 스크롤 위치 복원은 데이터 렌더링 후 수행
+        if (state.scrollPos) {
+          setTimeout(() => window.scrollTo(0, state.scrollPos), 100);
+        }
+      } catch (e) {
+        console.error('Failed to restore search state', e);
+      }
+    }
+  }, []);
+
+  // 상태 변경 시 세션 스토리지에 저장
+  useEffect(() => {
+    const state = {
+      searchInput,
+      results,
+      viewMode,
+      page,
+      hasMore,
+      testamentFilter,
+      selectedBook,
+      currentChapterInfo,
+      scrollPos: window.scrollY
+    };
+    sessionStorage.setItem('searchPageState', JSON.stringify(state));
+  }, [searchInput, results, viewMode, page, hasMore, testamentFilter, selectedBook, currentChapterInfo]);
 
   // 통독 여부 확인
   const checkReadStatus = async (bookName: string, chapter: number) => {
@@ -119,18 +173,23 @@ export default function SearchPage() {
 
     try {
       // 1. 스마트 쿼리 파싱 (창세기 1장, 요 3:16 등)
-      const refMatch = input.match(/^([가-힣]{1,5})\s*(\d+)?(?::(\d+))?\s*(장|편)?$/);
-      let queryBook = null;
+      const queryBook = identifiedBook;
+
       let queryChapter = null;
       let queryVerse = null;
 
-      if (refMatch) {
-        const bookName = refMatch[1];
-        const bookInfo = bookAliasMap[bookName] || Object.values(bookAliasMap).find(b => b.name.includes(bookName));
-        if (bookInfo) {
-          queryBook = bookInfo;
+      if (queryBook) {
+        const refMatch = input.match(/^([가-힣]{1,5})\s*(\d+)?(?::(\d+))?\s*(장|편)?$/);
+        if (refMatch) {
           queryChapter = refMatch[2] ? parseInt(refMatch[2]) : null;
           queryVerse = refMatch[3] ? parseInt(refMatch[3]) : null;
+        }
+
+        // 필터 자동 동기화
+        const bookObj = BIBLE_BOOKS.find(b => b.name === queryBook.name);
+        if (bookObj) {
+          setTestamentFilter(bookObj.testament as any);
+          setSelectedBook(queryBook.id.toString());
         }
       }
 
@@ -159,14 +218,17 @@ export default function SearchPage() {
         if (queryVerse) query = query.eq('verse', queryVerse);
 
         // 키워드 검색 (책 이름/장 번호를 제외한 텍스트가 있을 경우)
-        const isRefOnly = !!queryBook;
-        if (!isRefOnly && input) {
-          query = query.ilike('content', `%${input}%`);
+        // identifiedBook이 있더라도, 그 뒤에 검색어가 더 있으면 키워드 검색 병행
+        const pureKeyword = input.replace(/[가-힣]{1,5}\s*\d*(장|편)?/g, '').trim();
+        if (pureKeyword) {
+          query = query.ilike('content', `%${pureKeyword}%`);
         }
 
-        // 필터 적용
-        if (testamentFilter !== 'ALL') query = query.eq('testament', testamentFilter);
-        if (selectedBook !== 'ALL') query = query.eq('book_id', selectedBook);
+        // 필터 적용 (identifiedBook이 없을 때만 필터 조건 명시적 적용 - 있을 땐 위에서 이미 적용됨)
+        if (!queryBook) {
+          if (testamentFilter !== 'ALL') query = query.eq('testament', testamentFilter);
+          if (selectedBook !== 'ALL') query = query.eq('book_id', selectedBook);
+        }
 
         const from = startPage * PAGE_SIZE;
         const to = from + PAGE_SIZE - 1;
@@ -210,17 +272,9 @@ export default function SearchPage() {
     return () => scrollObserver.current?.disconnect();
   }, [loading, hasMore, results, viewMode]);
 
-  // 스크롤 감지 및 초기 검색어 복원
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 500);
-    window.addEventListener('scroll', handleScroll);
-
-    const lastSearch = localStorage.getItem('lastSearch');
-    if (lastSearch) {
-      setSearchInput(lastSearch);
-      // 검색 버튼을 누른 것처럼 동작하게 하려면 별도 flag나 useEffect 필요
-    }
-
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -245,47 +299,70 @@ export default function SearchPage() {
       <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           {/* 통합 검색창 */}
-          <div className="relative group">
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && performSearch(true)}
-              placeholder="예: 창세기 1, 요 3:16, 사랑, 은혜..."
-              className="w-full h-12 pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-[15px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
-            />
-            <Search className="absolute left-4 top-3.5 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741] transition-colors" />
-            <button
-              onClick={() => performSearch(true)}
-              className="absolute right-2 top-2 h-8 px-4 bg-[#4A6741] text-white text-xs font-bold rounded-xl hover:bg-[#3d5636] transition-colors"
-            >
-              검색
-            </button>
+          <div className="flex gap-2">
+            <div className="relative group flex-1">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && performSearch(true)}
+                placeholder="예: 창세기 1, 요 3:16, 사랑, 은혜..."
+                className="w-full h-12 pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-[15px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
+              />
+              <Search className="absolute left-4 top-3.5 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741] transition-colors" />
+            </div>
+            <div className="flex gap-1.5 self-center">
+              <button
+                onClick={() => performSearch(true)}
+                className="h-10 px-4 bg-[#4A6741] text-white text-sm font-bold rounded-xl hover:bg-[#3d5636] transition-colors shadow-sm"
+              >
+                검색
+              </button>
+              <button
+                onClick={() => {
+                  setSearchInput('');
+                  setTestamentFilter('ALL');
+                  setSelectedBook('ALL');
+                  setResults([]);
+                  setViewMode('SEARCH');
+                  sessionStorage.removeItem('searchPageState');
+                }}
+                className="w-10 h-10 flex items-center justify-center bg-zinc-100 text-zinc-500 rounded-xl hover:bg-zinc-200 transition-colors"
+                title="초기화"
+              >
+                <RotateCcw className="w-5 h-5" />
+              </button>
+            </div>
           </div>
 
           {/* 필터 칩 */}
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {(['ALL', 'OT', 'NT'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => {
-                  setTestamentFilter(f);
-                  setResults([]); // 필터 변경 시 결과 초기화
-                }}
-                className={`px-5 h-9 rounded-full text-xs font-dm-sans font-bold whitespace-nowrap transition-all border ${testamentFilter === f
-                  ? 'bg-[#4A6741] text-white border-[#4A6741] shadow-md shadow-[#4A6741]/20'
-                  : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
-                  }`}
-              >
-                {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
-              </button>
-            ))}
+            {(['ALL', 'OT', 'NT'] as const).map((f) => {
+              const isDisabled = !!identifiedBook;
+              return (
+                <button
+                  key={f}
+                  disabled={isDisabled}
+                  onClick={() => {
+                    setTestamentFilter(f);
+                    setResults([]);
+                  }}
+                  className={`px-5 h-9 rounded-full text-xs font-dm-sans font-bold whitespace-nowrap transition-all border ${testamentFilter === f
+                    ? 'bg-[#4A6741] text-white border-[#4A6741] shadow-md shadow-[#4A6741]/20'
+                    : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300'
+                    } ${isDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
+                </button>
+              );
+            })}
 
             <div className="h-6 w-[1px] bg-zinc-200 my-auto shrink-0 mx-1" />
 
             <div className="relative shrink-0">
               <select
-                className="h-9 pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none hover:border-zinc-300 transition-colors"
+                disabled={!!identifiedBook}
+                className={`h-9 pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none hover:border-zinc-300 transition-colors ${!!identifiedBook ? 'opacity-50 cursor-not-allowed' : ''}`}
                 value={selectedBook}
                 onChange={(e) => {
                   setSelectedBook(e.target.value);
@@ -300,19 +377,6 @@ export default function SearchPage() {
               <ChevronDown className="absolute right-3.5 top-2.5 w-4 h-4 text-zinc-400 pointer-events-none" />
             </div>
 
-            <button
-              onClick={() => {
-                setSearchInput('');
-                setTestamentFilter('ALL');
-                setSelectedBook('ALL');
-                setResults([]);
-                setViewMode('SEARCH');
-              }}
-              className="px-4 h-9 flex items-center gap-1.5 bg-zinc-100 text-zinc-500 rounded-full text-xs font-bold whitespace-nowrap hover:bg-zinc-200 transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              초기화
-            </button>
           </div>
         </div>
       </div>
@@ -321,11 +385,11 @@ export default function SearchPage() {
       <div className="pt-48 px-4 max-w-2xl mx-auto">
         {/* 장 정보 및 통독 체크 (CHAPTER 모드일 때만 노출) */}
         {viewMode === 'CHAPTER' && currentChapterInfo && (
-          <div className="mb-8 p-6 bg-white rounded-3xl border border-zinc-100 shadow-sm flex items-center justify-between animate-in zoom-in-95 duration-300">
+          <div className="mt-6 mb-10 p-6 bg-white rounded-3xl border border-zinc-100 shadow-sm flex items-center justify-between animate-in zoom-in-95 duration-300">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <BookOpen className="w-5 h-5 text-[#4A6741]" />
-                <span className="text-sm font-bold text-[#4A6741]/60 uppercase tracking-wider font-dm-sans">Bible Reading</span>
+                <div className="w-2 h-2 rounded-full bg-[#4A6741]" />
+                <span className="text-xs font-bold text-[#4A6741] tracking-tight">성경 읽기 연동</span>
               </div>
               <h1 className="text-2xl font-black text-zinc-900">
                 {currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}
@@ -333,13 +397,13 @@ export default function SearchPage() {
             </div>
             <button
               onClick={toggleReadStatus}
-              className={`flex flex-col items-center justify-center w-20 h-20 rounded-2xl transition-all duration-500 ${isRead
-                ? 'bg-green-50 text-green-600 scale-105 border-green-100'
-                : 'bg-zinc-50 text-zinc-300 border-zinc-100 hover:border-zinc-200'
-                } border`}
+              className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow-lg transition-all duration-500 border-4
+                ${isRead
+                  ? 'bg-[#4A6741] text-white border-green-100 scale-105'
+                  : 'bg-white text-gray-400 border-green-50 hover:border-green-100'}`}
             >
-              <CheckCircle2 className={`w-8 h-8 ${isRead ? 'animate-bounce' : ''}`} />
-              <span className="text-[10px] font-bold mt-1.5">{isRead ? '읽음 완료' : '표시하기'}</span>
+              <CheckCircle2 className={`w-8 h-8 ${isRead ? 'animate-pulse' : ''}`} />
+              <span className="text-[10px] font-bold mt-1">{isRead ? '읽기 완료' : '미완료'}</span>
             </button>
           </div>
         )}
@@ -388,22 +452,26 @@ export default function SearchPage() {
                 )}
 
                 <div
-                  className={`group p-4 rounded-2xl transition-all ${viewMode === 'CHAPTER'
-                    ? 'hover:bg-white underline-offset-8 decoration-green-100'
-                    : 'bg-white border border-zinc-100 shadow-sm hover:shadow-md hover:border-[#4A6741]/20'
+                  className={`group transition-all ${viewMode === 'CHAPTER'
+                    ? 'px-4 py-1 hover:bg-zinc-50'
+                    : 'p-4 bg-white border border-zinc-100 shadow-sm hover:shadow-md hover:border-[#4A6741]/20 rounded-2xl'
                     }`}
                   onClick={() => {
                     if (viewMode === 'SEARCH') {
-                      setLocation(`/bible/${v.book_id}/${v.chapter}?verse=${v.verse}`);
+                      const keyword = searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?/g, '').trim();
+                      setLocation(`/bible/${v.book_id}/${v.chapter}?verse=${v.verse}${keyword ? `&keyword=${encodeURIComponent(keyword)}` : ''}`);
                     }
                   }}
                 >
-                  <div className="flex items-start gap-3">
-                    <span className={`text-[11px] font-dm-sans font-black px-2 py-0.5 rounded-md ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'bg-zinc-100 text-zinc-500'
+                  <div className="flex items-start gap-4">
+                    <span className={`text-[11px] font-dm-sans font-black min-w-[20px] pt-1 ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-md'
                       }`}>
                       {v.verse}
                     </span>
-                    <p className={`text-[15px] leading-relaxed text-zinc-700 flex-1 ${viewMode === 'CHAPTER' ? 'font-medium' : ''}`}>
+                    <p
+                      className={`leading-relaxed text-zinc-700 flex-1 ${viewMode === 'CHAPTER' ? 'font-medium' : ''}`}
+                      style={{ fontSize: `${fontSize * 0.9}px` }}
+                    >
                       {highlightKeyword(v.content)}
                     </p>
                   </div>

@@ -10,7 +10,7 @@ export default function BibleViewPage() {
   const [verses, setVerses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  
+
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 verse 파라미터 추출
@@ -19,7 +19,8 @@ export default function BibleViewPage() {
   const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
   const queryParams = new URLSearchParams(queryString);
   const highlightVerse = queryParams.get('verse');
-  
+  const keyword = queryParams.get('keyword');
+
   // params.chapter에서 query string 제거 (wouter 버그)
   const cleanChapter = params?.chapter?.split('?')[0] || params?.chapter;
 
@@ -27,7 +28,7 @@ export default function BibleViewPage() {
   useEffect(() => {
     async function fetchChapter() {
       if (!params?.bookId || !cleanChapter) return;
-      
+
       setLoading(true);
       try {
         const { data, error } = await supabase
@@ -57,17 +58,17 @@ export default function BibleViewPage() {
           element.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 300);
-      
+
       return () => clearTimeout(timer);
     }
   }, [loading, verses, highlightVerse]);
-  
+
   // 스크롤 감지
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 500);
     };
-    
+
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
@@ -84,7 +85,7 @@ export default function BibleViewPage() {
           <span>검색으로 돌아가기</span>
         </button>
       </div>
-      
+
       {/* 로딩 메시지 - 화면 중앙 */}
       <div className="fixed inset-0 flex items-center justify-center" style={{ top: '56px' }}>
         <p className="text-zinc-500 font-medium text-lg">말씀을 불러오는 중...</p>
@@ -113,28 +114,39 @@ export default function BibleViewPage() {
 
         {verses.map((v) => {
           const isHighlighted = highlightVerse && v.verse.toString() === highlightVerse;
-          
+
+          const renderContent = (text: string) => {
+            if (!keyword || keyword.length < 2) return text;
+            const parts = text.split(new RegExp(`(${keyword})`, 'gi'));
+            return parts.map((part, i) =>
+              part.toLowerCase() === keyword.toLowerCase()
+                ? <mark key={i} className="bg-yellow-200 font-bold px-0.5 rounded">{part}</mark>
+                : part
+            );
+          };
+
           return (
-            <div 
+            <div
               key={v.id}
               id={`verse-${v.verse}`}
-              className={`leading-relaxed transition-all duration-300 p-3 rounded ${
-                isHighlighted
-                  ? 'bg-yellow-200 border-2 border-yellow-500 font-bold shadow-lg' 
-                  : ''
-              }`}
-              style={{ 
-                fontSize: `${fontSize}px`, 
-                fontFamily: fontFamily 
+              className={`leading-relaxed transition-all duration-300 p-3 rounded ${isHighlighted
+                ? 'bg-yellow-50 border-l-4 border-[#4A6741] font-medium shadow-sm'
+                : ''
+                }`}
+              style={{
+                fontSize: `${fontSize}px`,
+                fontFamily: fontFamily
               }}
             >
-              <sup className="text-blue-500 mr-2 text-xs font-bold">{v.verse}</sup>
-              {v.content}
+              <sup className={`mr-2 text-xs font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-blue-500'}`}>
+                {v.verse}
+              </sup>
+              {renderContent(v.content)}
             </div>
           );
         })}
       </div>
-      
+
       {/* 최상단 스크롤 버튼 */}
       {showScrollTop && (
         <button
