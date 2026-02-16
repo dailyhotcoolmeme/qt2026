@@ -24,6 +24,7 @@ export default function PrayerPage() {
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
   const [targetRecordForLink, setTargetRecordForLink] = useState<any | null>(null);
   const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
+  const [showPostSaveLinkPrompt, setShowPostSaveLinkPrompt] = useState(false);
 
   // 기도제목 관련 상태
   const [myTopics, setMyTopics] = useState<any[]>([]);
@@ -487,7 +488,7 @@ export default function PrayerPage() {
         ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
         : [];
 
-      const { error } = await supabase
+      const { data: insertedRecord, error } = await supabase
         .from('prayer_records')
         .insert({
           user_id: user.id,
@@ -498,7 +499,9 @@ export default function PrayerPage() {
           hashtags,
           transcription,
           keywords
-        });
+        })
+        .select('id, title, audio_url, audio_duration, created_at')
+        .single();
 
       if (error) throw error;
 
@@ -514,6 +517,11 @@ export default function PrayerPage() {
         setIsSaving(false);
         setSavingProgress(0);
       }, 500);
+
+      if (insertedRecord && myGroups.length > 0) {
+        setTargetRecordForLink(insertedRecord);
+        setShowPostSaveLinkPrompt(true);
+      }
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -1348,13 +1356,66 @@ export default function PrayerPage() {
       </AnimatePresence>
 
       <AnimatePresence>
+        {showPostSaveLinkPrompt && targetRecordForLink && (
+          <div className="fixed inset-0 z-[315] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowPostSaveLinkPrompt(false);
+                setTargetRecordForLink(null);
+              }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
+            >
+              <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
+                모임에 완료 연결할까요?
+              </h4>
+              <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                방금 저장한 기도 기록을 모임 기도 탭과 연결할 수 있습니다.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowPostSaveLinkPrompt(false);
+                    setTargetRecordForLink(null);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
+                >
+                  나중에
+                </button>
+                <button
+                  onClick={() => {
+                    setShowPostSaveLinkPrompt(false);
+                    setShowGroupLinkModal(true);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
+                >
+                  연결하기
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
         {showGroupLinkModal && targetRecordForLink && (
           <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setShowGroupLinkModal(false)}
+              onClick={() => {
+                setShowGroupLinkModal(false);
+                if (!showPostSaveLinkPrompt) setTargetRecordForLink(null);
+              }}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
 
@@ -1369,7 +1430,10 @@ export default function PrayerPage() {
                   모임에 기도 기록 연결
                 </h4>
                 <button
-                  onClick={() => setShowGroupLinkModal(false)}
+                  onClick={() => {
+                    setShowGroupLinkModal(false);
+                    if (!showPostSaveLinkPrompt) setTargetRecordForLink(null);
+                  }}
                   className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
                 >
                   <X size={14} />

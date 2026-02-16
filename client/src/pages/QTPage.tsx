@@ -11,6 +11,7 @@ import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import confetti from "canvas-confetti";
 import { uploadFileToR2 } from "../utils/upload";
+import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
 
 export default function QTPage() {
   const [location, setLocation] = useLocation(); 
@@ -44,6 +45,11 @@ export default function QTPage() {
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
+  const [showGroupLinkPrompt, setShowGroupLinkPrompt] = useState(false);
+  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
+  const [pendingGroupLinkSourceRowId, setPendingGroupLinkSourceRowId] = useState<string | null>(null);
+  const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -209,29 +215,79 @@ export default function QTPage() {
 
   // 묵상 완료만 체크 (기록 없이)
   const handleCompleteOnly = async () => {
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
     const formattedDate = currentDate.toISOString().split('T')[0];
     
     try {
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('user_meditation_records')
         .insert({
-          user_id: user!.id,
+          user_id: user.id,
           date: formattedDate,
           meditation_type: 'daily_qt',
           book_name: bibleData?.bible_name || null,
           chapter: bibleData?.chapter || null,
           verse: bibleData?.verse || null
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+      if (!inserted?.id) throw new Error("QT 기록 저장 ID를 찾을 수 없습니다.");
 
       setIsMeditationCompleted(true);
       setShowConfirmModal(false);
+      await prepareQtGroupLink(String(inserted.id));
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error completing meditation:', error);
       alert('묵상 완료 중 오류가 발생했습니다.');
+    }
+  };
+
+  const prepareQtGroupLink = async (sourceRowId: string) => {
+    if (!user?.id) return;
+
+    const groups = await fetchMyGroups(user.id);
+    if (groups.length === 0) return;
+
+    setMyGroups(groups);
+    setPendingGroupLinkSourceRowId(sourceRowId);
+    setShowGroupLinkPrompt(true);
+  };
+
+  const closeQtGroupLinkFlow = () => {
+    setShowGroupLinkPrompt(false);
+    setShowGroupLinkModal(false);
+    setPendingGroupLinkSourceRowId(null);
+    setLinkingGroupId(null);
+  };
+
+  const handleQtGroupLink = async (groupId: string) => {
+    if (!user?.id || !pendingGroupLinkSourceRowId) return;
+    setLinkingGroupId(groupId);
+
+    try {
+      const { error } = await linkPersonalActivityToGroup({
+        userId: user.id,
+        activityType: "qt",
+        sourceTable: "user_meditation_records",
+        sourceRowId: pendingGroupLinkSourceRowId,
+        groupId,
+      });
+
+      if (error) throw error;
+      closeQtGroupLinkFlow();
+      alert("모임 신앙생활에 연결되었습니다.");
+    } catch (error) {
+      console.error("qt group link failed:", error);
+      alert("모임 연결에 실패했습니다.");
+    } finally {
+      setLinkingGroupId(null);
     }
   };
 
@@ -291,11 +347,17 @@ export default function QTPage() {
 
   // 묵상 기록 저장
   const handleSubmitMeditation = async () => {
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
+
     if (!meditationText && !audioBlob) {
       alert('묵상 기록을 입력하거나 음성을 녹음해주세요.');
       return;
     }
 
+    const formattedDate = currentDate.toISOString().split('T')[0];
     const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
     let audioUrl: string | null = null;
 
@@ -303,7 +365,7 @@ export default function QTPage() {
       // 음성 파일이 있으면 R2에 업로드
       if (audioBlob) {
         const timestamp = Date.now();
-        const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
+        const fileName = `audio/meditation/${user.id}/${kstDate}/qt_${timestamp}.webm`;
         
         // Blob을 File로 변환
         const audioFile = new File([audioBlob], `qt_${timestamp}.webm`, { type: 'audio/webm' });
@@ -325,10 +387,10 @@ export default function QTPage() {
       }
 
       // DB에 저장
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('user_meditation_records')
         .insert({
-          user_id: user!.id,
+          user_id: user.id,
           date: formattedDate,
           meditation_type: 'daily_qt',
           book_name: bibleData?.bible_name || null,
@@ -337,9 +399,12 @@ export default function QTPage() {
           meditation_text: meditationText || null,
           audio_url: audioUrl,
           audio_duration: recordingTime
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+      if (!inserted?.id) throw new Error("QT 기록 저장 ID를 찾을 수 없습니다.");
 
       setIsMeditationCompleted(true);
       setShowWriteSheet(false);
@@ -351,6 +416,7 @@ export default function QTPage() {
       
       // 기록 목록 새로고침
       await loadMeditationRecords();
+      await prepareQtGroupLink(String(inserted.id));
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -1567,6 +1633,99 @@ if (verseMatch) {
   onOpenChange={setShowLoginModal}
   returnTo={`${window.location.origin}/#/qt`}
 /> 
+
+<AnimatePresence>
+  {showGroupLinkPrompt && (
+    <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={closeQtGroupLinkFlow}
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+      />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
+      >
+        <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
+          모임에 완료 연결할까요?
+        </h4>
+        <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
+          지금 저장한 QT 기록을 모임 신앙생활에 연결할 수 있습니다.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={closeQtGroupLinkFlow}
+            className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
+          >
+            나중에
+          </button>
+          <button
+            onClick={() => {
+              setShowGroupLinkPrompt(false);
+              setShowGroupLinkModal(true);
+            }}
+            className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
+          >
+            연결하기
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+
+<AnimatePresence>
+  {showGroupLinkModal && pendingGroupLinkSourceRowId && (
+    <div className="fixed inset-0 z-[330] flex items-center justify-center p-6">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={closeQtGroupLinkFlow}
+        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+      />
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h4 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
+            연결할 모임 선택
+          </h4>
+          <button
+            onClick={closeQtGroupLinkFlow}
+            className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
+          >
+            <X size={14} />
+          </button>
+        </div>
+        <div className="space-y-2 max-h-[320px] overflow-y-auto">
+          {myGroups.map((group) => (
+            <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
+              <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
+              <button
+                onClick={() => handleQtGroupLink(group.id)}
+                disabled={linkingGroupId === group.id}
+                className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
+              >
+                {linkingGroupId === group.id ? "연결 중..." : "연결"}
+              </button>
+            </div>
+          ))}
+          {myGroups.length === 0 && (
+            <div className="text-sm text-zinc-500 text-center py-6">연결 가능한 모임이 없습니다.</div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
     </div>
   );
 }

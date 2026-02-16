@@ -12,6 +12,7 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BIBLE_BOOKS as BOOK_CHAPTERS } from "../lib/bibleData";
+import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
 
 export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -19,6 +20,12 @@ export default function ReadingPage() {
   const dateInputRef = useRef<HTMLInputElement>(null); 
   const { user, isLoading: isAuthLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
+  const [showGroupLinkPrompt, setShowGroupLinkPrompt] = useState(false);
+  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
+  const [pendingGroupLinkSourceRowId, setPendingGroupLinkSourceRowId] = useState<string | null>(null);
+  const [pendingGroupLinkLabel, setPendingGroupLinkLabel] = useState("");
+  const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
   
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
@@ -1493,6 +1500,52 @@ const loadRangePages = async () => {
     }
   }, [user, bibleData]);
 
+  const prepareReadingGroupLink = useCallback(
+    async (sourceRowId: string, label: string) => {
+      if (!user?.id) return;
+      const groups = await fetchMyGroups(user.id);
+      if (groups.length === 0) return;
+
+      setMyGroups(groups);
+      setPendingGroupLinkSourceRowId(sourceRowId);
+      setPendingGroupLinkLabel(label);
+      setShowGroupLinkPrompt(true);
+    },
+    [user?.id]
+  );
+
+  const closeReadingGroupLinkFlow = () => {
+    setShowGroupLinkPrompt(false);
+    setShowGroupLinkModal(false);
+    setPendingGroupLinkSourceRowId(null);
+    setPendingGroupLinkLabel("");
+    setLinkingGroupId(null);
+  };
+
+  const handleReadingGroupLink = async (groupId: string) => {
+    if (!user?.id || !pendingGroupLinkSourceRowId) return;
+    setLinkingGroupId(groupId);
+
+    try {
+      const { error } = await linkPersonalActivityToGroup({
+        userId: user.id,
+        activityType: "reading",
+        sourceTable: "user_reading_records",
+        sourceRowId: pendingGroupLinkSourceRowId,
+        groupId,
+      });
+      if (error) throw error;
+
+      closeReadingGroupLinkFlow();
+      alert("모임 신앙생활에 연결되었습니다.");
+    } catch (error) {
+      console.error("reading group link failed:", error);
+      alert("모임 연결에 실패했습니다.");
+    } finally {
+      setLinkingGroupId(null);
+    }
+  };
+
   const handleReadComplete = async (silent = false, chapterData = bibleData) => {
     // 말씀이 없으면 읽기 완료 불가
     if (!chapterData) {
@@ -1559,7 +1612,7 @@ const loadRangePages = async () => {
         
         const newReadCount = existing ? existing.read_count + 1 : 1;
         
-        await supabase
+        const { data: savedRecord, error: upsertError } = await supabase
           .from('user_reading_records')
           .upsert({
             user_id: user.id,
@@ -1573,14 +1626,24 @@ const loadRangePages = async () => {
           }, {
             onConflict: 'user_id,book_name,chapter',
             ignoreDuplicates: false
-          });
-        
+          })
+          .select('id')
+          .single();
+
+        if (upsertError) {
+          throw upsertError;
+        }
+
         // 진행률 업데이트
         const key = `${chapterData.bible_name}_${chapterData.chapter}`;
         setReadingProgress(prev => ({ ...prev, [key]: 100 }));
         
         // 읽기 상태 다시 확인 (횟수 및 상태 업데이트)
         await checkCurrentChapterReadStatus();
+
+        if (!silent && savedRecord?.id) {
+          await prepareReadingGroupLink(String(savedRecord.id), `${chapterData.bible_name} ${chapterData.chapter}장`);
+        }
       } catch (error) {
         console.error('읽기 완료 저장 실패:', error);
       }
@@ -2177,6 +2240,95 @@ const loadRangePages = async () => {
     </motion.div>
   )}
 </AnimatePresence>
+
+      <AnimatePresence>
+        {showGroupLinkPrompt && (
+          <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeReadingGroupLinkFlow}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
+            >
+              <h4 className="font-bold text-zinc-900 mb-2">모임에 완료 연결할까요?</h4>
+              <p className="text-sm text-zinc-500 mb-6">
+                {pendingGroupLinkLabel || "읽기 완료"} 기록을 모임 신앙생활에 연결할 수 있습니다.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={closeReadingGroupLinkFlow}
+                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
+                >
+                  나중에
+                </button>
+                <button
+                  onClick={() => {
+                    setShowGroupLinkPrompt(false);
+                    setShowGroupLinkModal(true);
+                  }}
+                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
+                >
+                  연결하기
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showGroupLinkModal && pendingGroupLinkSourceRowId && (
+          <div className="fixed inset-0 z-[330] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={closeReadingGroupLinkFlow}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-zinc-900">연결할 모임 선택</h4>
+                <button
+                  onClick={closeReadingGroupLinkFlow}
+                  className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-[320px] overflow-y-auto">
+                {myGroups.map((group) => (
+                  <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
+                    <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
+                    <button
+                      onClick={() => handleReadingGroupLink(group.id)}
+                      disabled={linkingGroupId === group.id}
+                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
+                    >
+                      {linkingGroupId === group.id ? "연결 중..." : "연결"}
+                    </button>
+                  </div>
+                ))}
+                {myGroups.length === 0 && (
+                  <div className="text-sm text-zinc-500 text-center py-6">연결 가능한 모임이 없습니다.</div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 로그인 모달 */}
       <LoginModal 
