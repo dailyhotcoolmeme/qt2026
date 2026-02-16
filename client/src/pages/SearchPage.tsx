@@ -26,6 +26,7 @@ export default function SearchPage() {
   // 필터 상태
   const [testamentFilter, setTestamentFilter] = useState<'ALL' | 'OT' | 'NT'>('ALL');
   const [selectedBook, setSelectedBook] = useState<string>('ALL');
+  const [availableBookIds, setAvailableBookIds] = useState<number[] | null>(null);
 
   // 뷰 모드 및 정보
   const [viewMode, setViewMode] = useState<'SEARCH' | 'CHAPTER'>('SEARCH');
@@ -71,7 +72,7 @@ export default function SearchPage() {
     return map;
   }, []);
 
-  // 검색어에서 책 정보 미리 추출 (필터 잠금용)
+  // 검색어에서 책 정보 추출
   const identifiedBook = React.useMemo(() => {
     const input = searchInput.trim();
     if (!input) return null;
@@ -83,7 +84,40 @@ export default function SearchPage() {
     return null;
   }, [searchInput, bookAliasMap]);
 
-  // 세션 스토리지 복원/저장
+  // 키워드 기반 성경권 필터링
+  useEffect(() => {
+    const fetchFilteredBooks = async () => {
+      const pureKeyword = identifiedBook ? searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?(:(\d+))?/, '').trim() : searchInput.trim();
+
+      // 검색어가 짧거나 없으면 필터링 해제
+      if (!pureKeyword || pureKeyword.length < 2) {
+        setAvailableBookIds(null);
+        return;
+      }
+
+      try {
+        // 키워드가 포함된 절들의 book_id를 추출 (RPC 사용이 가장 좋으나, 여기선 간단히 쿼리)
+        // 너무 많은 전체 조회를 피하기 위해 book_id만 가져옴
+        const { data, error } = await supabase
+          .from('bible_verses')
+          .select('book_id')
+          .ilike('content', `%${pureKeyword}%`)
+          .limit(1000); // 어느 정도 샘플링
+
+        if (data && !error) {
+          const ids = Array.from(new Set(data.map(d => d.book_id)));
+          setAvailableBookIds(ids);
+        }
+      } catch (err) {
+        console.error('Book filtering error:', err);
+      }
+    };
+
+    const debounce = setTimeout(fetchFilteredBooks, 500);
+    return () => clearTimeout(debounce);
+  }, [searchInput, identifiedBook]);
+
+  // 세션 스토리지 복원
   useEffect(() => {
     const savedState = sessionStorage.getItem('searchPageState');
     if (savedState) {
@@ -287,15 +321,16 @@ export default function SearchPage() {
     setSelectedBook('ALL');
     setResults([]);
     setViewMode('SEARCH');
+    setAvailableBookIds(null);
     sessionStorage.removeItem('searchPageState');
   };
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
       {/* 헤더 섹션 */}
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm transition-all duration-300">
+      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
-          {/* 상단 레이어: 검색바 + 초기화/버튼 */}
+          {/* 상단 레이어: 검색바 세트 */}
           <div className="flex gap-2 h-11">
             <div className="relative group flex-1">
               <input
@@ -309,7 +344,10 @@ export default function SearchPage() {
               <Search className="absolute left-4 top-3 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741] transition-colors" />
             </div>
             <div className="flex gap-1.5 shrink-0 h-full">
-              <button onClick={() => performSearch(true)} className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-xl hover:bg-[#3d5636] transition-colors shadow-sm">
+              <button
+                onClick={() => performSearch(true)}
+                className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-xl hover:bg-[#3d5636] transition-colors shadow-sm"
+              >
                 검색
               </button>
               <button
@@ -322,9 +360,10 @@ export default function SearchPage() {
             </div>
           </div>
 
-          {/* 하단 레이어: 필터 (우측 끝 정렬) */}
-          <div className="flex gap-2 items-center justify-end h-11">
-            <div className="flex gap-2 h-full py-1">
+          {/* 하단 레이어: 필터 세트 (양측 정렬) */}
+          <div className="flex gap-2 items-center justify-between h-11">
+            {/* 왼쪽: 구약/신약/전체 */}
+            <div className="flex gap-2 h-full">
               {(['ALL', 'OT', 'NT'] as const).map((f) => {
                 const isDisabled = !!identifiedBook;
                 return (
@@ -339,18 +378,28 @@ export default function SearchPage() {
                 );
               })}
             </div>
-            <div className="h-6 w-[1px] bg-zinc-200 mx-1 shrink-0" />
-            <div className="relative h-full py-1">
-              <select
-                disabled={!!identifiedBook}
-                className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] hover:border-zinc-300 transition-all ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
-                value={selectedBook}
-                onChange={(e) => { setSelectedBook(e.target.value); setResults([]); }}
-              >
-                <option value="ALL">권 선택</option>
-                {BIBLE_BOOKS.map((book, idx) => <option key={book.name} value={idx + 1}>{book.name}</option>)}
-              </select>
-              <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+
+            {/* 오른쪽: 구분선 + 권 선택 */}
+            <div className="flex items-center gap-2 h-full">
+              <div className="h-6 w-[1px] bg-zinc-200 mx-1 shrink-0" />
+              <div className="relative h-full">
+                <select
+                  disabled={!!identifiedBook}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] hover:border-zinc-300 transition-all ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  value={selectedBook}
+                  onChange={(e) => { setSelectedBook(e.target.value); setResults([]); }}
+                >
+                  <option value="ALL">권 선택</option>
+                  {BIBLE_BOOKS.map((book, idx) => {
+                    // 키워드가 있는 경우 매칭되는 권만 표시 (identifiedBook이 아닌 키워드 검색 시)
+                    const bookId = idx + 1;
+                    const isAvailable = !availableBookIds || availableBookIds.includes(bookId);
+                    if (!isAvailable) return null;
+                    return <option key={book.name} value={bookId}>{book.name}</option>;
+                  })}
+                </select>
+                <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+              </div>
             </div>
           </div>
         </div>
@@ -374,14 +423,21 @@ export default function SearchPage() {
             </div>
           )}
 
-          {!loading && results.length === 0 && (
-            <div className="py-20 text-center animate-in fade-in duration-700">
-              <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-6 opacity-50">
+          {!loading && results.length === 0 && !searchInput && selectedBook === 'ALL' && (
+            <div className="py-20 text-center animate-in fade-in duration-1000">
+              <div className="w-20 h-20 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Search className="w-8 h-8 text-zinc-300" />
               </div>
-              <h3 className="text-zinc-400 font-bold text-sm">
-                {searchInput ? "검색 결과가 없습니다." : "원하는 말씀의 키워드나 장절을 입력하세요."}
-              </h3>
+              <h2 className="text-xl font-bold text-zinc-800 mb-2 font-dm-sans">어떤 말씀을 찾으시나요?</h2>
+              <p className="text-zinc-400 text-sm leading-relaxed px-10">
+                키워드나 성경 구절(창 1:1)을 입력하여<br />하나님의 말씀을 검색해보세요.
+              </p>
+            </div>
+          )}
+
+          {!loading && results.length === 0 && (searchInput || selectedBook !== 'ALL') && (
+            <div className="py-20 text-center text-zinc-400">
+              검색 결과가 없습니다. 다른 검색어를 입력해보세요.
             </div>
           )}
 
@@ -392,7 +448,7 @@ export default function SearchPage() {
                 {viewMode === 'SEARCH' && isNewChapter && (
                   <div className="flex items-center gap-3 mb-4 mt-8">
                     <div className="h-[1px] flex-1 bg-zinc-100" />
-                    <span className="text-[11px] font-black text-zinc-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-zinc-100">
+                    <span className="font-black text-zinc-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-zinc-100" style={{ fontSize: `${fontSize * 0.7}px` }}>
                       {v.book_name} {v.chapter}
                     </span>
                     <div className="h-[1px] flex-1 bg-zinc-100" />
@@ -408,7 +464,7 @@ export default function SearchPage() {
                   }}
                 >
                   <div className="flex items-start gap-4">
-                    <span className={`text-[11px] pt-1.5 font-dm-sans font-black min-w-[20px] ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-md text-center'}`}>
+                    <span className={`text-[11px] pt-1.5 font-dm-sans font-black min-w-[24px] text-center ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}>
                       {v.verse}
                     </span>
                     <p className={`leading-relaxed text-zinc-700 flex-1 ${viewMode === 'CHAPTER' ? 'font-medium' : ''}`} style={{ fontSize: `${fontSize * 0.9}px` }}>
@@ -423,25 +479,25 @@ export default function SearchPage() {
 
         <div ref={bottomRef} className="h-20" />
 
-        {/* 하단 성경 읽기 연동 섹션 */}
+        {/* 성경 읽기 연동 섹션 (맨 하단 위치) */}
         {viewMode === 'CHAPTER' && currentChapterInfo && (
-          <div className="mt-8 mb-24 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="flex items-center gap-3 opacity-40">
-              <div className="w-1 h-1 rounded-full bg-[#4A6741]" />
-              <span className="text-[11px] font-black text-[#4A6741] tracking-widest uppercase">성경 읽기 연동</span>
-              <div className="w-1 h-1 rounded-full bg-[#4A6741]" />
+          <div className="mt-8 mb-20 flex flex-col items-center gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex items-center gap-3">
+              <div className="w-1 h-1 rounded-full bg-[#4A6741] opacity-30" />
+              <span className="text-xs font-bold text-zinc-400 tracking-wider">성경 읽기 연동</span>
+              <div className="w-1 h-1 rounded-full bg-[#4A6741] opacity-30" />
             </div>
 
             <div className="relative flex flex-col items-center">
               <motion.button
                 ref={readCompleteButtonRef}
-                whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.9 }}
                 className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 border-4
-                  ${isRead ? 'bg-[#4A6741] text-white border-green-100' : 'bg-white text-gray-400 border-green-50 hover:border-green-100'}`}
+                  ${isRead ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border-green-50'}`}
               >
-                <Check className={`w-8 h-8 ${isRead ? 'text-white' : 'text-zinc-200'}`} strokeWidth={3} />
-                <span className="font-black text-[13px] mt-0.5">읽기완료</span>
-                {user && readCount > 0 && <span className="text-[10px] font-bold mt-0.5 opacity-80">{readCount}회</span>}
+                <Check className={`w-8 h-8 mb-1 ${isRead ? 'text-white' : 'text-zinc-200'}`} strokeWidth={3} />
+                <span className="font-bold text-[13px]">읽기 완료</span>
+                {user && readCount > 0 && <span className="text-[10px] mt-0.5 opacity-80">{readCount}회</span>}
 
                 {isLongPressing && (
                   <svg className="absolute inset-0 w-full h-full -rotate-90">
@@ -451,7 +507,7 @@ export default function SearchPage() {
               </motion.button>
 
               {isRead && (
-                <span className="text-[10px] text-zinc-400 font-bold mt-4 opacity-40">길게 누르면 취소</span>
+                <span className="text-[10px] text-zinc-400 mt-4 opacity-60 font-bold">길게 누르면 취소</span>
               )}
             </div>
           </div>
@@ -461,7 +517,7 @@ export default function SearchPage() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-white text-[#4A6741] rounded-2xl shadow-xl flex items-center justify-center z-[110] transition-all border border-zinc-100 active:scale-90"
+          className="fixed bottom-24 right-6 w-14 h-14 bg-white text-[#4A6741] rounded-2xl shadow-xl flex items-center justify-center z-[110] transition-all border border-zinc-100"
         >
           <ArrowUp className="w-6 h-6" strokeWidth={2.5} />
         </button>

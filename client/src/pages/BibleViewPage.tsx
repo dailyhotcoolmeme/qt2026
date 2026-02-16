@@ -109,7 +109,7 @@ export default function BibleViewPage() {
       {/* 본문 내용 */}
       <div className="pt-[108px] pb-10 px-5 space-y-5">
         <h2 className="text-xl font-extrabold text-zinc-900 mb-6 border-b pb-2">
-          {verses[0]?.book_name} {verses[0]?.book_name === '시편' ? `${cleanChapter}편` : `${cleanChapter}장`}
+          {verses[0]?.book_name} {verses[0]?.book_name === '시편' ? `${verses[0]?.chapter || cleanChapter}편` : `${verses[0]?.chapter || cleanChapter}장`}
         </h2>
 
         {verses.map((v) => {
@@ -120,7 +120,7 @@ export default function BibleViewPage() {
             const parts = text.split(new RegExp(`(${keyword})`, 'gi'));
             return parts.map((part, i) =>
               part.toLowerCase() === keyword.toLowerCase()
-                ? <mark key={i} className="bg-yellow-200 font-bold px-0.5 rounded">{part}</mark>
+                ? <mark key={i} className="bg-yellow-300 font-bold px-1 rounded shadow-sm border-b-2 border-yellow-500 text-zinc-900">{part}</mark>
                 : part
             );
           };
