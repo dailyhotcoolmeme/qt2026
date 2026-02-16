@@ -318,7 +318,7 @@ export default function SearchPage() {
                 type="text" value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && performSearch(true)}
-                placeholder="예: 창세기 1, 요 3:16, 사랑, 은혜..."
+                placeholder="예: 시편 1, 요 3:16, 사랑, 은혜..."
                 className="w-full h-full pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-[15px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
               />
               <Search className="absolute left-4 top-3 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741]" />
