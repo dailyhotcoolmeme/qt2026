@@ -1087,6 +1087,11 @@ export default function GroupDashboard() {
 
   const openFaithLinkModal = async (item: FaithItemRow) => {
     if (!group || !user) return;
+    const linkedType = getLinkedFeatureForItem(item);
+    if (linkedType === "none") {
+      alert("이 항목은 연결 가능한 개인 활동이 없습니다.");
+      return;
+    }
     setSelectedFaithItem(item);
     setShowFaithLinkModal(true);
     const todayStart = new Date();
@@ -1101,7 +1106,7 @@ export default function GroupDashboard() {
       )
       .eq("user_id", user.id)
       .eq("source_kind", "personal")
-      .eq("activity_type", item.linked_feature)
+      .eq("activity_type", linkedType)
       .gte("occurred_at", todayStart.toISOString())
       .lt("occurred_at", tomorrowStart.toISOString())
       .order("occurred_at", { ascending: false })
@@ -1163,6 +1168,15 @@ export default function GroupDashboard() {
     );
   };
 
+  const getLinkedFeatureForItem = (item: FaithItemRow): LinkedFeature => {
+    if (item.linked_feature !== "none") return item.linked_feature;
+    const name = item.name.toLowerCase();
+    if (name.includes("qt") || name.includes("묵상")) return "qt";
+    if (name.includes("기도") || name.includes("prayer")) return "prayer";
+    if (name.includes("성경") || name.includes("읽기") || name.includes("reading")) return "reading";
+    return "none";
+  };
+
   const faithItemSlots = [
     { key: "reading", label: "성경읽기", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
     { key: "qt", label: "QT", item: getFaithItemByKeywords(["qt", "묵상"]) },
@@ -1215,7 +1229,8 @@ export default function GroupDashboard() {
       return;
     }
 
-    if (item.linked_feature !== "none" && item.source_mode !== "manual") {
+    const linkedType = getLinkedFeatureForItem(item);
+    if (linkedType !== "none") {
       const shouldLink = confirm("개인 활동 기록을 오늘 내역으로 연결할까요?");
       if (shouldLink) {
         await openFaithLinkModal(item);
@@ -1223,7 +1238,7 @@ export default function GroupDashboard() {
       }
     }
 
-    if (item.linked_feature === "none" && item.item_type === "attendance") {
+    if (linkedType === "none" && item.item_type === "attendance") {
       const worshipType = prompt("참석 예배를 입력하세요. (예: 주일낮, 주일저녁, 수요)", "주일낮");
       if (worshipType === null) return;
       await setFaithValue(item, 1, { note: worshipType.trim() || null });
@@ -1376,7 +1391,8 @@ export default function GroupDashboard() {
         if (imageInsertError) throw imageInsertError;
       } catch (uploadError) {
         console.error("post image upload error:", uploadError);
-        alert("사진 업로드/저장에 실패했습니다. R2 설정과 DB 마이그레이션을 확인해주세요.");
+        const message = uploadError instanceof Error ? uploadError.message : "알 수 없는 오류";
+        alert(`사진 업로드/저장에 실패했습니다: ${message}`);
       }
     }
 
@@ -1434,32 +1450,13 @@ export default function GroupDashboard() {
     await loadMembers(group.id, group.owner_id);
   };
 
-  const resolveJoinRequest = async (requestId: string, requesterId: string, approve: boolean) => {
+  const resolveJoinRequest = async (requestId: string, approve: boolean) => {
     if (!group || !isManager || !user) return;
 
-    if (approve) {
-      const { error: memberErr } = await supabase.from("group_members").upsert(
-        {
-          group_id: group.id,
-          user_id: requesterId,
-          role: "member",
-        },
-        { onConflict: "group_id,user_id" }
-      );
-      if (memberErr) {
-        alert("승인 처리에 실패했습니다.");
-        return;
-      }
-    }
-
-    const { error } = await supabase
-      .from("group_join_requests")
-      .update({
-        status: approve ? "approved" : "rejected",
-        resolved_at: new Date().toISOString(),
-        resolved_by: user.id,
-      })
-      .eq("id", requestId);
+    const { error } = await supabase.rpc("resolve_group_join_request", {
+      p_request_id: requestId,
+      p_approve: approve,
+    });
 
     if (error) {
       alert("요청 처리에 실패했습니다.");
@@ -1640,9 +1637,9 @@ export default function GroupDashboard() {
 
   if (role === "guest") {
     return (
-      <div className="min-h-screen bg-[#F6F7F8] pb-28">
+      <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
         <div
-          className="pt-20 pb-8"
+          className="pt-28 pb-8"
           style={{
             background:
               group.header_image_url && group.header_image_url.trim()
@@ -1659,18 +1656,18 @@ export default function GroupDashboard() {
             </button>
             <div className="mt-6 text-white">
               <div className="text-2xl font-black">{group.name}</div>
-              <div className="text-sm text-white/90 mt-1">{group.group_slug ? `코드: ${group.group_slug}` : ""}</div>
+              <div className="text-base text-white/90 mt-1">{group.group_slug ? `코드: ${group.group_slug}` : ""}</div>
             </div>
           </div>
         </div>
 
         <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
           <div className="bg-white border-b border-zinc-200 p-5">
-            <div className="text-sm text-zinc-600 whitespace-pre-wrap">
+            <div className="text-base text-zinc-600 whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
             {group.is_closed && (
-              <div className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-sm bg-rose-50 text-rose-700 font-bold">
+              <div className="mt-3 inline-flex items-center gap-2 text-base px-3 py-1.5 rounded-sm bg-rose-50 text-rose-700 font-bold">
                 <Lock size={13} /> 현재 폐쇄된 모임입니다.
               </div>
             )}
@@ -1682,14 +1679,14 @@ export default function GroupDashboard() {
               type="password"
               value={joinPassword}
               onChange={(e) => setJoinPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="모임 가입 비밀번호"
               disabled={!user || guestJoinPending || group.is_closed}
             />
             <textarea
               value={joinMessage}
               onChange={(e) => setJoinMessage(e.target.value)}
-              className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="가입 메시지 (선택)"
               disabled={!user || guestJoinPending || group.is_closed}
             />
@@ -1701,7 +1698,7 @@ export default function GroupDashboard() {
                 로그인 후 가입 신청
               </button>
             ) : guestJoinPending ? (
-              <div className="text-sm text-emerald-700 font-bold">가입 신청이 접수되어 승인 대기 중입니다.</div>
+              <div className="text-base text-emerald-700 font-bold">가입 신청이 접수되어 승인 대기 중입니다.</div>
             ) : (
               <button
                 onClick={submitJoinRequest}
@@ -1721,7 +1718,7 @@ export default function GroupDashboard() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pb-28">
+    <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
       <header
         className="relative overflow-hidden"
         style={{
@@ -1731,7 +1728,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-4 pb-14 min-h-[220px] flex flex-col justify-between">
+        <div className="max-w-2xl mx-auto px-4 pt-16 pb-14 min-h-[240px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -1743,7 +1740,7 @@ export default function GroupDashboard() {
             {isManager && (
               <button
                 onClick={() => setShowHeaderEditModal(true)}
-                className="px-3 py-1.5 rounded-sm bg-white/20 text-white text-xs font-bold inline-flex items-center gap-1 backdrop-blur"
+                className="px-3 py-1.5 rounded-sm bg-white/20 text-white text-base font-bold inline-flex items-center gap-1 backdrop-blur"
               >
                 <Edit3 size={13} />
                 헤더 편집
@@ -1753,7 +1750,7 @@ export default function GroupDashboard() {
 
           <div className="text-white">
             <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
-            <div className="text-sm text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
+            <div className="text-base text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
               <span>{group.group_slug ? `코드: ${group.group_slug}` : ""}</span>
               <span className="px-2 py-0.5 rounded-sm bg-white/20 font-bold">{toLabel(role)}</span>
               <button
@@ -1778,7 +1775,7 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div className="sticky top-14 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
+      <div className="sticky top-20 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
         <div className="w-full">
           <nav className="flex items-center">
           {([
@@ -1789,7 +1786,7 @@ export default function GroupDashboard() {
             <button
               key={id}
               onClick={() => setActiveTab(id)}
-              className={`flex-1 min-w-[6.5rem] py-3 text-sm font-bold border-b-2 transition-colors ${
+              className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${
                 activeTab === id
                   ? "border-[#4A6741] text-zinc-900 bg-white"
                   : "border-transparent text-zinc-500 hover:text-zinc-700"
@@ -1806,44 +1803,44 @@ export default function GroupDashboard() {
 
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white border-b border-zinc-200 p-5">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
               <h2 className="font-black text-zinc-900 mb-3">모임원 기도제목</h2>
               <div className="space-y-2">
                 {groupPrayerTopics.map((topic) => {
                   const author = authorMap[topic.author_id];
                   const authorName = author?.nickname || author?.username || "모임원";
                   return (
-                    <div key={topic.id} className="rounded-sm bg-zinc-50 px-4 py-3">
-                      <div className="text-sm text-zinc-900 whitespace-pre-wrap">{topic.content}</div>
-                      <div className="text-xs text-zinc-500 mt-2">
+                    <div key={topic.id} className="px-1 py-3 border-b border-zinc-200">
+                      <div className="text-base text-zinc-900 whitespace-pre-wrap">{topic.content}</div>
+                      <div className="text-base text-zinc-500 mt-2">
                         {authorName} · {formatDateTime(topic.created_at)}
                       </div>
                     </div>
                   );
                 })}
                 {groupPrayerTopics.length === 0 && (
-                  <div className="rounded-sm border border-dashed border-zinc-200 px-4 py-5 text-center text-sm text-zinc-500">
+                  <div className="px-4 py-5 text-center text-base text-zinc-500">
                     아직 등록된 기도제목이 없습니다.
                   </div>
                 )}
               </div>
             </section>
 
-            <section className="bg-white border-b border-zinc-200 p-6">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-6">
               <div className="flex items-center justify-center gap-6">
                 <button
                   onClick={() => setShowPrayerComposer(true)}
                   className="w-28 h-28 rounded-full bg-[#4A6741] text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
                 >
                   <Mic size={20} />
-                  <span className="text-sm font-black">기도하기</span>
+                  <span className="text-base font-black">기도하기</span>
                 </button>
                 <button
                   onClick={() => setShowPrayerTopicModal(true)}
                   className="w-28 h-28 rounded-full bg-zinc-900 text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
                 >
                   <Plus size={20} />
-                  <span className="text-sm font-black">기도제목 등록</span>
+                  <span className="text-base font-black">기도제목 등록</span>
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
@@ -1865,15 +1862,15 @@ export default function GroupDashboard() {
             <div className="space-y-2">
               <h3 className="font-black text-zinc-900 px-1">기도 저장 목록</h3>
               {groupPrayers.map((record) => (
-                <div key={record.id} className="bg-white border-b border-zinc-200 p-4">
+                <div key={record.id} className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <div className="font-bold text-zinc-900">{record.title || "제목 없는 기도"}</div>
-                      <div className="text-xs text-zinc-500 mt-1">{formatDateTime(record.created_at)}</div>
+                      <div className="text-base text-zinc-500 mt-1">{formatDateTime(record.created_at)}</div>
                     </div>
                     <div className="flex items-center gap-1">
                       <span
-                        className={`px-2 py-0.5 rounded-sm text-xs font-bold ${
+                        className={`px-2 py-0.5 rounded-sm text-base font-bold ${
                           record.source_type === "direct"
                             ? "bg-emerald-100 text-emerald-700"
                             : "bg-blue-100 text-blue-700"
@@ -1896,7 +1893,7 @@ export default function GroupDashboard() {
               ))}
 
               {groupPrayers.length === 0 && (
-                <div className="bg-white border-b border-zinc-200 px-4 py-5 text-sm text-zinc-500 text-center">
+                <div className="bg-[#F6F7F8] border-b border-zinc-200 px-4 py-5 text-base text-zinc-500 text-center">
                   아직 모임 기도 기록이 없습니다.
                 </div>
               )}
@@ -1907,35 +1904,38 @@ export default function GroupDashboard() {
         {activeTab === "faith" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <section className="bg-white px-1">
-              <div className="text-center text-[#4A6741] font-bold py-2">{getTodayKoreanLabel()}</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 border-t border-zinc-200">
+              <div className="text-center text-[#4A6741] font-bold py-3 border-b border-zinc-200">{getTodayKoreanLabel()}</div>
+              <div className="py-2">
                 {faithItemSlots.map((slot) => {
                   const item = slot.item;
                   const isCompleted = item ? (faithValues[item.id] ?? 0) > 0 : false;
                   return (
-                    <div key={slot.key} className="flex flex-col items-center gap-2">
+                    <div key={slot.key} className="py-3 border-b border-zinc-200 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-bold text-zinc-900">{slot.label}</div>
+                        {item && getLinkedFaithDetailText(item.id) && (
+                          <p className="text-base text-zinc-600 mt-1 truncate">{getLinkedFaithDetailText(item.id)}</p>
+                        )}
+                      </div>
                       <motion.button
                         whileTap={{ scale: item ? 0.92 : 1 }}
                         onClick={() => item && void handleFaithToggle(item)}
                         disabled={!item}
-                        className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow transition-all duration-300 ${
+                        className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow transition-all duration-300 ${
                           isCompleted
                             ? "bg-[#4A6741] text-white border-none"
                             : "bg-white text-[#4A6741] border border-zinc-200"
                         } ${!item ? "opacity-40 cursor-not-allowed" : ""}`}
                       >
-                        <Check className={isCompleted ? "w-5 h-5 mb-1" : "w-5 h-5 mb-1"} />
-                        <span className="text-xs font-bold">{slot.label}</span>
+                        <Check className="w-5 h-5 mb-1" />
+                        <span className="text-base font-bold">{isCompleted ? "완료" : "미완료"}</span>
                       </motion.button>
-                      {item && getLinkedFaithDetailText(item.id) && (
-                        <p className="text-xs text-zinc-600 text-center px-1">{getLinkedFaithDetailText(item.id)}</p>
-                      )}
                     </div>
                   );
                 })}
               </div>
               {faithItemSlots.some((slot) => !slot.item) && (
-                <div className="border-t border-zinc-200 py-3 text-xs text-zinc-500">
+                <div className="py-3 text-base text-zinc-500">
                   일부 항목이 아직 설정되지 않았습니다. 생성자/리더가 관리 메뉴에서 항목을 준비해주세요.
                 </div>
               )}
@@ -1944,21 +1944,21 @@ export default function GroupDashboard() {
             {isManager && (
               <section className="bg-white border-t border-zinc-200 pt-4">
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
-                  <h3 className="font-black text-zinc-900 text-sm">전체 멤버 오늘 현황</h3>
+                  <h3 className="font-black text-zinc-900 text-base">전체 멤버 오늘 현황</h3>
                   <input
                     type="date"
                     value={faithBoardDate}
                     onChange={(e) => setFaithBoardDate(e.target.value)}
-                    className="px-2 py-1 border border-zinc-200 text-xs"
+                    className="px-2 py-1 border border-zinc-200 text-base"
                   />
                 </div>
                 {faithBoardLoading ? (
-                  <div className="py-6 text-sm text-zinc-500 text-center">현황 불러오는 중...</div>
+                  <div className="py-6 text-base text-zinc-500 text-center">현황 불러오는 중...</div>
                 ) : faithBoardRows.length === 0 ? (
-                  <div className="py-6 text-sm text-zinc-500 text-center">조회된 기록이 없습니다.</div>
+                  <div className="py-6 text-base text-zinc-500 text-center">조회된 기록이 없습니다.</div>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="min-w-full text-xs">
+                    <table className="min-w-full text-base">
                       <thead>
                         <tr className="text-zinc-500 border-b border-zinc-200">
                           <th className="text-left py-2 pr-3 whitespace-nowrap">멤버</th>
@@ -2001,12 +2001,12 @@ export default function GroupDashboard() {
 
         {activeTab === "social" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-white border-b border-zinc-200 pb-3 flex items-center justify-between gap-3">
+            <div className="bg-[#F6F7F8] border-b border-zinc-200 pb-3 flex items-center justify-between gap-3">
               <h2 className="font-black text-zinc-900">모임 소통</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSocialViewMode("board")}
-                  className={`px-3 py-2 border-b-2 text-xs font-bold inline-flex items-center gap-1 ${
+                  className={`px-3 py-2 border-b-2 text-base font-bold inline-flex items-center gap-1 ${
                     socialViewMode === "board" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
                   }`}
                 >
@@ -2015,7 +2015,7 @@ export default function GroupDashboard() {
                 </button>
                 <button
                   onClick={() => setSocialViewMode("blog")}
-                  className={`px-3 py-2 border-b-2 text-xs font-bold inline-flex items-center gap-1 ${
+                  className={`px-3 py-2 border-b-2 text-base font-bold inline-flex items-center gap-1 ${
                     socialViewMode === "blog" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
                   }`}
                 >
@@ -2025,7 +2025,7 @@ export default function GroupDashboard() {
               </div>
             </div>
 
-            <div className="bg-white">
+            <div className="bg-[#F6F7F8]">
               {posts.map((post) => {
                 const author = authorMap[post.author_id];
                 const authorName = author?.nickname || author?.username || "이름 없음";
@@ -2042,18 +2042,18 @@ export default function GroupDashboard() {
                       <div>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 text-xs font-bold ${
+                            className={`px-2 py-0.5 text-base font-bold ${
                               isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"
                             }`}
                           >
                             {isNotice ? "공지" : "일반"}
                           </span>
-                          <span className="text-xs text-zinc-500">{authorName}</span>
+                          <span className="text-base text-zinc-500">{authorName}</span>
                         </div>
-                        <div className={`mt-1 ${socialViewMode === "board" ? "text-sm font-bold" : "text-base font-black"} text-zinc-900`}>
+                        <div className={`mt-1 ${socialViewMode === "board" ? "text-base font-bold" : "text-base font-black"} text-zinc-900`}>
                           {displayTitle}
                         </div>
-                        <div className="text-xs text-zinc-500 mt-1">{formatDateTime(post.created_at)}</div>
+                        <div className="text-base text-zinc-500 mt-1">{formatDateTime(post.created_at)}</div>
                       </div>
                       {canDelete && (
                         <button
@@ -2065,9 +2065,9 @@ export default function GroupDashboard() {
                       )}
                     </div>
                     {socialViewMode === "board" ? (
-                      <p className="text-sm text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
+                      <p className="text-base text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
                     ) : (
-                      <p className="text-sm text-zinc-800 whitespace-pre-wrap line-clamp-5">{post.content}</p>
+                      <p className="text-base text-zinc-800 whitespace-pre-wrap line-clamp-5">{post.content}</p>
                     )}
 
                     {post.image_urls && post.image_urls.length > 0 && (
@@ -2080,7 +2080,7 @@ export default function GroupDashboard() {
                           ))}
                         </div>
                       ) : (
-                        <div className="mt-2 text-xs text-zinc-500">사진 {post.image_urls.length}장</div>
+                        <div className="mt-2 text-base text-zinc-500">사진 {post.image_urls.length}장</div>
                       )
                     )}
                   </div>
@@ -2088,7 +2088,7 @@ export default function GroupDashboard() {
               })}
 
               {posts.length === 0 && (
-                <div className="bg-white px-4 py-5 text-sm text-zinc-500 text-center border-b border-zinc-200">
+                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
                   아직 게시글이 없습니다.
                 </div>
               )}
@@ -2108,30 +2108,30 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
               <div className="bg-white border-b border-zinc-200 p-4">
-                <h3 className="font-black text-zinc-900 mb-2 text-sm flex items-center gap-2">
+                <h3 className="font-black text-zinc-900 mb-2 text-base flex items-center gap-2">
                   <Shield size={14} /> 가입 요청
                 </h3>
                 {joinRequests.length === 0 ? (
-                  <div className="text-sm text-zinc-500">대기 중인 요청이 없습니다.</div>
+                  <div className="text-base text-zinc-500">대기 중인 요청이 없습니다.</div>
                 ) : (
                   <div className="space-y-2">
                     {joinRequests.map((request) => (
                       <div key={request.id} className="bg-zinc-50 rounded-sm p-3">
-                        <div className="text-sm font-bold text-zinc-900">
+                        <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
-                        <div className="text-xs text-zinc-500 mt-1">{formatDateTime(request.created_at)}</div>
-                        {request.message && <div className="text-sm text-zinc-700 mt-2">{request.message}</div>}
+                        <div className="text-base text-zinc-500 mt-1">{formatDateTime(request.created_at)}</div>
+                        {request.message && <div className="text-base text-zinc-700 mt-2">{request.message}</div>}
                         <div className="flex gap-2 mt-3">
                           <button
-                            onClick={() => resolveJoinRequest(request.id, request.user_id, true)}
-                            className="px-3 py-2 rounded-sm bg-emerald-600 text-white text-xs font-bold"
+                            onClick={() => resolveJoinRequest(request.id, true)}
+                            className="px-3 py-2 rounded-sm bg-emerald-600 text-white text-base font-bold"
                           >
                             승인
                           </button>
                           <button
-                            onClick={() => resolveJoinRequest(request.id, request.user_id, false)}
-                            className="px-3 py-2 rounded-sm bg-zinc-200 text-zinc-700 text-xs font-bold"
+                            onClick={() => resolveJoinRequest(request.id, false)}
+                            className="px-3 py-2 rounded-sm bg-zinc-200 text-zinc-700 text-base font-bold"
                           >
                             거절
                           </button>
@@ -2144,7 +2144,7 @@ export default function GroupDashboard() {
             )}
 
             <div className="bg-white border-b border-zinc-200 p-4">
-              <h3 className="font-black text-zinc-900 mb-3 text-sm flex items-center gap-2">
+              <h3 className="font-black text-zinc-900 mb-3 text-base flex items-center gap-2">
                 <Users size={14} /> 멤버 목록
               </h3>
               <div className="space-y-2">
@@ -2161,14 +2161,14 @@ export default function GroupDashboard() {
                     >
                       <div>
                         <div className="font-bold text-zinc-900">{name}</div>
-                        <div className="text-xs text-zinc-500">{toLabel(member.role)}</div>
+                        <div className="text-base text-zinc-500">{toLabel(member.role)}</div>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {canPromoteDemote && member.role === "member" && (
                           <button
                             onClick={() => changeMemberRole(member.user_id, "leader")}
-                            className="px-2 py-1 rounded-sm bg-blue-100 text-blue-700 text-xs font-bold"
+                            className="px-2 py-1 rounded-sm bg-blue-100 text-blue-700 text-base font-bold"
                           >
                             리더승급
                           </button>
@@ -2176,7 +2176,7 @@ export default function GroupDashboard() {
                         {canPromoteDemote && member.role === "leader" && (
                           <button
                             onClick={() => changeMemberRole(member.user_id, "member")}
-                            className="px-2 py-1 rounded-sm bg-zinc-200 text-zinc-700 text-xs font-bold"
+                            className="px-2 py-1 rounded-sm bg-zinc-200 text-zinc-700 text-base font-bold"
                           >
                             멤버전환
                           </button>
@@ -2210,7 +2210,7 @@ export default function GroupDashboard() {
             {role !== "owner" && (
               <button
                 onClick={leaveGroup}
-                className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-sm"
+                className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-base"
               >
                 모임 나가기
               </button>
@@ -2221,9 +2221,9 @@ export default function GroupDashboard() {
         {activeTab === "admin" && isManager && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-sm">신앙활동 항목 관리</h3>
+              <h3 className="font-black text-zinc-900 text-base">신앙활동 항목 관리</h3>
               <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                 placeholder="새 항목 이름"
                 value={newFaithName}
                 onChange={(e) => setNewFaithName(e.target.value)}
@@ -2232,7 +2232,7 @@ export default function GroupDashboard() {
                 <select
                   value={newFaithType}
                   onChange={(e) => setNewFaithType(e.target.value as FaithType)}
-                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                 >
                   <option value="check">체크형</option>
                   <option value="count">횟수형</option>
@@ -2246,7 +2246,7 @@ export default function GroupDashboard() {
                     if (next === "manual") setNewFaithLinkedFeature("none");
                     if (next !== "manual" && newFaithLinkedFeature === "none") setNewFaithLinkedFeature("qt");
                   }}
-                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                 >
                   <option value="manual">직접 입력만</option>
                   <option value="linked">외부 연결만</option>
@@ -2257,7 +2257,7 @@ export default function GroupDashboard() {
                 <select
                   value={newFaithLinkedFeature}
                   onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
-                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                 >
                   <option value="qt">QT 연결</option>
                   <option value="prayer">기도 연결</option>
@@ -2266,21 +2266,21 @@ export default function GroupDashboard() {
               )}
               <button
                 onClick={addFaithItem}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base inline-flex items-center justify-center gap-1"
               >
                 <Plus size={14} /> 항목 추가
               </button>
             </section>
 
             <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-2">
+              <h3 className="font-black text-zinc-900 text-base inline-flex items-center gap-2">
                 <Crown size={14} />
                 모임 상위 리더 등록
               </h3>
               <select
                 value={scopeLeaderUserId}
                 onChange={(e) => setScopeLeaderUserId(e.target.value)}
-                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               >
                 <option value="">멤버 선택</option>
                 {members.map((member) => {
@@ -2295,38 +2295,38 @@ export default function GroupDashboard() {
               <button
                 onClick={registerScopeLeader}
                 disabled={!scopeLeaderUserId}
-                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-sm disabled:opacity-50"
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
               >
                 상위 리더 등록
               </button>
-              <p className="text-xs text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
+              <p className="text-base text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
             </section>
 
             <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-sm">하위 모임 연결</h3>
+              <h3 className="font-black text-zinc-900 text-base">하위 모임 연결</h3>
               <input
                 value={childGroupCode}
                 onChange={(e) => setChildGroupCode(e.target.value)}
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                 placeholder="하위 모임 코드 입력"
               />
               <button
                 onClick={linkChildGroup}
                 disabled={linkingChildGroup || !childGroupCode.trim()}
-                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-sm disabled:opacity-60"
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-60"
               >
                 {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
               </button>
-              <p className="text-xs text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
+              <p className="text-base text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
             </section>
 
             <section className="bg-white border-b border-rose-200 p-4 space-y-3">
-              <h3 className="font-black text-rose-700 text-sm">모임 완전 삭제</h3>
-              <p className="text-sm text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
+              <h3 className="font-black text-rose-700 text-base">모임 완전 삭제</h3>
+              <p className="text-base text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
               <button
                 onClick={closeGroup}
                 disabled={closingGroup || role !== "owner"}
-                className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
+                className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-base disabled:opacity-60"
               >
                 {closingGroup ? "삭제 중..." : role !== "owner" ? "생성자만 삭제 가능" : "모임 삭제하기"}
               </button>
@@ -2356,21 +2356,21 @@ export default function GroupDashboard() {
               {personalPrayers.map((record) => (
                 <div key={record.id} className="bg-zinc-50 rounded-sm p-3">
                   <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="font-bold text-sm text-zinc-900">{record.title || "제목 없는 기도"}</div>
+                    <div className="font-bold text-base text-zinc-900">{record.title || "제목 없는 기도"}</div>
                     <button
                       onClick={() => linkPrayerToGroup(record)}
-                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-xs font-bold"
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold"
                     >
                       연결
                     </button>
                   </div>
-                  <div className="text-xs text-zinc-500 mb-2">{formatDateTime(record.created_at)}</div>
+                  <div className="text-base text-zinc-500 mb-2">{formatDateTime(record.created_at)}</div>
                   <audio controls className="w-full" src={record.audio_url} preload="none" />
                 </div>
               ))}
 
               {personalPrayers.length === 0 && (
-                <div className="text-sm text-zinc-500 text-center py-8">연결 가능한 개인 기도 기록이 없습니다.</div>
+                <div className="text-base text-zinc-500 text-center py-8">연결 가능한 개인 기도 기록이 없습니다.</div>
               )}
             </div>
           </div>
@@ -2392,13 +2392,13 @@ export default function GroupDashboard() {
             </div>
 
             <input
-              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="기도 제목 (선택)"
               value={recordTitle}
               onChange={(e) => setRecordTitle(e.target.value)}
             />
 
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center justify-between text-base">
               <span className="text-zinc-500">녹음 시간</span>
               <span className="font-black text-zinc-900">
                 {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")}
@@ -2472,13 +2472,13 @@ export default function GroupDashboard() {
             <textarea
               value={newPrayerTopic}
               onChange={(e) => setNewPrayerTopic(e.target.value)}
-              className="w-full min-h-[120px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[120px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="모임원과 나눌 기도제목을 입력해주세요."
             />
             <button
               onClick={addPrayerTopic}
               disabled={!newPrayerTopic.trim()}
-              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm disabled:opacity-60"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
             >
               등록하기
             </button>
@@ -2503,7 +2503,7 @@ export default function GroupDashboard() {
             <div className="flex gap-2">
               <button
                 onClick={() => setPostType("post")}
-                className={`px-3 py-2 rounded-sm text-sm font-bold ${
+                className={`px-3 py-2 rounded-sm text-base font-bold ${
                   postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                 }`}
               >
@@ -2512,7 +2512,7 @@ export default function GroupDashboard() {
               <button
                 onClick={() => setPostType("notice")}
                 disabled={!isManager}
-                className={`px-3 py-2 rounded-sm text-sm font-bold ${
+                className={`px-3 py-2 rounded-sm text-base font-bold ${
                   postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
                 } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
               >
@@ -2523,20 +2523,20 @@ export default function GroupDashboard() {
             <input
               value={postTitle}
               onChange={(e) => setPostTitle(e.target.value)}
-              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="제목"
             />
             <textarea
               value={postContent}
               onChange={(e) => setPostContent(e.target.value)}
-              className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
+              className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="모임 내부 공유 글을 작성하세요."
             />
 
             <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
-                <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                <span className="text-base font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
+                <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
                   <ImagePlus size={13} />
                   사진 선택
                   <input
@@ -2568,7 +2568,7 @@ export default function GroupDashboard() {
 
             <button
               onClick={addPost}
-              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
             >
               글 등록
             </button>
@@ -2589,23 +2589,23 @@ export default function GroupDashboard() {
                 <X size={14} />
               </button>
             </div>
-            <div className="rounded-sm bg-zinc-50 p-4 space-y-2 text-sm">
+            <div className="rounded-sm bg-zinc-50 p-4 space-y-2 text-base">
               <div>
-                <div className="text-xs text-zinc-500">모임명</div>
+                <div className="text-base text-zinc-500">모임명</div>
                 <div className="font-bold text-zinc-900">{group.name}</div>
               </div>
               <div>
-                <div className="text-xs text-zinc-500">모임 코드</div>
+                <div className="text-base text-zinc-500">모임 코드</div>
                 <div className="font-bold text-zinc-900">{group.group_slug || "-"}</div>
               </div>
-              <div className="text-xs text-zinc-500">가입 비밀번호는 별도로 전달해주세요.</div>
+              <div className="text-base text-zinc-500">가입 비밀번호는 별도로 전달해주세요.</div>
             </div>
             <button
               onClick={() => {
                 const text = `[${group.name}] 모임 코드: ${group.group_slug || "-"}`;
                 navigator.clipboard.writeText(text).then(() => alert("초대 정보가 복사되었습니다."));
               }}
-              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
             >
               초대 문구 복사
             </button>
@@ -2627,7 +2627,7 @@ export default function GroupDashboard() {
               </button>
             </div>
             <div>
-              <label className="text-xs text-zinc-500">헤더 색상 팔레트</label>
+              <label className="text-base text-zinc-500">헤더 색상 팔레트</label>
               <div className="grid grid-cols-8 gap-2 mt-2">
                 {HEADER_PALETTE.map((color) => (
                   <button
@@ -2644,10 +2644,10 @@ export default function GroupDashboard() {
             </div>
 
             <div>
-              <label className="text-xs text-zinc-500">헤더 이미지 업로드</label>
+              <label className="text-base text-zinc-500">헤더 이미지 업로드</label>
               <div className="mt-2 rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-3">
                 <div className="flex items-center gap-2">
-                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-xs font-bold cursor-pointer inline-flex items-center gap-1">
+                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
                     <ImagePlus size={13} />
                     이미지 선택
                     <input
@@ -2657,12 +2657,12 @@ export default function GroupDashboard() {
                       onChange={(e) => setHeaderImageFile(e.target.files?.[0] ?? null)}
                     />
                   </label>
-                  {headerImageFile && <span className="text-xs text-zinc-600 truncate">{headerImageFile.name}</span>}
+                  {headerImageFile && <span className="text-base text-zinc-600 truncate">{headerImageFile.name}</span>}
                 </div>
                 <button
                   onClick={uploadHeaderImage}
                   disabled={!headerImageFile || headerImageUploading}
-                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-xs font-bold disabled:opacity-60"
+                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
                 >
                   {headerImageUploading ? "업로드 중..." : "이미지 업로드"}
                 </button>
@@ -2675,7 +2675,7 @@ export default function GroupDashboard() {
             </div>
             <button
               onClick={saveHeaderSettings}
-              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm"
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
             >
               저장
             </button>
@@ -2704,13 +2704,13 @@ export default function GroupDashboard() {
                 <div key={activity.id} className="bg-zinc-50 rounded-sm p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <div className="font-bold text-sm text-zinc-900">{getActivityTitle(activity)}</div>
-                      <div className="text-xs text-zinc-500 mt-1">{formatDateTime(activity.occurred_at)}</div>
+                      <div className="font-bold text-base text-zinc-900">{getActivityTitle(activity)}</div>
+                      <div className="text-base text-zinc-500 mt-1">{formatDateTime(activity.occurred_at)}</div>
                     </div>
                     <button
                       onClick={() => linkActivityToFaith(activity)}
                       disabled={linkingActivityId === activity.id}
-                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold disabled:opacity-60"
                     >
                       {linkingActivityId === activity.id ? "연결 중..." : "연결"}
                     </button>
@@ -2719,7 +2719,7 @@ export default function GroupDashboard() {
               ))}
 
               {availableActivities.length === 0 && (
-                <div className="text-sm text-zinc-500 text-center py-8">
+                <div className="text-base text-zinc-500 text-center py-8">
                   연결 가능한 외부 활동이 없습니다.
                 </div>
               )}
@@ -2730,6 +2730,7 @@ export default function GroupDashboard() {
     </div>
   );
 }
+
 
 
 
