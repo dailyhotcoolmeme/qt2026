@@ -24,12 +24,6 @@ type JoinedGroup = {
 
 const LAST_GROUP_KEY = "last_group_id";
 
-function getHashQuery() {
-  const hash = window.location.hash || "";
-  const query = hash.includes("?") ? hash.split("?")[1] : "";
-  return new URLSearchParams(query);
-}
-
 export default function CommunityPage() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<any>(null);
@@ -70,23 +64,15 @@ export default function CommunityPage() {
 
   const initialize = async (userId: string) => {
     setLoading(true);
-    const [joined] = await Promise.all([
+    await Promise.all([
       loadJoinedGroups(userId),
       loadLeadershipScope(userId),
       loadBrowseGroups(searchKeyword),
     ]);
     setLoading(false);
 
-    const skipAutoOpen = getHashQuery().get("list") === "1";
-    if (skipAutoOpen) return;
-
-    const savedGroupId = localStorage.getItem(LAST_GROUP_KEY);
-    if (!savedGroupId) return;
-
-    const hasMembership = joined.some((item) => item.group.id === savedGroupId);
-    if (hasMembership) {
-      setLocation(`/group/${savedGroupId}`);
-    }
+    // 자동 재진입을 막고 항상 모임 목록 화면을 우선 노출한다.
+    // 마지막 입장 모임 캐시는 "모임 열기" 동작 시에만 사용한다.
   };
 
   const loadLeadershipScope = async (userId: string) => {

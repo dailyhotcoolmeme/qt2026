@@ -276,7 +276,9 @@ export async function registerRoutes(
 
       const fileBuffer = Buffer.from(fileBase64, "base64");
       const result = await uploadFileToR2(fileName, fileBuffer, contentType || "application/octet-stream");
-
+      if (!result.success || !result.publicUrl) {
+        return res.status(500).json(result);
+      }
       res.json(result);
     } catch (error) {
       console.error("File upload error:", error);

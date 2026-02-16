@@ -1,8 +1,7 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
-  BarChart3,
   Check,
   ChevronLeft,
   Crown,
@@ -150,10 +149,13 @@ type FaithBoardRow = {
   total: number;
 };
 
-type FaithTrendPoint = {
-  date: string;
-  label: string;
-  total: number;
+type FaithRecordDetail = {
+  item_id: string;
+  source_type: "manual" | "linked";
+  source_event_type: string | null;
+  source_event_id: string | null;
+  note: string | null;
+  payload: Record<string, unknown> | null;
 };
 
 function formatDateTime(iso?: string | null) {
@@ -216,6 +218,9 @@ async function uploadFileToR2(fileName: string, blob: Blob, contentType: string)
 
   if (!response.ok) throw new Error("failed to upload file");
   const data = await response.json();
+  if (!data?.success || !data?.publicUrl) {
+    throw new Error(data?.error || "failed to upload file");
+  }
   return data.publicUrl as string;
 }
 
@@ -264,13 +269,10 @@ export default function GroupDashboard() {
   const [selectedFaithItem, setSelectedFaithItem] = useState<FaithItemRow | null>(null);
   const [availableActivities, setAvailableActivities] = useState<ActivityLogRow[]>([]);
   const [linkingActivityId, setLinkingActivityId] = useState<number | null>(null);
+  const [faithRecordDetails, setFaithRecordDetails] = useState<Record<string, FaithRecordDetail>>({});
   const [faithBoardDate, setFaithBoardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [faithBoardRows, setFaithBoardRows] = useState<FaithBoardRow[]>([]);
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
-  const [faithTrendRange, setFaithTrendRange] = useState<7 | 30>(7);
-  const [faithTrendMode, setFaithTrendMode] = useState<"me" | "group">("me");
-  const [faithTrendLoading, setFaithTrendLoading] = useState(false);
-  const [faithTrendPoints, setFaithTrendPoints] = useState<FaithTrendPoint[]>([]);
 
   const [posts, setPosts] = useState<GroupPostRow[]>([]);
   const [postType, setPostType] = useState<"post" | "notice">("post");
@@ -370,28 +372,7 @@ export default function GroupDashboard() {
     void loadFaithBoard(group.id, faithBoardDate);
   }, [group?.id, role, members, faithBoardDate]);
 
-  useEffect(() => {
-    if ((role === "owner" || role === "leader") && faithTrendMode === "group") return;
-    if (faithTrendMode !== "me") setFaithTrendMode("me");
-  }, [role, faithTrendMode]);
-
-  useEffect(() => {
-    if (!group?.id || !user?.id || role === "guest") return;
-    const mode = role === "owner" || role === "leader" ? faithTrendMode : "me";
-    void loadFaithTrend(group.id, user.id, faithTrendRange, mode);
-  }, [group?.id, user?.id, role, faithTrendRange, faithTrendMode]);
-
   const isManager = role === "owner" || role === "leader";
-
-  const myFaithCompletedCount = useMemo(
-    () => faithItems.filter((item) => (faithValues[item.id] ?? 0) > 0).length,
-    [faithItems, faithValues]
-  );
-
-  const myFaithScore = useMemo(
-    () => Object.values(faithValues).reduce((sum, value) => sum + Number(value || 0), 0),
-    [faithValues]
-  );
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
     setLoading(true);
@@ -455,6 +436,7 @@ export default function GroupDashboard() {
       setFaithValues({});
       setFaithBoardRows([]);
       setPosts([]);
+      setFaithRecordDetails({});
       setAuthorMap({});
       setMembers([]);
       setJoinRequests([]);
@@ -479,13 +461,6 @@ export default function GroupDashboard() {
     } else {
       setFaithBoardRows([]);
     }
-
-    await loadFaithTrend(
-      targetGroupId,
-      userId!,
-      faithTrendRange,
-      nextRole === "owner" || nextRole === "leader" ? faithTrendMode : "me"
-    );
 
     setLoading(false);
   };
@@ -559,7 +534,7 @@ export default function GroupDashboard() {
         .order("created_at", { ascending: true }),
       supabase
         .from("group_faith_records")
-        .select("item_id, value")
+        .select("item_id, value, note, source_type, source_event_type, source_event_id")
         .eq("group_id", targetGroupId)
         .eq("user_id", userId)
         .eq("record_date", today),
@@ -568,10 +543,57 @@ export default function GroupDashboard() {
     setFaithItems((items ?? []) as FaithItemRow[]);
 
     const nextValues: Record<string, number> = {};
-    (records ?? []).forEach((record: { item_id: string; value: number | string }) => {
+    const baseDetails: Record<string, FaithRecordDetail> = {};
+    const linkedActivityIds: number[] = [];
+
+    (records ?? []).forEach((record: {
+      item_id: string;
+      value: number | string;
+      note?: string | null;
+      source_type?: "manual" | "linked";
+      source_event_type?: string | null;
+      source_event_id?: string | null;
+    }) => {
       nextValues[record.item_id] = Number(record.value ?? 0);
+      baseDetails[record.item_id] = {
+        item_id: record.item_id,
+        source_type: (record.source_type ?? "manual") as "manual" | "linked",
+        source_event_type: record.source_event_type ?? null,
+        source_event_id: record.source_event_id ?? null,
+        note: record.note ?? null,
+        payload: null,
+      };
+      if (record.source_type === "linked" && record.source_event_id) {
+        const parsed = Number(record.source_event_id);
+        if (!Number.isNaN(parsed)) linkedActivityIds.push(parsed);
+      }
     });
     setFaithValues(nextValues);
+
+    if (!linkedActivityIds.length) {
+      setFaithRecordDetails(baseDetails);
+      return;
+    }
+
+    const { data: linkedLogs } = await supabase
+      .from("activity_logs")
+      .select("id, payload")
+      .in("id", Array.from(new Set(linkedActivityIds)));
+
+    const payloadMap = new Map<number, Record<string, unknown>>();
+    (linkedLogs ?? []).forEach((row: { id: number; payload: Record<string, unknown> | null }) => {
+      payloadMap.set(row.id, row.payload ?? {});
+    });
+
+    Object.keys(baseDetails).forEach((itemId) => {
+      const detail = baseDetails[itemId];
+      const eventId = Number(detail.source_event_id ?? "");
+      if (!Number.isNaN(eventId) && payloadMap.has(eventId)) {
+        detail.payload = payloadMap.get(eventId) ?? null;
+      }
+    });
+
+    setFaithRecordDetails(baseDetails);
   };
 
   const loadPosts = async (targetGroupId: string) => {
@@ -620,6 +642,13 @@ export default function GroupDashboard() {
         }));
       }
     }
+
+    nextPosts = [...nextPosts].sort((a, b) => {
+      if (a.post_type !== b.post_type) {
+        return a.post_type === "notice" ? -1 : 1;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
     setPosts(nextPosts);
 
@@ -718,7 +747,6 @@ export default function GroupDashboard() {
       valueMap.set(row.user_id, prev);
     });
 
-    const roleOrder: Record<string, number> = { owner: 0, leader: 1, member: 2 };
     const boardRows: FaithBoardRow[] = baseMembers
       .map((member) => {
         const values = valueMap.get(member.user_id) ?? {};
@@ -731,71 +759,10 @@ export default function GroupDashboard() {
           total,
         };
       })
-      .sort((a, b) => {
-        const rankDiff = (roleOrder[a.role] ?? 99) - (roleOrder[b.role] ?? 99);
-        if (rankDiff !== 0) return rankDiff;
-        if (b.total !== a.total) return b.total - a.total;
-        return a.name.localeCompare(b.name, "ko");
-      });
+      .sort((a, b) => a.name.localeCompare(b.name, "ko"));
 
     setFaithBoardRows(boardRows);
     setFaithBoardLoading(false);
-  };
-
-  const loadFaithTrend = async (
-    targetGroupId: string,
-    userId: string,
-    rangeDays: 7 | 30,
-    mode: "me" | "group"
-  ) => {
-    const end = new Date();
-    end.setHours(0, 0, 0, 0);
-    const start = new Date(end);
-    start.setDate(end.getDate() - (rangeDays - 1));
-
-    const startDate = start.toISOString().slice(0, 10);
-    const endDate = end.toISOString().slice(0, 10);
-
-    setFaithTrendLoading(true);
-    let query = supabase
-      .from("group_faith_records")
-      .select("record_date, value")
-      .eq("group_id", targetGroupId)
-      .gte("record_date", startDate)
-      .lte("record_date", endDate);
-
-    if (mode === "me") {
-      query = query.eq("user_id", userId);
-    }
-
-    const { data, error } = await query;
-    if (error) {
-      console.error("failed to load faith trend:", error);
-      setFaithTrendPoints([]);
-      setFaithTrendLoading(false);
-      return;
-    }
-
-    const dateMap = new Map<string, number>();
-    (data ?? []).forEach((row: { record_date: string; value: number | string }) => {
-      const prev = dateMap.get(row.record_date) ?? 0;
-      dateMap.set(row.record_date, prev + Number(row.value ?? 0));
-    });
-
-    const points: FaithTrendPoint[] = [];
-    for (let i = 0; i < rangeDays; i += 1) {
-      const day = new Date(start);
-      day.setDate(start.getDate() + i);
-      const key = day.toISOString().slice(0, 10);
-      points.push({
-        date: key,
-        label: `${day.getMonth() + 1}/${day.getDate()}`,
-        total: dateMap.get(key) ?? 0,
-      });
-    }
-
-    setFaithTrendPoints(points);
-    setFaithTrendLoading(false);
   };
 
   const loadJoinRequests = async (targetGroupId: string) => {
@@ -1070,7 +1037,16 @@ export default function GroupDashboard() {
     await loadFaith(group.id, user.id);
   };
 
-  const setFaithValue = async (item: FaithItemRow, nextValue: number) => {
+  const setFaithValue = async (
+    item: FaithItemRow,
+    nextValue: number,
+    options?: {
+      note?: string | null;
+      sourceType?: "manual" | "linked";
+      sourceEventType?: string | null;
+      sourceEventId?: string | null;
+    }
+  ) => {
     if (!group || !user) return;
 
     const today = new Date().toISOString().split("T")[0];
@@ -1094,7 +1070,10 @@ export default function GroupDashboard() {
         user_id: user.id,
         record_date: today,
         value: nextValue,
-        source_type: "manual",
+        note: options?.note ?? null,
+        source_type: options?.sourceType ?? "manual",
+        source_event_type: options?.sourceEventType ?? null,
+        source_event_id: options?.sourceEventId ?? null,
       },
       { onConflict: "group_id,item_id,user_id,record_date" }
     );
@@ -1110,6 +1089,10 @@ export default function GroupDashboard() {
     if (!group || !user) return;
     setSelectedFaithItem(item);
     setShowFaithLinkModal(true);
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const tomorrowStart = new Date(todayStart);
+    tomorrowStart.setDate(todayStart.getDate() + 1);
 
     const { data, error } = await supabase
       .from("activity_logs")
@@ -1119,6 +1102,8 @@ export default function GroupDashboard() {
       .eq("user_id", user.id)
       .eq("source_kind", "personal")
       .eq("activity_type", item.linked_feature)
+      .gte("occurred_at", todayStart.toISOString())
+      .lt("occurred_at", tomorrowStart.toISOString())
       .order("occurred_at", { ascending: false })
       .limit(150);
 
@@ -1161,6 +1146,93 @@ export default function GroupDashboard() {
     return "기록";
   };
 
+  const getTodayKoreanLabel = () =>
+    new Date().toLocaleDateString("ko-KR", {
+      month: "long",
+      day: "numeric",
+      weekday: "short",
+    });
+
+  const getFaithItemByKeywords = (keywords: string[]) => {
+    const lowerKeywords = keywords.map((keyword) => keyword.toLowerCase());
+    return (
+      faithItems.find((item) => {
+        const name = item.name.toLowerCase();
+        return lowerKeywords.some((keyword) => name.includes(keyword));
+      }) ?? null
+    );
+  };
+
+  const faithItemSlots = [
+    { key: "reading", label: "성경읽기", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
+    { key: "qt", label: "QT", item: getFaithItemByKeywords(["qt", "묵상"]) },
+    { key: "prayer", label: "기도", item: getFaithItemByKeywords(["기도", "prayer"]) },
+    { key: "attendance", label: "예배 참석", item: getFaithItemByKeywords(["예배", "출석", "attendance"]) },
+  ] as const;
+
+  const getLinkedFaithDetailText = (itemId: string) => {
+    const detail = faithRecordDetails[itemId];
+    if (!detail) return "";
+    if (detail.note?.trim()) return detail.note.trim();
+
+    const payload = detail.payload ?? {};
+    if (detail.source_event_type === "prayer") {
+      const title = payload.title;
+      const duration = payload.audio_duration;
+      const titleText = typeof title === "string" && title.trim() ? title.trim() : "기도 기록";
+      if (typeof duration === "number" && duration > 0) return `${titleText} (${Math.floor(duration / 60)}분 ${duration % 60}초)`;
+      return titleText;
+    }
+
+    if (detail.source_event_type === "reading") {
+      const bookName = payload.book_name;
+      const chapter = payload.chapter;
+      const endChapter = payload.end_chapter;
+      if (typeof bookName === "string" && (typeof chapter === "number" || typeof chapter === "string")) {
+        if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
+          return `${bookName} ${chapter}~${endChapter}장`;
+        }
+        return `${bookName} ${chapter}장`;
+      }
+    }
+
+    if (detail.source_event_type === "qt") {
+      const excerpt = payload.meditation_excerpt;
+      if (typeof excerpt === "string" && excerpt.trim()) return excerpt.trim();
+      return "QT 기록 연결";
+    }
+
+    return "";
+  };
+
+  const handleFaithToggle = async (item: FaithItemRow) => {
+    if (!group || !user) return;
+    const currentValue = faithValues[item.id] ?? 0;
+    if (currentValue > 0) {
+      const shouldCancel = confirm("완료를 취소할까요?");
+      if (!shouldCancel) return;
+      await setFaithValue(item, 0);
+      return;
+    }
+
+    if (item.linked_feature !== "none" && item.source_mode !== "manual") {
+      const shouldLink = confirm("개인 활동 기록을 오늘 내역으로 연결할까요?");
+      if (shouldLink) {
+        await openFaithLinkModal(item);
+        return;
+      }
+    }
+
+    if (item.linked_feature === "none" && item.item_type === "attendance") {
+      const worshipType = prompt("참석 예배를 입력하세요. (예: 주일낮, 주일저녁, 수요)", "주일낮");
+      if (worshipType === null) return;
+      await setFaithValue(item, 1, { note: worshipType.trim() || null });
+      return;
+    }
+
+    await setFaithValue(item, 1);
+  };
+
   const linkActivityToFaith = async (activity: ActivityLogRow) => {
     if (!group || !user || !selectedFaithItem) return;
     setLinkingActivityId(activity.id);
@@ -1176,17 +1248,33 @@ export default function GroupDashboard() {
         throw linkError;
       }
 
-      const today = new Date().toISOString().split("T")[0];
       const currentValue = faithValues[selectedFaithItem.id] ?? 0;
       const nextValue = selectedFaithItem.item_type === "count" ? currentValue + 1 : 1;
+      const noteText =
+        activity.activity_type === "reading"
+          ? (() => {
+              const payload = activity.payload ?? {};
+              const book = payload.book_name;
+              const chapter = payload.chapter;
+              const endChapter = payload.end_chapter;
+              if (typeof book !== "string" || (typeof chapter !== "number" && typeof chapter !== "string")) {
+                return null;
+              }
+              if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
+                return `${book} ${chapter}~${endChapter}장`;
+              }
+              return `${book} ${chapter}장`;
+            })()
+          : null;
 
       const { error: faithError } = await supabase.from("group_faith_records").upsert(
         {
           group_id: group.id,
           item_id: selectedFaithItem.id,
           user_id: user.id,
-          record_date: today,
+          record_date: new Date().toISOString().split("T")[0],
           value: nextValue,
+          note: noteText,
           source_type: "linked",
           source_event_type: activity.activity_type,
           source_event_id: String(activity.id),
@@ -1198,6 +1286,7 @@ export default function GroupDashboard() {
 
       await loadFaith(group.id, user.id);
       setAvailableActivities((prev) => prev.filter((row) => row.id !== activity.id));
+      setShowFaithLinkModal(false);
     } catch (error) {
       console.error(error);
       alert("외부 활동 연결에 실패했습니다.");
@@ -1284,11 +1373,10 @@ export default function GroupDashboard() {
           }))
         );
 
-        if (imageInsertError && imageInsertError.code !== "42P01") {
-          console.error("post image insert error:", imageInsertError);
-        }
+        if (imageInsertError) throw imageInsertError;
       } catch (uploadError) {
         console.error("post image upload error:", uploadError);
+        alert("사진 업로드/저장에 실패했습니다. R2 설정과 DB 마이그레이션을 확인해주세요.");
       }
     }
 
@@ -1492,27 +1580,29 @@ export default function GroupDashboard() {
   };
 
   const closeGroup = async () => {
-    if (!group || !isManager) return;
-    if (!confirm("모임을 폐쇄할까요? 신규 가입 신청이 막힙니다.")) return;
-
-    setClosingGroup(true);
-    const { error } = await supabase
-      .from("groups")
-      .update({
-        is_closed: true,
-        closed_at: new Date().toISOString(),
-        closed_by: user?.id ?? null,
-      })
-      .eq("id", group.id);
-
-    setClosingGroup(false);
-    if (error) {
-      alert("모임 폐쇄 처리에 실패했습니다.");
+    if (!group || !user) return;
+    if (role !== "owner") {
+      alert("모임 삭제는 생성자만 가능합니다.");
       return;
     }
+    if (!confirm("모임을 완전히 삭제할까요? 모든 기록이 삭제되며 복구할 수 없습니다.")) return;
 
-    setGroup((prev) => (prev ? { ...prev, is_closed: true } : prev));
-    alert("모임을 폐쇄했습니다.");
+    setClosingGroup(true);
+    try {
+      const { error: rpcError } = await supabase.rpc("delete_group_hard", {
+        p_group_id: group.id,
+      });
+      if (rpcError) throw rpcError;
+
+      localStorage.removeItem(LAST_GROUP_KEY);
+      alert("모임이 완전히 삭제되었습니다.");
+      setLocation("/community?list=1");
+    } catch (error) {
+      console.error(error);
+      alert("모임 삭제 처리에 실패했습니다.");
+    } finally {
+      setClosingGroup(false);
+    }
   };
 
   const leaveGroup = async () => {
@@ -1575,7 +1665,7 @@ export default function GroupDashboard() {
         </div>
 
         <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
-          <div className="bg-white rounded-md border border-zinc-100 p-5">
+          <div className="bg-white border-b border-zinc-200 p-5">
             <div className="text-sm text-zinc-600 whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
@@ -1586,7 +1676,7 @@ export default function GroupDashboard() {
             )}
           </div>
 
-          <div className="bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="bg-white border-b border-zinc-200 p-5 space-y-3">
             <h2 className="font-black text-zinc-900">가입 신청</h2>
             <input
               type="password"
@@ -1689,7 +1779,7 @@ export default function GroupDashboard() {
       </header>
 
       <div className="sticky top-14 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
-        <div className="max-w-2xl mx-auto px-4">
+        <div className="w-full">
           <nav className="flex items-center">
           {([
             ["faith", "신앙생활"],
@@ -1716,7 +1806,7 @@ export default function GroupDashboard() {
 
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-md border border-zinc-100 p-5">
+            <section className="bg-white border-b border-zinc-200 p-5">
               <h2 className="font-black text-zinc-900 mb-3">모임원 기도제목</h2>
               <div className="space-y-2">
                 {groupPrayerTopics.map((topic) => {
@@ -1739,7 +1829,7 @@ export default function GroupDashboard() {
               </div>
             </section>
 
-            <section className="bg-white rounded-md border border-zinc-100 p-6">
+            <section className="bg-white border-b border-zinc-200 p-6">
               <div className="flex items-center justify-center gap-6">
                 <button
                   onClick={() => setShowPrayerComposer(true)}
@@ -1775,7 +1865,7 @@ export default function GroupDashboard() {
             <div className="space-y-2">
               <h3 className="font-black text-zinc-900 px-1">기도 저장 목록</h3>
               {groupPrayers.map((record) => (
-                <div key={record.id} className="bg-white rounded-md border border-zinc-100 p-4">
+                <div key={record.id} className="bg-white border-b border-zinc-200 p-4">
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <div>
                       <div className="font-bold text-zinc-900">{record.title || "제목 없는 기도"}</div>
@@ -1806,7 +1896,7 @@ export default function GroupDashboard() {
               ))}
 
               {groupPrayers.length === 0 && (
-                <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
+                <div className="bg-white border-b border-zinc-200 px-4 py-5 text-sm text-zinc-500 text-center">
                   아직 모임 기도 기록이 없습니다.
                 </div>
               )}
@@ -1816,126 +1906,52 @@ export default function GroupDashboard() {
 
         {activeTab === "faith" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-md border border-zinc-100 p-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="font-black text-zinc-900">오늘의 신앙생활</h2>
-                {isManager && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-zinc-500 font-bold">조회일</span>
-                    <input
-                      type="date"
-                      value={faithBoardDate}
-                      onChange={(e) => setFaithBoardDate(e.target.value)}
-                      className="px-3 py-2 rounded-sm bg-zinc-50 border border-zinc-200 text-xs"
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
-                <div className="rounded-sm bg-zinc-50 p-3">
-                  <div className="text-xs text-zinc-500">내 완료 항목</div>
-                  <div className="text-lg font-black text-zinc-900">
-                    {myFaithCompletedCount}/{faithItems.length}
-                  </div>
-                </div>
-                <div className="rounded-sm bg-zinc-50 p-3">
-                  <div className="text-xs text-zinc-500">내 활동 점수</div>
-                  <div className="text-lg font-black text-zinc-900">{myFaithScore}</div>
-                </div>
-                <div className="rounded-sm bg-zinc-50 p-3">
-                  <div className="text-xs text-zinc-500">연동 항목 수</div>
-                  <div className="text-lg font-black text-zinc-900">
-                    {faithItems.filter((item) => item.linked_feature !== "none").length}
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-3">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-1">
-                  <BarChart3 size={15} />
-                  기간 활동 추이
-                </h3>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setFaithTrendRange(7)}
-                    className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
-                      faithTrendRange === 7 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                    }`}
-                  >
-                    7일
-                  </button>
-                  <button
-                    onClick={() => setFaithTrendRange(30)}
-                    className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
-                      faithTrendRange === 30 ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                    }`}
-                  >
-                    30일
-                  </button>
-                  {isManager && (
-                    <>
-                      <button
-                        onClick={() => setFaithTrendMode("me")}
-                        className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
-                          faithTrendMode === "me" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
-                        }`}
+            <section className="bg-white px-1">
+              <div className="text-center text-[#4A6741] font-bold py-2">{getTodayKoreanLabel()}</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 py-4 border-t border-zinc-200">
+                {faithItemSlots.map((slot) => {
+                  const item = slot.item;
+                  const isCompleted = item ? (faithValues[item.id] ?? 0) > 0 : false;
+                  return (
+                    <div key={slot.key} className="flex flex-col items-center gap-2">
+                      <motion.button
+                        whileTap={{ scale: item ? 0.92 : 1 }}
+                        onClick={() => item && void handleFaithToggle(item)}
+                        disabled={!item}
+                        className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow transition-all duration-300 ${
+                          isCompleted
+                            ? "bg-[#4A6741] text-white border-none"
+                            : "bg-white text-[#4A6741] border border-zinc-200"
+                        } ${!item ? "opacity-40 cursor-not-allowed" : ""}`}
                       >
-                        개인
-                      </button>
-                      <button
-                        onClick={() => setFaithTrendMode("group")}
-                        className={`px-3 py-1.5 rounded-sm text-xs font-bold ${
-                          faithTrendMode === "group" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
-                        }`}
-                      >
-                        모임
-                      </button>
-                    </>
-                  )}
-                </div>
+                        <Check className={isCompleted ? "w-5 h-5 mb-1" : "w-5 h-5 mb-1"} />
+                        <span className="text-xs font-bold">{slot.label}</span>
+                      </motion.button>
+                      {item && getLinkedFaithDetailText(item.id) && (
+                        <p className="text-xs text-zinc-600 text-center px-1">{getLinkedFaithDetailText(item.id)}</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-
-              {faithTrendLoading ? (
-                <div className="h-36 rounded-sm bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
-                  집계 중...
-                </div>
-              ) : faithTrendPoints.length === 0 ? (
-                <div className="h-36 rounded-sm bg-zinc-50 flex items-center justify-center text-sm text-zinc-500">
-                  조회된 활동이 없습니다.
-                </div>
-              ) : (
-                <div className="h-40 rounded-sm bg-zinc-50 px-3 py-3">
-                  <div className="h-28 flex items-end gap-1">
-                    {faithTrendPoints.map((point) => {
-                      const max = Math.max(...faithTrendPoints.map((item) => item.total), 1);
-                      const height = Math.max((point.total / max) * 100, point.total > 0 ? 8 : 2);
-                      return (
-                        <div key={`trend-${point.date}`} className="flex-1 flex flex-col items-center justify-end">
-                          <div
-                            className="w-full rounded-t-md bg-[#4A6741]/85"
-                            style={{ height: `${height}%` }}
-                            title={`${point.label}: ${point.total}`}
-                          />
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <div className="flex gap-1 mt-2 text-xs text-zinc-500">
-                    {faithTrendPoints.map((point, index) => (
-                      <div key={`trend-label-${point.date}`} className="flex-1 text-center truncate">
-                        {faithTrendRange === 30 ? (index % 5 === 0 ? point.label : "") : point.label}
-                      </div>
-                    ))}
-                  </div>
+              {faithItemSlots.some((slot) => !slot.item) && (
+                <div className="border-t border-zinc-200 py-3 text-xs text-zinc-500">
+                  일부 항목이 아직 설정되지 않았습니다. 생성자/리더가 관리 메뉴에서 항목을 준비해주세요.
                 </div>
               )}
             </section>
 
             {isManager && (
-              <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-3">
-                <h3 className="font-black text-zinc-900 text-sm">전체 멤버 일일 현황</h3>
+              <section className="bg-white border-t border-zinc-200 pt-4">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
+                  <h3 className="font-black text-zinc-900 text-sm">전체 멤버 오늘 현황</h3>
+                  <input
+                    type="date"
+                    value={faithBoardDate}
+                    onChange={(e) => setFaithBoardDate(e.target.value)}
+                    className="px-2 py-1 border border-zinc-200 text-xs"
+                  />
+                </div>
                 {faithBoardLoading ? (
                   <div className="py-6 text-sm text-zinc-500 text-center">현황 불러오는 중...</div>
                 ) : faithBoardRows.length === 0 ? (
@@ -1944,37 +1960,34 @@ export default function GroupDashboard() {
                   <div className="overflow-x-auto">
                     <table className="min-w-full text-xs">
                       <thead>
-                        <tr className="text-zinc-500 border-b border-zinc-100">
+                        <tr className="text-zinc-500 border-b border-zinc-200">
                           <th className="text-left py-2 pr-3 whitespace-nowrap">멤버</th>
-                          <th className="text-left py-2 pr-3 whitespace-nowrap">권한</th>
-                          {faithItems.map((item) => (
-                            <th key={`head-${item.id}`} className="text-left py-2 pr-3 whitespace-nowrap">
-                              {item.name}
-                            </th>
-                          ))}
-                          <th className="text-left py-2 whitespace-nowrap">합계</th>
+                          {faithItemSlots
+                            .filter((slot) => slot.item)
+                            .map((slot) => (
+                              <th key={`head-${slot.key}`} className="text-left py-2 pr-3 whitespace-nowrap">
+                                {slot.label}
+                              </th>
+                            ))}
                         </tr>
                       </thead>
                       <tbody>
                         {faithBoardRows.map((row) => (
-                          <tr key={`board-${row.user_id}`} className="border-b border-zinc-100/70">
+                          <tr key={`board-${row.user_id}`} className="border-b border-zinc-100">
                             <td className="py-2 pr-3 font-bold text-zinc-900 whitespace-nowrap">{row.name}</td>
-                            <td className="py-2 pr-3 text-zinc-600 whitespace-nowrap">{toLabel(row.role)}</td>
-                            {faithItems.map((item) => {
-                              const value = row.values[item.id] ?? 0;
-                              return (
-                                <td key={`cell-${row.user_id}-${item.id}`} className="py-2 pr-3 whitespace-nowrap">
-                                  {value > 0 ? (
-                                    <span className="px-2 py-0.5 rounded-sm bg-emerald-50 text-emerald-700 font-bold">
-                                      {value}
+                            {faithItemSlots
+                              .filter((slot) => slot.item)
+                              .map((slot) => {
+                                const itemId = slot.item!.id;
+                                const done = (row.values[itemId] ?? 0) > 0;
+                                return (
+                                  <td key={`cell-${row.user_id}-${itemId}`} className="py-2 pr-3">
+                                    <span className={done ? "text-emerald-600 font-black" : "text-zinc-300 font-bold"}>
+                                      {done ? "✓" : "-"}
                                     </span>
-                                  ) : (
-                                    <span className="text-zinc-300">-</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                            <td className="py-2 font-black text-zinc-900 whitespace-nowrap">{row.total}</td>
+                                  </td>
+                                );
+                              })}
                           </tr>
                         ))}
                       </tbody>
@@ -1983,184 +1996,18 @@ export default function GroupDashboard() {
                 )}
               </section>
             )}
-
-            {isManager && (
-              <div className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
-                <h3 className="font-black text-zinc-900 text-sm">신앙생활 항목 관리</h3>
-                <input
-                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
-                  placeholder="새 항목 이름"
-                  value={newFaithName}
-                  onChange={(e) => setNewFaithName(e.target.value)}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={newFaithType}
-                    onChange={(e) => setNewFaithType(e.target.value as FaithType)}
-                    className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
-                  >
-                    <option value="check">체크형</option>
-                    <option value="count">횟수형</option>
-                    <option value="attendance">출석형</option>
-                  </select>
-                  <select
-                    value={newFaithSourceMode}
-                    onChange={(e) => {
-                      const next = e.target.value as FaithSourceMode;
-                      setNewFaithSourceMode(next);
-                      if (next === "manual") setNewFaithLinkedFeature("none");
-                      if (next !== "manual" && newFaithLinkedFeature === "none") {
-                        setNewFaithLinkedFeature("qt");
-                      }
-                    }}
-                    className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
-                  >
-                    <option value="manual">직접 입력만</option>
-                    <option value="linked">외부 연결만</option>
-                    <option value="both">직접+외부연결</option>
-                  </select>
-                </div>
-
-                {newFaithSourceMode !== "manual" && (
-                  <select
-                    value={newFaithLinkedFeature}
-                    onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
-                    className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
-                  >
-                    <option value="qt">QT 연결</option>
-                    <option value="prayer">기도 연결</option>
-                    <option value="reading">성경읽기 연결</option>
-                  </select>
-                )}
-
-                <button
-                  onClick={addFaithItem}
-                  className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-sm inline-flex items-center justify-center gap-1"
-                >
-                  <Plus size={14} /> 항목 추가
-                </button>
-              </div>
-            )}
-
-            {faithItems.map((item) => {
-              const value = faithValues[item.id] ?? 0;
-              const canLink =
-                item.source_mode === "linked" || item.source_mode === "both"
-                  ? item.linked_feature !== "none"
-                  : false;
-
-              return (
-                <div key={item.id} className="bg-white rounded-md border border-zinc-100 p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-zinc-900">{item.name}</div>
-                      <div className="text-xs text-zinc-500 mt-1">
-                        유형: {item.item_type} / 입력: {item.source_mode}
-                        {item.linked_feature !== "none" && ` (${item.linked_feature})`}
-                      </div>
-                    </div>
-                    {isManager && (
-                      <button
-                        onClick={() => removeFaithItem(item.id)}
-                        className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-
-                  {(item.source_mode === "manual" || item.source_mode === "both") && (
-                    <div className="mt-3">
-                      {item.item_type === "count" ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => setFaithValue(item, Math.max(0, value - 1))}
-                            className="w-9 h-9 rounded-full bg-zinc-100 font-black"
-                          >
-                            -
-                          </button>
-                          <div className="min-w-[44px] text-center font-black text-zinc-900">{value}</div>
-                          <button
-                            onClick={() => setFaithValue(item, value + 1)}
-                            className="w-9 h-9 rounded-full bg-zinc-100 font-black"
-                          >
-                            +
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => setFaithValue(item, value > 0 ? 0 : 1)}
-                          className={`px-4 py-2 rounded-sm text-sm font-bold ${
-                            value > 0 ? "bg-emerald-100 text-emerald-700" : "bg-zinc-100 text-zinc-600"
-                          }`}
-                        >
-                          {value > 0 ? (
-                            <span className="inline-flex items-center gap-1">
-                              <Check size={14} /> 완료됨
-                            </span>
-                          ) : (
-                            "완료 처리"
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {canLink && (
-                    <div className="mt-3 flex gap-2">
-                      <button
-                        onClick={() => openFaithLinkModal(item)}
-                        className="px-3 py-2 rounded-sm bg-blue-50 text-blue-700 font-bold text-xs inline-flex items-center gap-1"
-                      >
-                        <Link2 size={14} /> 외부 활동 연결
-                      </button>
-                      {item.linked_feature === "qt" && (
-                        <button
-                          onClick={() => setLocation("/qt")}
-                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
-                        >
-                          QT 이동
-                        </button>
-                      )}
-                      {item.linked_feature === "prayer" && (
-                        <button
-                          onClick={() => setLocation("/prayer")}
-                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
-                        >
-                          Prayer 이동
-                        </button>
-                      )}
-                      {item.linked_feature === "reading" && (
-                        <button
-                          onClick={() => setLocation("/reading")}
-                          className="px-3 py-2 rounded-sm bg-zinc-100 text-zinc-700 font-bold text-xs"
-                        >
-                          성경읽기 이동
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {faithItems.length === 0 && (
-              <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
-                아직 등록된 신앙생활 항목이 없습니다.
-              </div>
-            )}
           </motion.div>
         )}
 
         {activeTab === "social" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-white rounded-md border border-zinc-100 p-4 flex items-center justify-between gap-3">
+            <div className="bg-white border-b border-zinc-200 pb-3 flex items-center justify-between gap-3">
               <h2 className="font-black text-zinc-900">모임 소통</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setSocialViewMode("board")}
-                  className={`px-3 py-2 rounded-sm text-xs font-bold inline-flex items-center gap-1 ${
-                    socialViewMode === "board" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                  className={`px-3 py-2 border-b-2 text-xs font-bold inline-flex items-center gap-1 ${
+                    socialViewMode === "board" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
                   }`}
                 >
                   <LayoutList size={14} />
@@ -2168,8 +2015,8 @@ export default function GroupDashboard() {
                 </button>
                 <button
                   onClick={() => setSocialViewMode("blog")}
-                  className={`px-3 py-2 rounded-sm text-xs font-bold inline-flex items-center gap-1 ${
-                    socialViewMode === "blog" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                  className={`px-3 py-2 border-b-2 text-xs font-bold inline-flex items-center gap-1 ${
+                    socialViewMode === "blog" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
                   }`}
                 >
                   <LayoutGrid size={14} />
@@ -2178,35 +2025,34 @@ export default function GroupDashboard() {
               </div>
             </div>
 
-            <div className="space-y-2">
+            <div className="bg-white">
               {posts.map((post) => {
                 const author = authorMap[post.author_id];
                 const authorName = author?.nickname || author?.username || "이름 없음";
                 const canDelete = isManager || post.author_id === user.id;
                 const displayTitle = post.title?.trim() || post.content.slice(0, 40) || "제목 없음";
+                const isNotice = post.post_type === "notice";
 
                 return (
                   <div
                     key={post.id}
-                    className={`bg-white rounded-md border border-zinc-100 p-4 ${
-                      socialViewMode === "blog" ? "shadow-sm" : ""
-                    }`}
+                    className={`border-b border-zinc-200 py-4 ${socialViewMode === "board" ? "px-1" : "px-2"}`}
                   >
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="flex items-center gap-2">
                           <span
-                            className={`px-2 py-0.5 rounded-sm text-xs font-bold ${
-                              post.post_type === "notice"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-zinc-100 text-zinc-600"
+                            className={`px-2 py-0.5 text-xs font-bold ${
+                              isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"
                             }`}
                           >
-                            {post.post_type === "notice" ? "공지" : "일반"}
+                            {isNotice ? "공지" : "일반"}
                           </span>
                           <span className="text-xs text-zinc-500">{authorName}</span>
                         </div>
-                        <div className="text-sm font-black text-zinc-900 mt-1">{displayTitle}</div>
+                        <div className={`mt-1 ${socialViewMode === "board" ? "text-sm font-bold" : "text-base font-black"} text-zinc-900`}>
+                          {displayTitle}
+                        </div>
                         <div className="text-xs text-zinc-500 mt-1">{formatDateTime(post.created_at)}</div>
                       </div>
                       {canDelete && (
@@ -2219,26 +2065,30 @@ export default function GroupDashboard() {
                       )}
                     </div>
                     {socialViewMode === "board" ? (
-                      <p className="text-sm text-zinc-800 whitespace-pre-wrap">{post.content}</p>
+                      <p className="text-sm text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
                     ) : (
                       <p className="text-sm text-zinc-800 whitespace-pre-wrap line-clamp-5">{post.content}</p>
                     )}
 
                     {post.image_urls && post.image_urls.length > 0 && (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        {post.image_urls.slice(0, 6).map((url, index) => (
-                          <div key={`post-image-${post.id}-${index}`} className="rounded-sm overflow-hidden bg-zinc-100">
-                            <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-32 object-cover" />
-                          </div>
-                        ))}
-                      </div>
+                      socialViewMode === "blog" ? (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          {post.image_urls.slice(0, 10).map((url, index) => (
+                            <div key={`post-image-${post.id}-${index}`} className="overflow-hidden bg-zinc-100">
+                              <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-32 object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="mt-2 text-xs text-zinc-500">사진 {post.image_urls.length}장</div>
+                      )
                     )}
                   </div>
                 );
               })}
 
               {posts.length === 0 && (
-                <div className="bg-white rounded-sm border border-zinc-100 px-4 py-5 text-sm text-zinc-500 text-center">
+                <div className="bg-white px-4 py-5 text-sm text-zinc-500 text-center border-b border-zinc-200">
                   아직 게시글이 없습니다.
                 </div>
               )}
@@ -2257,7 +2107,7 @@ export default function GroupDashboard() {
         {activeTab === "members" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
-              <div className="bg-white rounded-md border border-zinc-100 p-4">
+              <div className="bg-white border-b border-zinc-200 p-4">
                 <h3 className="font-black text-zinc-900 mb-2 text-sm flex items-center gap-2">
                   <Shield size={14} /> 가입 요청
                 </h3>
@@ -2293,7 +2143,7 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-white rounded-md border border-zinc-100 p-4">
+            <div className="bg-white border-b border-zinc-200 p-4">
               <h3 className="font-black text-zinc-900 mb-3 text-sm flex items-center gap-2">
                 <Users size={14} /> 멤버 목록
               </h3>
@@ -2370,7 +2220,7 @@ export default function GroupDashboard() {
 
         {activeTab === "admin" && isManager && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm">신앙활동 항목 관리</h3>
               <input
                 className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-sm"
@@ -2422,7 +2272,7 @@ export default function GroupDashboard() {
               </button>
             </section>
 
-            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm inline-flex items-center gap-2">
                 <Crown size={14} />
                 모임 상위 리더 등록
@@ -2452,7 +2302,7 @@ export default function GroupDashboard() {
               <p className="text-xs text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
             </section>
 
-            <section className="bg-white rounded-md border border-zinc-100 p-4 space-y-2">
+            <section className="bg-white border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-sm">하위 모임 연결</h3>
               <input
                 value={childGroupCode}
@@ -2470,15 +2320,15 @@ export default function GroupDashboard() {
               <p className="text-xs text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
             </section>
 
-            <section className="bg-white rounded-md border border-rose-100 p-4 space-y-3">
-              <h3 className="font-black text-rose-700 text-sm">모임 폐쇄</h3>
-              <p className="text-sm text-zinc-600">폐쇄 시 신규 가입 신청이 차단됩니다. 기존 멤버 데이터는 유지됩니다.</p>
+            <section className="bg-white border-b border-rose-200 p-4 space-y-3">
+              <h3 className="font-black text-rose-700 text-sm">모임 완전 삭제</h3>
+              <p className="text-sm text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
               <button
                 onClick={closeGroup}
-                disabled={closingGroup || group.is_closed}
+                disabled={closingGroup || role !== "owner"}
                 className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-sm disabled:opacity-60"
               >
-                {group.is_closed ? "이미 폐쇄된 모임" : closingGroup ? "처리 중..." : "모임 폐쇄하기"}
+                {closingGroup ? "삭제 중..." : role !== "owner" ? "생성자만 삭제 가능" : "모임 삭제하기"}
               </button>
             </section>
           </motion.div>
@@ -2491,7 +2341,7 @@ export default function GroupDashboard() {
             className="absolute inset-0 bg-black/40"
             onClick={() => setShowPrayerLinkModal(false)}
           />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-md border border-zinc-100 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border-b border-zinc-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
               <button
@@ -2530,7 +2380,7 @@ export default function GroupDashboard() {
       {showPrayerComposer && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerComposer(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도하기</h3>
               <button
@@ -2609,7 +2459,7 @@ export default function GroupDashboard() {
       {showPrayerTopicModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-white border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">기도제목 등록</h3>
               <button
@@ -2639,7 +2489,7 @@ export default function GroupDashboard() {
       {showPostComposerModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">글 작성</h3>
               <button
@@ -2729,7 +2579,7 @@ export default function GroupDashboard() {
       {showInviteModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowInviteModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-lg bg-white border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">회원 초대</h3>
               <button
@@ -2766,7 +2616,7 @@ export default function GroupDashboard() {
       {showHeaderEditModal && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
-          <div className="relative w-full max-w-xl bg-white rounded-md border border-zinc-100 p-5 space-y-3">
+          <div className="relative w-full max-w-xl bg-white border-b border-zinc-200 p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-black text-zinc-900">헤더 설정</h3>
               <button
@@ -2836,7 +2686,7 @@ export default function GroupDashboard() {
       {showFaithLinkModal && selectedFaithItem && (
         <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
-          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white rounded-md border border-zinc-100 p-4">
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white border-b border-zinc-200 p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-black text-zinc-900">
                 외부 활동 연결 - {selectedFaithItem.name}
@@ -2880,5 +2730,7 @@ export default function GroupDashboard() {
     </div>
   );
 }
+
+
 
 
