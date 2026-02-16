@@ -13,11 +13,8 @@ export default function BibleViewPage() {
 
   const { fontSize, fontFamily } = useDisplaySettings();
 
-  // URL에서 verse 파라미터 추출
-  const hash = window.location.hash;
-  const queryStart = hash.indexOf('?');
-  const queryString = queryStart !== -1 ? hash.substring(queryStart + 1) : '';
-  const queryParams = new URLSearchParams(queryString);
+  // URL에서 파라미터 추출 (wouter는 pathname을 다루므로 search에서 추출)
+  const queryParams = new URLSearchParams(window.location.search);
   const highlightVerse = queryParams.get('verse');
   const keyword = queryParams.get('keyword');
 
