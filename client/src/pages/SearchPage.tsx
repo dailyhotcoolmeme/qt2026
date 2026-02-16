@@ -229,10 +229,12 @@ export default function SearchPage() {
         }
         if (kw) query = query.ilike('content', `%${kw}%`);
 
-        // 필터 명시적 적용 (identifiedBook이 없는 경우)
+        // 필터 명시적 적용 (identifiedBook이 없는 경우 또는 키워드와 함께 필터링하는 경우)
         if (!qBook) {
           if (tFilter !== 'ALL') query = query.eq('testament', tFilter === 'OT' ? 'old' : 'new');
           if (bFilter !== 'ALL') query = query.eq('book_id', parseInt(bFilter));
+        } else if (kw) {
+          // 책이 식별되었더라도 키워드가 있다면 필터링 유지 가능 (여기선 식별된 책이 우선)
         }
 
         const from = startPage * PAGE_SIZE, to = from + PAGE_SIZE - 1;
@@ -311,9 +313,10 @@ export default function SearchPage() {
             <div className="flex gap-2 h-full">
               {(['ALL', 'OT', 'NT'] as const).map(f => (
                 <button
-                  key={f} disabled={!!identifiedBook}
+                  key={f}
                   onClick={() => handleTestamentChange(f)}
-                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white' : 'bg-white text-zinc-500 border-zinc-200'} ${!!identifiedBook ? 'opacity-40' : ''}`}
+                  className={`px-5 h-full rounded-full text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  disabled={!!identifiedBook}
                 >
                   {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
                 </button>
@@ -330,8 +333,9 @@ export default function SearchPage() {
                 >
                   <option value="ALL">권 선택</option>
                   {BIBLE_BOOKS.map((b, idx) => {
-                    if (availableBookIds && !availableBookIds.includes(idx + 1)) return null;
-                    return <option key={b.name} value={idx + 1}>{b.name}</option>;
+                    const bid = idx + 1;
+                    if (availableBookIds && !availableBookIds.includes(bid)) return null;
+                    return <option key={b.name} value={bid}>{b.name}</option>;
                   })}
                 </select>
                 <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
@@ -344,7 +348,7 @@ export default function SearchPage() {
       <div className="pt-48 px-4 max-w-2xl mx-auto">
         {viewMode === 'CHAPTER' && currentChapterInfo && (
           <div className="mt-4 mb-10 text-center animate-in zoom-in-95 duration-300">
-            <h1 className="text-2xl font-black text-zinc-900">{currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}</h1>
+            <h1 className="text-2xl font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.2}px` }}>{currentChapterInfo.bookName} {currentChapterInfo.bookName === '시편' ? `${currentChapterInfo.chapter}편` : `${currentChapterInfo.chapter}장`}</h1>
           </div>
         )}
 
@@ -373,12 +377,12 @@ export default function SearchPage() {
                 {viewMode === 'SEARCH' && isNew && (
                   <div className="flex items-center gap-3 mb-4 mt-8">
                     <div className="h-[1px] flex-1 bg-zinc-100" />
-                    <span className="font-black text-zinc-400 uppercase tracking-widest bg-gray-50/50 px-3 py-1 rounded-full border border-zinc-100" style={{ fontSize: `${fontSize * 0.7}px` }}>{v.book_name} {v.chapter}</span>
+                    <span className="font-black text-zinc-400 uppercase tracking-widest bg-white px-3 py-1 rounded-full border border-zinc-100" style={{ fontSize: `${fontSize * 0.75}px` }}>{v.book_name} {v.chapter}</span>
                     <div className="h-[1px] flex-1 bg-zinc-100" />
                   </div>
                 )}
                 <div
-                  className={`group transition-all ${viewMode === 'CHAPTER' ? 'px-4 py-1 hover:bg-zinc-50' : 'p-4 bg-white border border-zinc-100 shadow-sm hover:shadow-md rounded-2xl cursor-pointer active:scale-[0.98]'}`}
+                  className={`group transition-all ${viewMode === 'CHAPTER' ? 'px-4 py-1 hover:bg-zinc-100' : 'p-4 bg-white border border-zinc-100 shadow-sm hover:shadow-md rounded-2xl cursor-pointer active:scale-[0.98]'}`}
                   onClick={() => {
                     if (viewMode === 'SEARCH') {
                       const kw = identifiedBook ? searchInput.replace(/[가-힣]{1,5}\s*\d*(장|편)?(:(\d+))?/, '').trim() : searchInput.trim();
@@ -387,7 +391,12 @@ export default function SearchPage() {
                   }}
                 >
                   <div className="flex items-start gap-4">
-                    <span className={`text-[11px] pt-1.5 font-bold min-w-[24px] text-center ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}>{v.verse}</span>
+                    <span
+                      className={`font-dm-sans font-black min-w-[28px] text-center pt-1 ${viewMode === 'CHAPTER' ? 'text-[#4A6741]/40' : 'text-zinc-400'}`}
+                      style={{ fontSize: `${fontSize * 0.7}px` }}
+                    >
+                      {v.verse}
+                    </span>
                     <p className={`leading-relaxed text-zinc-700 flex-1 ${viewMode === 'CHAPTER' ? 'font-medium' : ''}`} style={{ fontSize: `${fontSize * 0.9}px` }}>{highlightKeyword(v.content)}</p>
                   </div>
                 </div>

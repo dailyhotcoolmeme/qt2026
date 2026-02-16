@@ -14,6 +14,7 @@ export default function BibleViewPage() {
   const { fontSize, fontFamily } = useDisplaySettings();
 
   // URL에서 파라미터 추출 (해시 기반 라우팅 대응)
+  // wouter의 useHashLocation 환경에서는 window.location.hash에서 쿼리 파라미터를 파싱해야 함
   const getQueryParams = () => {
     const hash = window.location.hash;
     const queryIdx = hash.indexOf('?');
@@ -52,15 +53,20 @@ export default function BibleViewPage() {
     fetchChapter();
   }, [params?.bookId, cleanChapter]);
 
-  // 하이라이트된 절로 스크롤
+  // 하이라이트된 절로 스크롤 (강화된 로직)
   useEffect(() => {
     if (!loading && verses.length > 0 && highlightVerse) {
+      // 렌더링 완료를 보장하기 위해 약간의 지연 시간을 둠
       const timer = setTimeout(() => {
         const element = document.getElementById(`verse-${highlightVerse}`);
         if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.scrollIntoView({ behavior: 'auto', block: 'center' });
+          // 스크롤 후 한 번 더 시도 (이미지 로드 등 대응)
+          setTimeout(() => {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
         }
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [loading, verses, highlightVerse]);
@@ -68,7 +74,7 @@ export default function BibleViewPage() {
   // 스크롤 감지
   useEffect(() => {
     const handleScroll = () => setShowScrollTop(window.scrollY > 500);
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -80,8 +86,8 @@ export default function BibleViewPage() {
           <span>검색으로 돌아가기</span>
         </button>
       </div>
-      <div className="fixed inset-0 flex items-center justify-center pt-14">
-        <p className="text-zinc-500 font-medium">말씀을 불러오는 중...</p>
+      <div className="fixed inset-0 flex items-center justify-center pt-14 text-zinc-400 font-medium">
+        말씀을 불러오는 중...
       </div>
     </div>
   );
@@ -91,15 +97,15 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3">
+      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 shadow-sm">
         <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
       </div>
 
-      <div className="pt-[108px] pb-10 px-5 space-y-5">
-        <h2 className="text-xl font-extrabold text-zinc-900 mb-6 border-b pb-2">
+      <div className="pt-[108px] pb-20 px-5 space-y-6 max-w-2xl mx-auto">
+        <h2 className="font-extrabold text-zinc-900 mb-8 border-b pb-4" style={{ fontSize: `${fontSize * 1.2}px` }}>
           {displayBookName} {displayBookName === '시편' ? `${displayChapter}편` : `${displayChapter}장`}
         </h2>
 
@@ -108,22 +114,28 @@ export default function BibleViewPage() {
 
           const renderContent = (text: string) => {
             if (!keyword || keyword.length < 2) return text;
-            const parts = text.split(new RegExp(`(${keyword})`, 'gi'));
-            return parts.map((part, i) =>
-              part.toLowerCase() === keyword.toLowerCase()
-                ? <mark key={i} className="bg-yellow-300 font-bold px-1 rounded shadow-sm border-b-2 border-yellow-500 text-zinc-900">{part}</mark>
-                : part
-            );
+            try {
+              const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const parts = text.split(new RegExp(`(${escaped})`, 'gi'));
+              return parts.map((part, i) =>
+                part.toLowerCase() === keyword.toLowerCase()
+                  ? <mark key={i} className="bg-yellow-300 font-bold px-1 rounded shadow-sm border-b-2 border-yellow-500 text-zinc-900">{part}</mark>
+                  : part
+              );
+            } catch (e) { return text; }
           };
 
           return (
             <div
               key={v.id}
               id={`verse-${v.verse}`}
-              className={`leading-relaxed transition-all duration-300 p-3 rounded ${isHighlighted ? 'bg-yellow-50 border-l-4 border-[#4A6741] font-medium shadow-sm' : ''}`}
+              className={`leading-relaxed transition-all duration-500 p-4 rounded-xl ${isHighlighted ? 'bg-yellow-50 border-l-4 border-[#4A6741] font-medium shadow-md' : ''}`}
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
             >
-              <sup className={`mr-2 text-xs font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-blue-500'}`}>
+              <sup
+                className={`mr-2 font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-blue-500'}`}
+                style={{ fontSize: `${fontSize * 0.6}px` }}
+              >
                 {v.verse}
               </sup>
               {renderContent(v.content)}
@@ -135,7 +147,7 @@ export default function BibleViewPage() {
       {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="fixed bottom-24 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-lg flex items-center justify-center z-50 transition-all"
+          className="fixed bottom-24 right-6 w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-lg flex items-center justify-center z-50 active:scale-90 transition-transform"
         >
           <ArrowUp className="w-6 h-6" />
         </button>
