@@ -346,7 +346,7 @@ export default function SearchPage() {
               <div className="relative h-full">
                 <select
                   disabled={!!identifiedBook}
-                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[150px] ${!!identifiedBook ? 'opacity-40' : ''}`}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-full text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
                   value={selectedBook}
                   onChange={(e) => handleBookChange(e.target.value)}
                 >
@@ -369,10 +369,10 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="pt-48 px-4 max-w-2xl mx-auto">
+      <div className="pt-[210px] px-4 max-w-2xl mx-auto">
         {/* 검색 결과 요약 바 */}
         {viewMode === 'SEARCH' && searchStats && (
-          <div className="mb-6 py-3 px-5 bg-white border border-zinc-100 rounded-2xl shadow-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-500">
+          <div className="mb-6 py-3 px-5 bg-[#4A6741]/5 border border-[#4A6741]/10 rounded-2xl shadow-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-500">
             <div className="flex items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-[#4A6741]" />
               <span className="text-zinc-500 font-bold" style={{ fontSize: `${fontSize * 0.8}px` }}>
