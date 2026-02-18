@@ -99,6 +99,19 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     return pool.find((v) => v.id === selectedId) || pool[0];
   }, [mode, selectedId, imagePresets]);
 
+  const effectiveTextColor =
+    currentPreset?.mode === "image"
+      ? imageOpacity <= 0.62
+        ? "#1f2937"
+        : "#ffffff"
+      : currentPreset?.textColor || "#3f3f46";
+  const effectiveSubColor =
+    currentPreset?.mode === "image"
+      ? imageOpacity <= 0.62
+        ? "#334155"
+        : "#f4f4f5"
+      : currentPreset?.subColor || "#52525b";
+
   useEffect(() => {
     if (!open) return;
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
@@ -143,7 +156,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     }
 
     const x = 450;
-    ctx.fillStyle = currentPreset.textColor;
+    ctx.fillStyle = effectiveTextColor;
     ctx.textAlign = "center";
     ctx.font = `bold ${Math.round(fontSize * 1.44)}px serif`;
 
@@ -178,7 +191,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       y += lineHeight;
     });
 
-    ctx.fillStyle = currentPreset.subColor;
+    ctx.fillStyle = effectiveSubColor;
     ctx.font = `bold ${Math.round(fontSize * 0.78)}px serif`;
     const titleY = Math.min(canvas.height - 80, y + Math.max(24, Math.round(fontSize * 0.8)));
     ctx.fillText(title, x, titleY);
@@ -276,10 +289,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   ) : null}
                   <div className="relative h-full flex flex-col">
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize: previewBodyFontPx }}>
+                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx }}>
                         {cleanContent}
                       </p>
-                      <p className="mt-2 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: previewRefFontPx }}>
+                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx }}>
                         {title}
                       </p>
                     </div>

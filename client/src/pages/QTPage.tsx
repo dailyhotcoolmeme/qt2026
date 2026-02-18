@@ -11,9 +11,7 @@ import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import {
-  findCurrentVerse,
   getCachedAudioObjectUrl,
-  loadChapterAudioMetadata,
   parseVerseRange,
   parseVerses,
 } from "../lib/bibleAudio";
@@ -910,11 +908,37 @@ const handleBookmark = async () => {
         audioRef.current = null;
       }
 
-      const testament = bookId <= 39 ? "OT" : "NT";
-      const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
-      if (!metadata) throw new Error("audio metadata not found");
-      audioMetaRef.current = metadata;
-      const audioUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
+      const verseRange = parseVerseRange(bibleData?.verse);
+      const plainText = parsedVerses.length
+        ? parsedVerses.map((v) => v.text).join(" ")
+        : String(bibleData?.content || "")
+            .replace(/\s+/g, " ")
+            .replace(/\d+\.?\s*/g, " ")
+            .trim();
+      const keyParts = [
+        String(bibleData?.date || currentDate.toISOString().slice(0, 10)),
+        `b${String(bookId).padStart(3, "0")}`,
+        `c${String(chapter).padStart(3, "0")}`,
+        verseRange ? `v${verseRange.start}-${verseRange.end}` : "vall",
+      ];
+      const cacheKey = keyParts.join("_");
+      const ttsRes = await fetch("/api/tts/naver", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: plainText,
+          cacheKey,
+        }),
+      });
+      if (!ttsRes.ok) {
+        const errText = await ttsRes.text();
+        throw new Error(`naver tts api failed: ${ttsRes.status} ${errText}`);
+      }
+      const ttsPayload = await ttsRes.json();
+      if (!ttsPayload?.audio_url) throw new Error("audio url missing from tts api");
+
+      audioMetaRef.current = { verses: [] };
+      const audioUrl = await getCachedAudioObjectUrl(ttsPayload.audio_url);
       if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = audioUrl;
 
@@ -922,71 +946,27 @@ const handleBookmark = async () => {
       audio.preload = "auto";
       audioRef.current = audio;
 
-      const verseRange = parseVerseRange(bibleData?.verse);
-      const requestedStartVerse = verseRange?.start ?? null;
-      const adjustedStartVerse = requestedStartVerse ? Math.max(1, requestedStartVerse - 1) : null;
-      const rangeStart = adjustedStartVerse
-        ? metadata.verses.find((v) => v.verse === adjustedStartVerse) ??
-          metadata.verses.find((v) => v.verse > adjustedStartVerse) ??
-          null
-        : null;
-      const rangeEnd = verseRange
-        ? [...metadata.verses].reverse().find((v) => v.verse === verseRange.end) ??
-          [...metadata.verses].reverse().find((v) => v.verse < verseRange.end) ??
-          null
-        : null;
-      let startMs = rangeStart?.start_ms ?? 0;
-      let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
-      if (rangeStart && Number.isFinite(startMs)) {
-        startMs = Math.max(0, startMs - 120);
-      }
-      let approxStartRatio: number | null = null;
-      let approxEndRatio: number | null = null;
-      if (verseRange && metadata.verses.length === 0) {
-        const parsed = parseVerses(bibleData?.content || "");
-        const parsedMaxVerse = parsed.reduce((max, row) => Math.max(max, row.verse), 0);
-        const totalVerses = Math.max(verseRange.end, parsedMaxVerse, parsed.length || 0);
-        approxStartRatio = Math.min(1, Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses)));
-        approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
-        startMs = Math.round((metadata.durationMs || 0) * approxStartRatio);
-        endMs = Math.round((metadata.durationMs || 0) * approxEndRatio);
-      }
-      audioEndMsRef.current = endMs > 0 ? endMs : null;
-      audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
-      audioVerseEndRef.current = verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
+      audioEndMsRef.current = null;
+      const verseNumbers = parsedVerses.map((v) => v.verse).filter((v) => Number.isFinite(v));
+      const firstVerse = verseNumbers.length ? Math.min(...verseNumbers) : 1;
+      const lastVerse = verseNumbers.length ? Math.max(...verseNumbers) : Number.MAX_SAFE_INTEGER;
+      audioVerseStartRef.current = verseRange?.start ?? firstVerse;
+      audioVerseEndRef.current = verseRange?.end ?? lastVerse;
 
       setAudioSubtitle(
         verseRange
           ? `${bibleData.bible_name} ${chapter}\uC7A5 ${verseRange.start}-${verseRange.end}\uC808`
-          : `${bibleData.bible_name} ${chapter}\uC7A5`
+          : `${bibleData.bible_name} ${chapter}\uC7A5${ttsPayload?.cached ? " (R2)" : " (new)"}`
       );
 
       audio.onloadedmetadata = () => {
-        setAudioDurationUi(audio.duration || metadata.durationMs / 1000);
-        if (verseRange && metadata.verses.length === 0 && approxStartRatio !== null && approxEndRatio !== null && audio.duration > 0) {
-          const byDurationStart = Math.round(audio.duration * 1000 * approxStartRatio);
-          const byDurationEnd = Math.round(audio.duration * 1000 * approxEndRatio);
-          startMs = byDurationStart;
-          endMs = byDurationEnd;
-          audioEndMsRef.current = endMs > 0 ? endMs : null;
-        }
-        audio.currentTime = startMs / 1000;
+        setAudioDurationUi(audio.duration || 0);
+        audio.currentTime = 0;
       };
 
       audio.ontimeupdate = () => {
-        const currentMs = Math.round(audio.currentTime * 1000);
         setAudioCurrentTime(audio.currentTime);
-        const active = findCurrentVerse(metadata.verses, currentMs);
-        if (active !== null) {
-          setAudioCurrentVerse(active);
-        } else {
-          setAudioCurrentVerse(estimateCurrentVerseByProgress());
-        }
-        if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
-          audio.pause();
-          setIsPlaying(false);
-          return;
-        }
+        setAudioCurrentVerse(estimateCurrentVerseByProgress());
       };
 
       audio.onended = () => {
