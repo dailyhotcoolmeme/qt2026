@@ -923,9 +923,11 @@ const handleBookmark = async () => {
       audioRef.current = audio;
 
       const verseRange = parseVerseRange(bibleData?.verse);
-      const rangeStart = verseRange
-        ? metadata.verses.find((v) => v.verse === verseRange.start) ??
-          metadata.verses.find((v) => v.verse > verseRange.start) ??
+      const requestedStartVerse = verseRange?.start ?? null;
+      const adjustedStartVerse = requestedStartVerse ? Math.max(1, requestedStartVerse - 1) : null;
+      const rangeStart = adjustedStartVerse
+        ? metadata.verses.find((v) => v.verse === adjustedStartVerse) ??
+          metadata.verses.find((v) => v.verse > adjustedStartVerse) ??
           null
         : null;
       const rangeEnd = verseRange
