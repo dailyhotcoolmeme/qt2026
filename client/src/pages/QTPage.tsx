@@ -885,7 +885,7 @@ const handleBookmark = async () => {
       const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
       const startMs = rangeStart?.start_ms ?? 0;
       const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
-      audioEndMsRef.current = endMs;
+      audioEndMsRef.current = endMs > 0 ? endMs : null;
       audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
       audioVerseEndRef.current =
         verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;

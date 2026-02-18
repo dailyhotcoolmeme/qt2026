@@ -76,8 +76,8 @@ function normalizeMetadataPayload(data: any): ChapterAudioMetadata | null {
 }
 
 function buildFallbackAudioUrl(bookId: number, chapter: number, testament?: "OT" | "NT"): string | null {
-  const publicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
-  if (!publicUrl) return null;
+  const publicUrl =
+    import.meta.env.VITE_R2_PUBLIC_URL || "https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev";
   const test = testament || (bookId <= 39 ? "OT" : "NT");
   const b = String(bookId).padStart(3, "0");
   const c = String(chapter).padStart(3, "0");
