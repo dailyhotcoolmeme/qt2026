@@ -104,7 +104,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const effectiveTextColor = currentPreset?.mode === "image" ? "#ffffff" : currentPreset?.textColor || "#3f3f46";
   const effectiveSubColor = currentPreset?.mode === "image" ? "#f8fafc" : currentPreset?.subColor || "#52525b";
-  const previewBodyFontPx = Math.max(12, Math.round((BODY_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
+  const previewBodyFontPx = Math.max(12, Math.round((BODY_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH) + 2);
   const previewRefFontPx = Math.max(10, Math.round((REFERENCE_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
 
   useEffect(() => {
@@ -291,10 +291,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   ) : null}
                   <div className="relative h-full flex flex-col">
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx, textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
+                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx, fontFamily: "serif", textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
                         {cleanContent}
                       </p>
-                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx, textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
+                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx, fontFamily: "serif", textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
                         {title}
                       </p>
                     </div>

@@ -1453,23 +1453,47 @@ export default function GroupDashboard() {
   const resolveJoinRequest = async (requestId: string, approve: boolean) => {
     if (!group || !isManager || !user) return;
 
-    let { error } = await supabase.rpc("resolve_group_join_request", {
-      p_request_id: requestId,
+    const { error } = await supabase.rpc("resolve_group_join_request", {
       p_approve: approve,
+      p_request_id: requestId,
     });
-    // Fallback for environments where RPC parameter names differ.
-    if (error) {
-      const retry = await supabase.rpc("resolve_group_join_request", {
-        request_id: requestId,
-        approve,
-      } as any);
-      error = retry.error;
-    }
 
     if (error) {
-      console.error("resolve_join_request failed:", error);
-      alert("요청 처리에 실패했습니다.");
-      return;
+      // Fallback path when RPC is not deployed in the target environment.
+      try {
+        const { data: requestRow, error: reqErr } = await supabase
+          .from("group_join_requests")
+          .select("id, group_id, user_id, status")
+          .eq("id", requestId)
+          .maybeSingle();
+        if (reqErr || !requestRow || requestRow.status !== "pending") throw reqErr || new Error("invalid request");
+
+        if (approve) {
+          const { error: memberErr } = await supabase.from("group_members").upsert(
+            {
+              group_id: requestRow.group_id,
+              user_id: requestRow.user_id,
+              role: "member",
+            },
+            { onConflict: "group_id,user_id" }
+          );
+          if (memberErr) throw memberErr;
+        }
+
+        const { error: updateErr } = await supabase
+          .from("group_join_requests")
+          .update({
+            status: approve ? "approved" : "rejected",
+            resolved_at: new Date().toISOString(),
+            resolved_by: user.id,
+          })
+          .eq("id", requestId);
+        if (updateErr) throw updateErr;
+      } catch (fallbackError) {
+        console.error("resolve_join_request failed:", error, fallbackError);
+        alert("요청 처리에 실패했습니다.");
+        return;
+      }
     }
 
     await Promise.all([loadJoinRequests(group.id), loadMembers(group.id, group.owner_id)]);
@@ -1511,6 +1535,15 @@ export default function GroupDashboard() {
       const key = `images/group-header/${group.id}/${user.id}/${Date.now()}_${safeName}`;
       const imageUrl = await uploadFileToR2(key, headerImageFile, headerImageFile.type || "image/jpeg");
       setHeaderImageDraft(imageUrl);
+
+      // Persist immediately so the image remains after navigation/reload.
+      const { error: persistError } = await supabase
+        .from("groups")
+        .update({ header_image_url: imageUrl })
+        .eq("id", group.id);
+      if (persistError) throw persistError;
+
+      setGroup((prev) => (prev ? { ...prev, header_image_url: imageUrl } : prev));
       setHeaderImageFile(null);
       alert("헤더 이미지를 업로드했습니다.");
     } catch (error) {
@@ -2739,8 +2772,6 @@ export default function GroupDashboard() {
     </div>
   );
 }
-
-
 
 
 

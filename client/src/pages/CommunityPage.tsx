@@ -46,6 +46,37 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+async function resizeImageFile(file: File, maxSize = 900, quality = 0.82): Promise<File> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+
+  const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+  const targetW = Math.max(1, Math.round(img.width * ratio));
+  const targetH = Math.max(1, Math.round(img.height * ratio));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  if (!blob) return file;
+  return new File([blob], file.name.replace(/\.(png|webp|jpeg|jpg)$/i, ".jpg"), { type: "image/jpeg" });
+}
+
 export default function CommunityPage() {
   const [, setLocation] = useLocation();
   const [user, setUser] = useState<any>(null);
@@ -188,15 +219,16 @@ export default function CommunityPage() {
 
   const uploadGroupImageIfNeeded = async (): Promise<string | null> => {
     if (!groupImageFile || !user?.id) return null;
+    const optimized = await resizeImageFile(groupImageFile);
 
-    const safeName = sanitizeFileName(groupImageFile.name || "group.jpg");
+    const safeName = sanitizeFileName(optimized.name || "group.jpg");
     const fileName = `images/group/${user.id}/${Date.now()}_${safeName}`;
-    const fileBase64 = await fileToBase64(groupImageFile);
+    const fileBase64 = await fileToBase64(optimized);
 
     const response = await fetch("/api/file/upload", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fileName, fileBase64, contentType: groupImageFile.type || "image/jpeg" }),
+      body: JSON.stringify({ fileName, fileBase64, contentType: "image/jpeg" }),
     });
 
     if (!response.ok) throw new Error("failed to upload group image");
@@ -249,9 +281,18 @@ export default function CommunityPage() {
     }
 
     const finalGroupType =
-      createForm.groupType === "other"
-        ? `other:${createForm.customGroupType.trim()}`
-        : createForm.groupType;
+      createForm.groupType === "church"
+        ? "church"
+        : createForm.groupType === "family"
+        ? "family"
+        : createForm.groupType === "other"
+        ? "etc"
+        : "work_school";
+
+    const descriptionWithType =
+      createForm.groupType === "other" && createForm.customGroupType.trim()
+        ? `[기타:${createForm.customGroupType.trim()}] ${description}`.trim()
+        : description;
 
     setSaving(true);
     try {
@@ -279,7 +320,7 @@ export default function CommunityPage() {
           name,
           group_slug: slug,
           password: password || null,
-          description: description || null,
+          description: descriptionWithType || null,
           owner_id: user.id,
           is_open: false,
           group_type: finalGroupType,
@@ -295,7 +336,7 @@ export default function CommunityPage() {
             name,
             group_slug: slug,
             password: password || null,
-            description: description || null,
+            description: descriptionWithType || null,
             owner_id: user.id,
             is_open: false,
           })
@@ -421,7 +462,7 @@ export default function CommunityPage() {
         <>
           <button
             onClick={() => setShowSearchModal(true)}
-            className="fixed right-6 bottom-[8.5rem] z-[120] w-14 h-14 rounded-full bg-zinc-900 text-white shadow-2xl flex items-center justify-center"
+            className="fixed right-6 bottom-44 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
             aria-label="모임 검색"
           >
             <Search size={22} />
@@ -572,7 +613,7 @@ export default function CommunityPage() {
                   />
                 )}
 
-                <div className="rounded-sm border border-zinc-200 bg-zinc-50 p-3 space-y-2">
+                <div className="border border-zinc-200 bg-zinc-50 p-3 space-y-2">
                   <label className="text-sm font-semibold text-zinc-600">모임 대표이미지</label>
                   <input
                     type="file"
@@ -586,8 +627,8 @@ export default function CommunityPage() {
                     className="w-full text-sm"
                   />
                   {groupImagePreview && (
-                    <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
-                      <img src={groupImagePreview} className="w-full h-28 object-cover" alt="group-preview" />
+                    <div className="overflow-hidden border border-zinc-200 bg-zinc-100 inline-block">
+                      <img src={groupImagePreview} className="w-20 h-20 object-cover" alt="group-preview" />
                     </div>
                   )}
                 </div>
