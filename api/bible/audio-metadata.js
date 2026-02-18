@@ -22,7 +22,7 @@ export default async function handler(req, res) {
     const supabase = createClient(url, key);
     const { data, error } = await supabase
       .from("bible_audio_metadata")
-      .select("audio_url,duration,verse_timings")
+      .select("audio_url,duration,verse_timings,created_at")
       .eq("book_id", bookId)
       .eq("chapter", chapter)
       .maybeSingle();

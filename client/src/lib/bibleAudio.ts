@@ -10,6 +10,7 @@ export type ChapterAudioMetadata = {
   audioUrl: string;
   durationMs: number;
   verses: VerseTiming[];
+  version?: string;
 };
 
 const AUDIO_CACHE_NAME = "bible-audio-v1";
@@ -97,6 +98,9 @@ export function findCurrentVerse(verses: VerseTiming[], currentMs: number): numb
 
 function normalizeMetadataPayload(data: any): ChapterAudioMetadata | null {
   if (!data?.audio_url) return null;
+  const version = String(data?.created_at || data?.updated_at || "").trim();
+  const joiner = String(data.audio_url).includes("?") ? "&" : "?";
+  const versionedAudioUrl = version ? `${data.audio_url}${joiner}v=${encodeURIComponent(version)}` : data.audio_url;
   const versePayload = data?.verse_timings?.verses;
   const verses: VerseTiming[] = Array.isArray(versePayload)
     ? versePayload
@@ -110,9 +114,10 @@ function normalizeMetadataPayload(data: any): ChapterAudioMetadata | null {
     : [];
 
   return {
-    audioUrl: data.audio_url,
+    audioUrl: versionedAudioUrl,
     durationMs: Number(data.duration || 0),
     verses,
+    version: version || undefined,
   };
 }
 
@@ -143,7 +148,7 @@ export async function loadChapterAudioMetadata(
   try {
     const { data, error } = await supabase
       .from("bible_audio_metadata")
-      .select("audio_url,duration,verse_timings")
+      .select("audio_url,duration,verse_timings,created_at")
       .eq("book_id", bookId)
       .eq("chapter", chapter)
       .maybeSingle();

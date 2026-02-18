@@ -28,7 +28,7 @@ export async function registerRoutes(
     try {
       const { data, error } = await supabase
         .from("bible_audio_metadata")
-        .select("testament,book_id,chapter,audio_url,verse_timings,duration")
+        .select("testament,book_id,chapter,audio_url,verse_timings,duration,created_at")
         .eq("book_id", bookId)
         .eq("chapter", chapter)
         .maybeSingle();
