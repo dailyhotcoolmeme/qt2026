@@ -309,7 +309,15 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
     alert("기록함에 저장되었습니다.");
   };
   // 날려먹었던 스와이프 로직 복구
-  const onDragEnd = (event: any, info: any) => {
+  const handleOpenCardMaker = () => {
+  if (!user?.id) {
+    setShowLoginModal(true);
+    return;
+  }
+  setShowCardMaker(true);
+};
+
+const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
