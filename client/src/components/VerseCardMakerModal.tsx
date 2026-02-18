@@ -88,6 +88,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [fontSize, setFontSize] = useState<number>(30);
+  const [previewScale, setPreviewScale] = useState<number>(1);
   const [imageOpacity, setImageOpacity] = useState<number>(0.9);
 
   const imagePresets = useMemo(() => resolveImagePresets(), []);
@@ -167,7 +168,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
     const lineHeight = Math.max(44, Math.round(fontSize * 2.06));
     const blockHeight = allLines.length * lineHeight;
-    let y = Math.max(210, Math.floor((canvas.height - blockHeight) / 2));
+    let y = Math.max(190, Math.floor((canvas.height - (blockHeight + 64)) / 2));
     allLines.forEach((line) => {
       if (!line) {
         y += 14;
@@ -179,7 +180,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
     ctx.fillStyle = currentPreset.subColor;
     ctx.font = `bold ${Math.round(fontSize * 0.78)}px serif`;
-    ctx.fillText(title, x, canvas.height - 96);
+    const titleY = Math.min(canvas.height - 80, y + Math.max(24, Math.round(fontSize * 0.8)));
+    ctx.fillText(title, x, titleY);
     return canvas;
   };
 
@@ -238,6 +240,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     currentPreset?.mode === "image"
       ? { background: "#ffffff" }
       : { background: currentPreset?.bg || COLOR_PRESETS[0].bg };
+  const previewWidthPx = Math.round(260 * previewScale);
+  const previewBodyFontPx = Math.max(12, Math.round(fontSize * previewScale));
+  const previewRefFontPx = Math.max(11, Math.round(fontSize * 0.52 * previewScale));
 
   return (
     <AnimatePresence>
@@ -259,7 +264,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
-                <div className="relative w-[72%] max-w-[260px] aspect-[4/5] rounded-[28px] border border-zinc-200 p-5 overflow-hidden" style={previewStyle}>
+                <div
+                  className="relative aspect-[4/5] rounded-[28px] border border-zinc-200 p-5 overflow-hidden"
+                  style={{ ...previewStyle, width: `${previewWidthPx}px` }}
+                >
                   {currentPreset?.mode === "image" ? (
                     <div
                       className="absolute inset-0 bg-cover bg-center"
@@ -267,14 +275,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                     />
                   ) : null}
                   <div className="relative h-full flex flex-col">
-                    <div className="flex-1 flex items-center justify-center">
-                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize }}>
+                    <div className="flex-1 flex flex-col items-center justify-center">
+                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize: previewBodyFontPx }}>
                         {cleanContent}
                       </p>
+                      <p className="mt-2 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: previewRefFontPx }}>
+                        {title}
+                      </p>
                     </div>
-                    <p className="mt-2 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: Math.max(13, Math.round(fontSize * 0.52)) }}>
-                      {title}
-                    </p>
                   </div>
                 </div>
               </div>
@@ -287,6 +295,19 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   <button onClick={() => setMode("image")} className={`rounded-xl px-3 py-2 text-sm font-bold ${mode === "image" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
                     배경 이미지 선택
                   </button>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">미리보기 배율: {Math.round(previewScale * 100)}%</label>
+                  <input
+                    type="range"
+                    min={0.7}
+                    max={1.2}
+                    step={0.01}
+                    value={previewScale}
+                    onChange={(e) => setPreviewScale(Number(e.target.value))}
+                    className="w-full"
+                  />
                 </div>
 
                 <div>

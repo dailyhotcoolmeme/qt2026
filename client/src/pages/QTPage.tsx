@@ -1090,14 +1090,13 @@ const onDragEnd = (event: any, info: any) => {
           style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
         >
           {parsedVerses.map(({ verse, text }) => {
-            const active = audioCurrentVerse === verse;
             return (
               <p
                 key={verse}
                 ref={(el) => {
                   verseRowRefs.current[verse] = el;
                 }}
-                className={`flex items-start gap-2 rounded-lg px-2 py-1 transition-colors ${active ? "bg-emerald-100" : ""}`}
+                className="flex items-start gap-2 rounded-lg px-2 py-1 transition-colors"
               >
                 <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
                 <span className="flex-1">{text}</span>

@@ -2124,7 +2124,7 @@ const togglePlay = () => {
                         verseRefs.current[i] = el;
                         verseNumberRefs.current[verse] = el;
                       }}
-                      className={`flex items-start gap-2 px-2 py-1 rounded-lg transition-colors ${currentVerseNumber === verse ? "bg-emerald-100" : ""}`}
+                      className="flex items-start gap-2 px-2 py-1 rounded-lg transition-colors"
                     >
                       <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
                       <span className="flex-1">{text}</span>
