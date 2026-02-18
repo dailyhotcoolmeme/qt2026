@@ -33,13 +33,10 @@ const COLOR_PRESETS: ThemePreset[] = [
   { id: "c4", mode: "color", bg: "linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%)", textColor: "#7c2d12", subColor: "#334155" },
 ];
 
-const DEFAULT_IMAGE_URLS = [
-  "https://images.unsplash.com/photo-1463320726281-696a485928c7?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1508261305437-4acc6f5d6d4f?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1472148439583-1f47cca7b78a?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1437603568260-1950d3ca6eab?auto=format&fit=crop&w=1200&q=80",
-  "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80",
-];
+const DEFAULT_IMAGE_URLS = Array.from(
+  { length: 12 },
+  (_, idx) => `https://audio.myamen.co.kr/card-backgrounds/bg${idx + 1}.jpg`
+);
 
 function resolveImagePresets(): ThemePreset[] {
   const fromEnv = String(import.meta.env.VITE_VERSE_CARD_IMAGE_PRESETS || "")
@@ -74,7 +71,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [fontSize, setFontSize] = useState<number>(32);
-  const [imageOverlayOpacity, setImageOverlayOpacity] = useState<number>(0.26);
+  const [imageOpacity, setImageOpacity] = useState<number>(0.9);
 
   const imagePresets = useMemo(() => resolveImagePresets(), []);
   const cleanContent = useMemo(() => normalizeVerseText(content), [content]);
@@ -106,6 +103,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     if (!ctx || !currentPreset) return null;
 
     if (currentPreset.mode === "image") {
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
       const img = new Image();
       img.crossOrigin = "anonymous";
       img.src = currentPreset.bg;
@@ -113,9 +112,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         img.onload = () => resolve();
         img.onerror = () => reject();
       });
+      ctx.globalAlpha = imageOpacity;
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = `rgba(0,0,0,${imageOverlayOpacity})`;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = 1;
     } else {
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       const colors = currentPreset.bg.match(/#[0-9a-fA-F]{3,8}/g) || ["#ffffff", "#f4f4f5"];
@@ -210,7 +209,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const previewStyle: React.CSSProperties =
     currentPreset?.mode === "image"
-      ? { backgroundImage: `url(${currentPreset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
+      ? { background: "#ffffff" }
       : { background: currentPreset?.bg || COLOR_PRESETS[0].bg };
 
   return (
@@ -233,14 +232,19 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
-                <div className="w-[82%] max-w-sm min-h-[450px] rounded-[32px] border border-zinc-200 p-8 flex flex-col justify-between" style={previewStyle}>
-                  <div
-                    className={currentPreset?.mode === "image" ? "-m-8 p-8 rounded-[32px] min-h-[450px] flex flex-col justify-between" : "min-h-[450px] flex flex-col justify-between"}
-                    style={currentPreset?.mode === "image" ? { background: `rgba(0,0,0,${imageOverlayOpacity})` } : undefined}
-                  >
-                    <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize }}>
-                      {cleanContent}
-                    </p>
+                <div className="relative w-[82%] max-w-sm min-h-[450px] rounded-[32px] border border-zinc-200 p-8 overflow-hidden" style={previewStyle}>
+                  {currentPreset?.mode === "image" ? (
+                    <div
+                      className="absolute inset-0 bg-cover bg-center"
+                      style={{ backgroundImage: `url(${currentPreset.bg})`, opacity: imageOpacity }}
+                    />
+                  ) : null}
+                  <div className="relative min-h-[450px] flex flex-col">
+                    <div className="flex-1 flex items-center justify-center">
+                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize }}>
+                        {cleanContent}
+                      </p>
+                    </div>
                     <p className="mt-6 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: Math.max(14, Math.round(fontSize * 0.56)) }}>
                       {title}
                     </p>
@@ -273,14 +277,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
                 {mode === "image" && (
                   <div>
-                    <label className="block text-xs font-semibold text-zinc-500 mb-1">배경 이미지 투명도: {Math.round(imageOverlayOpacity * 100)}%</label>
+                    <label className="block text-xs font-semibold text-zinc-500 mb-1">배경 이미지 투명도: {Math.round(imageOpacity * 100)}%</label>
                     <input
                       type="range"
-                      min={0}
-                      max={0.65}
+                      min={0.25}
+                      max={1}
                       step={0.01}
-                      value={imageOverlayOpacity}
-                      onChange={(e) => setImageOverlayOpacity(Number(e.target.value))}
+                      value={imageOpacity}
+                      onChange={(e) => setImageOpacity(Number(e.target.value))}
                       className="w-full"
                     />
                   </div>

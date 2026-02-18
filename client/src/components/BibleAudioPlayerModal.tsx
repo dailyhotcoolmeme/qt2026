@@ -1,5 +1,5 @@
-import React from "react";
-import { Loader2, Pause, Play, SkipBack, SkipForward, StepForward, X } from "lucide-react";
+﻿import React from "react";
+import { Loader2, Pause, Play, SkipBack, SkipForward, StepBack, StepForward, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Props = {
@@ -14,7 +14,9 @@ type Props = {
   onSeek: (nextTime: number) => void;
   onPrevVerse?: () => void;
   onNextVerse?: () => void;
+  onPrevChapter?: () => void;
   onNextChapter?: () => void;
+  canPrevChapter?: boolean;
   canNextChapter?: boolean;
 };
 
@@ -37,7 +39,9 @@ export function BibleAudioPlayerModal({
   onSeek,
   onPrevVerse,
   onNextVerse,
+  onPrevChapter,
   onNextChapter,
+  canPrevChapter = false,
   canNextChapter = false,
 }: Props) {
   return (
@@ -59,28 +63,47 @@ export function BibleAudioPlayerModal({
           {loading ? (
             <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs text-white">
               <Loader2 size={14} className="animate-spin" />
-              <span>오디오 로딩 중...</span>
+              <span>Loading audio...</span>
             </div>
           ) : (
             <div className="flex items-center gap-2">
+              {onPrevChapter ? (
+                <button
+                  onClick={onPrevChapter}
+                  disabled={!canPrevChapter}
+                  className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
+                    canPrevChapter ? "bg-white/20 hover:bg-white/30" : "bg-white/10 text-white/40"
+                  }`}
+                  title="Previous chapter"
+                >
+                  <StepBack size={14} />
+                </button>
+              ) : null}
+
               <button
                 onClick={onPrevVerse}
                 className="h-8 w-8 shrink-0 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
+                title="Previous verse"
               >
                 <SkipBack size={14} />
               </button>
+
               <button
                 onClick={onTogglePlay}
                 className="h-8 w-8 shrink-0 rounded-full bg-white text-[#4A6741] flex items-center justify-center"
+                title={isPlaying ? "Pause" : "Play"}
               >
                 {isPlaying ? <Pause size={14} fill="#4A6741" /> : <Play size={14} fill="#4A6741" />}
               </button>
+
               <button
                 onClick={onNextVerse}
                 className="h-8 w-8 shrink-0 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
+                title="Next verse"
               >
                 <SkipForward size={14} />
               </button>
+
               <input
                 type="range"
                 min={0}
@@ -90,9 +113,11 @@ export function BibleAudioPlayerModal({
                 onChange={(e) => onSeek(Number(e.target.value))}
                 className="min-w-0 flex-1 accent-white"
               />
+
               <div className="shrink-0 text-[11px] tabular-nums text-white/90">
                 {fmt(progress)} / {fmt(duration)}
               </div>
+
               {onNextChapter ? (
                 <button
                   onClick={onNextChapter}
@@ -100,6 +125,7 @@ export function BibleAudioPlayerModal({
                   className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
                     canNextChapter ? "bg-white/20 hover:bg-white/30" : "bg-white/10 text-white/40"
                   }`}
+                  title="Next chapter"
                 >
                   <StepForward size={14} />
                 </button>

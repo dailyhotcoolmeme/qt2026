@@ -17,7 +17,6 @@ import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import {
   findCurrentVerse,
   getCachedAudioObjectUrl,
-  isAudioCached,
   loadChapterAudioMetadata,
   parseVerseRange,
   parseVerses,
@@ -89,7 +88,7 @@ export default function ReadingPage() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [audioLoading, setAudioLoading] = useState(false);
-  const [audioSubtitle, setAudioSubtitle] = useState("?? ???? ???? ?");
+  const [audioSubtitle, setAudioSubtitle] = useState("");
   const [currentVerseNumber, setCurrentVerseNumber] = useState<number | null>(null);
   const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [isFromServer, setIsFromServer] = useState(false);
@@ -1154,7 +1153,7 @@ const loadRangePages = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("Preparing audio...");
+      setAudioSubtitle("\uC624\uB514\uC624 \uC900\uBE44 \uC911...");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -1166,8 +1165,6 @@ const loadRangePages = async () => {
       const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
       if (!metadata) throw new Error("audio metadata not found");
       audioMetaRef.current = metadata;
-      const cached = await isAudioCached(metadata.audioUrl);
-
       const objectUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
       if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = objectUrl;
@@ -1177,18 +1174,37 @@ const loadRangePages = async () => {
       audioRef.current = audio;
 
       const verseRange = parseVerseRange(chapterData?.verse);
-      const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
-      const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
-      const startMs = rangeStart?.start_ms ?? 0;
-      const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      const rangeStart = verseRange
+        ? metadata.verses.find((v) => v.verse === verseRange.start) ??
+          metadata.verses.find((v) => v.verse > verseRange.start) ??
+          null
+        : null;
+      const rangeEnd = verseRange
+        ? [...metadata.verses].reverse().find((v) => v.verse === verseRange.end) ??
+          [...metadata.verses].reverse().find((v) => v.verse < verseRange.end) ??
+          null
+        : null;
+      let startMs = rangeStart?.start_ms ?? 0;
+      let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      let approxStartRatio: number | null = null;
+      let approxEndRatio: number | null = null;
+      if (verseRange && metadata.verses.length === 0) {
+        const parsed = parseVerses(chapterData?.content || "");
+        const parsedMaxVerse = parsed.reduce((max, row) => Math.max(max, row.verse), 0);
+        const totalVerses = Math.max(verseRange.end, parsedMaxVerse, parsed.length || 0);
+        approxStartRatio = Math.min(1, Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses)));
+        approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
+        startMs = Math.round((metadata.durationMs || 0) * approxStartRatio);
+        endMs = Math.round((metadata.durationMs || 0) * approxEndRatio);
+      }
       audioEndMsRef.current = endMs > 0 ? endMs : null;
       audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
       audioVerseEndRef.current = verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
 
       setAudioSubtitle(
         verseRange
-          ? `${chapterData.bible_name} ${chapter} ${verseRange.start}-${verseRange.end}${cached ? " (cached)" : ""}`
-          : `${chapterData.bible_name} ${chapter}${cached ? " (cached)" : ""}`
+          ? `${chapterData.bible_name} ${chapter}\uC7A5 ${verseRange.start}-${verseRange.end}\uC808`
+          : `${chapterData.bible_name} ${chapter}\uC7A5`
       );
 
       let endedHandled = false;
@@ -1219,6 +1235,13 @@ const loadRangePages = async () => {
 
       audio.onloadedmetadata = () => {
         setDuration(audio.duration || metadata.durationMs / 1000);
+        if (verseRange && metadata.verses.length === 0 && approxStartRatio !== null && approxEndRatio !== null && audio.duration > 0) {
+          const byDurationStart = Math.round(audio.duration * 1000 * approxStartRatio);
+          const byDurationEnd = Math.round(audio.duration * 1000 * approxEndRatio);
+          startMs = byDurationStart;
+          endMs = byDurationEnd;
+          audioEndMsRef.current = endMs > 0 ? endMs : null;
+        }
         audio.currentTime = startMs / 1000;
       };
 
@@ -1243,7 +1266,7 @@ const loadRangePages = async () => {
       console.error("Reading audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("Failed to load audio.");
+      setAudioSubtitle("\uC624\uB514\uC624\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
     }
   };
 const togglePlay = () => {
@@ -1269,6 +1292,23 @@ const togglePlay = () => {
       continuous: isContinuousPlayMode,
       chapterData: nextChapter,
       chapterIdx: nextIdx,
+      skipSelector: true,
+    });
+  };
+
+  const handlePrevChapterFromModal = async () => {
+    const currentIdx = audioPlayingChapterIdxRef.current;
+    if (currentIdx <= 0) return;
+    const prevIdx = currentIdx - 1;
+    const prevChapter = rangePages[prevIdx];
+    if (!prevChapter) return;
+    setCurrentPageIdx(prevIdx);
+    currentPageIdxRef.current = prevIdx;
+    setBibleData(prevChapter);
+    await handlePlayServerAudio({
+      continuous: isContinuousPlayMode,
+      chapterData: prevChapter,
+      chapterIdx: prevIdx,
       skipSelector: true,
     });
   };
@@ -2752,7 +2792,9 @@ const togglePlay = () => {
         onSeek={seekAudioFromModal}
         onPrevVerse={jumpPrevVerse}
         onNextVerse={jumpNextVerse}
+        onPrevChapter={handlePrevChapterFromModal}
         onNextChapter={handleNextChapterFromModal}
+        canPrevChapter={audioPlayingChapterIdxRef.current > 0}
         canNextChapter={audioPlayingChapterIdxRef.current < rangePages.length - 1}
       />
 

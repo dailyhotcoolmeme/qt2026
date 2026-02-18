@@ -111,6 +111,15 @@ export async function loadChapterAudioMetadata(
   testament?: "OT" | "NT"
 ): Promise<ChapterAudioMetadata | null> {
   try {
+    const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
+    if (res.ok) {
+      const payload = await res.json();
+      const normalized = normalizeMetadataPayload(payload);
+      if (normalized) return normalized;
+    }
+  } catch {}
+
+  try {
     const { data, error } = await supabase
       .from("bible_audio_metadata")
       .select("audio_url,duration,verse_timings")
@@ -122,18 +131,6 @@ export async function loadChapterAudioMetadata(
       if (normalized) return normalized;
     }
   } catch {}
-
-  const enableServerMetadataApi = String(import.meta.env.VITE_ENABLE_AUDIO_METADATA_API || "").toLowerCase() === "true";
-  if (enableServerMetadataApi) {
-    try {
-      const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
-      if (res.ok) {
-        const payload = await res.json();
-        const normalized = normalizeMetadataPayload(payload);
-        if (normalized) return normalized;
-      }
-    } catch {}
-  }
 
   const fallbackUrl = buildFallbackAudioUrl(bookId, chapter, testament);
   if (!fallbackUrl) return null;

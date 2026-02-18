@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
+import { supabase } from "./supabase";
 import { uploadAudioToR2, uploadFileToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
@@ -16,6 +17,34 @@ export async function registerRoutes(
   // Replit 전용 인증 로직 주석 처리 (Vercel 에러 방지)
   // await setupAuth(app);
   // registerAuthRoutes(app);
+
+  app.get("/api/bible/audio-metadata", async (req, res) => {
+    const bookId = Number(req.query.book_id);
+    const chapter = Number(req.query.chapter);
+    if (!Number.isFinite(bookId) || !Number.isFinite(chapter)) {
+      return res.status(400).json({ message: "book_id and chapter are required" });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("bible_audio_metadata")
+        .select("testament,book_id,chapter,audio_url,verse_timings,duration")
+        .eq("book_id", bookId)
+        .eq("chapter", chapter)
+        .maybeSingle();
+
+      if (error) {
+        return res.status(500).json({ message: "failed to load audio metadata" });
+      }
+      if (!data) {
+        return res.status(404).json({ message: "audio metadata not found" });
+      }
+      return res.json(data);
+    } catch (error) {
+      console.error("audio metadata api error:", error);
+      return res.status(500).json({ message: "internal error" });
+    }
+  });
 
   app.get("/api/verses/daily", async (req, res) => {
     const today = new Date().toISOString().split('T')[0]; // 에러 방지를 위해 변수 선언 복구

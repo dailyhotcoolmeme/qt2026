@@ -13,7 +13,6 @@ import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import {
   findCurrentVerse,
   getCachedAudioObjectUrl,
-  isAudioCached,
   loadChapterAudioMetadata,
   parseVerseRange,
   parseVerses,
@@ -39,7 +38,7 @@ export default function QTPage() {
   const [audioCurrentTime, setAudioCurrentTime] = useState(0);
   const [audioDurationUi, setAudioDurationUi] = useState(0);
   const [audioCurrentVerse, setAudioCurrentVerse] = useState<number | null>(null);
-  const [audioSubtitle, setAudioSubtitle] = useState("서버 오디오를 불러오는 중");
+  const [audioSubtitle, setAudioSubtitle] = useState("");
   const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [isMeditationCompleted, setIsMeditationCompleted] = useState(false);
@@ -860,7 +859,7 @@ const handleBookmark = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("Preparing audio...");
+      setAudioSubtitle("\uC624\uB514\uC624 \uC900\uBE44 \uC911...");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -872,8 +871,6 @@ const handleBookmark = async () => {
       const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
       if (!metadata) throw new Error("audio metadata not found");
       audioMetaRef.current = metadata;
-      const cached = await isAudioCached(metadata.audioUrl);
-
       const audioUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
       if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = audioUrl;
@@ -883,15 +880,26 @@ const handleBookmark = async () => {
       audioRef.current = audio;
 
       const verseRange = parseVerseRange(bibleData?.verse);
-      const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
-      const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
+      const rangeStart = verseRange
+        ? metadata.verses.find((v) => v.verse === verseRange.start) ??
+          metadata.verses.find((v) => v.verse > verseRange.start) ??
+          null
+        : null;
+      const rangeEnd = verseRange
+        ? [...metadata.verses].reverse().find((v) => v.verse === verseRange.end) ??
+          [...metadata.verses].reverse().find((v) => v.verse < verseRange.end) ??
+          null
+        : null;
       let startMs = rangeStart?.start_ms ?? 0;
       let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      let approxStartRatio: number | null = null;
+      let approxEndRatio: number | null = null;
       if (verseRange && metadata.verses.length === 0) {
         const parsed = parseVerses(bibleData?.content || "");
-        const totalVerses = parsed.length || verseRange.end;
-        const approxStartRatio = Math.min(1, Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses)));
-        const approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
+        const parsedMaxVerse = parsed.reduce((max, row) => Math.max(max, row.verse), 0);
+        const totalVerses = Math.max(verseRange.end, parsedMaxVerse, parsed.length || 0);
+        approxStartRatio = Math.min(1, Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses)));
+        approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
         startMs = Math.round((metadata.durationMs || 0) * approxStartRatio);
         endMs = Math.round((metadata.durationMs || 0) * approxEndRatio);
       }
@@ -901,12 +909,19 @@ const handleBookmark = async () => {
 
       setAudioSubtitle(
         verseRange
-          ? `${bibleData.bible_name} ${chapter} ${verseRange.start}-${verseRange.end}${cached ? " (cached)" : ""}`
-          : `${bibleData.bible_name} ${chapter}${cached ? " (cached)" : ""}`
+          ? `${bibleData.bible_name} ${chapter}\uC7A5 ${verseRange.start}-${verseRange.end}\uC808`
+          : `${bibleData.bible_name} ${chapter}\uC7A5`
       );
 
       audio.onloadedmetadata = () => {
         setAudioDurationUi(audio.duration || metadata.durationMs / 1000);
+        if (verseRange && metadata.verses.length === 0 && approxStartRatio !== null && approxEndRatio !== null && audio.duration > 0) {
+          const byDurationStart = Math.round(audio.duration * 1000 * approxStartRatio);
+          const byDurationEnd = Math.round(audio.duration * 1000 * approxEndRatio);
+          startMs = byDurationStart;
+          endMs = byDurationEnd;
+          audioEndMsRef.current = endMs > 0 ? endMs : null;
+        }
         audio.currentTime = startMs / 1000;
       };
 
@@ -933,7 +948,7 @@ const handleBookmark = async () => {
       console.error("QT audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("Failed to load audio.");
+      setAudioSubtitle("\uC624\uB514\uC624\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
     }
   };
 const onDragEnd = (event: any, info: any) => {
