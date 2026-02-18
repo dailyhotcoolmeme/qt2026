@@ -41,6 +41,7 @@ type GroupRow = {
   group_slug: string | null;
   description: string | null;
   owner_id: string | null;
+  group_image?: string | null;
   header_image_url?: string | null;
   header_color?: string | null;
   is_closed?: boolean | null;
@@ -208,6 +209,11 @@ function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function ensureHttpsUrl(url?: string | null) {
+  if (!url) return null;
+  return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
+}
+
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
   const response = await fetch("/api/file/upload", {
@@ -362,8 +368,8 @@ export default function GroupDashboard() {
     if (!group?.id) return;
     localStorage.setItem(LAST_GROUP_KEY, group.id);
     setHeaderColorDraft(group.header_color || "#4A6741");
-    setHeaderImageDraft(group.header_image_url || "");
-  }, [group?.id, group?.header_color, group?.header_image_url]);
+    setHeaderImageDraft(ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image) || "");
+  }, [group?.id, group?.header_color, group?.header_image_url, group?.group_image]);
 
   useEffect(() => {
     if (!group?.id) return;
@@ -395,7 +401,8 @@ export default function GroupDashboard() {
       group_slug: groupData.group_slug ?? null,
       description: groupData.description ?? null,
       owner_id: groupData.owner_id ?? null,
-      header_image_url: (groupData as any).header_image_url ?? null,
+      group_image: ensureHttpsUrl((groupData as any).group_image) ?? null,
+      header_image_url: ensureHttpsUrl((groupData as any).header_image_url) ?? null,
       header_color: (groupData as any).header_color ?? "#4A6741",
       is_closed: Boolean((groupData as any).is_closed),
     });
@@ -1469,15 +1476,22 @@ export default function GroupDashboard() {
         if (reqErr || !requestRow || requestRow.status !== "pending") throw reqErr || new Error("invalid request");
 
         if (approve) {
-          const { error: memberErr } = await supabase.from("group_members").upsert(
-            {
+          const { data: existingMember, error: memberLookupErr } = await supabase
+            .from("group_members")
+            .select("id")
+            .eq("group_id", requestRow.group_id)
+            .eq("user_id", requestRow.user_id)
+            .maybeSingle();
+          if (memberLookupErr) throw memberLookupErr;
+
+          if (!existingMember) {
+            const { error: memberInsertErr } = await supabase.from("group_members").insert({
               group_id: requestRow.group_id,
               user_id: requestRow.user_id,
               role: "member",
-            },
-            { onConflict: "group_id,user_id" }
-          );
-          if (memberErr) throw memberErr;
+            });
+            if (memberInsertErr) throw memberInsertErr;
+          }
         }
 
         const { error: updateErr } = await supabase
@@ -1505,7 +1519,8 @@ export default function GroupDashboard() {
     const { error } = await supabase
       .from("groups")
       .update({
-        header_image_url: headerImageDraft.trim() || null,
+        header_image_url: ensureHttpsUrl(headerImageDraft.trim()) || null,
+        group_image: ensureHttpsUrl(headerImageDraft.trim()) || null,
         header_color: headerColorDraft || "#4A6741",
       })
       .eq("id", group.id);
@@ -1519,7 +1534,8 @@ export default function GroupDashboard() {
       prev
         ? {
             ...prev,
-            header_image_url: headerImageDraft.trim() || null,
+            header_image_url: ensureHttpsUrl(headerImageDraft.trim()) || null,
+            group_image: ensureHttpsUrl(headerImageDraft.trim()) || null,
             header_color: headerColorDraft || "#4A6741",
           }
         : prev
@@ -1533,17 +1549,17 @@ export default function GroupDashboard() {
     try {
       const safeName = sanitizeFileName(headerImageFile.name || "header.jpg");
       const key = `images/group-header/${group.id}/${user.id}/${Date.now()}_${safeName}`;
-      const imageUrl = await uploadFileToR2(key, headerImageFile, headerImageFile.type || "image/jpeg");
-      setHeaderImageDraft(imageUrl);
+      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, headerImageFile, headerImageFile.type || "image/jpeg"));
+      setHeaderImageDraft(imageUrl || "");
 
       // Persist immediately so the image remains after navigation/reload.
       const { error: persistError } = await supabase
         .from("groups")
-        .update({ header_image_url: imageUrl })
+        .update({ header_image_url: imageUrl, group_image: imageUrl })
         .eq("id", group.id);
       if (persistError) throw persistError;
 
-      setGroup((prev) => (prev ? { ...prev, header_image_url: imageUrl } : prev));
+      setGroup((prev) => (prev ? { ...prev, header_image_url: imageUrl, group_image: imageUrl } : prev));
       setHeaderImageFile(null);
       alert("헤더 이미지를 업로드했습니다.");
     } catch (error) {
@@ -1684,8 +1700,8 @@ export default function GroupDashboard() {
           className="pt-28 pb-8"
           style={{
             background:
-              group.header_image_url && group.header_image_url.trim()
-                ? `linear-gradient(to bottom, rgba(0,0,0,.18), rgba(0,0,0,.45)), url(${group.header_image_url}) center/cover`
+              ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
+                ? `linear-gradient(to bottom, rgba(0,0,0,.18), rgba(0,0,0,.45)), url(${ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)}) center/cover`
                 : `linear-gradient(135deg, ${group.header_color || "#4A6741"}, #1f2937)`,
           }}
         >
@@ -1765,8 +1781,8 @@ export default function GroupDashboard() {
         className="relative overflow-hidden"
         style={{
           background:
-            group.header_image_url && group.header_image_url.trim()
-              ? `linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.52)), url(${group.header_image_url}) center/cover`
+            ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
+              ? `linear-gradient(to bottom, rgba(0,0,0,.2), rgba(0,0,0,.52)), url(${ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)}) center/cover`
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
@@ -2772,6 +2788,3 @@ export default function GroupDashboard() {
     </div>
   );
 }
-
-
-

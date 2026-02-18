@@ -14,6 +14,13 @@ function cleanContent(text: string) {
     .trim();
 }
 
+function formatLocalDate(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bibleData, setBibleData] = useState<any>(null);
@@ -30,7 +37,7 @@ export default function DailyWordPage() {
 
   useEffect(() => {
     const fetchVerse = async () => {
-      const formattedDate = currentDate.toISOString().split("T")[0];
+      const formattedDate = formatLocalDate(currentDate);
 
       const { data: verse } = await supabase
         .from("daily_bible_verses")
@@ -67,6 +74,21 @@ export default function DailyWordPage() {
       return;
     }
     setCurrentDate(selectedDate);
+  };
+
+  const onDragEnd = (_event: unknown, info: { offset: { x: number } }) => {
+    if (info.offset.x > 100) {
+      const prev = new Date(currentDate);
+      prev.setDate(prev.getDate() - 1);
+      setCurrentDate(prev);
+      return;
+    }
+
+    if (info.offset.x < -100) {
+      const next = new Date(currentDate);
+      next.setDate(next.getDate() + 1);
+      if (next <= new Date()) setCurrentDate(next);
+    }
   };
 
   const handleAmenClick = async () => {
@@ -178,7 +200,7 @@ export default function DailyWordPage() {
             ref={dateInputRef}
             type="date"
             onChange={handleDateChange}
-            max={new Date().toISOString().split("T")[0]}
+            max={formatLocalDate(new Date())}
             className="pointer-events-none absolute opacity-0"
           />
         </div>
@@ -189,6 +211,10 @@ export default function DailyWordPage() {
 
         <motion.div
           key={currentDate.toISOString()}
+          drag="x"
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.2}
+          onDragEnd={onDragEnd}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           className="z-10 flex aspect-[4/5] w-[82%] max-w-sm flex-col items-start justify-center rounded-[32px] border border-white bg-white p-10 pb-8 text-left shadow-[0_15px_45px_rgba(0,0,0,0.06)]"

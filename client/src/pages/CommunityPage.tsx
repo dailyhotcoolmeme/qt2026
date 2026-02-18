@@ -31,6 +31,11 @@ function sanitizeFileName(name: string) {
   return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function ensureHttpsUrl(url?: string | null) {
+  if (!url) return null;
+  return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
+}
+
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -234,7 +239,7 @@ export default function CommunityPage() {
     if (!response.ok) throw new Error("failed to upload group image");
     const data = await response.json();
     if (!data?.success || !data?.publicUrl) throw new Error(data?.error || "failed to upload group image");
-    return data.publicUrl as string;
+    return ensureHttpsUrl(data.publicUrl as string);
   };
 
   const checkSlugDuplicate = async () => {
@@ -390,7 +395,7 @@ export default function CommunityPage() {
     return (
       <div className="w-full bg-white border border-[#F5F6F7] p-4 flex items-center gap-3">
         <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
-          {row.group_image ? <img src={row.group_image} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
+          {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
         </div>
 
         <div className="flex-1 min-w-0">
