@@ -54,17 +54,9 @@ export function findCurrentVerse(verses: VerseTiming[], currentMs: number): numb
   return verses[0].verse;
 }
 
-export async function loadChapterAudioMetadata(bookId: number, chapter: number): Promise<ChapterAudioMetadata | null> {
-  const { data, error } = await supabase
-    .from("bible_audio_metadata")
-    .select("audio_url,duration,verse_timings")
-    .eq("book_id", bookId)
-    .eq("chapter", chapter)
-    .maybeSingle();
-
-  if (error || !data?.audio_url) return null;
-
-  const versePayload = (data.verse_timings as any)?.verses;
+function normalizeMetadataPayload(data: any): ChapterAudioMetadata | null {
+  if (!data?.audio_url) return null;
+  const versePayload = data?.verse_timings?.verses;
   const verses: VerseTiming[] = Array.isArray(versePayload)
     ? versePayload
         .map((v: any) => ({
@@ -81,6 +73,48 @@ export async function loadChapterAudioMetadata(bookId: number, chapter: number):
     durationMs: Number(data.duration || 0),
     verses,
   };
+}
+
+function buildFallbackAudioUrl(bookId: number, chapter: number, testament?: "OT" | "NT"): string | null {
+  const publicUrl = import.meta.env.VITE_R2_PUBLIC_URL;
+  if (!publicUrl) return null;
+  const test = testament || (bookId <= 39 ? "OT" : "NT");
+  const b = String(bookId).padStart(3, "0");
+  const c = String(chapter).padStart(3, "0");
+  const voiceTag = import.meta.env.VITE_BIBLE_AUDIO_VOICE_TAG || "nsunkyung";
+  return `${publicUrl}/audio/bible/v1/${voiceTag}/${test}/b${b}/c${c}.m4a`;
+}
+
+export async function loadChapterAudioMetadata(
+  bookId: number,
+  chapter: number,
+  testament?: "OT" | "NT"
+): Promise<ChapterAudioMetadata | null> {
+  try {
+    const { data, error } = await supabase
+      .from("bible_audio_metadata")
+      .select("audio_url,duration,verse_timings")
+      .eq("book_id", bookId)
+      .eq("chapter", chapter)
+      .maybeSingle();
+    if (!error) {
+      const normalized = normalizeMetadataPayload(data);
+      if (normalized) return normalized;
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
+    if (res.ok) {
+      const payload = await res.json();
+      const normalized = normalizeMetadataPayload(payload);
+      if (normalized) return normalized;
+    }
+  } catch {}
+
+  const fallbackUrl = buildFallbackAudioUrl(bookId, chapter, testament);
+  if (!fallbackUrl) return null;
+  return { audioUrl: fallbackUrl, durationMs: 0, verses: [] };
 }
 
 export async function getCachedAudioObjectUrl(audioUrl: string): Promise<string> {

@@ -867,7 +867,8 @@ const handleBookmark = async () => {
         audioRef.current = null;
       }
 
-      const metadata = await loadChapterAudioMetadata(bookId, chapter);
+      const testament = bookId <= 39 ? "OT" : "NT";
+      const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
       if (!metadata) throw new Error("audio metadata not found");
       audioMetaRef.current = metadata;
 
