@@ -1466,48 +1466,13 @@ export default function GroupDashboard() {
     });
 
     if (error) {
-      // Fallback path when RPC is not deployed in the target environment.
-      try {
-        const { data: requestRow, error: reqErr } = await supabase
-          .from("group_join_requests")
-          .select("id, group_id, user_id, status")
-          .eq("id", requestId)
-          .maybeSingle();
-        if (reqErr || !requestRow || requestRow.status !== "pending") throw reqErr || new Error("invalid request");
-
-        if (approve) {
-          const { data: existingMember, error: memberLookupErr } = await supabase
-            .from("group_members")
-            .select("id")
-            .eq("group_id", requestRow.group_id)
-            .eq("user_id", requestRow.user_id)
-            .maybeSingle();
-          if (memberLookupErr) throw memberLookupErr;
-
-          if (!existingMember) {
-            const { error: memberInsertErr } = await supabase.from("group_members").insert({
-              group_id: requestRow.group_id,
-              user_id: requestRow.user_id,
-              role: "member",
-            });
-            if (memberInsertErr) throw memberInsertErr;
-          }
-        }
-
-        const { error: updateErr } = await supabase
-          .from("group_join_requests")
-          .update({
-            status: approve ? "approved" : "rejected",
-            resolved_at: new Date().toISOString(),
-            resolved_by: user.id,
-          })
-          .eq("id", requestId);
-        if (updateErr) throw updateErr;
-      } catch (fallbackError) {
-        console.error("resolve_join_request failed:", error, fallbackError);
+      console.error("resolve_join_request failed:", error);
+      if (error.code === "PGRST202" || error.code === "42883") {
+        alert("서버 DB 마이그레이션이 필요합니다. 최신 배포 후 다시 시도해주세요.");
+      } else {
         alert("요청 처리에 실패했습니다.");
-        return;
       }
+      return;
     }
 
     await Promise.all([loadJoinRequests(group.id), loadMembers(group.id, group.owner_id)]);
