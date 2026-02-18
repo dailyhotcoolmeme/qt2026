@@ -38,10 +38,30 @@ export function parseVerseRange(label: string | number | null | undefined): { st
     return { start: n, end: n };
   }
 
-  const m = raw.match(/^(\d+)\s*[-:~]\s*(\d+)$/);
-  if (!m) return null;
-  const a = Number(m[1]);
-  const b = Number(m[2]);
+  const strict = raw.match(/^(\d+)\s*[-:~]\s*(\d+)$/);
+  if (strict) {
+    const a = Number(strict[1]);
+    const b = Number(strict[2]);
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  // Supports labels like "26-39절", "26절~39절", "26 : 39"
+  const compact = raw.replace(/\s+/g, "");
+  const soft = compact.match(/(\d+)\D*[-:~]\D*(\d+)/);
+  if (soft) {
+    const a = Number(soft[1]);
+    const b = Number(soft[2]);
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+
+  const nums = compact.match(/\d+/g);
+  if (!nums || nums.length === 0) return null;
+  if (nums.length === 1) {
+    const n = Number(nums[0]);
+    return { start: n, end: n };
+  }
+  const a = Number(nums[0]);
+  const b = Number(nums[1]);
   return { start: Math.min(a, b), end: Math.max(a, b) };
 }
 

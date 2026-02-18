@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Save, Share2, X } from "lucide-react";
 
@@ -33,13 +33,28 @@ const COLOR_PRESETS: ThemePreset[] = [
   { id: "c4", mode: "color", bg: "linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%)", textColor: "#7c2d12", subColor: "#334155" },
 ];
 
-const IMAGE_PRESETS: ThemePreset[] = [
-  { id: "i1", mode: "image", bg: "https://images.unsplash.com/photo-1463320726281-696a485928c7?auto=format&fit=crop&w=1200&q=80", textColor: "#ffffff", subColor: "#f4f4f5" },
-  { id: "i2", mode: "image", bg: "https://images.unsplash.com/photo-1508261305437-4acc6f5d6d4f?auto=format&fit=crop&w=1200&q=80", textColor: "#ffffff", subColor: "#f4f4f5" },
-  { id: "i3", mode: "image", bg: "https://images.unsplash.com/photo-1472148439583-1f47cca7b78a?auto=format&fit=crop&w=1200&q=80", textColor: "#ffffff", subColor: "#f4f4f5" },
-  { id: "i4", mode: "image", bg: "https://images.unsplash.com/photo-1437603568260-1950d3ca6eab?auto=format&fit=crop&w=1200&q=80", textColor: "#ffffff", subColor: "#f4f4f5" },
-  { id: "i5", mode: "image", bg: "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80", textColor: "#ffffff", subColor: "#f4f4f5" },
+const DEFAULT_IMAGE_URLS = [
+  "https://images.unsplash.com/photo-1463320726281-696a485928c7?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1508261305437-4acc6f5d6d4f?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1472148439583-1f47cca7b78a?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1437603568260-1950d3ca6eab?auto=format&fit=crop&w=1200&q=80",
+  "https://images.unsplash.com/photo-1523580494863-6f3031224c94?auto=format&fit=crop&w=1200&q=80",
 ];
+
+function resolveImagePresets(): ThemePreset[] {
+  const fromEnv = String(import.meta.env.VITE_VERSE_CARD_IMAGE_PRESETS || "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+  const urls = fromEnv.length > 0 ? fromEnv : DEFAULT_IMAGE_URLS;
+  return urls.map((bg, index) => ({
+    id: `i${index + 1}`,
+    mode: "image" as const,
+    bg,
+    textColor: "#ffffff",
+    subColor: "#f4f4f5",
+  }));
+}
 
 function storageKey(userId?: string | null) {
   return `verse-card-records:${userId || "guest"}`;
@@ -58,18 +73,22 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [mode, setMode] = useState<ThemeMode>("color");
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [fontSize, setFontSize] = useState<number>(32);
+  const [imageOverlayOpacity, setImageOverlayOpacity] = useState<number>(0.26);
 
+  const imagePresets = useMemo(() => resolveImagePresets(), []);
   const cleanContent = useMemo(() => normalizeVerseText(content), [content]);
+
   const currentPreset = useMemo(() => {
-    const pool = mode === "color" ? COLOR_PRESETS : IMAGE_PRESETS;
+    const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     return pool.find((v) => v.id === selectedId) || pool[0];
-  }, [mode, selectedId]);
+  }, [mode, selectedId, imagePresets]);
 
   useEffect(() => {
     if (!open) return;
-    const pool = mode === "color" ? COLOR_PRESETS : IMAGE_PRESETS;
-    const randomized = pool[Math.floor(Math.random() * pool.length)];
-    setSelectedId(randomized.id);
+    const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
+    const randomized = pool[Math.floor(Math.random() * pool.length)] || pool[0];
+    if (randomized) setSelectedId(randomized.id);
     try {
       const raw = localStorage.getItem(storageKey(userId));
       const parsed = raw ? (JSON.parse(raw) as SavedCard[]) : [];
@@ -77,14 +96,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     } catch {
       setSavedCards([]);
     }
-  }, [open, mode, userId]);
+  }, [open, mode, userId, imagePresets]);
 
   const drawToCanvas = async () => {
     const canvas = document.createElement("canvas");
     canvas.width = 900;
-    canvas.height = 1125; // 4:5
+    canvas.height = 1125;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
+    if (!ctx || !currentPreset) return null;
 
     if (currentPreset.mode === "image") {
       const img = new Image();
@@ -95,7 +114,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         img.onerror = () => reject();
       });
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = "rgba(0,0,0,0.26)";
+      ctx.fillStyle = `rgba(0,0,0,${imageOverlayOpacity})`;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     } else {
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
@@ -109,7 +128,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const x = 450;
     ctx.fillStyle = currentPreset.textColor;
     ctx.textAlign = "center";
-    ctx.font = "bold 46px serif";
+    ctx.font = `bold ${Math.round(fontSize * 1.44)}px serif`;
 
     const maxWidth = 700;
     const chunks = cleanContent.split("\n");
@@ -130,12 +149,12 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       if (idx < chunks.length - 1) allLines.push("");
     });
 
-    const lineHeight = 66;
+    const lineHeight = Math.max(44, Math.round(fontSize * 2.06));
     const blockHeight = allLines.length * lineHeight;
     let y = Math.max(210, Math.floor((canvas.height - blockHeight) / 2));
     allLines.forEach((line) => {
       if (!line) {
-        y += 16;
+        y += 14;
         return;
       }
       ctx.fillText(line, x, y);
@@ -143,7 +162,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     });
 
     ctx.fillStyle = currentPreset.subColor;
-    ctx.font = "bold 30px serif";
+    ctx.font = `bold ${Math.round(fontSize * 0.78)}px serif`;
     ctx.fillText(title, x, canvas.height - 96);
     return canvas;
   };
@@ -190,9 +209,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   };
 
   const previewStyle: React.CSSProperties =
-    currentPreset.mode === "image"
+    currentPreset?.mode === "image"
       ? { backgroundImage: `url(${currentPreset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
-      : { background: currentPreset.bg };
+      : { background: currentPreset?.bg || COLOR_PRESETS[0].bg };
 
   return (
     <AnimatePresence>
@@ -215,11 +234,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
                 <div className="w-[82%] max-w-sm min-h-[450px] rounded-[32px] border border-zinc-200 p-8 flex flex-col justify-between" style={previewStyle}>
-                  <div className={currentPreset.mode === "image" ? "bg-black/25 -m-8 p-8 rounded-[32px] min-h-[450px] flex flex-col justify-between" : "min-h-[450px] flex flex-col justify-between"}>
-                    <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset.textColor, fontSize: 32 }}>
+                  <div
+                    className={currentPreset?.mode === "image" ? "-m-8 p-8 rounded-[32px] min-h-[450px] flex flex-col justify-between" : "min-h-[450px] flex flex-col justify-between"}
+                    style={currentPreset?.mode === "image" ? { background: `rgba(0,0,0,${imageOverlayOpacity})` } : undefined}
+                  >
+                    <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize }}>
                       {cleanContent}
                     </p>
-                    <p className="mt-6 text-center font-bold" style={{ color: currentPreset.subColor, fontSize: 18 }}>
+                    <p className="mt-6 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: Math.max(14, Math.round(fontSize * 0.56)) }}>
                       {title}
                     </p>
                   </div>
@@ -236,8 +258,36 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   </button>
                 </div>
 
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-500 mb-1">글자 크기: {fontSize}px</label>
+                  <input
+                    type="range"
+                    min={24}
+                    max={52}
+                    step={1}
+                    value={fontSize}
+                    onChange={(e) => setFontSize(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+
+                {mode === "image" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-500 mb-1">배경 이미지 투명도: {Math.round(imageOverlayOpacity * 100)}%</label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={0.65}
+                      step={0.01}
+                      value={imageOverlayOpacity}
+                      onChange={(e) => setImageOverlayOpacity(Number(e.target.value))}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+
                 <div className="grid grid-cols-4 gap-2">
-                  {(mode === "color" ? COLOR_PRESETS : IMAGE_PRESETS).map((preset) => (
+                  {(mode === "color" ? COLOR_PRESETS : imagePresets).map((preset) => (
                     <button
                       key={preset.id}
                       onClick={() => setSelectedId(preset.id)}

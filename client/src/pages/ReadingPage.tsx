@@ -1154,7 +1154,7 @@ const loadRangePages = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("???? ???? ????.");
+      setAudioSubtitle("Preparing audio...");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -1187,26 +1187,14 @@ const loadRangePages = async () => {
 
       setAudioSubtitle(
         verseRange
-          ? `${chapterData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?${cached ? " ? ??" : ""}`
-          : `${chapterData.bible_name} ${chapter}?${cached ? " ? ??" : ""}`
+          ? `${chapterData.bible_name} ${chapter} ${verseRange.start}-${verseRange.end}${cached ? " (cached)" : ""}`
+          : `${chapterData.bible_name} ${chapter}${cached ? " (cached)" : ""}`
       );
 
-      audio.onloadedmetadata = () => {
-        setDuration(audio.duration || metadata.durationMs / 1000);
-        audio.currentTime = startMs / 1000;
-      };
-
-      audio.ontimeupdate = () => {
-        const currentMs = Math.round(audio.currentTime * 1000);
-        setCurrentTime(audio.currentTime);
-        setCurrentVerseNumber(findCurrentVerse(metadata.verses, currentMs));
-        if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
-          audio.pause();
-          setIsPlaying(false);
-        }
-      };
-
-      audio.onended = async () => {
+      let endedHandled = false;
+      const finishCurrentChapter = async () => {
+        if (endedHandled) return;
+        endedHandled = true;
         setIsPlaying(false);
         if (continuous && chapterIdx < rangePages.length - 1) {
           await handleReadComplete(true, chapterData);
@@ -1229,6 +1217,25 @@ const loadRangePages = async () => {
         }
       };
 
+      audio.onloadedmetadata = () => {
+        setDuration(audio.duration || metadata.durationMs / 1000);
+        audio.currentTime = startMs / 1000;
+      };
+
+      audio.ontimeupdate = () => {
+        const currentMs = Math.round(audio.currentTime * 1000);
+        setCurrentTime(audio.currentTime);
+        setCurrentVerseNumber(findCurrentVerse(metadata.verses, currentMs));
+        if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
+          audio.pause();
+          void finishCurrentChapter();
+        }
+      };
+
+      audio.onended = async () => {
+        await finishCurrentChapter();
+      };
+
       await audio.play();
       setIsPlaying(true);
       setAudioLoading(false);
@@ -1236,7 +1243,7 @@ const loadRangePages = async () => {
       console.error("Reading audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("???? ???? ?????.");
+      setAudioSubtitle("Failed to load audio.");
     }
   };
 const togglePlay = () => {

@@ -860,7 +860,7 @@ const handleBookmark = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("???? ???? ????.");
+      setAudioSubtitle("Preparing audio...");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -890,7 +890,7 @@ const handleBookmark = async () => {
       if (verseRange && metadata.verses.length === 0) {
         const parsed = parseVerses(bibleData?.content || "");
         const totalVerses = parsed.length || verseRange.end;
-        const approxStartRatio = Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses));
+        const approxStartRatio = Math.min(1, Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses)));
         const approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
         startMs = Math.round((metadata.durationMs || 0) * approxStartRatio);
         endMs = Math.round((metadata.durationMs || 0) * approxEndRatio);
@@ -901,8 +901,8 @@ const handleBookmark = async () => {
 
       setAudioSubtitle(
         verseRange
-          ? `${bibleData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?${cached ? " ? ??" : ""}`
-          : `${bibleData.bible_name} ${chapter}?${cached ? " ? ??" : ""}`
+          ? `${bibleData.bible_name} ${chapter} ${verseRange.start}-${verseRange.end}${cached ? " (cached)" : ""}`
+          : `${bibleData.bible_name} ${chapter}${cached ? " (cached)" : ""}`
       );
 
       audio.onloadedmetadata = () => {
@@ -933,7 +933,7 @@ const handleBookmark = async () => {
       console.error("QT audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("???? ???? ?????.");
+      setAudioSubtitle("Failed to load audio.");
     }
   };
 const onDragEnd = (event: any, info: any) => {
