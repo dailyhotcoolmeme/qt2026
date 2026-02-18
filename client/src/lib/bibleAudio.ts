@@ -103,14 +103,17 @@ export async function loadChapterAudioMetadata(
     }
   } catch {}
 
-  try {
-    const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
-    if (res.ok) {
-      const payload = await res.json();
-      const normalized = normalizeMetadataPayload(payload);
-      if (normalized) return normalized;
-    }
-  } catch {}
+  const enableServerMetadataApi = String(import.meta.env.VITE_ENABLE_AUDIO_METADATA_API || "").toLowerCase() === "true";
+  if (enableServerMetadataApi) {
+    try {
+      const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
+      if (res.ok) {
+        const payload = await res.json();
+        const normalized = normalizeMetadataPayload(payload);
+        if (normalized) return normalized;
+      }
+    } catch {}
+  }
 
   const fallbackUrl = buildFallbackAudioUrl(bookId, chapter, testament);
   if (!fallbackUrl) return null;
@@ -136,5 +139,16 @@ export async function getCachedAudioObjectUrl(audioUrl: string): Promise<string>
   } catch {
     // Fall back to direct URL playback when Cache API fetch is blocked by CORS or browser policy.
     return audioUrl;
+  }
+}
+
+export async function isAudioCached(audioUrl: string): Promise<boolean> {
+  if (!("caches" in window)) return false;
+  try {
+    const cache = await caches.open(AUDIO_CACHE_NAME);
+    const found = await cache.match(new Request(audioUrl, { mode: "cors" }));
+    return Boolean(found);
+  } catch {
+    return false;
   }
 }

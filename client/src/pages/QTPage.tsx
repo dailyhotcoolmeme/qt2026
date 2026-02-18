@@ -13,6 +13,7 @@ import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import {
   findCurrentVerse,
   getCachedAudioObjectUrl,
+  isAudioCached,
   loadChapterAudioMetadata,
   parseVerseRange,
   parseVerses,
@@ -859,7 +860,7 @@ const handleBookmark = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("오디오를 준비하고 있습니다.");
+      setAudioSubtitle("???? ???? ????.");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -871,9 +872,10 @@ const handleBookmark = async () => {
       const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
       if (!metadata) throw new Error("audio metadata not found");
       audioMetaRef.current = metadata;
+      const cached = await isAudioCached(metadata.audioUrl);
 
       const audioUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
-      if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+      if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = audioUrl;
 
       const audio = new Audio(audioUrl);
@@ -883,17 +885,24 @@ const handleBookmark = async () => {
       const verseRange = parseVerseRange(bibleData?.verse);
       const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
       const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
-      const startMs = rangeStart?.start_ms ?? 0;
-      const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      let startMs = rangeStart?.start_ms ?? 0;
+      let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      if (verseRange && metadata.verses.length === 0) {
+        const parsed = parseVerses(bibleData?.content || "");
+        const totalVerses = parsed.length || verseRange.end;
+        const approxStartRatio = Math.max(0, (verseRange.start - 1) / Math.max(1, totalVerses));
+        const approxEndRatio = Math.min(1, verseRange.end / Math.max(1, totalVerses));
+        startMs = Math.round((metadata.durationMs || 0) * approxStartRatio);
+        endMs = Math.round((metadata.durationMs || 0) * approxEndRatio);
+      }
       audioEndMsRef.current = endMs > 0 ? endMs : null;
       audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
-      audioVerseEndRef.current =
-        verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
+      audioVerseEndRef.current = verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
 
       setAudioSubtitle(
         verseRange
-          ? `${bibleData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
-          : `${bibleData.bible_name} ${chapter}장`
+          ? `${bibleData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?${cached ? " ? ??" : ""}`
+          : `${bibleData.bible_name} ${chapter}?${cached ? " ? ??" : ""}`
       );
 
       audio.onloadedmetadata = () => {
@@ -904,10 +913,8 @@ const handleBookmark = async () => {
       audio.ontimeupdate = () => {
         const currentMs = Math.round(audio.currentTime * 1000);
         setAudioCurrentTime(audio.currentTime);
-
         const active = findCurrentVerse(metadata.verses, currentMs);
         setAudioCurrentVerse(active);
-
         if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
           audio.pause();
           setIsPlaying(false);
@@ -926,7 +933,7 @@ const handleBookmark = async () => {
       console.error("QT audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("오디오를 불러오지 못했습니다.");
+      setAudioSubtitle("???? ???? ?????.");
     }
   };
 const onDragEnd = (event: any, info: any) => {

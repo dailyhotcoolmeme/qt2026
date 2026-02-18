@@ -17,6 +17,7 @@ import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import {
   findCurrentVerse,
   getCachedAudioObjectUrl,
+  isAudioCached,
   loadChapterAudioMetadata,
   parseVerseRange,
   parseVerses,
@@ -1153,7 +1154,7 @@ const loadRangePages = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("오디오를 준비하고 있습니다.");
+      setAudioSubtitle("???? ???? ????.");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -1165,6 +1166,7 @@ const loadRangePages = async () => {
       const metadata = await loadChapterAudioMetadata(bookId, chapter, testament);
       if (!metadata) throw new Error("audio metadata not found");
       audioMetaRef.current = metadata;
+      const cached = await isAudioCached(metadata.audioUrl);
 
       const objectUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
       if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
@@ -1185,8 +1187,8 @@ const loadRangePages = async () => {
 
       setAudioSubtitle(
         verseRange
-          ? `${chapterData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
-          : `${chapterData.bible_name} ${chapter}장`
+          ? `${chapterData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?${cached ? " ? ??" : ""}`
+          : `${chapterData.bible_name} ${chapter}?${cached ? " ? ??" : ""}`
       );
 
       audio.onloadedmetadata = () => {
@@ -1219,6 +1221,11 @@ const loadRangePages = async () => {
             chapterIdx: nextIdx,
             skipSelector: true,
           });
+        } else if (continuous) {
+          await handleReadComplete(true, chapterData);
+          setShowAudioControl(false);
+          setCurrentTime(0);
+          setDuration(0);
         }
       };
 
@@ -1229,7 +1236,7 @@ const loadRangePages = async () => {
       console.error("Reading audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("오디오를 불러오지 못했습니다.");
+      setAudioSubtitle("???? ???? ?????.");
     }
   };
 const togglePlay = () => {
