@@ -226,8 +226,8 @@ export default function DailyWordPage() {
 
       <div className="mb-14 mt-3 flex items-center gap-8">
         <button onClick={handleOpenCardMaker} className="flex flex-col items-center gap-1.5 text-[#4A6741]">
-          <ImageIcon size={24} strokeWidth={2.2} />
-          <span className="font-extrabold" style={{ fontSize: `${fontSize * 0.82}px` }}>카드 생성</span>
+          <ImageIcon size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>카드 생성</span>
         </button>
         <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Copy size={22} strokeWidth={1.5} />

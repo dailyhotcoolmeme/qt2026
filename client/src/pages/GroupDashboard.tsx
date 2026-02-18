@@ -169,7 +169,7 @@ function formatDateTime(iso?: string | null) {
 }
 
 function toLabel(role: string) {
-  if (role === "owner") return "생성자";
+  if (role === "owner") return "관리자";
   if (role === "leader") return "리더";
   if (role === "member") return "멤버";
   return role;
@@ -1323,7 +1323,7 @@ export default function GroupDashboard() {
   const addPost = async () => {
     if (!group || !user || !postContent.trim()) return;
     if (postType === "notice" && !isManager) {
-      alert("공지 작성은 리더/생성자만 가능합니다.");
+      alert("공지 작성은 리더/관리자만 가능합니다.");
       return;
     }
 
@@ -1453,12 +1453,21 @@ export default function GroupDashboard() {
   const resolveJoinRequest = async (requestId: string, approve: boolean) => {
     if (!group || !isManager || !user) return;
 
-    const { error } = await supabase.rpc("resolve_group_join_request", {
+    let { error } = await supabase.rpc("resolve_group_join_request", {
       p_request_id: requestId,
       p_approve: approve,
     });
+    // Fallback for environments where RPC parameter names differ.
+    if (error) {
+      const retry = await supabase.rpc("resolve_group_join_request", {
+        request_id: requestId,
+        approve,
+      } as any);
+      error = retry.error;
+    }
 
     if (error) {
+      console.error("resolve_join_request failed:", error);
       alert("요청 처리에 실패했습니다.");
       return;
     }
@@ -1579,7 +1588,7 @@ export default function GroupDashboard() {
   const closeGroup = async () => {
     if (!group || !user) return;
     if (role !== "owner") {
-      alert("모임 삭제는 생성자만 가능합니다.");
+      alert("모임 삭제는 관리자만 가능합니다.");
       return;
     }
     if (!confirm("모임을 완전히 삭제할까요? 모든 기록이 삭제되며 복구할 수 없습니다.")) return;
@@ -1605,7 +1614,7 @@ export default function GroupDashboard() {
   const leaveGroup = async () => {
     if (!group || !user) return;
     if (role === "owner") {
-      alert("생성자는 모임을 나갈 수 없습니다. 먼저 소유권을 이전하세요.");
+      alert("관리자는 모임을 나갈 수 없습니다. 먼저 소유권을 이전하세요.");
       return;
     }
     if (!confirm("모임에서 나가시겠습니까?")) return;
@@ -1728,7 +1737,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-16 pb-14 min-h-[240px] flex flex-col justify-between">
+        <div className="max-w-2xl mx-auto px-4 pt-24 pb-14 min-h-[260px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -1936,7 +1945,7 @@ export default function GroupDashboard() {
               </div>
               {faithItemSlots.some((slot) => !slot.item) && (
                 <div className="py-3 text-base text-zinc-500">
-                  일부 항목이 아직 설정되지 않았습니다. 생성자/리더가 관리 메뉴에서 항목을 준비해주세요.
+                  일부 항목이 아직 설정되지 않았습니다. 관리자/리더가 관리 메뉴에서 항목을 준비해주세요.
                 </div>
               )}
             </section>
@@ -2328,7 +2337,7 @@ export default function GroupDashboard() {
                 disabled={closingGroup || role !== "owner"}
                 className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-base disabled:opacity-60"
               >
-                {closingGroup ? "삭제 중..." : role !== "owner" ? "생성자만 삭제 가능" : "모임 삭제하기"}
+                {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 삭제하기"}
               </button>
             </section>
           </motion.div>
@@ -2730,7 +2739,6 @@ export default function GroupDashboard() {
     </div>
   );
 }
-
 
 
 

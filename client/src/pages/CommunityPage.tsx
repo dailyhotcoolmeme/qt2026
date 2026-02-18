@@ -23,7 +23,28 @@ type JoinedGroup = {
   role: MemberRole;
 };
 
+type SlugCheckState = "idle" | "checking" | "available" | "taken";
+
 const LAST_GROUP_KEY = "last_group_id";
+
+function sanitizeFileName(name: string) {
+  return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      try {
+        resolve(String(reader.result || "").split(",")[1] || "");
+      } catch (error) {
+        reject(error);
+      }
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function CommunityPage() {
   const [, setLocation] = useLocation();
@@ -33,20 +54,25 @@ export default function CommunityPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [hasLeadershipScope, setHasLeadershipScope] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const [joinedGroups, setJoinedGroups] = useState<JoinedGroup[]>([]);
-  const [searchKeyword, setSearchKeyword] = useState("");
   const [groupSearchKeyword, setGroupSearchKeyword] = useState("");
   const [groupSearchResults, setGroupSearchResults] = useState<GroupRow[]>([]);
   const [groupSearchLoading, setGroupSearchLoading] = useState(false);
+  const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
 
   const [createForm, setCreateForm] = useState({
     name: "",
     slug: "",
     password: "",
     description: "",
-    groupType: "etc",
+    groupType: "church",
+    customGroupType: "",
   });
+  const [slugCheckState, setSlugCheckState] = useState<SlugCheckState>("idle");
+  const [groupImageFile, setGroupImageFile] = useState<File | null>(null);
+  const [groupImagePreview, setGroupImagePreview] = useState<string>("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
@@ -61,6 +87,7 @@ export default function CommunityPage() {
       setJoinedGroups([]);
       setLoading(false);
       setGroupSearchResults([]);
+      setMemberCounts({});
       return;
     }
     void initialize(user.id);
@@ -68,28 +95,35 @@ export default function CommunityPage() {
 
   const initialize = async (userId: string) => {
     setLoading(true);
-    await Promise.all([
-      loadJoinedGroups(userId),
-      loadLeadershipScope(userId),
-    ]);
+    await Promise.all([loadJoinedGroups(userId), loadLeadershipScope(userId)]);
     setLoading(false);
-
-    // 자동 재진입을 막고 항상 모임 목록 화면을 우선 노출한다.
-    // 마지막 입장 모임 캐시는 "모임 열기" 동작 시에만 사용한다.
   };
 
   const loadLeadershipScope = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("group_scope_leaders")
-      .select("id")
-      .eq("user_id", userId)
-      .limit(1);
-
+    const { data, error } = await supabase.from("group_scope_leaders").select("id").eq("user_id", userId).limit(1);
     if (error) {
       setHasLeadershipScope(false);
       return;
     }
     setHasLeadershipScope((data?.length ?? 0) > 0);
+  };
+
+  const loadMemberCountsForGroupIds = async (groupIds: string[]) => {
+    if (groupIds.length === 0) return;
+    const uniqueGroupIds = Array.from(new Set(groupIds));
+    const { data, error } = await supabase.from("group_members").select("group_id").in("group_id", uniqueGroupIds);
+    if (error) return;
+
+    const nextCounts: Record<string, number> = {};
+    uniqueGroupIds.forEach((id) => {
+      nextCounts[id] = 0;
+    });
+    (data ?? []).forEach((row: any) => {
+      const key = String(row.group_id);
+      nextCounts[key] = (nextCounts[key] ?? 0) + 1;
+    });
+
+    setMemberCounts((prev) => ({ ...prev, ...nextCounts }));
   };
 
   const loadJoinedGroups = async (userId: string): Promise<JoinedGroup[]> => {
@@ -115,6 +149,7 @@ export default function CommunityPage() {
       .filter(Boolean) as JoinedGroup[];
 
     setJoinedGroups(mapped);
+    await loadMemberCountsForGroupIds(mapped.map((item) => item.group.id));
     return mapped;
   };
 
@@ -126,15 +161,13 @@ export default function CommunityPage() {
     }
 
     setGroupSearchLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from("groups")
       .select("id, name, description, group_image, group_slug, owner_id, group_type, created_at")
+      .or(`name.ilike.%${trimmed}%,group_slug.ilike.%${trimmed}%`)
       .order("created_at", { ascending: false })
       .limit(60);
 
-    query = query.or(`name.ilike.%${trimmed}%,group_slug.ilike.%${trimmed}%`);
-
-    const { data, error } = await query;
     setGroupSearchLoading(false);
     if (error) {
       console.error("Failed to search groups:", error);
@@ -142,7 +175,9 @@ export default function CommunityPage() {
       return;
     }
 
-    setGroupSearchResults((data ?? []) as GroupRow[]);
+    const rows = (data ?? []) as GroupRow[];
+    setGroupSearchResults(rows);
+    await loadMemberCountsForGroupIds(rows.map((row) => row.id));
   };
 
   const membershipMap = useMemo(() => {
@@ -151,15 +186,41 @@ export default function CommunityPage() {
     return map;
   }, [joinedGroups]);
 
-  const filteredJoinedGroups = useMemo(() => {
-    const keyword = searchKeyword.trim().toLowerCase();
-    if (!keyword) return joinedGroups;
-    return joinedGroups.filter((item) => {
-      const name = item.group.name?.toLowerCase() ?? "";
-      const slug = item.group.group_slug?.toLowerCase() ?? "";
-      return name.includes(keyword) || slug.includes(keyword);
+  const uploadGroupImageIfNeeded = async (): Promise<string | null> => {
+    if (!groupImageFile || !user?.id) return null;
+
+    const safeName = sanitizeFileName(groupImageFile.name || "group.jpg");
+    const fileName = `images/group/${user.id}/${Date.now()}_${safeName}`;
+    const fileBase64 = await fileToBase64(groupImageFile);
+
+    const response = await fetch("/api/file/upload", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileName, fileBase64, contentType: groupImageFile.type || "image/jpeg" }),
     });
-  }, [joinedGroups, searchKeyword]);
+
+    if (!response.ok) throw new Error("failed to upload group image");
+    const data = await response.json();
+    if (!data?.success || !data?.publicUrl) throw new Error(data?.error || "failed to upload group image");
+    return data.publicUrl as string;
+  };
+
+  const checkSlugDuplicate = async () => {
+    const slug = createForm.slug.trim().toLowerCase();
+    if (!slug) {
+      setSlugCheckState("idle");
+      return;
+    }
+
+    setSlugCheckState("checking");
+    const { data, error } = await supabase.from("groups").select("id").eq("group_slug", slug).maybeSingle();
+    if (error) {
+      setSlugCheckState("idle");
+      alert("중복 확인에 실패했습니다.");
+      return;
+    }
+    setSlugCheckState(data ? "taken" : "available");
+  };
 
   const handleCreateGroup = async () => {
     if (!user) {
@@ -171,12 +232,26 @@ export default function CommunityPage() {
     const slug = createForm.slug.trim().toLowerCase();
     const password = createForm.password.trim();
     const description = createForm.description.trim();
-    const groupType = createForm.groupType;
 
     if (!name || !slug) {
-      alert("모임 이름과 모임 코드를 입력해주세요.");
+      alert("모임 이름과 모임 아이디를 입력해주세요.");
       return;
     }
+
+    if (slugCheckState !== "available") {
+      alert("모임 아이디 중복 확인을 완료해주세요.");
+      return;
+    }
+
+    if (createForm.groupType === "other" && !createForm.customGroupType.trim()) {
+      alert("기타 모임명을 입력해주세요.");
+      return;
+    }
+
+    const finalGroupType =
+      createForm.groupType === "other"
+        ? `other:${createForm.customGroupType.trim()}`
+        : createForm.groupType;
 
     setSaving(true);
     try {
@@ -191,9 +266,12 @@ export default function CommunityPage() {
       }
 
       if (slugDup) {
-        alert("이미 사용 중인 모임 코드입니다.");
+        alert("이미 사용 중인 모임 아이디입니다.");
+        setSlugCheckState("taken");
         return;
       }
+
+      const groupImageUrl = await uploadGroupImageIfNeeded();
 
       let { data: created, error: createError } = await supabase
         .from("groups")
@@ -204,12 +282,13 @@ export default function CommunityPage() {
           description: description || null,
           owner_id: user.id,
           is_open: false,
-          group_type: groupType,
+          group_type: finalGroupType,
+          group_image: groupImageUrl,
         })
         .select("id")
         .single();
 
-      if (createError && createError.code === "42703") {
+      if (createError && (createError.code === "42703" || createError.code === "PGRST204")) {
         const fallback = await supabase
           .from("groups")
           .insert({
@@ -238,8 +317,11 @@ export default function CommunityPage() {
 
       localStorage.setItem(LAST_GROUP_KEY, created.id);
       setShowCreateModal(false);
-      setCreateForm({ name: "", slug: "", password: "", description: "", groupType: "etc" });
-      await Promise.all([loadJoinedGroups(user.id)]);
+      setCreateForm({ name: "", slug: "", password: "", description: "", groupType: "church", customGroupType: "" });
+      setSlugCheckState("idle");
+      setGroupImageFile(null);
+      setGroupImagePreview("");
+      await loadJoinedGroups(user.id);
       setLocation(`/group/${created.id}`);
     } catch (error) {
       console.error("create group error:", error);
@@ -262,26 +344,31 @@ export default function CommunityPage() {
         : "모임원"
       : "비가입";
 
+    const count = memberCounts[row.id] ?? 0;
+
     return (
-      <button
-        onClick={() => openGroup(row.id)}
-        className="w-full bg-white border border-[#F5F6F7] p-4 flex items-center gap-3 text-left"
-      >
-        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400">
-          {row.group_image ? <img src={row.group_image} className="w-full h-full object-cover" /> : <Users size={22} />}
+      <div className="w-full bg-white border border-[#F5F6F7] p-4 flex items-center gap-3">
+        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
+          {row.group_image ? <img src={row.group_image} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-600 text-base font-bold">{roleText}</span>
+            <span className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[11px] font-semibold rounded-sm">{roleText}</span>
           </div>
-          <div className="text-base text-zinc-500 truncate mt-1">코드: {row.group_slug ?? "-"}</div>
-          {row.description && <div className="text-base text-zinc-500 truncate mt-1">{row.description}</div>}
+          <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
+          <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
         </div>
 
-        <ChevronRight size={18} className="text-zinc-300" />
-      </button>
+        <button
+          onClick={() => openGroup(row.id)}
+          className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
+          aria-label="입장"
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
     );
   };
 
@@ -314,36 +401,65 @@ export default function CommunityPage() {
         {user && loading && <div className="text-center text-base text-zinc-500 py-8">불러오는 중...</div>}
 
         {user && !loading && (
-          <>
-            <section className="space-y-3">
-              <div className="flex items-center gap-2">
-                <div className="flex-1 relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-                  <input
-                    value={searchKeyword}
-                    onChange={(e) => setSearchKeyword(e.target.value)}
-                    placeholder="가입한 모임 검색 (모임명/모임 아이디)"
-                    className="w-full pl-10 pr-3 py-3 bg-white border border-zinc-200 text-base"
-                  />
-                </div>
+          <section className="space-y-3">
+            {joinedGroups.length === 0 ? (
+              <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
+                <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {joinedGroups.map((item) => (
+                  <GroupCard key={item.group.id} row={item.group} />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </div>
+
+      {user && (
+        <>
+          <button
+            onClick={() => setShowSearchModal(true)}
+            className="fixed right-6 bottom-[8.5rem] z-[120] w-14 h-14 rounded-full bg-zinc-900 text-white shadow-2xl flex items-center justify-center"
+            aria-label="모임 검색"
+          >
+            <Search size={22} />
+          </button>
+
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
+            aria-label="모임 생성"
+          >
+            <Plus size={24} />
+          </button>
+        </>
+      )}
+
+      <AnimatePresence>
+        {showSearchModal && (
+          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSearchModal(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative w-full max-w-xl bg-white border border-zinc-200 p-5 text-base"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-black text-zinc-900">모임 검색</h3>
+                <button onClick={() => setShowSearchModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">
+                  <X size={14} />
+                </button>
               </div>
 
-              {joinedGroups.length === 0 ? (
-                <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
-                  <p className="text-base font-bold">가입한 모임이 없습니다. 모임을 검색해 가입하거나 신규 모임을 생성해주세요.</p>
-                </div>
-              ) : filteredJoinedGroups.length === 0 ? (
-                <div className="bg-white border border-[#F5F6F7] px-4 py-4 text-base text-zinc-500">검색 결과가 없습니다.</div>
-              ) : (
-                <div className="space-y-2">
-                  {filteredJoinedGroups.map((item) => (
-                    <GroupCard key={item.group.id} row={item.group} />
-                  ))}
-                </div>
-              )}
-            </section>
-
-            <section className="space-y-3 pt-2 border-t border-zinc-200">
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -353,42 +469,27 @@ export default function CommunityPage() {
                     onKeyDown={(e) => {
                       if (e.key === "Enter") void searchGroups(groupSearchKeyword);
                     }}
-                    placeholder="모임 검색하기 (모임 이름/모임 아이디)"
-                    className="w-full pl-10 pr-3 py-3 bg-white border border-zinc-200 text-base"
+                    placeholder="모임 이름/모임 아이디 검색"
+                    className="w-full pl-10 pr-3 py-3 bg-zinc-50 border border-zinc-200 text-base"
                   />
                 </div>
-                <button
-                  onClick={() => searchGroups(groupSearchKeyword)}
-                  className="px-4 py-3 bg-[#4A6741] text-white text-base font-bold"
-                >
+                <button onClick={() => searchGroups(groupSearchKeyword)} className="px-4 py-3 bg-[#4A6741] text-white text-base font-bold">
                   검색
                 </button>
               </div>
-              {groupSearchLoading ? (
-                <div className="text-base text-zinc-500 py-2">검색 중...</div>
-              ) : (
-                groupSearchResults.length > 0 && (
-                  <div className="space-y-2">
-                    {groupSearchResults.map((group) => (
-                      <GroupCard key={`search-${group.id}`} row={group} />
-                    ))}
-                  </div>
-                )
-              )}
-            </section>
-          </>
-        )}
-      </div>
 
-      {user && (
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
-          aria-label="모임 생성"
-        >
-          <Plus size={24} />
-        </button>
-      )}
+              <div className="mt-3 space-y-2 max-h-[44vh] overflow-y-auto">
+                {groupSearchLoading && <div className="text-base text-zinc-500 py-2">검색 중...</div>}
+                {!groupSearchLoading && groupSearchResults.length === 0 && groupSearchKeyword.trim() && (
+                  <div className="text-base text-zinc-500 py-2">검색 결과가 없습니다.</div>
+                )}
+                {!groupSearchLoading &&
+                  groupSearchResults.map((group) => <GroupCard key={`search-${group.id}`} row={group} />)}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showCreateModal && (
@@ -404,14 +505,11 @@ export default function CommunityPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-xl bg-white border border-zinc-200 p-5 text-base"
+              className="relative w-full max-w-xl bg-white border border-zinc-200 p-5 text-base max-h-[88vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 생성</h3>
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
-                >
+                <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">
                   <X size={14} />
                 </button>
               </div>
@@ -423,12 +521,28 @@ export default function CommunityPage() {
                   value={createForm.name}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
                 />
-                <input
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
-                  placeholder="모임 아이디"
-                  value={createForm.slug}
-                  onChange={(e) => setCreateForm((prev) => ({ ...prev, slug: e.target.value }))}
-                />
+
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                    placeholder="모임 아이디"
+                    value={createForm.slug}
+                    onChange={(e) => {
+                      setCreateForm((prev) => ({ ...prev, slug: e.target.value }));
+                      setSlugCheckState("idle");
+                    }}
+                  />
+                  <button
+                    onClick={checkSlugDuplicate}
+                    className="px-3 py-2 bg-zinc-900 text-white text-sm font-bold"
+                    type="button"
+                  >
+                    {slugCheckState === "checking" ? "확인중" : "중복확인"}
+                  </button>
+                </div>
+                {slugCheckState === "available" && <p className="text-sm text-emerald-600">사용 가능한 모임 아이디입니다.</p>}
+                {slugCheckState === "taken" && <p className="text-sm text-red-500">이미 사용 중인 모임 아이디입니다.</p>}
+
                 <input
                   className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
                   placeholder="모임 비밀번호 (선택)"
@@ -436,16 +550,48 @@ export default function CommunityPage() {
                   value={createForm.password}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, password: e.target.value }))}
                 />
+
                 <select
                   className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
                   value={createForm.groupType}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, groupType: e.target.value }))}
                 >
                   <option value="church">교회 모임</option>
-                  <option value="work_school">학교,직장 모임</option>
+                  <option value="school">학교 모임</option>
+                  <option value="work">직장 모임</option>
                   <option value="family">가족 모임</option>
-                  <option value="etc">기타 모임</option>
+                  <option value="other">기타 모임</option>
                 </select>
+
+                {createForm.groupType === "other" && (
+                  <input
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                    placeholder="기타 모임명 입력"
+                    value={createForm.customGroupType}
+                    onChange={(e) => setCreateForm((prev) => ({ ...prev, customGroupType: e.target.value }))}
+                  />
+                )}
+
+                <div className="rounded-sm border border-zinc-200 bg-zinc-50 p-3 space-y-2">
+                  <label className="text-sm font-semibold text-zinc-600">모임 대표이미지</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      setGroupImageFile(file);
+                      if (file) setGroupImagePreview(URL.createObjectURL(file));
+                      else setGroupImagePreview("");
+                    }}
+                    className="w-full text-sm"
+                  />
+                  {groupImagePreview && (
+                    <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
+                      <img src={groupImagePreview} className="w-full h-28 object-cover" alt="group-preview" />
+                    </div>
+                  )}
+                </div>
+
                 <textarea
                   className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base min-h-[96px]"
                   placeholder="모임 소개"
@@ -466,12 +612,7 @@ export default function CommunityPage() {
         )}
       </AnimatePresence>
 
-      <LoginModal
-        open={showLoginModal}
-        onOpenChange={setShowLoginModal}
-        returnTo={`${window.location.origin}/#/community`}
-      />
+      <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} returnTo={`${window.location.origin}/#/community`} />
     </div>
   );
 }
-
