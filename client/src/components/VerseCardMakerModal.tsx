@@ -99,18 +99,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     return pool.find((v) => v.id === selectedId) || pool[0];
   }, [mode, selectedId, imagePresets]);
 
-  const effectiveTextColor =
-    currentPreset?.mode === "image"
-      ? imageOpacity <= 0.62
-        ? "#1f2937"
-        : "#ffffff"
-      : currentPreset?.textColor || "#3f3f46";
-  const effectiveSubColor =
-    currentPreset?.mode === "image"
-      ? imageOpacity <= 0.62
-        ? "#334155"
-        : "#f4f4f5"
-      : currentPreset?.subColor || "#52525b";
+  const effectiveTextColor = currentPreset?.mode === "image" ? "#ffffff" : currentPreset?.textColor || "#3f3f46";
+  const effectiveSubColor = currentPreset?.mode === "image" ? "#f8fafc" : currentPreset?.subColor || "#52525b";
+  const renderBodyFontPx = Math.max(20, Math.round(fontSize * previewScale));
+  const renderRefFontPx = Math.max(16, Math.round(renderBodyFontPx * 0.8));
 
   useEffect(() => {
     if (!open) return;
@@ -158,7 +150,13 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const x = 450;
     ctx.fillStyle = effectiveTextColor;
     ctx.textAlign = "center";
-    ctx.font = `bold ${Math.round(fontSize * 1.44)}px serif`;
+    ctx.font = `bold ${renderBodyFontPx}px serif`;
+    if (currentPreset.mode === "image") {
+      ctx.shadowColor = "rgba(0,0,0,0.45)";
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 1;
+    }
 
     const maxWidth = 700;
     const chunks = cleanContent.split("\n");
@@ -179,7 +177,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       if (idx < chunks.length - 1) allLines.push("");
     });
 
-    const lineHeight = Math.max(44, Math.round(fontSize * 2.06));
+    const lineHeight = Math.max(34, Math.round(renderBodyFontPx * 1.48));
     const blockHeight = allLines.length * lineHeight;
     let y = Math.max(190, Math.floor((canvas.height - (blockHeight + 64)) / 2));
     allLines.forEach((line) => {
@@ -192,9 +190,13 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     });
 
     ctx.fillStyle = effectiveSubColor;
-    ctx.font = `bold ${Math.round(fontSize * 0.78)}px serif`;
+    ctx.font = `bold ${renderRefFontPx}px serif`;
     const titleY = Math.min(canvas.height - 80, y + Math.max(24, Math.round(fontSize * 0.8)));
     ctx.fillText(title, x, titleY);
+    ctx.shadowColor = "transparent";
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     return canvas;
   };
 
@@ -254,8 +256,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       ? { background: "#ffffff" }
       : { background: currentPreset?.bg || COLOR_PRESETS[0].bg };
   const previewWidthPx = Math.round(260 * previewScale);
-  const previewBodyFontPx = Math.max(12, Math.round(fontSize * previewScale));
-  const previewRefFontPx = Math.max(11, Math.round(fontSize * 0.52 * previewScale));
+  const previewBodyFontPx = renderBodyFontPx;
+  const previewRefFontPx = renderRefFontPx;
 
   return (
     <AnimatePresence>
@@ -289,10 +291,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   ) : null}
                   <div className="relative h-full flex flex-col">
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx }}>
+                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx, textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
                         {cleanContent}
                       </p>
-                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx }}>
+                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx, textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
                         {title}
                       </p>
                     </div>

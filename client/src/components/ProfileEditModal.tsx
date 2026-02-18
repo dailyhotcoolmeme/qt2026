@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { X, Camera, Check, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -9,15 +9,16 @@ interface ProfileEditModalProps {
   onClose: () => void;
 }
 
+type CheckState = "idle" | "checking" | "available" | "taken";
+
 export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const { fontSize } = useDisplaySettings();
   const { user } = useAuth();
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
-  
-  // Form fields
+
   const [formData, setFormData] = useState({
     avatar_url: "",
     username: "",
@@ -28,48 +29,43 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     church: "",
     rank: "",
   });
-  
+
   const [passwords, setPasswords] = useState({
     newPassword: "",
     confirmPassword: "",
   });
-  
-  // Validation states
-  const [usernameCheck, setUsernameCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
-  const [emailCheck, setEmailCheck] = useState<"idle" | "checking" | "available" | "taken">("idle");
-  const [passwordMatch, setPasswordMatch] = useState(true);
 
-  // Load user data
+  const [usernameCheck, setUsernameCheck] = useState<CheckState>("idle");
+  const [emailCheck, setEmailCheck] = useState<CheckState>("idle");
+  const [nicknameCheck, setNicknameCheck] = useState<CheckState>("idle");
+
+  const passwordMatch =
+    !passwords.newPassword || passwords.newPassword === passwords.confirmPassword;
+
   useEffect(() => {
-    if (user) {
-      setFormData({
-        avatar_url: user.avatar_url || "",
-        username: user.username || "",
-        email: "",
-        nickname: user.nickname || "",
-        full_name: "",
-        phone: "",
-        church: user.church || "",
-        rank: user.rank || "",
-      });
-      setAvatarPreview(user.avatar_url);
-      
-      // Load additional profile data
-      loadProfileData();
-    }
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      avatar_url: user.avatar_url || "",
+      username: user.username || "",
+      nickname: user.nickname || "",
+      church: user.church || "",
+      rank: user.rank || "",
+    }));
+    setAvatarPreview(user.avatar_url || null);
+    loadProfileData();
   }, [user]);
 
   const loadProfileData = async () => {
     if (!user?.id) return;
-    
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("profiles")
-      .select("email, full_name, phone")
+      .select("email,full_name,phone")
       .eq("id", user.id)
       .single();
-    
+
     if (data) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         email: data.email || "",
         full_name: data.full_name || "",
@@ -78,115 +74,98 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     }
   };
 
-  // Handle avatar file selection
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setAvatarFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarPreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => setAvatarPreview(reader.result as string);
+    reader.readAsDataURL(file);
   };
 
-  // Upload avatar to Supabase Storage
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !user?.id) return null;
-    
-    const fileExt = avatarFile.name.split('.').pop();
-    const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-    const filePath = fileName;
+    const ext = avatarFile.name.split(".").pop() || "jpg";
+    const fileName = `${user.id}-${Date.now()}.${ext}`;
 
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(filePath, avatarFile, { upsert: true });
+    const { error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
+    if (error) return null;
 
-    if (uploadError) {
-      console.error("Avatar upload error:", uploadError);
-      return null;
-    }
-
-    const { data } = supabase.storage
-      .from('avatars')
-      .getPublicUrl(filePath);
-
+    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
     return data.publicUrl;
   };
 
-  // Check username availability
-  const checkUsername = async (username: string) => {
-    if (!username || username === user?.username) {
-      setUsernameCheck("idle");
+  const checkDuplicate = async (
+    field: "username" | "email" | "nickname",
+    value: string,
+    setter: React.Dispatch<React.SetStateAction<CheckState>>
+  ) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) {
+      setter("idle");
       return;
     }
-    
-    setUsernameCheck("checking");
-    
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("username")
-      .eq("username", username)
-      .maybeSingle();
-    
-    setUsernameCheck(data ? "taken" : "available");
-  };
 
-  // Check email availability
-  const checkEmail = async (email: string) => {
-    if (!email) {
-      setEmailCheck("idle");
+    if (
+      (field === "username" && normalized === (user?.username || "")) ||
+      (field === "nickname" && normalized === (user?.nickname || ""))
+    ) {
+      setter("available");
       return;
     }
-    
-    setEmailCheck("checking");
-    
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("email", email)
-      .maybeSingle();
-    
-    setEmailCheck(data ? "taken" : "available");
+
+    setter("checking");
+    const { data } = await supabase.from("profiles").select("id").eq(field, normalized).maybeSingle();
+    if (!data || data.id === user?.id) setter("available");
+    else setter("taken");
   };
 
-  // Handle password match check
-  useEffect(() => {
-    if (passwords.newPassword || passwords.confirmPassword) {
-      setPasswordMatch(passwords.newPassword === passwords.confirmPassword);
-    } else {
-      setPasswordMatch(true);
-    }
-  }, [passwords.newPassword, passwords.confirmPassword]);
+  const statusText = (state: CheckState) => {
+    if (state === "available") return "확인완료";
+    if (state === "taken") return "사용중";
+    if (state === "checking") return "확인중";
+    return "중복확인";
+  };
 
-  // Handle form submission
+  const statusClass = (state: CheckState) => {
+    if (state === "available") return "bg-emerald-100 text-emerald-700";
+    if (state === "taken") return "bg-red-100 text-red-600";
+    return "bg-zinc-100 text-zinc-600";
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!user?.id) return;
-    if (usernameCheck === "taken" || emailCheck === "taken") {
-      alert("아이디 또는 이메일이 이미 사용 중입니다.");
+
+    if (!formData.username || usernameCheck !== "available") {
+      alert("아이디 중복확인을 완료해 주세요.");
+      return;
+    }
+    if (formData.email && emailCheck !== "available") {
+      alert("이메일 중복확인을 완료해 주세요.");
+      return;
+    }
+    if (!formData.nickname || nicknameCheck !== "available") {
+      alert("닉네임 중복확인을 완료해 주세요.");
+      return;
+    }
+    if (passwords.newPassword && !passwords.confirmPassword) {
+      alert("비밀번호 확인을 입력해 주세요.");
       return;
     }
     if (!passwordMatch) {
       alert("비밀번호가 일치하지 않습니다.");
       return;
     }
-    
+
     setIsLoading(true);
-    
     try {
-      // Upload avatar if changed
       let avatarUrl = formData.avatar_url;
       if (avatarFile) {
-        const uploadedUrl = await uploadAvatar();
-        if (uploadedUrl) {
-          avatarUrl = uploadedUrl;
-        }
+        const uploaded = await uploadAvatar();
+        if (uploaded) avatarUrl = uploaded;
       }
-      
-      // Update profile
+
       const { error: profileError } = await supabase
         .from("profiles")
         .update({
@@ -200,22 +179,18 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
           avatar_url: avatarUrl,
         })
         .eq("id", user.id);
-      
+
       if (profileError) throw profileError;
-      
-      // Update password if provided
+
       if (passwords.newPassword) {
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: passwords.newPassword,
-        });
-        
-        if (passwordError) throw passwordError;
+        const { error: pwError } = await supabase.auth.updateUser({ password: passwords.newPassword });
+        if (pwError) throw pwError;
       }
-      
-      alert("프로필이 성공적으로 업데이트되었습니다.");
-      window.location.reload(); // Refresh to load new data
+
+      alert("프로필이 업데이트되었습니다.");
+      window.location.reload();
     } catch (error) {
-      console.error("Profile update error:", error);
+      console.error(error);
       alert("프로필 업데이트 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
@@ -226,33 +201,21 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/40 z-[300] backdrop-blur-[2px]" onClick={onClose} />
-      
-      {/* Modal */}
       <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-          {/* Header */}
           <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-            <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>
-              프로필 관리
-            </h2>
+            <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>프로필 관리</h2>
             <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded-full transition-colors">
               <X className="w-6 h-6 text-zinc-400" />
             </button>
           </div>
-          
-          {/* Form */}
+
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {/* Avatar */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 {avatarPreview ? (
-                  <img 
-                    src={avatarPreview} 
-                    alt="Profile" 
-                    className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100"
-                  />
+                  <img src={avatarPreview} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100" />
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-zinc-100 flex items-center justify-center border-4 border-zinc-50">
                     <Camera className="w-10 h-10 text-zinc-300" />
@@ -260,200 +223,118 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
                 )}
                 <label className="absolute bottom-0 right-0 bg-[#4A6741] p-2 rounded-full cursor-pointer hover:bg-[#3d5636] transition-colors shadow-lg">
                   <Camera className="w-4 h-4 text-white" />
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={handleAvatarChange}
-                    className="hidden"
-                  />
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
                 </label>
               </div>
-              <p className="text-zinc-400" style={{ fontSize: `${fontSize - 4}px` }}>
-                사진 변경하기
-              </p>
             </div>
-            
-            {/* Username */}
-            <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                아이디
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.username}
-                  onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                  onBlur={(e) => checkUsername(e.target.value)}
-                  className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
-                  style={{ fontSize: `${fontSize}px` }}
-                />
-                {usernameCheck === "checking" && (
-                  <Loader2 className="absolute right-3 top-3.5 w-5 h-5 text-zinc-400 animate-spin" />
-                )}
-                {usernameCheck === "available" && (
-                  <Check className="absolute right-3 top-3.5 w-5 h-5 text-green-500" />
-                )}
-                {usernameCheck === "taken" && (
-                  <span className="absolute right-3 top-3.5 text-red-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                    사용 중
-                  </span>
-                )}
+
+            {[
+              { label: "아이디", key: "username" as const, check: usernameCheck, setCheck: setUsernameCheck, type: "text" },
+              { label: "이메일", key: "email" as const, check: emailCheck, setCheck: setEmailCheck, type: "email" },
+              { label: "닉네임", key: "nickname" as const, check: nicknameCheck, setCheck: setNicknameCheck, type: "text" },
+            ].map((f) => (
+              <div key={f.key}>
+                <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>{f.label}</label>
+                <div className="flex gap-2">
+                  <input
+                    type={f.type}
+                    value={formData[f.key]}
+                    onChange={(e) => {
+                      setFormData({ ...formData, [f.key]: e.target.value });
+                      f.setCheck("idle");
+                    }}
+                    className="flex-1 px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                    style={{ fontSize: `${fontSize}px` }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => checkDuplicate(f.key, formData[f.key], f.setCheck)}
+                    className={`px-3 rounded-xl text-xs font-bold ${statusClass(f.check)}`}
+                  >
+                    {f.check === "checking" ? <Loader2 className="w-4 h-4 animate-spin" /> : statusText(f.check)}
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            {/* Password */}
+            ))}
+
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                새 비밀번호
-              </label>
+              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>새 비밀번호</label>
               <input
                 type="password"
                 value={passwords.newPassword}
                 onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                placeholder="변경하지 않으려면 비워두세요"
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
+                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
-            
-            {/* Confirm Password */}
+
             {passwords.newPassword && (
               <div>
-                <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                  비밀번호 확인
-                </label>
+                <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>비밀번호 확인</label>
                 <input
                   type="password"
                   value={passwords.confirmPassword}
                   onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
                   className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                    passwordMatch 
-                      ? 'border-zinc-200 focus:ring-[#4A6741]' 
-                      : 'border-red-300 focus:ring-red-500'
+                    passwordMatch ? "border-zinc-200 focus:ring-[#4A6741]" : "border-red-300 focus:ring-red-500"
                   }`}
                   style={{ fontSize: `${fontSize}px` }}
                 />
-                {!passwordMatch && (
-                  <p className="text-red-500 mt-1" style={{ fontSize: `${fontSize - 4}px` }}>
-                    비밀번호가 일치하지 않습니다
-                  </p>
-                )}
+                {!passwordMatch && <p className="text-red-500 mt-1 text-xs">비밀번호가 일치하지 않습니다.</p>}
               </div>
             )}
-            
-            {/* Email */}
+
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                이메일 주소
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  onBlur={(e) => checkEmail(e.target.value)}
-                  className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
-                  style={{ fontSize: `${fontSize}px` }}
-                />
-                {emailCheck === "checking" && (
-                  <Loader2 className="absolute right-3 top-3.5 w-5 h-5 text-zinc-400 animate-spin" />
-                )}
-                {emailCheck === "available" && (
-                  <Check className="absolute right-3 top-3.5 w-5 h-5 text-green-500" />
-                )}
-                {emailCheck === "taken" && (
-                  <span className="absolute right-3 top-3.5 text-red-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                    사용 중
-                  </span>
-                )}
-              </div>
-            </div>
-            
-            {/* Nickname */}
-            <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                닉네임
-              </label>
-              <input
-                type="text"
-                value={formData.nickname}
-                onChange={(e) => setFormData({ ...formData, nickname: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
-                style={{ fontSize: `${fontSize}px` }}
-              />
-            </div>
-            
-            {/* Full Name */}
-            <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                이름
-              </label>
+              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>이름</label>
               <input
                 type="text"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
+                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
-            
-            {/* Phone */}
+
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                연락처
-              </label>
+              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>연락처</label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
+                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
-            
-            {/* Church */}
+
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                섬기는 교회
-              </label>
+              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>교회</label>
               <input
                 type="text"
                 value={formData.church}
                 onChange={(e) => setFormData({ ...formData, church: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
+                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
-            
-            {/* Rank */}
+
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                직분
-              </label>
+              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>직분</label>
               <input
                 type="text"
                 value={formData.rank}
                 onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741] focus:border-transparent"
+                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
-            
-            {/* Submit Button */}
+
             <button
               type="submit"
-              disabled={isLoading || usernameCheck === "taken" || emailCheck === "taken" || !passwordMatch}
-              className="w-full bg-[#4A6741] text-white py-4 rounded-xl font-bold hover:bg-[#3d5636] transition-colors disabled:bg-zinc-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={isLoading}
+              className="w-full py-3 rounded-xl bg-[#4A6741] text-white font-bold disabled:opacity-60"
               style={{ fontSize: `${fontSize}px` }}
             >
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  저장 중...
-                </>
-              ) : (
-                "저장하기"
-              )}
+              {isLoading ? "저장 중..." : "저장"}
             </button>
           </form>
         </div>

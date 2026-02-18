@@ -1,282 +1,109 @@
-import React, { useState, useEffect, useRef } from "react";
-import { 
-  Heart, Image as ImageIcon, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon 
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase"; 
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, Image as ImageIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { VerseCardMakerModal } from "../components/VerseCardMakerModal";
 
+function cleanContent(text: string) {
+  return String(text || "")
+    .replace(/^[.\s]+/, "")
+    .replace(/[{}[\]"]/g, "")
+    .trim();
+}
+
 export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null); 
-  const { user } = useAuth();
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedDate = new Date(e.target.value);
-    if (!isNaN(selectedDate.getTime())) {
-      if (selectedDate > today) {
-        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
-        return;
-      }
-      setCurrentDate(selectedDate);
-    }
-  };
   const [bibleData, setBibleData] = useState<any>(null);
   const [hasAmened, setHasAmened] = useState(false);
   const [amenCount, setAmenCount] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showAudioControl, setShowAudioControl] = useState(false);
-  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const [showCopyToast, setShowCopyToast] = useState(false);
-  const [showCardMaker, setShowCardMaker] = useState(false); // 토스트 표시 여부
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [showCardMaker, setShowCardMaker] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
+  const today = useMemo(() => new Date(), []);
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const { fontSize = 16 } = useDisplaySettings();
- // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
+  const { user } = useAuth();
 
   useEffect(() => {
+    const fetchVerse = async () => {
+      const formattedDate = currentDate.toISOString().split("T")[0];
+
+      const { data: verse } = await supabase
+        .from("daily_bible_verses")
+        .select("*")
+        .eq("display_date", formattedDate)
+        .maybeSingle();
+
+      if (!verse) {
+        setBibleData(null);
+        setAmenCount(0);
+        setHasAmened(false);
+        return;
+      }
+
+      const { data: book } = await supabase
+        .from("bible_books")
+        .select("book_order")
+        .eq("book_name", verse.bible_name)
+        .maybeSingle();
+
+      setBibleData({ ...verse, bible_books: book });
+      setAmenCount(verse.amen_count || 0);
+      setHasAmened(false);
+    };
+
     fetchVerse();
   }, [currentDate]);
-  
-  const fetchVerse = async () => {
-  const formattedDate = currentDate.toISOString().split('T')[0];
-  
-  // 1. 오늘의 말씀 가져오기
-  const { data: verse } = await supabase
-    .from('daily_bible_verses')
-    .select('*')
-    .eq('display_date', formattedDate)
-    .maybeSingle();
-  
-  if (verse) {
-    // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
-    const { data: book } = await supabase
-      .from('bible_books')
-      .select('book_order')
-      .eq('book_name', verse.bible_name) // bible_name으로 매칭
-      .maybeSingle();
 
-    // 3. bible_books 데이터를 포함해서 상태 업데이트
-    setBibleData({ ...verse, bible_books: book });
-    setAmenCount(verse.amen_count || 0);
-    setHasAmened(false);
-  }
-};
-
-  const cleanContent = (text: string) => {
-    if (!text) return "";
-    return text
-      .replace(/^[.\s]+/, "") 
-      .replace(/\d+절/g, "")
-      .replace(/\d+/g, "")
-      .replace(/[."'“”‘’]/g, "")
-      .replace(/\.$/, "")
-      .trim();
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = new Date(e.target.value);
+    if (Number.isNaN(selectedDate.getTime())) return;
+    if (selectedDate > today) {
+      alert("오늘 이후 날짜는 선택할 수 없습니다.");
+      return;
+    }
+    setCurrentDate(selectedDate);
   };
 
   const handleAmenClick = async () => {
     if (hasAmened || !bibleData) return;
-    // 햅틱 반응 추가 (Success 패턴: 툭, 툭 두 번 혹은 짧게 한 번)
-  if (window.navigator && window.navigator.vibrate) {
-    // 30ms 동안 아주 짧게 진동 (iOS는 브라우저 정책에 따라 제한적일 수 있음)
-    window.navigator.vibrate(30); 
-  }
+    if (window.navigator?.vibrate) window.navigator.vibrate(30);
+
     setHasAmened(true);
-    setAmenCount(prev => prev + 1);
-    await supabase.from('daily_bible_verses').update({ amen_count: amenCount + 1 }).eq('id', bibleData.id);
+    setAmenCount((prev) => prev + 1);
+
+    await supabase
+      .from("daily_bible_verses")
+      .update({ amen_count: (bibleData.amen_count || 0) + 1 })
+      .eq("id", bibleData.id);
   };
 
-  const handleCopy = () => {
-  if (bibleData) {
-    // 실제 복사 로직
-    navigator.clipboard.writeText(cleanContent(bibleData.content));
-    
-    // 토스트 켜고 2초 뒤 끄기
+  const handleCopy = async () => {
+    if (!bibleData) return;
+    await navigator.clipboard.writeText(cleanContent(bibleData.content));
+    if (window.navigator?.vibrate) window.navigator.vibrate(20);
     setShowCopyToast(true);
     setTimeout(() => setShowCopyToast(false), 2000);
-    
-    // 햅틱 반응 (선택)
-    if (window.navigator?.vibrate) window.navigator.vibrate(20);
-  }
-};
-
-// 1. 재생/일시정지 토글
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-      else { audioRef.current.play(); setIsPlaying(true); }
-    }
   };
-
-  // 2. 오디오 이벤트 설정 (원래 빠른 속도의 핵심)
-  const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
-    audioRef.current = audio;
-    audio.currentTime = startTime; // 이어듣기 적용
-
-    audio.onended = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-      audioRef.current = null;
-    };
-
-    setShowAudioControl(true);
-    setIsPlaying(true);
-    audio.play().catch(e => console.log("재생 시작 오류:", e));
-  };
-  
-  // 3. TTS 실행 함수
-const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
-  if (!bibleData) return;
-  if (window.navigator?.vibrate) window.navigator.vibrate(20);
-
-  if (selectedVoice) {
-    setVoiceType(selectedVoice);
-    return;
-  }
-
-  const targetVoice = voiceType;
-  const currentSrc = audioRef.current?.src || "";
-  const isSameDate = currentSrc.includes(`daily_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
-  const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
-
-  setShowAudioControl(true);
-
-  if (audioRef.current) {
-    audioRef.current.pause();
-    audioRef.current.src = "";
-    audioRef.current.load();
-    audioRef.current = null;
-  }
-
-  // 파일명 생성 시 특수문자 제거
-  const bookOrder = bibleData.bible_books?.book_order || '0';
-  const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
-  const fileName = `daily/daily_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
-
-  try {
-    // R2에서 파일 확인
-    const checkRes = await fetch(`/api/audio/${encodeURIComponent(fileName)}`);
-    
-    if (checkRes.ok) {
-      const { publicUrl } = await checkRes.json();
-      const savedAudio = new Audio(publicUrl);
-      setupAudioEvents(savedAudio, lastTime);
-      return; 
-    }
-
-    // [핵심] 숫자 발음 치환 함수
-    const toKorNum = (num: number | string) => {
-      const n = Number(num);
-      if (isNaN(n)) return String(num);
-      const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-      const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
-      if (n === 0) return "영";
-      if (n < 10) return units[n];
-      if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-      return String(n);
-    };
-
-    const mainContent = cleanContent(
-  bibleData.tts_content || bibleData.content
-);
-    const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    
-    // 장(Chapter) 한글화
-    const chapterKor = toKorNum(bibleData.chapter);
-
-    // 절(Verse) 한글화: 하이픈(-)이나 콜론(:)이 있으면 "절에서"로 강제 변경
-    const verseRaw = String(bibleData.verse);
-    let verseKor = "";
-
-    if (verseRaw.includes('-') || verseRaw.includes(':')) {
-      const separator = verseRaw.includes('-') ? '-' : ':';
-      const [start, end] = verseRaw.split(separator);
-      // "일절에서 삼" 형식으로 텍스트를 완전히 조립
-      verseKor = `${toKorNum(start.trim())}절에서 ${toKorNum(end.trim())}`;
-    } else {
-      verseKor = toKorNum(verseRaw.trim());
-    }
-
-    // 최종 낭독 문장: 엔진이 기호를 아예 못 보게 텍스트로만 구성
-    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
-
-    const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
-    const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-    const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
-
-    const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method: "POST",
-      headers: {
-        "Ocp-Apim-Subscription-Key": AZURE_KEY,
-        "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-      },
-      body: `
-        <speak version='1.0' xml:lang='ko-KR'>
-          <voice xml:lang='ko-KR' name='${azureVoice}'>
-            <prosody rate="1.0">
-              ${textToSpeak}
-            </prosody>
-          </voice>
-        </speak>
-      `,
-    });
-
-    if (!response.ok) throw new Error("API 호출 실패");
-
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const ttsAudio = new Audio(audioUrl);
-    setupAudioEvents(ttsAudio, lastTime);
-
-    // R2 업로드 (백그라운드)
-    const reader = new FileReader();
-    reader.onloadend = async () => {
-      const base64Audio = (reader.result as string).split(',')[1];
-      await fetch('/api/audio/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName, audioBase64: base64Audio })
-      });
-    };
-    reader.readAsDataURL(audioBlob);
-
-  } catch (error) {
-    console.error("TTS 에러:", error);
-    setIsPlaying(false);
-  }
-};
-
-
-
-
-
 
   const handleShare = async () => {
-    // 햅틱 반응 추가
-  if (window.navigator?.vibrate) window.navigator.vibrate(20);
-    const shareData = {
-      title: '성경 말씀',
-      text: bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.',
-      url: window.location.href, 
-    };
+    const text = bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해 보세요.";
+    const shareData = { title: "오늘의 말씀", text, url: window.location.href };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert("링크가 클립보드에 복사되었습니다.");
+        alert("링크를 클립보드에 복사했습니다.");
       }
     } catch (error) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error("공유 실패:", error);
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.error("share failed", error);
       }
     }
   };
@@ -288,7 +115,9 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
       return;
     }
 
-    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
+    const unit = bibleData.bible_name === "시편" ? "편" : "장";
+    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절`;
+
     const { error } = await supabase.from("verse_bookmarks").insert({
       user_id: user.id,
       source: "daily_word",
@@ -299,229 +128,182 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
     if (error) {
       if (error.code === "23505") {
-        alert("이미 저장한 말씀입니다.");
+        alert("이미 저장된 말씀입니다.");
         return;
       }
       alert("기록함 저장에 실패했습니다.");
       return;
     }
 
-    alert("기록함에 저장되었습니다.");
+    alert("기록함에 보관되었습니다.");
   };
-  // 날려먹었던 스와이프 로직 복구
-  const handleOpenCardMaker = () => {
-  if (!user?.id) {
-    setShowLoginModal(true);
-    return;
-  }
-  setShowCardMaker(true);
-};
 
-const onDragEnd = (event: any, info: any) => {
-    if (info.offset.x > 100) { // 이전 날짜
-      const d = new Date(currentDate);
-      d.setDate(d.getDate() - 1);
-      setCurrentDate(d);
-    } else if (info.offset.x < -100) { // 다음 날짜
-      const d = new Date(currentDate);
-      d.setDate(d.getDate() + 1);
-      if (d <= today) setCurrentDate(d);
+  const handleOpenCardMaker = () => {
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
     }
+    setShowCardMaker(true);
   };
+
+  const verseTitle = bibleData
+    ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`
+    : "";
 
   return (
-    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-      
-      {/* 상단 날짜 영역 */}
-            <header className="text-center mb-3 flex flex-col items-center w-full relative">
-              <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
-                {currentDate.getFullYear()}
-              </p>
-               {/* 날짜 정렬 영역 */}
-              <div className="flex items-center justify-center w-full">
-              {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
-          <div className="flex-1 flex justify-end pr-3">
-            <button 
-              onClick={() => dateInputRef.current?.showPicker()} 
-              className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
+    <div className="flex min-h-full w-full flex-col items-center overflow-x-hidden overflow-y-auto bg-[#F8F8F8] px-4 pb-4 pt-24">
+      <header className="relative mb-3 flex w-full flex-col items-center text-center">
+        <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
+          {currentDate.getFullYear()}
+        </p>
+        <div className="flex w-full items-center justify-center">
+          <div className="flex flex-1 justify-end pr-3">
+            <button
+              onClick={() => dateInputRef.current?.showPicker()}
+              className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
             </button>
           </div>
-          {/* 2. 중앙 날짜 (고정석) */}
-          <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
-            {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+
+          <h2 className="shrink-0 font-black tracking-tighter text-zinc-900" style={{ fontSize: `${fontSize * 1.25}px` }}>
+            {currentDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
           </h2>
-           {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
-    <div className="flex-1 flex justify-start pl-3">
-      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
-          투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
-      */}
-      <div className="w-[28px] h-[28px]" aria-hidden="true" />
-    </div>
-    {/* 숨겨진 날짜 입력 input */}
-    <input 
-      type="date"
-      ref={dateInputRef}
-      onChange={handleDateChange}
-      max={new Date().toISOString().split("T")[0]} 
-      className="absolute opacity-0 pointer-events-none"
-    />
-  </div>
-</header>
 
-      {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
-      <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-  
-  {/* 왼쪽 힌트 카드 (어제) */}
-<div className="absolute left-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-  
-  <AnimatePresence mode="wait">
-  <motion.div 
-    key={currentDate.toISOString()}
-    drag="x" 
-    dragConstraints={{ left: 0, right: 0 }}
-    dragElastic={0.2}
-    onDragEnd={onDragEnd}
-    initial={{ opacity: 0, x: 20 }} 
-    animate={{ opacity: 1, x: 0 }} 
-    exit={{ opacity: 0, x: -20 }}
-    className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center p-10 pb-8 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
-  >
-    {bibleData ? (
-      <>
-        {/* 말씀 본문 영역 */}
-        <div className="space-y-5 text-zinc-800 leading-[1.7] break-keep font-medium mb-10 w-full" style={{ fontSize: `${fontSize}px` }}>
-          {bibleData.content.split('\n').map((line: string, i: number) => {
-            // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
-            const match = line.match(/^(\d+)\.?\s*(.*)/);
-            
-            if (match) {
-              const [_, verseNum, textContent] = match;
-              return (
-                <p key={i} className="flex items-start gap-2">
-                  {/* 점 없이 숫자만 출력 */}
-                  <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
-                    {verseNum}
-                  </span>
-                  <span className="flex-1">{textContent}</span>
-                </p>
-              );
-            }
-            return <p key={i}>{line}</p>;
-          })}
+          <div className="flex flex-1 justify-start pl-3">
+            <div className="h-[28px] w-[28px]" aria-hidden="true" />
+          </div>
+
+          <input
+            ref={dateInputRef}
+            type="date"
+            onChange={handleDateChange}
+            max={new Date().toISOString().split("T")[0]}
+            className="pointer-events-none absolute opacity-0"
+          />
         </div>
+      </header>
 
-        {/* 출처 영역 */}
-        <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-        </span>
-      </>
-    ) : (
-      <div className="animate-pulse text-zinc-200 w-full text-center">
-        말씀을 불러오는 중...
+      <div className="relative flex w-full flex-1 items-center justify-center overflow-visible py-4">
+        <div className="absolute left-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+
+        <motion.div
+          key={currentDate.toISOString()}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="z-10 flex aspect-[4/5] w-[82%] max-w-sm flex-col items-start justify-center rounded-[32px] border border-white bg-white p-10 pb-8 text-left shadow-[0_15px_45px_rgba(0,0,0,0.06)]"
+        >
+          {bibleData ? (
+            <>
+              <div
+                className="mb-6 w-full space-y-4 break-keep font-medium leading-[1.7] text-zinc-800"
+                style={{ fontSize: `${fontSize}px` }}
+              >
+                {String(bibleData.content || "")
+                  .split("\n")
+                  .map((line: string, i: number) => {
+                    const m = line.match(/^(\d+)\.?\s*(.*)$/);
+                    if (!m) return <p key={i}>{line}</p>;
+                    return (
+                      <p key={i} className="flex items-start gap-2">
+                        <span className="mt-[2px] flex-shrink-0 text-[0.8em] font-bold text-[#4A6741] opacity-40">{m[1]}</span>
+                        <span className="flex-1">{m[2]}</span>
+                      </p>
+                    );
+                  })}
+              </div>
+              <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                {verseTitle}
+              </span>
+            </>
+          ) : (
+            <div className="w-full animate-pulse text-center text-zinc-300">말씀을 불러오는 중...</div>
+          )}
+        </motion.div>
+
+        <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
       </div>
-    )}
-  </motion.div>
-</AnimatePresence>
 
-  {/* 오른쪽 힌트 카드 (내일) */}
-<div className="absolute right-[-75%] w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+      <div className="mb-14 mt-3 flex items-center gap-8">
+        <button onClick={handleOpenCardMaker} className="flex flex-col items-center gap-1.5 text-[#4A6741]">
+          <ImageIcon size={24} strokeWidth={2.2} />
+          <span className="font-extrabold" style={{ fontSize: `${fontSize * 0.82}px` }}>카드 생성</span>
+        </button>
+        <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Copy size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+        </button>
+        <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Bookmark size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span>
+        </button>
+        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 transition-transform active:scale-95">
+          <Share2 size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span>
+        </button>
       </div>
 
-      {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-  <div className="flex items-center gap-8 mt-3 mb-14"> 
-    <button onClick={handleOpenCardMaker}
-              className="flex flex-col items-center gap-1.5 text-zinc-400">
-      <ImageIcon size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>카드 생성</span>
-    </button>
-{/* 말씀 복사 버튼 찾아서 수정 */}
-<button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
-  <Copy size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
-</button>
-    <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
-  </div>
+      <div className="flex flex-col items-center gap-3 pb-6">
+        <div className="relative flex h-24 w-24 items-center justify-center">
+          <AnimatePresence>
+            {hasAmened && (
+              <>
+                <motion.div
+                  initial={{ scale: 1, opacity: 0.5 }}
+                  animate={{ scale: 1.5, opacity: 0 }}
+                  transition={{ duration: 2.2, ease: "easeOut" }}
+                  className="absolute inset-0 rounded-full bg-[#4A6741]"
+                />
+                <motion.div
+                  initial={{ scale: 1, opacity: 0.4 }}
+                  animate={{ scale: 1.2, opacity: 0 }}
+                  transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+                  className="absolute inset-0 rounded-full bg-[#4A6741]"
+                />
+              </>
+            )}
+          </AnimatePresence>
 
-{/* 4. 아멘 버튼 영역 */}
-<div className="flex flex-col items-center gap-3 pb-6">
-  {/* 파동 레이어와 버튼을 겹치기 위해 relative 컨테이너 사용 */}
-  <div className="relative w-24 h-24 flex items-center justify-center">
-    
-    {/* 빛의 파동 효과 (hasAmened가 true일 때만 실행) */}
-    <AnimatePresence>
-      {hasAmened && (
-        <>
-          <motion.div
-            initial={{ scale: 1, opacity: 0.5 }}
-            animate={{ scale: 1.5, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 2.2, ease: "easeOut" }}
-            className="absolute inset-0 bg-[#4A6741] rounded-full"
-          />
-          <motion.div
-            initial={{ scale: 1, opacity: 0.4 }}
-            animate={{ scale: 1.2, opacity: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
-            className="absolute inset-0 bg-[#4A6741] rounded-full"
-          />
-        </>
-      )}
-    </AnimatePresence>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={handleAmenClick}
+            className={`relative z-10 flex h-24 w-24 flex-col items-center justify-center rounded-full shadow-xl transition-all duration-500 ${
+              hasAmened ? "border-none bg-[#4A6741] text-white" : "border border-green-50 bg-white text-[#4A6741]"
+            }`}
+          >
+            <Heart className={`mb-1 h-5 w-5 ${hasAmened ? "fill-white" : ""}`} strokeWidth={hasAmened ? 0 : 2} />
+            <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
+            <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>
+              {amenCount.toLocaleString()}
+            </span>
+          </motion.button>
+        </div>
+      </div>
 
-    {/* 실제 버튼 (색상 로직 복구) */}
-    <motion.button 
-      whileTap={{ scale: 0.9 }} 
-      onClick={handleAmenClick}
-      className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-        ${hasAmened 
-          ? 'bg-[#4A6741] text-white border-none' 
-          : 'bg-white text-[#4A6741] border border-green-50'
-        }`}
-    >
-      <Heart 
-        className={`w-5 h-5 mb-1 ${hasAmened ? 'fill-white animate-bounce' : ''}`} 
-        strokeWidth={hasAmened ? 0 : 2} 
+      <VerseCardMakerModal
+        open={showCardMaker}
+        onClose={() => setShowCardMaker(false)}
+        title={verseTitle}
+        content={bibleData?.content || ""}
+        userId={user?.id ?? null}
       />
-      <span className="font-bold" style={{ fontSize: `${fontSize * 0.9}px` }}>아멘</span>
-      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.9}px` }}>
-        {amenCount.toLocaleString()}
-      </span>
-    </motion.button>
-  </div>
-</div>
 
-      {/* 5. TTS 제어 팝업 부분 */}
-<VerseCardMakerModal
-  open={showCardMaker}
-  onClose={() => setShowCardMaker(false)}
-  title={bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : ""}
-  content={bibleData?.content || ""}
-  userId={user?.id ?? null}
-/>
+      <AnimatePresence>
+        {showCopyToast && (
+          <motion.div
+            initial={{ opacity: 0, x: "-50%", y: 20 }}
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[200] whitespace-nowrap rounded-full bg-[#4A6741] px-6 py-3 text-sm font-medium text-white shadow-lg"
+            style={{ left: "50%", transform: "translateX(-50%)" }}
+          >
+            말씀을 복사했습니다.
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-<AnimatePresence>
-  {showCopyToast && (
-    <motion.div 
-      initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
-      animate={{ opacity: 1, x: "-50%", y: 0 }} 
-      exit={{ opacity: 0, x: "-50%", y: 20 }} 
-      transition={{ duration: 0.3 }}
-      className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
-      style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
-    >
-      말씀이 복사되었습니다
-    </motion.div>
-  )}
-</AnimatePresence>
-<LoginModal
-  open={showLoginModal}
-  onOpenChange={setShowLoginModal}
-  returnTo={`${window.location.origin}/#/`}
-/>
+      <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} returnTo={`${window.location.origin}/#/`} />
     </div>
   );
 }
