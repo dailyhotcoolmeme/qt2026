@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
+import { VerseCardMakerModal } from "../components/VerseCardMakerModal";
 
 export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -32,17 +33,12 @@ export default function DailyWordPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAudioControl, setShowAudioControl] = useState(false);
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
-  const [showCopyToast, setShowCopyToast] = useState(false); // 토스트 표시 여부
+  const [showCopyToast, setShowCopyToast] = useState(false);
+  const [showCardMaker, setShowCardMaker] = useState(false); // 토스트 표시 여부
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const { fontSize = 16 } = useDisplaySettings();
  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
-  useEffect(() => {
-    // 오디오 컨트롤러가 켜져 있을 때만 성별 변경을 반영하여 다시 재생함
-    if (showAudioControl) {
-      handlePlayTTS();
-    }
-  }, [voiceType]);
 
   useEffect(() => {
     fetchVerse();
@@ -427,10 +423,10 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
   <div className="flex items-center gap-8 mt-3 mb-14"> 
-    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+    <button onClick={() => setShowCardMaker(true)}
               className="flex flex-col items-center gap-1.5 text-zinc-400">
       <Headphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>카드 생성</span>
     </button>
 {/* 말씀 복사 버튼 찾아서 수정 */}
 <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
@@ -491,56 +487,13 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 </div>
 
       {/* 5. TTS 제어 팝업 부분 */}
-<AnimatePresence>
-  {showAudioControl && (
-    <motion.div 
-      initial={{ y: 80, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      exit={{ y: 80, opacity: 0 }} 
-      className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
-    >
-      <div className="flex flex-col gap-4">
-        {/* 상단 컨트롤 영역 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={togglePlay} 
-              className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-            >
-              {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
-            </button>
-            <p className="text-[13px] font-bold">
-              {isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}
-            </p>
-          </div>
-          <button onClick={() => { 
-            if(audioRef.current) audioRef.current.pause(); 
-            setShowAudioControl(false); 
-            setIsPlaying(false); 
-          }}>
-            <X size={20}/>
-          </button>
-        </div>
-        
-        {/* 목소리 선택 영역 (수정본) */}
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setVoiceType('F')} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
-          >
-            여성 목소리
-          </button>
-          <button 
-            onClick={() => setVoiceType('M')} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
-          >
-            남성 목소리
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+<VerseCardMakerModal
+  open={showCardMaker}
+  onClose={() => setShowCardMaker(false)}
+  title={bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : ""}
+  content={bibleData?.content || ""}
+/>
+
 <AnimatePresence>
   {showCopyToast && (
     <motion.div 

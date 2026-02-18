@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { 
   Headphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square
@@ -9,6 +9,14 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useLocation } from "wouter";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
+import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
+import {
+  findCurrentVerse,
+  getCachedAudioObjectUrl,
+  loadChapterAudioMetadata,
+  parseVerseRange,
+  parseVerses,
+} from "../lib/bibleAudio";
 import confetti from "canvas-confetti";
 import { uploadFileToR2 } from "../utils/upload";
 import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
@@ -26,7 +34,12 @@ export default function QTPage() {
   // 성경 및 UI 관련 상태
   const [bibleData, setBibleData] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+  const [audioDurationUi, setAudioDurationUi] = useState(0);
+  const [audioCurrentVerse, setAudioCurrentVerse] = useState<number | null>(null);
+  const [audioSubtitle, setAudioSubtitle] = useState("서버 오디오를 불러오는 중");
+  const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [isMeditationCompleted, setIsMeditationCompleted] = useState(false);
 
@@ -53,6 +66,11 @@ export default function QTPage() {
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioEndMsRef = useRef<number | null>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
+  const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const verseContainerRef = useRef<HTMLDivElement | null>(null);
+  const verseRowRefs = useRef<Record<number, HTMLParagraphElement | null>>({});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recordAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -61,13 +79,6 @@ export default function QTPage() {
   const [showAudioControl, setShowAudioControl] = useState(false);
 
   const { fontSize = 16 } = useDisplaySettings();
-
-  // voiceType이 바뀔 때 오디오 컨트롤이 켜져 있으면 다시 재생
-  useEffect(() => {
-    if (showAudioControl) {
-      handlePlayTTS();
-    }
-  }, [voiceType]);
 
   // currentDate가 변경될 때 말씀 가져오기
   useEffect(() => {
@@ -639,14 +650,6 @@ export default function QTPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // 1. 성별(voiceType)이 바뀔 때 실행되는 감시자
-  useEffect(() => {
-    // 오디오 컨트롤러가 켜져 있을 때만 성별 변경을 반영하여 다시 재생함
-    if (showAudioControl) {
-      handlePlayTTS();
-    }
-  }, [voiceType]);
-
   useEffect(() => {
     fetchVerse();
   }, [currentDate]);
@@ -757,159 +760,138 @@ const handleBookmark = async () => {
 };
   
 // 1. 재생/일시정지 토글
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-      else { audioRef.current.play(); setIsPlaying(true); }
-    }
+  const parsedVerses = useMemo(() => parseVerses(bibleData?.content || ""), [bibleData?.content]);
+
+  const markUserScroll = () => {
+    setAutoFollowEnabled(false);
+    if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current);
+    scrollResumeTimerRef.current = setTimeout(() => setAutoFollowEnabled(true), 900);
   };
 
-  // 2. 오디오 이벤트 설정 (원래 빠른 속도의 핵심)
-  const setupAudioEvents = (audio: HTMLAudioElement, startTime: number) => {
-    audioRef.current = audio;
-    audio.currentTime = startTime; // 이어듣기 적용
-
-    audio.onended = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-      audioRef.current = null;
-    };
-
-    setShowAudioControl(true);
-    setIsPlaying(true);
-    audio.play().catch(e => console.log("재생 시작 오류:", e));
+  const focusVerseRow = (verse: number | null, smooth = true) => {
+    if (!verse || !autoFollowEnabled) return;
+    const row = verseRowRefs.current[verse];
+    row?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", block: "center" });
   };
 
-  // 3. TTS 실행 함수 (azure tts)
-const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
-  if (!bibleData) return;
-  
-  if (window.navigator?.vibrate) window.navigator.vibrate(20);
+  useEffect(() => {
+    if (autoFollowEnabled) focusVerseRow(audioCurrentVerse, true);
+  }, [audioCurrentVerse, autoFollowEnabled]);
 
-  if (selectedVoice) {
-    setVoiceType(selectedVoice);
-    return;
-  }
-
-  const targetVoice = voiceType;
-  const currentSrc = audioRef.current?.src || "";
-  const isSameDate = currentSrc.includes(`qt_b${bibleData.bible_books?.book_order}_c${bibleData.chapter}`);
-  const lastTime = isSameDate ? (audioRef.current?.currentTime || 0) : 0;
-
-  setShowAudioControl(true);
-
-  if (audioRef.current) {
-    audioRef.current.pause();
-    audioRef.current.src = "";
-    audioRef.current.load();
-    audioRef.current = null;
-  }
-
-  // 파일 경로 설정 (qt 폴더)
-  const bookOrder = bibleData.bible_books?.book_order || '0';
-  const safeVerse = String(bibleData.verse).replace(/[: -]/g, '_');
-  const fileName = `qt_b${bookOrder}_c${bibleData.chapter}_v${safeVerse}_${targetVoice}.mp3`;
-  const storagePath = `qt/${fileName}`; 
-  const { data: { publicUrl } } = supabase.storage.from('bible-assets').getPublicUrl(storagePath);
-
-  try {
-    const checkRes = await fetch(publicUrl, { method: 'HEAD' });
-    
-    // 1. 이미 파일이 있는 경우 처리 (내부 로직으로 수용)
-    if (checkRes.ok) {
-      const savedAudio = new Audio(publicUrl);
-      audioRef.current = savedAudio;
-      savedAudio.currentTime = lastTime;
-      savedAudio.onended = () => {
-        setIsPlaying(false);
-        setShowAudioControl(false);
-        audioRef.current = null;
-      };
-      setIsPlaying(true);
-      savedAudio.play().catch(e => console.log("재생 오류:", e));
-      return;
-    }
-
-    // 2. 숫자 변환 및 텍스트 정제 (함수 내부 정의)
-    const toKorNum = (num: number | string) => {
-      const n = Number(num);
-      if (isNaN(n)) return String(num);
-      const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-      const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
-      if (n === 0) return "영";
-      if (n < 10) return units[n];
-      if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-      return String(n);
+  useEffect(() => {
+    return () => {
+      if (audioObjectUrlRef.current) {
+        URL.revokeObjectURL(audioObjectUrlRef.current);
+        audioObjectUrlRef.current = null;
+      }
+      if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current);
     };
+  }, []);
 
-    const cleanText = (text: string) => {
-      return text.replace(/^[.\s]+/, "").replace(/\d+절/g, "").replace(/\d+/g, "").replace(/[."'“”‘’]/g, "").replace(/\.$/, "").trim();
-    };
-
-    const mainContent = cleanContent(
-  bibleData.tts_content || bibleData.content
-);
-    const unit = bibleData.bible_name === "시편" ? "편" : "장";
-    const chapterKor = toKorNum(bibleData.chapter);
-    const verseRaw = String(bibleData.verse);
-    let verseKor = verseRaw.includes('-') || verseRaw.includes(':') 
-      ? `${toKorNum(verseRaw.split(/[-:]/)[0])}절에서 ${toKorNum(verseRaw.split(/[-:]/)[1])}`
-      : toKorNum(verseRaw);
-
-    const textToSpeak = `${mainContent}. ${bibleData.bible_name} ${chapterKor}${unit} ${verseKor}절 말씀.`;
-
-    // 3. Azure API 호출
-    const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
-    const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-    const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
-
-    const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-      method: "POST",
-      headers: {
-        "Ocp-Apim-Subscription-Key": AZURE_KEY,
-        "Content-Type": "application/ssml+xml",
-        "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-      },
-      body: `
-        <speak version='1.0' xml:lang='ko-KR'>
-          <voice xml:lang='ko-KR' name='${azureVoice}'>
-            <prosody rate="1.0">${textToSpeak}</prosody>
-          </voice>
-        </speak>
-      `,
-    });
-
-    if (!response.ok) throw new Error("API 호출 실패");
-
-    const audioBlob = await response.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const ttsAudio = new Audio(audioUrl);
-    
-    // 4. 오디오 설정 및 재생
-    audioRef.current = ttsAudio;
-    ttsAudio.currentTime = lastTime;
-    ttsAudio.onended = () => {
-      setIsPlaying(false);
-      setShowAudioControl(false);
-      audioRef.current = null;
-    };
-    setIsPlaying(true);
-    ttsAudio.play().catch(e => console.log("재생 오류:", e));
-
-    // 스토리지 업로드
-    supabase.storage.from('bible-assets').upload(storagePath, audioBlob, { 
-      contentType: 'audio/mp3', 
-      upsert: true 
-    });
-
-  } catch (error) {
-    console.error("Azure TTS 에러:", error);
+  const closeAudioModal = () => {
+    if (audioRef.current) audioRef.current.pause();
     setIsPlaying(false);
-  }
-};
+    setShowAudioControl(false);
+    setAudioLoading(false);
+    setAudioCurrentTime(0);
+    setAudioDurationUi(0);
+    audioEndMsRef.current = null;
+  };
 
-  // 날려먹었던 스와이프 로직 복구
-  const onDragEnd = (event: any, info: any) => {
+  const togglePlay = () => {
+    if (!audioRef.current || audioLoading) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    } else {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  const handleSeekAudio = (nextSeconds: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = nextSeconds;
+    setAudioCurrentTime(nextSeconds);
+  };
+
+  const handlePlayTTS = async () => {
+    if (!bibleData) return;
+
+    const bookId = Number(bibleData?.bible_books?.book_order || 0);
+    const chapter = Number(bibleData?.chapter || 0);
+    if (!bookId || !chapter) return;
+
+    if (window.navigator?.vibrate) window.navigator.vibrate(20);
+
+    try {
+      setShowAudioControl(true);
+      setAudioLoading(true);
+      setAudioSubtitle("?? ???? ???? ????.");
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+
+      const metadata = await loadChapterAudioMetadata(bookId, chapter);
+      if (!metadata) throw new Error("audio metadata not found");
+
+      const audioUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
+      if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = audioUrl;
+
+      const audio = new Audio(audioUrl);
+      audio.preload = "auto";
+      audioRef.current = audio;
+
+      const verseRange = parseVerseRange(bibleData?.verse);
+      const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
+      const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
+      const startMs = rangeStart?.start_ms ?? 0;
+      const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      audioEndMsRef.current = endMs;
+
+      setAudioSubtitle(
+        verseRange
+          ? `${bibleData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?`
+          : `${bibleData.bible_name} ${chapter}?`
+      );
+
+      audio.onloadedmetadata = () => {
+        setAudioDurationUi(audio.duration || metadata.durationMs / 1000);
+        audio.currentTime = startMs / 1000;
+      };
+
+      audio.ontimeupdate = () => {
+        const currentMs = Math.round(audio.currentTime * 1000);
+        setAudioCurrentTime(audio.currentTime);
+
+        const active = findCurrentVerse(metadata.verses, currentMs);
+        setAudioCurrentVerse(active);
+
+        if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
+          audio.pause();
+          setIsPlaying(false);
+          return;
+        }
+      };
+
+      audio.onended = () => {
+        setIsPlaying(false);
+      };
+
+      await audio.play();
+      setIsPlaying(true);
+      setAudioLoading(false);
+    } catch (error) {
+      console.error("QT audio play failed:", error);
+      setAudioLoading(false);
+      setIsPlaying(false);
+      setAudioSubtitle("???? ???? ?????.");
+    }
+  };
+const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
@@ -988,27 +970,29 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
         </span>
 
         {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-    <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium" 
-         style={{ fontSize: `${fontSize}px`,maxHeight: "320px" // 이 값을 조절하여 카드의 전체적인 높이감을 결정하세요
-        }}>
-          {bibleData.content.split('\n').map((line: string, i: number) => {
-            // 정규식 수정: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
-            const match = line.match(/^(\d+)\.?\s*(.*)/);
-            
-            if (match) {
-              const [_, verseNum, textContent] = match;
-              return (
-                <p key={i} className="flex items-start gap-2">
-                  {/* 점 없이 숫자만 출력 */}
-                  <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
-                    {verseNum}
-                  </span>
-                  <span className="flex-1">{textContent}</span>
-                </p>
-              );
-            }
-            return <p key={i}>{line}</p>;
+    <div
+          ref={verseContainerRef}
+          onWheel={markUserScroll}
+          onTouchMove={markUserScroll}
+          className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium"
+          style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
+        >
+          {parsedVerses.map(({ verse, text }) => {
+            const active = audioCurrentVerse === verse;
+            return (
+              <p
+                key={verse}
+                ref={(el) => {
+                  verseRowRefs.current[verse] = el;
+                }}
+                className={`flex items-start gap-2 rounded-lg px-2 py-1 transition-colors ${active ? "bg-emerald-100" : ""}`}
+              >
+                <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
+                <span className="flex-1">{text}</span>
+              </p>
+            );
           })}
+          {parsedVerses.length === 0 && bibleData.content.split("\n").map((line: string, i: number) => <p key={i}>{line}</p>)}
         </div>
       </>
     ) : (
@@ -1561,57 +1545,18 @@ if (verseMatch) {
         )}
       </AnimatePresence>
 
-      {/* TTS 제어 팝업 부분 */}
-<AnimatePresence>
-  {showAudioControl && (
-    <motion.div 
-      initial={{ y: 80, opacity: 0 }} 
-      animate={{ y: 0, opacity: 1 }} 
-      exit={{ y: 80, opacity: 0 }} 
-      className="fixed bottom-24 left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
-    >
-      <div className="flex flex-col gap-4">
-        {/* 상단 컨트롤 영역 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={togglePlay} 
-              className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors"
-            >
-              {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
-            </button>
-            <p className="text-[13px] font-bold">
-              {isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}
-            </p>
-          </div>
-          <button onClick={() => { 
-            if(audioRef.current) audioRef.current.pause(); 
-            setShowAudioControl(false); 
-            setIsPlaying(false); 
-          }}>
-            <X size={20}/>
-          </button>
-        </div>
-        
-        {/* 목소리 선택 영역 (수정본) */}
-        <div className="flex gap-2">
-          <button 
-            onClick={() => setVoiceType('F')} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
-          >
-            여성 목소리
-          </button>
-          <button 
-            onClick={() => setVoiceType('M')} 
-            className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}
-          >
-            남성 목소리
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+      <BibleAudioPlayerModal
+        open={showAudioControl}
+        loading={audioLoading}
+        title="Bible Audio"
+        subtitle={audioSubtitle}
+        isPlaying={isPlaying}
+        progress={audioCurrentTime}
+        duration={audioDurationUi}
+        onClose={closeAudioModal}
+        onTogglePlay={togglePlay}
+        onSeek={handleSeekAudio}
+      />
 <AnimatePresence>
   {showCopyToast && (
     <motion.div 

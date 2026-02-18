@@ -6,7 +6,9 @@
     "dev": "tsx watch server/index.ts",
     "build": "cd client && npm install && npm run build && cd .. && node copy-dist.js",
     "build:client": "cd client && npm install && npm run build",
-    "copy:dist": "node copy-dist.js"
+    "copy:dist": "node copy-dist.js",
+    "bible:audio:genesis1": "node scripts/generate-bible-audio-genesis1.js",
+    "bible:audio:ot": "node scripts/generate-bible-audio-batch.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.985.0",

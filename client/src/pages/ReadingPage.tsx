@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import confetti from 'canvas-confetti';
 import { 
   Heart, Headphones, Share2, Copy, Bookmark, 
@@ -13,6 +13,14 @@ import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BIBLE_BOOKS as BOOK_CHAPTERS } from "../lib/bibleData";
 import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
+import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
+import {
+  findCurrentVerse,
+  getCachedAudioObjectUrl,
+  loadChapterAudioMetadata,
+  parseVerseRange,
+  parseVerses,
+} from "../lib/bibleAudio";
 
 export default function ReadingPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -79,6 +87,10 @@ export default function ReadingPage() {
   const [voiceType, setVoiceType] = useState<'F' | 'M'>('F');
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioSubtitle, setAudioSubtitle] = useState("?? ???? ???? ?");
+  const [currentVerseNumber, setCurrentVerseNumber] = useState<number | null>(null);
+  const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [isFromServer, setIsFromServer] = useState(false);
   const [audioControlY, setAudioControlY] = useState(0); // 재생 팝업 Y 위치
   const [isDragging, setIsDragging] = useState(false);
@@ -86,6 +98,10 @@ export default function ReadingPage() {
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const verseRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+  const verseNumberRefs = useRef<Record<number, HTMLParagraphElement | null>>({});
+  const audioEndMsRef = useRef<number | null>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
+  const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentPageIdxRef = useRef<number>(0);  // 현재 인덱스를 ref로도 관리
   
   // 재생 방식 선택 및 전체 재생 모드 관련 상태
@@ -115,11 +131,28 @@ export default function ReadingPage() {
     verseRefs.current = [];
   }, [bibleData]);
 
+  const parsedVerses = useMemo(() => parseVerses(bibleData?.content || ""), [bibleData?.content]);
+
+  const markUserScroll = () => {
+    setAutoFollowEnabled(false);
+    if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current);
+    scrollResumeTimerRef.current = setTimeout(() => setAutoFollowEnabled(true), 900);
+  };
+
   useEffect(() => {
-    if (showAudioControl) {
-      handlePlayTTS(undefined, true, isContinuousPlayMode); // skipPopup=true로 변경
-    }
-  }, [voiceType]);
+    if (!autoFollowEnabled || !currentVerseNumber) return;
+    const row = verseNumberRefs.current[currentVerseNumber];
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [currentVerseNumber, autoFollowEnabled]);
+
+  useEffect(() => {
+    return () => {
+      if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+      if (scrollResumeTimerRef.current) clearTimeout(scrollResumeTimerRef.current);
+    };
+  }, []);
+
+
 
   // 재생 팝업 드래그 핸들러
   const handleDragStart = (e: React.PointerEvent) => {
@@ -1047,15 +1080,103 @@ const loadRangePages = async () => {
     }
   };
 
-  const togglePlay = () => {
-    if (audioRef.current) {
-      if (isPlaying) { 
-        audioRef.current.pause(); 
-        setIsPlaying(false); 
-      } else { 
-        audioRef.current.play(); 
-        setIsPlaying(true); 
+  const closeAudioModal = () => {
+    if (audioRef.current) audioRef.current.pause();
+    setIsPlaying(false);
+    setShowAudioControl(false);
+    setAudioLoading(false);
+    setCurrentTime(0);
+    setDuration(0);
+    audioEndMsRef.current = null;
+  };
+
+  const seekAudioFromModal = (nextTime: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = nextTime;
+    setCurrentTime(nextTime);
+  };
+
+  const handlePlayServerAudio = async () => {
+    if (!bibleData) return;
+    const bookId = Number(bibleData?.bible_books?.book_order || 0);
+    const chapter = Number(bibleData?.chapter || 0);
+    if (!bookId || !chapter) return;
+
+    try {
+      setShowAudioControl(true);
+      setAudioLoading(true);
+      setAudioSubtitle("서버 오디오를 준비하고 있습니다.");
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
       }
+
+      const metadata = await loadChapterAudioMetadata(bookId, chapter);
+      if (!metadata) throw new Error("audio metadata not found");
+
+      const objectUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
+      if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = objectUrl;
+
+      const audio = new Audio(objectUrl);
+      audio.preload = "auto";
+      audioRef.current = audio;
+
+      const verseRange = parseVerseRange(bibleData?.verse);
+      const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
+      const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
+      const startMs = rangeStart?.start_ms ?? 0;
+      const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      audioEndMsRef.current = endMs;
+
+      setAudioSubtitle(
+        verseRange
+          ? `${bibleData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
+          : `${bibleData.bible_name} ${chapter}장`
+      );
+
+      audio.onloadedmetadata = () => {
+        setDuration(audio.duration || metadata.durationMs / 1000);
+        audio.currentTime = startMs / 1000;
+      };
+
+      audio.ontimeupdate = () => {
+        const currentMs = Math.round(audio.currentTime * 1000);
+        setCurrentTime(audio.currentTime);
+        const verse = findCurrentVerse(metadata.verses, currentMs);
+        setCurrentVerseNumber(verse);
+
+        if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
+          audio.pause();
+          setIsPlaying(false);
+          return;
+        }
+      };
+
+      audio.onended = () => {
+        setIsPlaying(false);
+      };
+
+      await audio.play();
+      setIsPlaying(true);
+      setAudioLoading(false);
+    } catch (error) {
+      console.error("Reading audio play failed:", error);
+      setAudioLoading(false);
+      setIsPlaying(false);
+      setAudioSubtitle("오디오를 불러오지 못했습니다.");
+    }
+  };
+
+  const togglePlay = () => {
+    if (!audioRef.current || audioLoading) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    } else {
+      audioRef.current.pause();
+      setIsPlaying(false);
     }
   };
 
@@ -1804,30 +1925,26 @@ const loadRangePages = async () => {
                 </span>
 
                 {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-                <div className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium" 
-                     style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}>
-                  {bibleData.content.split('\n').map((line: string, i: number) => {
-                    // 정규식: 숫자(\d+) 뒤에 점(\.)이 있으면 무시하고 숫자와 나머지 텍스트만 가져옴
-                    const match = line.match(/^(\d+)\.?\s*(.*)/);
-                    
-                    if (match) {
-                      const [_, verseNum, textContent] = match;
-                      return (
-                        <p 
-                          key={i} 
-                          ref={(el) => verseRefs.current[i] = el}
-                          className="flex items-start gap-2 px-2 py-1"
-                        >
-                          {/* 점 없이 숫자만 출력 */}
-                          <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">
-                            {verseNum}
-                          </span>
-                          <span className="flex-1">{textContent}</span>
-                        </p>
-                      );
-                    }
-                    return <p key={i}>{line}</p>;
-                  })}
+                <div
+                  onWheel={markUserScroll}
+                  onTouchMove={markUserScroll}
+                  className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium"
+                  style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
+                >
+                  {parsedVerses.map(({ verse, text }, i) => (
+                    <p
+                      key={`${verse}-${i}`}
+                      ref={(el) => {
+                        verseRefs.current[i] = el;
+                        verseNumberRefs.current[verse] = el;
+                      }}
+                      className={`flex items-start gap-2 px-2 py-1 rounded-lg transition-colors ${currentVerseNumber === verse ? "bg-emerald-100" : ""}`}
+                    >
+                      <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
+                      <span className="flex-1">{text}</span>
+                    </p>
+                  ))}
+                  {parsedVerses.length === 0 && bibleData.content.split("\n").map((line: string, i: number) => <p key={i}>{line}</p>)}
                 </div>
               </>
             ) : noReadingForDate ? (
@@ -1859,7 +1976,7 @@ const loadRangePages = async () => {
       </div>
 
       <div className="flex items-center gap-8 mt-3 mb-14"> 
-        <button onClick={() => handlePlayTTS()} className="flex flex-col items-center gap-1.5 text-zinc-400">
+        <button onClick={() => handlePlayServerAudio()} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Headphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
@@ -2419,7 +2536,7 @@ const loadRangePages = async () => {
                   onClick={() => {
                     setShowPlayModePopup(false);
                     setIsContinuousPlayMode(true);
-                    handlePlayTTS(undefined, true, true);
+                    handlePlayServerAudio();
                   }}
                   className="w-full py-4 bg-[#4A6741] text-white rounded-2xl font-bold text-base hover:bg-[#3d5635] transition-colors"
                 >
@@ -2430,7 +2547,7 @@ const loadRangePages = async () => {
                   onClick={() => {
                     setShowPlayModePopup(false);
                     setIsContinuousPlayMode(false);
-                    handlePlayTTS(undefined, true, false);
+                    handlePlayServerAudio();
                   }}
                   className="w-full py-4 bg-white border-2 border-[#4A6741] text-[#4A6741] rounded-2xl font-bold text-base hover:bg-green-50 transition-colors"
                 >
@@ -2530,68 +2647,19 @@ const loadRangePages = async () => {
         )}
       </AnimatePresence>
 
-      {/* TTS 컨트롤 (재생바 추가) */}
-      <AnimatePresence>
-        {showAudioControl && (
-          <motion.div 
-            initial={{ y: 80, opacity: 0 }} 
-            animate={{ y: audioControlY, opacity: 1 }} 
-            exit={{ y: 80, opacity: 0 }} 
-            style={{ bottom: '96px' }}
-            className="fixed left-6 right-6 bg-[#4A6741] text-white p-5 rounded-[24px] shadow-2xl z-[100]"
-          >
-            <div className="flex flex-col gap-4">
-              <div 
-                className="flex items-center justify-between cursor-move touch-none"
-                onPointerDown={handleDragStart}
-                onPointerMove={handleDragMove}
-                onPointerUp={handleDragEnd}
-                onPointerCancel={handleDragEnd}
-              >
-                <div className="flex items-center gap-3">
-                  <button onClick={togglePlay} className="w-8 h-8 flex items-center justify-center bg-white/20 rounded-full hover:bg-white/30 transition-colors">
-                    {isPlaying ? <Pause fill="white" size={14} /> : <Play fill="white" size={14} />}
-                  </button>
-                  <p className="text-[13px] font-bold">{isPlaying ? "말씀을 음성으로 읽고 있습니다" : "일시 정지 상태입니다."}</p>
-                </div>
-                <button onClick={() => { if(audioRef.current) audioRef.current.pause(); setShowAudioControl(false); setIsPlaying(false); setCurrentTime(0); setDuration(0); setAudioControlY(0); }}><X size={20}/></button>
-              </div>
-              
-              {/* 재생바 및 시간 (서버 파일일 때만 표시) */}
-              {isFromServer && duration > 0 && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs text-white/80">
-                    <span>{Math.floor(currentTime / 60)}:{String(Math.floor(currentTime % 60)).padStart(2, '0')}</span>
-                    <span>{Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max={duration || 0}
-                    value={currentTime}
-                    onChange={(e) => {
-                      const newTime = Number(e.target.value);
-                      setCurrentTime(newTime);
-                      if (audioRef.current) {
-                        audioRef.current.currentTime = newTime;
-                      }
-                    }}
-                    className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, white 0%, white ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) 100%)`
-                    }}
-                  />
-                </div>
-              )}
-              
-              <div className="flex gap-2">
-                <button onClick={() => setVoiceType('F')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'F' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>여성 목소리</button>
-                <button onClick={() => setVoiceType('M')} className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all ${voiceType === 'M' ? 'bg-white text-[#4A6741]' : 'bg-white/10 text-white border border-white/20'}`}>남성 목소리</button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <BibleAudioPlayerModal
+        open={showAudioControl}
+        loading={audioLoading}
+        title="Bible Audio"
+        subtitle={audioSubtitle}
+        isPlaying={isPlaying}
+        progress={currentTime}
+        duration={duration}
+        onClose={closeAudioModal}
+        onTogglePlay={togglePlay}
+        onSeek={seekAudioFromModal}
+      />
+
     </div>
   );
 }
