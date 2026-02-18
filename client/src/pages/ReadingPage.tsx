@@ -100,6 +100,10 @@ export default function ReadingPage() {
   const verseRefs = useRef<(HTMLParagraphElement | null)[]>([]);
   const verseNumberRefs = useRef<Record<number, HTMLParagraphElement | null>>({});
   const audioEndMsRef = useRef<number | null>(null);
+  const audioMetaRef = useRef<any | null>(null);
+  const audioVerseStartRef = useRef<number | null>(null);
+  const audioVerseEndRef = useRef<number | null>(null);
+  const audioPlayingChapterIdxRef = useRef<number>(0);
   const audioObjectUrlRef = useRef<string | null>(null);
   const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentPageIdxRef = useRef<number>(0);  // 현재 인덱스를 ref로도 관리
@@ -1096,16 +1100,60 @@ const loadRangePages = async () => {
     setCurrentTime(nextTime);
   };
 
-  const handlePlayServerAudio = async () => {
-    if (!bibleData) return;
-    const bookId = Number(bibleData?.bible_books?.book_order || 0);
-    const chapter = Number(bibleData?.chapter || 0);
+  const seekToVerse = (targetVerse: number) => {
+    const meta = audioMetaRef.current;
+    if (!meta || !audioRef.current) return;
+    const row = meta.verses?.find((v: any) => v.verse === targetVerse);
+    if (!row) return;
+    audioRef.current.currentTime = row.start_ms / 1000;
+    setCurrentTime(row.start_ms / 1000);
+    setCurrentVerseNumber(targetVerse);
+  };
+
+  const jumpPrevVerse = () => {
+    if (!currentVerseNumber) return;
+    const minVerse = audioVerseStartRef.current ?? 1;
+    seekToVerse(Math.max(minVerse, currentVerseNumber - 1));
+  };
+
+  const jumpNextVerse = () => {
+    if (!currentVerseNumber) return;
+    const maxVerse = audioVerseEndRef.current ?? Number.MAX_SAFE_INTEGER;
+    seekToVerse(Math.min(maxVerse, currentVerseNumber + 1));
+  };
+
+  const handlePlayServerAudio = async (opts?: {
+    continuous?: boolean;
+    chapterData?: any;
+    chapterIdx?: number;
+    skipSelector?: boolean;
+  }) => {
+    const continuous = opts?.continuous ?? false;
+    const chapterData = opts?.chapterData ?? bibleData;
+    const chapterIdx = opts?.chapterIdx ?? currentPageIdx;
+
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!chapterData) return;
+
+    if (!opts?.skipSelector && rangePages.length > 1) {
+      setShowPlayModePopup(true);
+      return;
+    }
+
+    const bookId = Number(chapterData?.bible_books?.book_order || 0);
+    const chapter = Number(chapterData?.chapter || 0);
     if (!bookId || !chapter) return;
+
+    setIsContinuousPlayMode(continuous);
+    audioPlayingChapterIdxRef.current = chapterIdx;
 
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("서버 오디오를 준비하고 있습니다.");
+      setAudioSubtitle("오디오를 준비하고 있습니다.");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -1115,26 +1163,29 @@ const loadRangePages = async () => {
 
       const metadata = await loadChapterAudioMetadata(bookId, chapter);
       if (!metadata) throw new Error("audio metadata not found");
+      audioMetaRef.current = metadata;
 
       const objectUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
-      if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
+      if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = objectUrl;
 
       const audio = new Audio(objectUrl);
       audio.preload = "auto";
       audioRef.current = audio;
 
-      const verseRange = parseVerseRange(bibleData?.verse);
+      const verseRange = parseVerseRange(chapterData?.verse);
       const rangeStart = verseRange ? metadata.verses.find((v) => v.verse === verseRange.start) : null;
       const rangeEnd = verseRange ? [...metadata.verses].reverse().find((v) => v.verse <= verseRange.end) : null;
       const startMs = rangeStart?.start_ms ?? 0;
       const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
       audioEndMsRef.current = endMs;
+      audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
+      audioVerseEndRef.current = verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
 
       setAudioSubtitle(
         verseRange
-          ? `${bibleData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
-          : `${bibleData.bible_name} ${chapter}장`
+          ? `${chapterData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
+          : `${chapterData.bible_name} ${chapter}장`
       );
 
       audio.onloadedmetadata = () => {
@@ -1145,18 +1196,29 @@ const loadRangePages = async () => {
       audio.ontimeupdate = () => {
         const currentMs = Math.round(audio.currentTime * 1000);
         setCurrentTime(audio.currentTime);
-        const verse = findCurrentVerse(metadata.verses, currentMs);
-        setCurrentVerseNumber(verse);
-
+        setCurrentVerseNumber(findCurrentVerse(metadata.verses, currentMs));
         if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
           audio.pause();
           setIsPlaying(false);
-          return;
         }
       };
 
-      audio.onended = () => {
+      audio.onended = async () => {
         setIsPlaying(false);
+        if (continuous && chapterIdx < rangePages.length - 1) {
+          await handleReadComplete(true, chapterData);
+          const nextIdx = chapterIdx + 1;
+          const nextChapter = rangePages[nextIdx];
+          setCurrentPageIdx(nextIdx);
+          currentPageIdxRef.current = nextIdx;
+          setBibleData(nextChapter);
+          await handlePlayServerAudio({
+            continuous: true,
+            chapterData: nextChapter,
+            chapterIdx: nextIdx,
+            skipSelector: true,
+          });
+        }
       };
 
       await audio.play();
@@ -1169,8 +1231,7 @@ const loadRangePages = async () => {
       setAudioSubtitle("오디오를 불러오지 못했습니다.");
     }
   };
-
-  const togglePlay = () => {
+const togglePlay = () => {
     if (!audioRef.current || audioLoading) return;
     if (audioRef.current.paused) {
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
@@ -1178,6 +1239,23 @@ const loadRangePages = async () => {
       audioRef.current.pause();
       setIsPlaying(false);
     }
+  };
+
+  const handleNextChapterFromModal = async () => {
+    const currentIdx = audioPlayingChapterIdxRef.current;
+    if (currentIdx >= rangePages.length - 1) return;
+    const nextIdx = currentIdx + 1;
+    const nextChapter = rangePages[nextIdx];
+    if (!nextChapter) return;
+    setCurrentPageIdx(nextIdx);
+    currentPageIdxRef.current = nextIdx;
+    setBibleData(nextChapter);
+    await handlePlayServerAudio({
+      continuous: isContinuousPlayMode,
+      chapterData: nextChapter,
+      chapterIdx: nextIdx,
+      skipSelector: true,
+    });
   };
 
   // \uc804\uccb4 \uc7ac\uc0dd \ubaa8\ub4dc\uc5d0\uc11c \ub2e4\uc74c \uc7a5 \uc7ac\uc0dd
@@ -2536,7 +2614,7 @@ const loadRangePages = async () => {
                   onClick={() => {
                     setShowPlayModePopup(false);
                     setIsContinuousPlayMode(true);
-                    handlePlayServerAudio();
+                    handlePlayServerAudio({ continuous: true, skipSelector: true });
                   }}
                   className="w-full py-4 bg-[#4A6741] text-white rounded-2xl font-bold text-base hover:bg-[#3d5635] transition-colors"
                 >
@@ -2547,7 +2625,7 @@ const loadRangePages = async () => {
                   onClick={() => {
                     setShowPlayModePopup(false);
                     setIsContinuousPlayMode(false);
-                    handlePlayServerAudio();
+                    handlePlayServerAudio({ continuous: false, skipSelector: true });
                   }}
                   className="w-full py-4 bg-white border-2 border-[#4A6741] text-[#4A6741] rounded-2xl font-bold text-base hover:bg-green-50 transition-colors"
                 >
@@ -2650,7 +2728,6 @@ const loadRangePages = async () => {
       <BibleAudioPlayerModal
         open={showAudioControl}
         loading={audioLoading}
-        title="Bible Audio"
         subtitle={audioSubtitle}
         isPlaying={isPlaying}
         progress={currentTime}
@@ -2658,6 +2735,10 @@ const loadRangePages = async () => {
         onClose={closeAudioModal}
         onTogglePlay={togglePlay}
         onSeek={seekAudioFromModal}
+        onPrevVerse={jumpPrevVerse}
+        onNextVerse={jumpNextVerse}
+        onNextChapter={handleNextChapterFromModal}
+        canNextChapter={audioPlayingChapterIdxRef.current < rangePages.length - 1}
       />
 
     </div>

@@ -85,18 +85,22 @@ export async function loadChapterAudioMetadata(bookId: number, chapter: number):
 
 export async function getCachedAudioObjectUrl(audioUrl: string): Promise<string> {
   if (!("caches" in window)) return audioUrl;
+  try {
+    const cache = await caches.open(AUDIO_CACHE_NAME);
+    const request = new Request(audioUrl, { mode: "cors" });
 
-  const cache = await caches.open(AUDIO_CACHE_NAME);
-  const request = new Request(audioUrl, { mode: "cors" });
+    let response = await cache.match(request);
+    if (!response) {
+      const fetched = await fetch(request);
+      if (!fetched.ok) throw new Error(`audio fetch failed (${fetched.status})`);
+      await cache.put(request, fetched.clone());
+      response = fetched;
+    }
 
-  let response = await cache.match(request);
-  if (!response) {
-    const fetched = await fetch(request);
-    if (!fetched.ok) throw new Error(`audio fetch failed (${fetched.status})`);
-    await cache.put(request, fetched.clone());
-    response = fetched;
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
+  } catch {
+    // Fall back to direct URL playback when Cache API fetch is blocked by CORS or browser policy.
+    return audioUrl;
   }
-
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
 }

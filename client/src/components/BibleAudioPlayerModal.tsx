@@ -1,11 +1,10 @@
 import React from "react";
-import { Loader2, Pause, Play, X } from "lucide-react";
+import { Loader2, Pause, Play, SkipBack, SkipForward, StepForward, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Props = {
   open: boolean;
   loading: boolean;
-  title: string;
   subtitle?: string;
   isPlaying: boolean;
   progress: number;
@@ -13,6 +12,10 @@ type Props = {
   onClose: () => void;
   onTogglePlay: () => void;
   onSeek: (nextTime: number) => void;
+  onPrevVerse?: () => void;
+  onNextVerse?: () => void;
+  onNextChapter?: () => void;
+  canNextChapter?: boolean;
 };
 
 function fmt(sec: number) {
@@ -25,7 +28,6 @@ function fmt(sec: number) {
 export function BibleAudioPlayerModal({
   open,
   loading,
-  title,
   subtitle,
   isPlaying,
   progress,
@@ -33,36 +35,52 @@ export function BibleAudioPlayerModal({
   onClose,
   onTogglePlay,
   onSeek,
+  onPrevVerse,
+  onNextVerse,
+  onNextChapter,
+  canNextChapter = false,
 }: Props) {
   return (
     <AnimatePresence>
       {open && (
-        <motion.div initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 80, opacity: 0 }} className="fixed bottom-20 left-4 right-4 z-[120] rounded-3xl border border-emerald-100 bg-white p-5 shadow-[0_12px_40px_rgba(16,24,40,0.18)]">
-          <div className="mb-4 flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-bold text-zinc-900">{title}</p>
-              {subtitle ? <p className="text-xs text-zinc-500 mt-1">{subtitle}</p> : null}
-            </div>
-            <button onClick={onClose} className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100">
-              <X size={18} />
+        <motion.div
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 80, opacity: 0 }}
+          className="fixed bottom-24 left-6 right-6 z-[120] rounded-[24px] bg-[#4A6741] p-3 text-white shadow-2xl"
+        >
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-[12px] text-white/85">{subtitle || ""}</p>
+            <button onClick={onClose} className="rounded-full p-1 text-white/90 hover:bg-white/20">
+              <X size={17} />
             </button>
           </div>
 
           {loading ? (
-            <div className="flex items-center gap-2 rounded-xl bg-emerald-50 px-3 py-3 text-sm text-emerald-800">
-              <Loader2 size={16} className="animate-spin" />
-              <span>오디오를 준비하는 중입니다. 잠시만 기다려주세요.</span>
+            <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs text-white">
+              <Loader2 size={14} className="animate-spin" />
+              <span>오디오 로딩 중...</span>
             </div>
           ) : (
-            <>
-              <div className="mb-2 flex items-center gap-3">
-                <button onClick={onTogglePlay} className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                  {isPlaying ? <Pause size={17} fill="white" /> : <Play size={17} fill="white" />}
-                </button>
-                <div className="text-xs text-zinc-500">
-                  {fmt(progress)} / {fmt(duration)}
-                </div>
-              </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onPrevVerse}
+                className="h-8 w-8 shrink-0 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
+              >
+                <SkipBack size={14} />
+              </button>
+              <button
+                onClick={onTogglePlay}
+                className="h-8 w-8 shrink-0 rounded-full bg-white text-[#4A6741] flex items-center justify-center"
+              >
+                {isPlaying ? <Pause size={14} fill="#4A6741" /> : <Play size={14} fill="#4A6741" />}
+              </button>
+              <button
+                onClick={onNextVerse}
+                className="h-8 w-8 shrink-0 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30"
+              >
+                <SkipForward size={14} />
+              </button>
               <input
                 type="range"
                 min={0}
@@ -70,9 +88,23 @@ export function BibleAudioPlayerModal({
                 step={0.01}
                 value={Math.min(progress, Math.max(1, duration))}
                 onChange={(e) => onSeek(Number(e.target.value))}
-                className="w-full accent-emerald-600"
+                className="min-w-0 flex-1 accent-white"
               />
-            </>
+              <div className="shrink-0 text-[11px] tabular-nums text-white/90">
+                {fmt(progress)} / {fmt(duration)}
+              </div>
+              {onNextChapter ? (
+                <button
+                  onClick={onNextChapter}
+                  disabled={!canNextChapter}
+                  className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${
+                    canNextChapter ? "bg-white/20 hover:bg-white/30" : "bg-white/10 text-white/40"
+                  }`}
+                >
+                  <StepForward size={14} />
+                </button>
+              ) : null}
+            </div>
           )}
         </motion.div>
       )}

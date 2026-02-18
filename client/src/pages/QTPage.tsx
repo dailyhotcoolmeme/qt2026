@@ -67,6 +67,9 @@ export default function QTPage() {
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioEndMsRef = useRef<number | null>(null);
+  const audioMetaRef = useRef<any | null>(null);
+  const audioVerseStartRef = useRef<number | null>(null);
+  const audioVerseEndRef = useRef<number | null>(null);
   const audioObjectUrlRef = useRef<string | null>(null);
   const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const verseContainerRef = useRef<HTMLDivElement | null>(null);
@@ -814,8 +817,38 @@ const handleBookmark = async () => {
     setAudioCurrentTime(nextSeconds);
   };
 
+  const seekToVerse = (targetVerse: number) => {
+    const meta = audioMetaRef.current;
+    if (!meta || !audioRef.current) return;
+    const row = meta.verses?.find((v: any) => v.verse === targetVerse);
+    if (!row) return;
+    audioRef.current.currentTime = row.start_ms / 1000;
+    setAudioCurrentTime(row.start_ms / 1000);
+    setAudioCurrentVerse(targetVerse);
+  };
+
+  const jumpPrevVerse = () => {
+    const current = audioCurrentVerse;
+    const minVerse = audioVerseStartRef.current ?? 1;
+    if (!current) return;
+    const next = Math.max(minVerse, current - 1);
+    seekToVerse(next);
+  };
+
+  const jumpNextVerse = () => {
+    const current = audioCurrentVerse;
+    const maxVerse = audioVerseEndRef.current ?? Number.MAX_SAFE_INTEGER;
+    if (!current) return;
+    const next = Math.min(maxVerse, current + 1);
+    seekToVerse(next);
+  };
+
   const handlePlayTTS = async () => {
     if (!bibleData) return;
+    if (!user?.id) {
+      setShowLoginModal(true);
+      return;
+    }
 
     const bookId = Number(bibleData?.bible_books?.book_order || 0);
     const chapter = Number(bibleData?.chapter || 0);
@@ -826,7 +859,7 @@ const handleBookmark = async () => {
     try {
       setShowAudioControl(true);
       setAudioLoading(true);
-      setAudioSubtitle("?? ???? ???? ????.");
+      setAudioSubtitle("오디오를 준비하고 있습니다.");
 
       if (audioRef.current) {
         audioRef.current.pause();
@@ -836,6 +869,7 @@ const handleBookmark = async () => {
 
       const metadata = await loadChapterAudioMetadata(bookId, chapter);
       if (!metadata) throw new Error("audio metadata not found");
+      audioMetaRef.current = metadata;
 
       const audioUrl = await getCachedAudioObjectUrl(metadata.audioUrl);
       if (audioObjectUrlRef.current) URL.revokeObjectURL(audioObjectUrlRef.current);
@@ -851,11 +885,14 @@ const handleBookmark = async () => {
       const startMs = rangeStart?.start_ms ?? 0;
       const endMs = rangeEnd?.end_ms ?? metadata.durationMs;
       audioEndMsRef.current = endMs;
+      audioVerseStartRef.current = verseRange?.start ?? metadata.verses?.[0]?.verse ?? 1;
+      audioVerseEndRef.current =
+        verseRange?.end ?? metadata.verses?.[metadata.verses.length - 1]?.verse ?? Number.MAX_SAFE_INTEGER;
 
       setAudioSubtitle(
         verseRange
-          ? `${bibleData.bible_name} ${chapter}? ${verseRange.start}-${verseRange.end}?`
-          : `${bibleData.bible_name} ${chapter}?`
+          ? `${bibleData.bible_name} ${chapter}장 ${verseRange.start}-${verseRange.end}절`
+          : `${bibleData.bible_name} ${chapter}장`
       );
 
       audio.onloadedmetadata = () => {
@@ -888,7 +925,7 @@ const handleBookmark = async () => {
       console.error("QT audio play failed:", error);
       setAudioLoading(false);
       setIsPlaying(false);
-      setAudioSubtitle("???? ???? ?????.");
+      setAudioSubtitle("오디오를 불러오지 못했습니다.");
     }
   };
 const onDragEnd = (event: any, info: any) => {
@@ -1548,7 +1585,6 @@ if (verseMatch) {
       <BibleAudioPlayerModal
         open={showAudioControl}
         loading={audioLoading}
-        title="Bible Audio"
         subtitle={audioSubtitle}
         isPlaying={isPlaying}
         progress={audioCurrentTime}
@@ -1556,6 +1592,8 @@ if (verseMatch) {
         onClose={closeAudioModal}
         onTogglePlay={togglePlay}
         onSeek={handleSeekAudio}
+        onPrevVerse={jumpPrevVerse}
+        onNextVerse={jumpNextVerse}
       />
 <AnimatePresence>
   {showCopyToast && (

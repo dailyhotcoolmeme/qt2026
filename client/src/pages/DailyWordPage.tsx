@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { 
-  Heart, Headphones, Share2, Copy, Bookmark, 
+  Heart, Image as ImageIcon, Share2, Copy, Bookmark, 
   Play, Pause, X, Calendar as CalendarIcon 
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -423,9 +423,9 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
   <div className="flex items-center gap-8 mt-3 mb-14"> 
-    <button onClick={() => setShowCardMaker(true)}
+    <button onClick={handleOpenCardMaker}
               className="flex flex-col items-center gap-1.5 text-zinc-400">
-      <Headphones size={22} strokeWidth={1.5} />
+      <ImageIcon size={22} strokeWidth={1.5} />
       <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>카드 생성</span>
     </button>
 {/* 말씀 복사 버튼 찾아서 수정 */}
@@ -492,6 +492,7 @@ const handlePlayTTS = async (selectedVoice?: 'F' | 'M') => {
   onClose={() => setShowCardMaker(false)}
   title={bibleData ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}` : ""}
   content={bibleData?.content || ""}
+  userId={user?.id ?? null}
 />
 
 <AnimatePresence>
