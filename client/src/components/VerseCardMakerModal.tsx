@@ -31,12 +31,17 @@ const COLOR_PRESETS: ThemePreset[] = [
   { id: "c2", mode: "color", bg: "linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%)", textColor: "#1e3a8a", subColor: "#334155" },
   { id: "c3", mode: "color", bg: "linear-gradient(135deg,#ecfdf5 0%,#d1fae5 100%)", textColor: "#065f46", subColor: "#334155" },
   { id: "c4", mode: "color", bg: "linear-gradient(135deg,#fff7ed 0%,#ffedd5 100%)", textColor: "#7c2d12", subColor: "#334155" },
+  { id: "c5", mode: "color", bg: "linear-gradient(135deg,#faf5ff 0%,#f3e8ff 100%)", textColor: "#5b21b6", subColor: "#4c1d95" },
+  { id: "c6", mode: "color", bg: "linear-gradient(135deg,#f0fdfa 0%,#ccfbf1 100%)", textColor: "#115e59", subColor: "#134e4a" },
+  { id: "c7", mode: "color", bg: "linear-gradient(135deg,#fefce8 0%,#fef3c7 100%)", textColor: "#854d0e", subColor: "#78350f" },
+  { id: "c8", mode: "color", bg: "linear-gradient(135deg,#f5f3ff 0%,#ede9fe 100%)", textColor: "#3730a3", subColor: "#312e81" },
+  { id: "c9", mode: "color", bg: "linear-gradient(135deg,#fef2f2 0%,#ffe4e6 100%)", textColor: "#9f1239", subColor: "#881337" },
+  { id: "c10", mode: "color", bg: "linear-gradient(135deg,#ecfeff 0%,#cffafe 100%)", textColor: "#155e75", subColor: "#164e63" },
+  { id: "c11", mode: "color", bg: "linear-gradient(135deg,#eef2ff 0%,#e0e7ff 100%)", textColor: "#1e1b4b", subColor: "#312e81" },
+  { id: "c12", mode: "color", bg: "linear-gradient(135deg,#f7fee7 0%,#d9f99d 100%)", textColor: "#365314", subColor: "#3f6212" },
 ];
 
-const DEFAULT_IMAGE_URLS = Array.from(
-  { length: 12 },
-  (_, idx) => `https://audio.myamen.co.kr/card-backgrounds/bg${idx + 1}.jpg`
-);
+const DEFAULT_IMAGE_URLS = Array.from({ length: 12 }, (_, idx) => `/api/card-backgrounds/bg${idx + 1}.jpg`);
 
 function resolveImagePresets(): ThemePreset[] {
   const fromEnv = String(import.meta.env.VITE_VERSE_CARD_IMAGE_PRESETS || "")
@@ -51,6 +56,18 @@ function resolveImagePresets(): ThemePreset[] {
     textColor: "#ffffff",
     subColor: "#f4f4f5",
   }));
+}
+
+function toProxyUrl(url: string): string {
+  if (!url) return url;
+  if (url.startsWith("/api/")) return url;
+  try {
+    const parsed = new URL(url, window.location.origin);
+    if (parsed.origin === window.location.origin) return parsed.pathname + parsed.search;
+    return `/api/proxy-image?url=${encodeURIComponent(parsed.toString())}`;
+  } catch {
+    return url;
+  }
 }
 
 function storageKey(userId?: string | null) {
@@ -70,7 +87,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [mode, setMode] = useState<ThemeMode>("color");
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
-  const [fontSize, setFontSize] = useState<number>(32);
+  const [fontSize, setFontSize] = useState<number>(30);
   const [imageOpacity, setImageOpacity] = useState<number>(0.9);
 
   const imagePresets = useMemo(() => resolveImagePresets(), []);
@@ -107,7 +124,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       const img = new Image();
       img.crossOrigin = "anonymous";
-      img.src = currentPreset.bg;
+      img.src = toProxyUrl(currentPreset.bg);
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = () => reject();
@@ -167,44 +184,54 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   };
 
   const exportImage = async (shareMode = false) => {
-    const canvas = await drawToCanvas();
-    if (!canvas) return;
-    const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1));
-    if (!blob) return;
+    try {
+      const canvas = await drawToCanvas();
+      if (!canvas) return;
+      const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1));
+      if (!blob) return;
 
-    if (
-      shareMode &&
-      navigator.canShare &&
-      navigator.canShare({ files: [new File([blob], "verse-card.png", { type: "image/png" })] })
-    ) {
-      await navigator.share({
-        title: "말씀 카드",
-        text: title,
-        files: [new File([blob], "verse-card.png", { type: "image/png" })],
-      });
-      return;
+      if (
+        shareMode &&
+        navigator.canShare &&
+        navigator.canShare({ files: [new File([blob], "verse-card.png", { type: "image/png" })] })
+      ) {
+        await navigator.share({
+          title: "말씀 카드",
+          text: title,
+          files: [new File([blob], "verse-card.png", { type: "image/png" })],
+        });
+        return;
+      }
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "verse-card.png";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (error) {
+      console.error("card export failed:", error);
+      alert("이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     }
-
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "verse-card.png";
-    a.click();
-    URL.revokeObjectURL(a.href);
   };
 
   const saveToRecords = async () => {
-    const canvas = await drawToCanvas();
-    if (!canvas) return;
-    const imageDataUrl = canvas.toDataURL("image/png");
-    const entry: SavedCard = {
-      id: `${Date.now()}`,
-      title,
-      imageDataUrl,
-      createdAt: new Date().toISOString(),
-    };
-    const next = [entry, ...savedCards].slice(0, 30);
-    setSavedCards(next);
-    localStorage.setItem(storageKey(userId), JSON.stringify(next));
+    try {
+      const canvas = await drawToCanvas();
+      if (!canvas) return;
+      const imageDataUrl = canvas.toDataURL("image/png");
+      const entry: SavedCard = {
+        id: `${Date.now()}`,
+        title,
+        imageDataUrl,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [entry, ...savedCards].slice(0, 30);
+      setSavedCards(next);
+      localStorage.setItem(storageKey(userId), JSON.stringify(next));
+    } catch (error) {
+      console.error("save card failed:", error);
+      alert("기록함 보관에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
   };
 
   const previewStyle: React.CSSProperties =
@@ -232,20 +259,20 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
-                <div className="relative w-[82%] max-w-sm min-h-[450px] rounded-[32px] border border-zinc-200 p-8 overflow-hidden" style={previewStyle}>
+                <div className="relative w-[72%] max-w-[260px] aspect-[4/5] rounded-[28px] border border-zinc-200 p-5 overflow-hidden" style={previewStyle}>
                   {currentPreset?.mode === "image" ? (
                     <div
                       className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${currentPreset.bg})`, opacity: imageOpacity }}
+                      style={{ backgroundImage: `url(${toProxyUrl(currentPreset.bg)})`, opacity: imageOpacity }}
                     />
                   ) : null}
-                  <div className="relative min-h-[450px] flex flex-col">
+                  <div className="relative h-full flex flex-col">
                     <div className="flex-1 flex items-center justify-center">
                       <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: currentPreset?.textColor || "#3f3f46", fontSize }}>
                         {cleanContent}
                       </p>
                     </div>
-                    <p className="mt-6 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: Math.max(14, Math.round(fontSize * 0.56)) }}>
+                    <p className="mt-2 text-center font-bold" style={{ color: currentPreset?.subColor || "#52525b", fontSize: Math.max(13, Math.round(fontSize * 0.52)) }}>
                       {title}
                     </p>
                   </div>
@@ -266,8 +293,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   <label className="block text-xs font-semibold text-zinc-500 mb-1">글자 크기: {fontSize}px</label>
                   <input
                     type="range"
-                    min={24}
-                    max={52}
+                    min={20}
+                    max={38}
                     step={1}
                     value={fontSize}
                     onChange={(e) => setFontSize(Number(e.target.value))}
@@ -306,15 +333,15 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
-                  <button onClick={() => exportImage(false)} className="rounded-xl bg-zinc-900 px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={() => exportImage(false)} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
                     <Download size={15} />
-                    핸드폰에 저장
+                    핸드폰 저장
                   </button>
-                  <button onClick={() => exportImage(true)} className="rounded-xl bg-emerald-600 px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={() => exportImage(true)} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
                     <Share2 size={15} />
                     공유
                   </button>
-                  <button onClick={saveToRecords} className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={saveToRecords} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
                     <Save size={15} />
                     기록함 보관
                   </button>

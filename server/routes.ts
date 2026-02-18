@@ -46,6 +46,55 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/card-backgrounds/:file", async (req, res) => {
+    const file = String(req.params.file || "").trim();
+    if (!/^bg\d+\.jpg$/i.test(file)) {
+      return res.status(400).json({ message: "invalid file" });
+    }
+
+    try {
+      const upstream = await fetch(`https://audio.myamen.co.kr/card-backgrounds/${encodeURIComponent(file)}`);
+      if (!upstream.ok) return res.status(upstream.status).json({ message: "upstream fetch failed" });
+      const contentType = upstream.headers.get("content-type") || "image/jpeg";
+      const ab = await upstream.arrayBuffer();
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.send(Buffer.from(ab));
+    } catch (error) {
+      console.error("card background proxy error:", error);
+      return res.status(500).json({ message: "proxy error" });
+    }
+  });
+
+  app.get("/api/proxy-image", async (req, res) => {
+    const raw = String(req.query.url || "");
+    if (!raw) return res.status(400).json({ message: "url is required" });
+
+    let target: URL;
+    try {
+      target = new URL(raw);
+    } catch {
+      return res.status(400).json({ message: "invalid url" });
+    }
+    if (!/^https?:$/.test(target.protocol)) {
+      return res.status(400).json({ message: "unsupported protocol" });
+    }
+
+    try {
+      const upstream = await fetch(target.toString());
+      if (!upstream.ok) return res.status(upstream.status).json({ message: "upstream fetch failed" });
+      const contentType = upstream.headers.get("content-type") || "image/jpeg";
+      const cacheControl = upstream.headers.get("cache-control") || "public, max-age=3600";
+      const ab = await upstream.arrayBuffer();
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", cacheControl);
+      return res.send(Buffer.from(ab));
+    } catch (error) {
+      console.error("image proxy error:", error);
+      return res.status(500).json({ message: "proxy error" });
+    }
+  });
+
   app.get("/api/verses/daily", async (req, res) => {
     const today = new Date().toISOString().split('T')[0]; // 에러 방지를 위해 변수 선언 복구
     res.json({

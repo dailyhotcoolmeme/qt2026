@@ -1,6 +1,9 @@
 {
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/api/bible/audio-metadata", "destination": "/api/bible/audio-metadata" },
+    { "source": "/api/card-backgrounds/:file", "destination": "/api/card-backgrounds/:file" },
+    { "source": "/api/proxy-image", "destination": "/api/proxy-image" },
     { "source": "/api/audio/check", "destination": "/api/audio/check" },
     { "source": "/api/audio/upload", "destination": "/api/audio/upload" },
     { "source": "/api/audio/delete", "destination": "/api/audio/delete" },

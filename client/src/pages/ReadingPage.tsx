@@ -1100,26 +1100,71 @@ const loadRangePages = async () => {
     setCurrentTime(nextTime);
   };
 
+  const getPlayableVerseNumbers = () => {
+    const minVerse = audioVerseStartRef.current ?? 1;
+    const maxVerse = audioVerseEndRef.current ?? Number.MAX_SAFE_INTEGER;
+    const fromText = parsedVerses
+      .map((v) => v.verse)
+      .filter((v) => v >= minVerse && v <= maxVerse);
+    if (fromText.length > 0) return fromText;
+    const fromMeta = (audioMetaRef.current?.verses || [])
+      .map((v: any) => Number(v.verse))
+      .filter((v: number) => Number.isFinite(v) && v >= minVerse && v <= maxVerse);
+    return fromMeta;
+  };
+
+  const estimateCurrentVerseByProgress = () => {
+    const verses = getPlayableVerseNumbers();
+    if (!verses.length || !audioRef.current) return null;
+    const dur = audioRef.current.duration || duration || 0;
+    if (!dur || dur <= 0) return verses[0];
+    const ratio = Math.max(0, Math.min(0.999, audioRef.current.currentTime / dur));
+    const idx = Math.min(verses.length - 1, Math.floor(ratio * verses.length));
+    return verses[idx];
+  };
+
   const seekToVerse = (targetVerse: number) => {
     const meta = audioMetaRef.current;
-    if (!meta || !audioRef.current) return;
-    const row = meta.verses?.find((v: any) => v.verse === targetVerse);
-    if (!row) return;
-    audioRef.current.currentTime = row.start_ms / 1000;
-    setCurrentTime(row.start_ms / 1000);
-    setCurrentVerseNumber(targetVerse);
+    if (!audioRef.current) return;
+    const rows = meta?.verses || [];
+    const row =
+      rows.find((v: any) => v.verse === targetVerse) ??
+      rows.find((v: any) => v.verse > targetVerse) ??
+      [...rows].reverse().find((v: any) => v.verse < targetVerse) ??
+      null;
+    if (row && Number.isFinite(row.start_ms)) {
+      const sec = Math.max(0, row.start_ms / 1000);
+      audioRef.current.currentTime = sec;
+      setCurrentTime(sec);
+      setCurrentVerseNumber(Number(row.verse));
+      return;
+    }
+
+    const verses = getPlayableVerseNumbers();
+    if (!verses.length) return;
+    const foundIdx = verses.findIndex((v) => v >= targetVerse);
+    const targetIdx = foundIdx === -1 ? verses.length - 1 : foundIdx;
+    const dur = audioRef.current.duration || duration || 0;
+    if (dur > 0) {
+      const sec = (targetIdx / Math.max(1, verses.length)) * dur;
+      audioRef.current.currentTime = sec;
+      setCurrentTime(sec);
+    }
+    setCurrentVerseNumber(verses[targetIdx]);
   };
 
   const jumpPrevVerse = () => {
-    if (!currentVerseNumber) return;
+    const current = currentVerseNumber ?? estimateCurrentVerseByProgress();
+    if (!current) return;
     const minVerse = audioVerseStartRef.current ?? 1;
-    seekToVerse(Math.max(minVerse, currentVerseNumber - 1));
+    seekToVerse(Math.max(minVerse, current - 1));
   };
 
   const jumpNextVerse = () => {
-    if (!currentVerseNumber) return;
+    const current = currentVerseNumber ?? estimateCurrentVerseByProgress();
+    if (!current) return;
     const maxVerse = audioVerseEndRef.current ?? Number.MAX_SAFE_INTEGER;
-    seekToVerse(Math.min(maxVerse, currentVerseNumber + 1));
+    seekToVerse(Math.min(maxVerse, current + 1));
   };
 
   const handlePlayServerAudio = async (opts?: {
@@ -1186,6 +1231,9 @@ const loadRangePages = async () => {
         : null;
       let startMs = rangeStart?.start_ms ?? 0;
       let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
+      if (rangeStart && Number.isFinite(startMs)) {
+        startMs = Math.max(0, startMs - 120);
+      }
       let approxStartRatio: number | null = null;
       let approxEndRatio: number | null = null;
       if (verseRange && metadata.verses.length === 0) {
@@ -1248,7 +1296,12 @@ const loadRangePages = async () => {
       audio.ontimeupdate = () => {
         const currentMs = Math.round(audio.currentTime * 1000);
         setCurrentTime(audio.currentTime);
-        setCurrentVerseNumber(findCurrentVerse(metadata.verses, currentMs));
+        const active = findCurrentVerse(metadata.verses, currentMs);
+        if (active !== null) {
+          setCurrentVerseNumber(active);
+        } else {
+          setCurrentVerseNumber(estimateCurrentVerseByProgress());
+        }
         if (audioEndMsRef.current !== null && currentMs >= audioEndMsRef.current) {
           audio.pause();
           void finishCurrentChapter();
@@ -2784,6 +2837,7 @@ const togglePlay = () => {
         open={showAudioControl}
         loading={audioLoading}
         subtitle={audioSubtitle}
+        fontSize={fontSize}
         isPlaying={isPlaying}
         progress={currentTime}
         duration={duration}

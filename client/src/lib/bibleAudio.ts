@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+﻿import { supabase } from "./supabase";
 
 export type VerseTiming = {
   verse: number;
@@ -32,6 +32,20 @@ export function parseVerseRange(label: string | number | null | undefined): { st
   if (label === null || label === undefined) return null;
   const raw = String(label).trim();
   if (!raw) return null;
+  const compact = raw.replace(/\s+/g, "");
+
+  // Handles "8:26-39", "8:26~39", "8:26"
+  const withChapterRange = compact.match(/^\d+[:]\D*(\d+)\D*[-~]\D*(\d+)$/);
+  if (withChapterRange) {
+    const a = Number(withChapterRange[1]);
+    const b = Number(withChapterRange[2]);
+    return { start: Math.min(a, b), end: Math.max(a, b) };
+  }
+  const withChapterSingle = compact.match(/^\d+[:]\D*(\d+)$/);
+  if (withChapterSingle) {
+    const n = Number(withChapterSingle[1]);
+    return { start: n, end: n };
+  }
 
   if (/^\d+$/.test(raw)) {
     const n = Number(raw);
@@ -45,8 +59,7 @@ export function parseVerseRange(label: string | number | null | undefined): { st
     return { start: Math.min(a, b), end: Math.max(a, b) };
   }
 
-  // Supports labels like "26-39절", "26절~39절", "26 : 39"
-  const compact = raw.replace(/\s+/g, "");
+  // Supports labels like "26-39", "26절~39절", "26 : 39"
   const soft = compact.match(/(\d+)\D*[-:~]\D*(\d+)/);
   if (soft) {
     const a = Number(soft[1]);
@@ -56,6 +69,15 @@ export function parseVerseRange(label: string | number | null | undefined): { st
 
   const nums = compact.match(/\d+/g);
   if (!nums || nums.length === 0) return null;
+  if (compact.includes(":") && nums.length >= 2) {
+    if (nums.length >= 3) {
+      const a = Number(nums[1]);
+      const b = Number(nums[2]);
+      return { start: Math.min(a, b), end: Math.max(a, b) };
+    }
+    const n = Number(nums[1]);
+    return { start: n, end: n };
+  }
   if (nums.length === 1) {
     const n = Number(nums[0]);
     return { start: n, end: n };
@@ -64,7 +86,6 @@ export function parseVerseRange(label: string | number | null | undefined): { st
   const b = Number(nums[1]);
   return { start: Math.min(a, b), end: Math.max(a, b) };
 }
-
 export function findCurrentVerse(verses: VerseTiming[], currentMs: number): number | null {
   if (!verses.length) return null;
   for (const row of verses) {
@@ -169,3 +190,4 @@ export async function isAudioCached(audioUrl: string): Promise<boolean> {
     return false;
   }
 }
+
