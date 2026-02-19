@@ -22,17 +22,15 @@ function getBaseEnv() {
 
 function getSendEnv() {
   const base = getBaseEnv();
-  const vapidPublic = process.env.VAPID_PUBLIC_KEY;
-  const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
+  const vapidPublic = process.env.VAPID_PUBLIC_KEY || "";
+  const vapidPrivate = process.env.VAPID_PRIVATE_KEY || "";
   const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@myamen.co.kr";
-  if (!vapidPublic || !vapidPrivate) {
-    throw new Error("Missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY");
-  }
   return {
     ...base,
     vapidPublic,
     vapidPrivate,
     vapidSubject,
+    hasVapid: Boolean(vapidPublic && vapidPrivate),
     pushServerKey: process.env.PUSH_SERVER_KEY || "",
   };
 }
@@ -274,6 +272,50 @@ async function loadSubscriptions(admin, userIds) {
     .filter(Boolean);
 }
 
+function normalizeTargetPath(url) {
+  const raw = String(url || "/").trim() || "/";
+  if (raw.startsWith("/#/")) return raw.slice(2);
+  if (raw.startsWith("#/")) return raw.slice(1);
+  return raw;
+}
+
+async function storeAppNotifications(admin, targetUserIds, payload, eventType, eventDebug) {
+  if (!targetUserIds.length) return 0;
+
+  const notificationType =
+    String(payload?.data?.type || "").trim() ||
+    (eventType === "group_join_request_created"
+      ? "join_pending"
+      : eventType === "group_join_request_resolved"
+      ? "join_approved"
+      : "system");
+
+  const rows = targetUserIds.map((userId) => ({
+    user_id: userId,
+    notification_type: notificationType,
+    title: String(payload?.title || "알림"),
+    message: String(payload?.body || ""),
+    target_path: normalizeTargetPath(payload?.url),
+    event_key: payload?.tag ? `${String(payload.tag)}:${String(userId)}` : null,
+    payload: {
+      ...(payload?.data && typeof payload.data === "object" ? payload.data : {}),
+      ...(eventDebug && typeof eventDebug === "object" ? eventDebug : {}),
+    },
+    is_read: false,
+    read_at: null,
+    created_at: new Date().toISOString(),
+  }));
+
+  const { error } = await admin.from("app_notifications").upsert(rows, {
+    onConflict: "user_id,event_key",
+  });
+  if (error) {
+    console.error("app_notifications upsert failed:", error);
+    return 0;
+  }
+  return rows.length;
+}
+
 async function sendWebPushBatch(admin, subscriptions, payload, ttl) {
   if (!subscriptions.length) {
     return { sent: 0, failed: 0, removed: 0 };
@@ -410,7 +452,9 @@ async function handleSend(req, res) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
-  webpush.setVapidDetails(env.vapidSubject, env.vapidPublic, env.vapidPrivate);
+  if (env.hasVapid) {
+    webpush.setVapidDetails(env.vapidSubject, env.vapidPublic, env.vapidPrivate);
+  }
 
   const admin = createClient(env.url, env.serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -469,6 +513,24 @@ async function handleSend(req, res) {
     });
   }
 
+  const storedCount = await storeAppNotifications(admin, targetUserIds, notificationPayload, eventType, eventDebug);
+
+  if (!env.hasVapid) {
+    return res.status(200).json({
+      success: true,
+      targets: targetUserIds.length,
+      subscriptions: 0,
+      sent: 0,
+      failed: 0,
+      removed: 0,
+      stored: storedCount,
+      skippedPush: true,
+      reason: "VAPID key is not configured",
+      eventType: eventType || null,
+      event: eventDebug,
+    });
+  }
+
   const subscriptions = await loadSubscriptions(admin, targetUserIds);
   const result = await sendWebPushBatch(admin, subscriptions, notificationPayload, req.body?.ttl);
 
@@ -479,6 +541,7 @@ async function handleSend(req, res) {
     sent: result.sent,
     failed: result.failed,
     removed: result.removed,
+    stored: storedCount,
     eventType: eventType || null,
     event: eventDebug,
   });

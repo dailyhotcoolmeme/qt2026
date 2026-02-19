@@ -367,6 +367,7 @@ export default function GroupDashboard() {
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
   const [headerColorDraft, setHeaderColorDraft] = useState("#4A6741");
   const [headerCollapsed, setHeaderCollapsed] = useState(false);
+  const [tabsPinned, setTabsPinned] = useState(false);
 
   const [groupEditName, setGroupEditName] = useState("");
   const [groupEditSlug, setGroupEditSlug] = useState("");
@@ -453,23 +454,34 @@ export default function GroupDashboard() {
   }, [group?.id, group?.name, group?.group_slug, group?.description, group?.group_type]);
 
   useEffect(() => {
-    const scrollContainer = (document.querySelector("main.flex-1") as HTMLElement | null) || window;
-    let lastY = scrollContainer instanceof Window ? scrollContainer.scrollY : scrollContainer.scrollTop;
+    let lastY = Math.max(window.scrollY || 0, 0);
+
     const onScroll = () => {
-      const currentY = scrollContainer instanceof Window ? scrollContainer.scrollY : scrollContainer.scrollTop;
+      const currentY = Math.max(window.scrollY || 0, 0);
       if (currentY <= 24) {
         setHeaderCollapsed(false);
-      } else if (currentY > lastY + 6) {
-        setHeaderCollapsed(true);
-      } else if (currentY < lastY - 6) {
-        setHeaderCollapsed(false);
+        setTabsPinned(false);
+        lastY = currentY;
+        return;
       }
+
+      if (currentY < lastY - 6) {
+        // Scrolling up: keep tabs fixed under TopBar and hide the big header.
+        setHeaderCollapsed(true);
+        setTabsPinned(true);
+      } else if (currentY > lastY + 6) {
+        // Scrolling down: show header again and release sticky tabs.
+        setHeaderCollapsed(false);
+        setTabsPinned(false);
+      }
+
       lastY = currentY;
     };
 
-    scrollContainer.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
     return () => {
-      scrollContainer.removeEventListener("scroll", onScroll as EventListener);
+      window.removeEventListener("scroll", onScroll);
     };
   }, []);
 
@@ -481,25 +493,6 @@ export default function GroupDashboard() {
   }, [group?.id, role, members, faithBoardDate]);
 
   const isManager = role === "owner" || role === "leader";
-
-  const sendPushEvent = async (payload: Record<string, unknown>) => {
-    try {
-      const { data } = await supabase.auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) return;
-
-      await fetch("/api/push/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-    } catch (error) {
-      console.error("push event send failed:", error);
-    }
-  };
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
     setLoading(true);
@@ -801,43 +794,28 @@ export default function GroupDashboard() {
   };
 
   const loadMembers = async (targetGroupId: string, ownerId: string | null): Promise<GroupMemberRow[]> => {
-    const { data } = await supabase
-      .from("group_members")
-      .select("id, user_id, role, joined_at")
-      .eq("group_id", targetGroupId)
-      .order("joined_at", { ascending: true });
+    const { data: rpcData, error: rpcError } = await supabase.rpc("get_group_member_snapshot", {
+      p_group_id: targetGroupId,
+    });
 
-    const rows = (data ?? []) as GroupMemberRow[];
-    const base = [...rows];
-
-    if (ownerId && !base.some((member) => member.user_id === ownerId)) {
-      base.unshift({
-        id: `owner-${ownerId}`,
-        user_id: ownerId,
-        role: "owner",
-        joined_at: null,
-      });
+    if (rpcError) {
+      console.error("load members rpc failed:", rpcError);
+      setMembers([]);
+      return [];
     }
 
-    const userIds = Array.from(new Set(base.map((member) => member.user_id)));
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, username, nickname")
-      .in("id", userIds);
+    const nextMembers: GroupMemberRow[] = ((rpcData ?? []) as Array<any>).map((row) => ({
+      id: String(row.id),
+      user_id: String(row.user_id),
+      role: String(row.role || (ownerId && String(row.user_id) === ownerId ? "owner" : "member")),
+      joined_at: row.joined_at ?? null,
+      profile: {
+        id: String(row.user_id),
+        username: row.username ?? null,
+        nickname: row.nickname ?? null,
+      },
+    }));
 
-    const profileMap = new Map<string, ProfileLite>();
-    (profiles ?? []).forEach((profile: ProfileLite) => {
-      profileMap.set(profile.id, profile);
-    });
-
-    const nextMembers = base.map((member) => {
-      const fixedRole = ownerId && member.user_id === ownerId ? "owner" : member.role;
-      return {
-        ...member,
-        role: fixedRole,
-        profile: profileMap.get(member.user_id),
-      };
-    });
     setMembers(nextMembers);
     return nextMembers;
   };
@@ -957,10 +935,7 @@ export default function GroupDashboard() {
       setJoinMessage("");
       setGuestJoinPending(true);
       alert("가입 신청이 접수되었습니다.");
-      void sendPushEvent({
-        eventType: "group_join_request_created",
-        groupId: group.id,
-      });
+      setLocation(`/community?pending_group=${group.id}`);
     } finally {
       setJoinSubmitting(false);
     }
@@ -1614,26 +1589,26 @@ export default function GroupDashboard() {
 
     await loadAll(group.id, user.id);
     alert(approve ? "가입 요청을 승인했습니다." : "가입 요청을 거절했습니다.");
-    void sendPushEvent({
-      eventType: "group_join_request_resolved",
-      requestId,
-      approved: approve,
-    });
   };
 
   const saveHeaderSettings = async () => {
     if (!group || !isManager) return;
-
-    const { error } = await supabase
-      .from("groups")
-      .update({
-        header_image_url: ensureHttpsUrl(headerImageDraft.trim()) || null,
-        group_image: ensureHttpsUrl(headerImageDraft.trim()) || null,
-        header_color: headerColorDraft || "#4A6741",
-      })
-      .eq("id", group.id);
+    const nextImage = ensureHttpsUrl(headerImageDraft.trim()) || null;
+    const { data, error } = await supabase.rpc("update_group_visual_settings", {
+      p_group_id: group.id,
+      p_group_image: nextImage,
+      p_header_image_url: nextImage,
+      p_header_color: headerColorDraft || "#4A6741",
+    });
 
     if (error) {
+      console.error("saveHeaderSettings failed:", error);
+      alert("헤더 설정 저장에 실패했습니다.");
+      return;
+    }
+
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row?.id) {
       alert("헤더 설정 저장에 실패했습니다.");
       return;
     }
@@ -1642,9 +1617,9 @@ export default function GroupDashboard() {
       prev
         ? {
             ...prev,
-            header_image_url: ensureHttpsUrl(headerImageDraft.trim()) || null,
-            group_image: ensureHttpsUrl(headerImageDraft.trim()) || null,
-            header_color: headerColorDraft || "#4A6741",
+            header_image_url: ensureHttpsUrl(row.header_image_url) ?? nextImage,
+            group_image: ensureHttpsUrl(row.group_image) ?? nextImage,
+            header_color: row.header_color || headerColorDraft || "#4A6741",
           }
         : prev
     );
@@ -1661,13 +1636,26 @@ export default function GroupDashboard() {
       const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
       if (!imageUrl) throw new Error("invalid image url");
 
-      const { error: persistError } = await supabase
-        .from("groups")
-        .update({ group_image: imageUrl, header_image_url: imageUrl })
-        .eq("id", group.id);
+      const { data, error: persistError } = await supabase.rpc("update_group_visual_settings", {
+        p_group_id: group.id,
+        p_group_image: imageUrl,
+        p_header_image_url: imageUrl,
+        p_header_color: headerColorDraft || "#4A6741",
+      });
       if (persistError) throw persistError;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) throw new Error("failed to persist group image");
 
-      setGroup((prev) => (prev ? { ...prev, group_image: imageUrl, header_image_url: imageUrl } : prev));
+      setGroup((prev) =>
+        prev
+          ? {
+              ...prev,
+              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+              header_color: row.header_color || prev.header_color,
+            }
+          : prev
+      );
       setHeaderImageDraft(imageUrl);
       setGroupEditImageFile(null);
       alert("대표 이미지를 업로드했습니다.");
@@ -1694,38 +1682,30 @@ export default function GroupDashboard() {
 
     setGroupEditSaving(true);
     try {
-      if (slug !== (group.group_slug || "")) {
-        const { data: slugDup } = await supabase.from("groups").select("id").eq("group_slug", slug).maybeSingle();
-        if (slugDup && slugDup.id !== group.id) {
-          alert("이미 사용 중인 모임 코드입니다.");
-          return;
-        }
-      }
-
-      const updatePayload: Record<string, unknown> = {
-        name,
-        group_slug: slug,
-        description: description || null,
-        group_type: groupType,
-        group_image: nextImageUrl || null,
-      };
-      if (groupEditPassword.trim()) {
-        updatePayload.password = groupEditPassword.trim();
-      }
-
-      const { error } = await supabase.from("groups").update(updatePayload).eq("id", group.id);
+      const { data, error } = await supabase.rpc("update_group_basic_settings", {
+        p_group_id: group.id,
+        p_name: name,
+        p_group_slug: slug,
+        p_description: description || null,
+        p_group_type: groupType,
+        p_password: groupEditPassword.trim() || null,
+        p_group_image: nextImageUrl || null,
+      });
       if (error) throw error;
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) throw new Error("failed to save group basic settings");
 
       setGroup((prev) =>
         prev
           ? {
               ...prev,
-              name,
-              group_slug: slug,
-              description: description || null,
-              group_type: groupType,
-              group_image: nextImageUrl || null,
-              password: groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null,
+              name: row.name || name,
+              group_slug: row.group_slug || slug,
+              description: row.description ?? (description || null),
+              group_type: row.group_type || groupType,
+              group_image: ensureHttpsUrl(row.group_image) ?? (nextImageUrl || null),
+              password: row.password ?? (groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null),
             }
           : prev
       );
@@ -1733,7 +1713,11 @@ export default function GroupDashboard() {
       alert("모임 설정을 저장했습니다.");
     } catch (error) {
       console.error(error);
-      alert("모임 설정 저장에 실패했습니다.");
+      if (String((error as any)?.message || "").toLowerCase().includes("slug")) {
+        alert("이미 사용 중인 모임 코드입니다.");
+      } else {
+        alert("모임 설정 저장에 실패했습니다.");
+      }
     } finally {
       setGroupEditSaving(false);
     }
@@ -1749,14 +1733,26 @@ export default function GroupDashboard() {
       const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
       setHeaderImageDraft(imageUrl || "");
 
-      // Persist immediately so the image remains after navigation/reload.
-      const { error: persistError } = await supabase
-        .from("groups")
-        .update({ header_image_url: imageUrl, group_image: imageUrl })
-        .eq("id", group.id);
+      const { data, error: persistError } = await supabase.rpc("update_group_visual_settings", {
+        p_group_id: group.id,
+        p_group_image: imageUrl,
+        p_header_image_url: imageUrl,
+        p_header_color: headerColorDraft || "#4A6741",
+      });
       if (persistError) throw persistError;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) throw new Error("failed to persist header image");
 
-      setGroup((prev) => (prev ? { ...prev, header_image_url: imageUrl, group_image: imageUrl } : prev));
+      setGroup((prev) =>
+        prev
+          ? {
+              ...prev,
+              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+              header_color: row.header_color || prev.header_color,
+            }
+          : prev
+      );
       setHeaderImageFile(null);
       alert("헤더 이미지를 업로드했습니다.");
     } catch (error) {
@@ -2033,7 +2029,9 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
+      <div
+        className={`${tabsPinned ? "sticky top-16 z-30" : "relative z-20"} bg-white/95 backdrop-blur border-b border-zinc-200 transition-all`}
+      >
         <div className="w-full">
           <nav className="flex items-center">
           {([

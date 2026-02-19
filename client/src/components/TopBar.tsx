@@ -10,12 +10,13 @@ import { supabase } from "../lib/supabase";
 
 type TopNotificationItem = {
   id: string;
-  type: "join_pending" | "join_approved" | "join_rejected";
+  type: "join_pending" | "join_approved" | "join_rejected" | "member_left" | "system";
   title: string;
   message: string;
   createdAt: string;
   groupId: string;
   targetPath: string;
+  isRead: boolean;
 };
 
 function ensureHttpsUrl(url?: string | null) {
@@ -67,7 +68,6 @@ export function TopBar() {
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
-  const seenKey = useMemo(() => `topbar_seen_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedKey = useMemo(() => `topbar_pushed_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
@@ -163,95 +163,42 @@ export function TopBar() {
     }
 
     try {
-      const groupNameMap = new Map<string, string>();
-      const managerGroupIds = new Set<string>();
-
-      const [{ data: ownedGroups }, { data: leaderRows }] = await Promise.all([
-        supabase.from("groups").select("id,name").eq("owner_id", user.id),
-        supabase.from("group_members").select("group_id, role, groups(id,name)").eq("user_id", user.id).eq("role", "leader"),
-      ]);
-
-      (ownedGroups ?? []).forEach((g: any) => {
-        managerGroupIds.add(String(g.id));
-        groupNameMap.set(String(g.id), String(g.name || "모임"));
-      });
-      (leaderRows ?? []).forEach((row: any) => {
-        const gid = String(row.group_id);
-        managerGroupIds.add(gid);
-        const linked = row.groups as any;
-        if (linked?.name) groupNameMap.set(gid, String(linked.name));
-      });
-
-      const allItems: TopNotificationItem[] = [];
-
-      if (managerGroupIds.size > 0) {
-        const groupIds = Array.from(managerGroupIds);
-        const { data: pendingRows } = await supabase
-          .from("group_join_requests")
-          .select("id,group_id,user_id,message,created_at")
-          .in("group_id", groupIds)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false })
-          .limit(30);
-
-        const applicantIds = Array.from(new Set((pendingRows ?? []).map((row: any) => String(row.user_id))));
-        const { data: applicants } = applicantIds.length
-          ? await supabase.from("profiles").select("id,username,nickname").in("id", applicantIds)
-          : { data: [] as any[] };
-        const applicantMap = new Map<string, string>();
-        (applicants ?? []).forEach((a: any) => {
-          applicantMap.set(String(a.id), String(a.nickname || a.username || "신청자"));
-        });
-
-        (pendingRows ?? []).forEach((row: any) => {
-          const gid = String(row.group_id);
-          const applicant = applicantMap.get(String(row.user_id)) || "신청자";
-          allItems.push({
-            id: `pending-${row.id}`,
-            type: "join_pending",
-            title: `${groupNameMap.get(gid) || "모임"} 가입 신청`,
-            message: `${applicant}님의 가입 요청이 대기 중입니다.`,
-            createdAt: String(row.created_at || new Date().toISOString()),
-            groupId: gid,
-            targetPath: `/group/${gid}?tab=members`,
-          });
-        });
-      }
-
-      const { data: decisionRows } = await supabase
-        .from("group_join_requests")
-        .select("id,group_id,status,resolved_at,created_at")
+      const { data: rows, error } = await supabase
+        .from("app_notifications")
+        .select("id,notification_type,title,message,target_path,payload,is_read,created_at")
         .eq("user_id", user.id)
-        .in("status", ["approved", "rejected"])
-        .not("resolved_at", "is", null)
-        .order("resolved_at", { ascending: false })
-        .limit(30);
+        .order("created_at", { ascending: false })
+        .limit(80);
 
-      const decisionGroupIds = Array.from(new Set((decisionRows ?? []).map((row: any) => String(row.group_id))));
-      if (decisionGroupIds.length > 0) {
-        const { data: decisionGroups } = await supabase.from("groups").select("id,name").in("id", decisionGroupIds);
-        (decisionGroups ?? []).forEach((g: any) => groupNameMap.set(String(g.id), String(g.name || "모임")));
+      if (error) {
+        console.error("notification fetch failed:", error);
+        return;
       }
 
-      (decisionRows ?? []).forEach((row: any) => {
-        const gid = String(row.group_id);
-        const isApproved = row.status === "approved";
-        allItems.push({
-          id: `decision-${row.id}-${row.status}`,
-          type: isApproved ? "join_approved" : "join_rejected",
-          title: `${groupNameMap.get(gid) || "모임"} 가입 ${isApproved ? "승인" : "거절"}`,
-          message: isApproved ? "가입이 승인되었습니다. 탭하여 모임으로 이동합니다." : "가입 요청이 거절되었습니다.",
-          createdAt: String(row.resolved_at || row.created_at || new Date().toISOString()),
-          groupId: gid,
-          targetPath: isApproved ? `/group/${gid}` : "/community?list=1",
-        });
+      const allItems: TopNotificationItem[] = ((rows ?? []) as Array<any>).map((row) => {
+        const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
+        const groupId = String(payload?.groupId || "");
+        const targetPathRaw = String(row.target_path || "/");
+        const targetPath =
+          targetPathRaw.startsWith("/#/")
+            ? targetPathRaw.slice(2)
+            : targetPathRaw.startsWith("#/")
+            ? targetPathRaw.slice(1)
+            : targetPathRaw;
+        return {
+          id: String(row.id),
+          type: (row.notification_type || "system") as TopNotificationItem["type"],
+          title: String(row.title || "알림"),
+          message: String(row.message || ""),
+          createdAt: String(row.created_at || new Date().toISOString()),
+          groupId,
+          targetPath: targetPath || "/",
+          isRead: Boolean(row.is_read),
+        };
       });
 
-      allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setNotifications(allItems);
-
-      const seen = readStringSet(seenKey);
-      const unread = allItems.filter((item) => !seen.has(item.id));
+      const unread = allItems.filter((item) => !item.isRead);
       setUnreadCount(unread.length);
 
       if (Notification.permission === "granted") {
@@ -287,27 +234,57 @@ export function TopBar() {
 
     const timer = window.setInterval(() => {
       void fetchNotifications();
-    }, 45000);
+    }, 30000);
 
-    return () => window.clearInterval(timer);
+    const channel = supabase
+      .channel(`app_notifications_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_notifications", filter: `user_id=eq.${user.id}` },
+        () => {
+          void fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      window.clearInterval(timer);
+      void supabase.removeChannel(channel);
+    };
   }, [isAuthenticated, user?.id]);
 
-  const markAsRead = (id: string) => {
-    const seen = readStringSet(seenKey);
-    seen.add(id);
-    writeStringSet(seenKey, seen);
+  const markAsRead = async (id: string) => {
+    if (!user?.id) return;
+    setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
     setUnreadCount((prev) => Math.max(0, prev - 1));
+    const { error } = await supabase
+      .from("app_notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) {
+      console.error("markAsRead failed:", error);
+    }
   };
 
-  const markAllAsRead = () => {
-    const seen = readStringSet(seenKey);
-    notifications.forEach((item) => seen.add(item.id));
-    writeStringSet(seenKey, seen);
+  const markAllAsRead = async () => {
+    if (!user?.id) return;
+    const unreadIds = notifications.filter((item) => !item.isRead).map((item) => item.id);
+    if (unreadIds.length === 0) return;
+    setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
     setUnreadCount(0);
+    const { error } = await supabase
+      .from("app_notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .in("id", unreadIds);
+    if (error) {
+      console.error("markAllAsRead failed:", error);
+    }
   };
 
   const handleNotificationClick = (item: TopNotificationItem) => {
-    markAsRead(item.id);
+    void markAsRead(item.id);
     setShowNotificationPanel(false);
     if (item.type === "join_pending") {
       window.location.hash = `#/group/${item.groupId}?tab=members`;
@@ -320,7 +297,7 @@ export function TopBar() {
     const nextOpen = !showNotificationPanel;
     setShowNotificationPanel(nextOpen);
     if (nextOpen) {
-      markAllAsRead();
+      void markAllAsRead();
     }
     if ("Notification" in window && Notification.permission === "default") {
       try {
@@ -344,10 +321,14 @@ export function TopBar() {
             <Menu className="h-6 w-6 text-zinc-700" />
           </button>
 
-          <span className="relative inline-block text-xl font-bold tracking-tighter text-[#4A6741]">
+          <button
+            onClick={() => setLocation("/")}
+            className="relative inline-block text-xl font-bold tracking-tighter text-[#4A6741]"
+            aria-label="홈으로 이동"
+          >
             <span className="absolute -left-4 -top-2.5 text-[14px] font-bold">my</span>
             <span>Amen</span>
-          </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-1">
@@ -407,7 +388,7 @@ export function TopBar() {
         <div className="fixed right-4 top-16 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
             <h4 className="text-sm font-bold text-zinc-900">알림</h4>
-            <button onClick={markAllAsRead} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
+            <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
               <CheckCheck size={13} />
               모두 읽음
             </button>
@@ -417,7 +398,7 @@ export function TopBar() {
               <div className="px-4 py-6 text-sm text-zinc-500 text-center">새 알림이 없습니다.</div>
             ) : (
               notifications.map((item) => {
-                const isUnread = !readStringSet(seenKey).has(item.id);
+                const isUnread = !item.isRead;
                 return (
                   <button
                     key={item.id}

@@ -23,6 +23,13 @@ type JoinedGroup = {
   role: MemberRole;
 };
 
+type PendingJoinRequest = {
+  id: string;
+  group_id: string;
+  created_at: string | null;
+  group: GroupRow | null;
+};
+
 type SlugCheckState = "idle" | "checking" | "available" | "taken";
 
 const LAST_GROUP_KEY = "last_group_id";
@@ -83,7 +90,7 @@ async function resizeImageFile(file: File, maxSize = 900, quality = 0.82): Promi
 }
 
 export default function CommunityPage() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,6 +104,7 @@ export default function CommunityPage() {
   const [groupSearchResults, setGroupSearchResults] = useState<GroupRow[]>([]);
   const [groupSearchLoading, setGroupSearchLoading] = useState(false);
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
+  const [pendingRequests, setPendingRequests] = useState<PendingJoinRequest[]>([]);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -109,6 +117,14 @@ export default function CommunityPage() {
   const [slugCheckState, setSlugCheckState] = useState<SlugCheckState>("idle");
   const [groupImageFile, setGroupImageFile] = useState<File | null>(null);
   const [groupImagePreview, setGroupImagePreview] = useState<string>("");
+  const pendingGroupId = useMemo(() => {
+    const fromPath = new URLSearchParams(String(location || "").split("?")[1] || "").get("pending_group");
+    if (fromPath) return fromPath;
+    const hashQuery = String(window.location.hash || "").split("?")[1] || "";
+    const fromHash = new URLSearchParams(hashQuery).get("pending_group");
+    if (fromHash) return fromHash;
+    return new URLSearchParams(window.location.search).get("pending_group");
+  }, [location]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
@@ -124,6 +140,7 @@ export default function CommunityPage() {
       setLoading(false);
       setGroupSearchResults([]);
       setMemberCounts({});
+      setPendingRequests([]);
       return;
     }
     void initialize(user.id);
@@ -131,7 +148,7 @@ export default function CommunityPage() {
 
   const initialize = async (userId: string) => {
     setLoading(true);
-    await Promise.all([loadJoinedGroups(userId), loadLeadershipScope(userId)]);
+    await Promise.all([loadJoinedGroups(userId), loadLeadershipScope(userId), loadPendingRequests(userId)]);
     setLoading(false);
   };
 
@@ -147,6 +164,27 @@ export default function CommunityPage() {
   const loadMemberCountsForGroups = async (groupsInput: Array<Pick<GroupRow, "id" | "owner_id">>) => {
     if (groupsInput.length === 0) return;
     const uniqueGroupIds = Array.from(new Set(groupsInput.map((row) => String(row.id))));
+    const { data: rows, error } = await supabase.rpc("get_group_member_counts", {
+      p_group_ids: uniqueGroupIds,
+    });
+
+    if (!error && Array.isArray(rows)) {
+      const nextCounts: Record<string, number> = {};
+      uniqueGroupIds.forEach((gid) => {
+        nextCounts[gid] = 1;
+      });
+      rows.forEach((row: any) => {
+        const gid = String(row.group_id || "");
+        if (!gid) return;
+        nextCounts[gid] = Math.max(1, Number(row.member_count || 0));
+      });
+      setMemberCounts((prev) => ({ ...prev, ...nextCounts }));
+      return;
+    }
+
+    console.error("get_group_member_counts rpc failed:", error);
+
+    // Fallback for environments where the RPC is not deployed yet.
     const ownerByGroup = new Map<string, string>();
     groupsInput.forEach((row) => {
       const gid = String(row.id || "");
@@ -184,6 +222,56 @@ export default function CommunityPage() {
       nextCounts[gid] = set.size;
     });
     setMemberCounts((prev) => ({ ...prev, ...nextCounts }));
+  };
+
+  const loadPendingRequests = async (userId: string) => {
+    const { data: requestRows, error } = await supabase
+      .from("group_join_requests")
+      .select("id,group_id,created_at,status")
+      .eq("user_id", userId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Failed to load pending requests:", error);
+      setPendingRequests([]);
+      return;
+    }
+
+    const requests = ((requestRows ?? []) as Array<any>).map((row) => ({
+      id: String(row.id),
+      group_id: String(row.group_id),
+      created_at: row.created_at ? String(row.created_at) : null,
+    }));
+
+    if (requests.length === 0) {
+      setPendingRequests([]);
+      return;
+    }
+
+    const groupIds = Array.from(new Set(requests.map((row) => row.group_id)));
+    const { data: groups } = await supabase
+      .from("groups")
+      .select("id, name, description, group_image, group_slug, owner_id, group_type, created_at")
+      .in("id", groupIds);
+
+    const groupMap = new Map<string, GroupRow>();
+    ((groups ?? []) as GroupRow[]).forEach((row) => {
+      groupMap.set(String(row.id), row);
+    });
+
+    const pendingList: PendingJoinRequest[] = requests.map((row) => ({
+      ...row,
+      group: groupMap.get(row.group_id) ?? null,
+    }));
+
+    setPendingRequests(pendingList);
+    await loadMemberCountsForGroups(
+      pendingList
+        .map((item) => item.group)
+        .filter((group): group is GroupRow => Boolean(group))
+        .map((group) => ({ id: group.id, owner_id: group.owner_id }))
+    );
   };
 
   const loadJoinedGroups = async (userId: string): Promise<JoinedGroup[]> => {
@@ -496,17 +584,54 @@ export default function CommunityPage() {
 
         {user && !loading && (
           <section className="space-y-3">
-            {joinedGroups.length === 0 ? (
+            {pendingRequests.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="px-1 text-sm font-bold text-amber-700">가입 승인 대기중</h2>
+                {pendingRequests.map((item) => {
+                  const row = item.group;
+                  if (!row) return null;
+                  const count = memberCounts[row.id] ?? 1;
+                  const isFocused = pendingGroupId === row.id;
+                  return (
+                    <div
+                      key={`pending-${item.id}`}
+                      className={`w-full bg-white border p-4 flex items-center gap-3 ${isFocused ? "border-amber-300 bg-amber-50/40" : "border-[#F5F6F7]"}`}
+                    >
+                      <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
+                        {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900 truncate">{row.name}</span>
+                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-semibold rounded-sm">승인 대기</span>
+                        </div>
+                        <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
+                        <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
+                      </div>
+                      <button
+                        onClick={() => openGroup(row.id)}
+                        className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
+                        aria-label="입장"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {joinedGroups.length === 0 && pendingRequests.length === 0 ? (
               <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
                 <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
               </div>
-            ) : (
+            ) : joinedGroups.length > 0 ? (
               <div className="space-y-2">
                 {joinedGroups.map((item) => (
                   <GroupCard key={item.group.id} row={item.group} />
                 ))}
               </div>
-            )}
+            ) : null}
           </section>
         )}
       </div>
