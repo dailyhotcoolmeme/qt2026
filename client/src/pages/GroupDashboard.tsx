@@ -5,7 +5,6 @@ import {
   Check,
   ChevronLeft,
   Crown,
-  Edit3,
   ImagePlus,
   LayoutGrid,
   LayoutList,
@@ -169,6 +168,17 @@ function formatDateTime(iso?: string | null) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatJoinedAt(iso?: string | null) {
+  if (!iso) return "-";
+  const d = new Date(iso);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}. ${hh}:${min}`;
 }
 
 function toLabel(role: string) {
@@ -1529,17 +1539,18 @@ export default function GroupDashboard() {
   const changeMemberRole = async (targetUserId: string, nextRole: "leader" | "member") => {
     if (!group || !user || role !== "owner" || targetUserId === group.owner_id) return;
 
-    const { error } = await supabase
-      .from("group_members")
-      .update({ role: nextRole })
-      .eq("group_id", group.id)
-      .eq("user_id", targetUserId);
+    const { error } = await supabase.rpc("update_group_member_role", {
+      p_group_id: group.id,
+      p_target_user_id: targetUserId,
+      p_next_role: nextRole,
+    });
 
     if (error) {
       alert("권한 변경에 실패했습니다.");
       return;
     }
     await loadMembers(group.id, group.owner_id);
+    alert(nextRole === "leader" ? "리더로 변경했습니다." : "일반 멤버로 변경했습니다.");
   };
 
   const removeMember = async (targetUserId: string) => {
@@ -1990,16 +2001,6 @@ export default function GroupDashboard() {
             >
               <ChevronLeft size={18} />
             </button>
-
-            {isManager && (
-              <button
-                onClick={() => setShowHeaderEditModal(true)}
-                className="px-3 py-1.5 rounded-sm bg-white/20 text-white text-base font-bold inline-flex items-center gap-1 backdrop-blur"
-              >
-                <Edit3 size={13} />
-                헤더 편집
-              </button>
-            )}
           </div>
 
           <div className="text-white">
@@ -2417,7 +2418,11 @@ export default function GroupDashboard() {
                     >
                       <div>
                         <div className="font-bold text-zinc-900">{name}</div>
-                        <div className="text-base text-zinc-500">{toLabel(member.role)}</div>
+                        <div className="text-xs text-zinc-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>{toLabel(member.role)}</span>
+                          <span>아이디: {member.profile?.username || "-"}</span>
+                          <span>가입: {formatJoinedAt(member.joined_at)}</span>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
@@ -2426,7 +2431,7 @@ export default function GroupDashboard() {
                             onClick={() => changeMemberRole(member.user_id, "leader")}
                             className="px-2 py-1 rounded-sm bg-blue-100 text-blue-700 text-base font-bold"
                           >
-                            리더승급
+                            리더 부여
                           </button>
                         )}
                         {canPromoteDemote && member.role === "leader" && (
@@ -2434,7 +2439,7 @@ export default function GroupDashboard() {
                             onClick={() => changeMemberRole(member.user_id, "member")}
                             className="px-2 py-1 rounded-sm bg-zinc-200 text-zinc-700 text-base font-bold"
                           >
-                            멤버전환
+                            일반멤버 전환
                           </button>
                         )}
                         {canKick && member.user_id !== user.id && (
@@ -2478,41 +2483,56 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-base">모임 기본 정보 수정</h3>
-              <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="모임 이름"
-                value={groupEditName}
-                onChange={(e) => setGroupEditName(e.target.value)}
-              />
-              <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="모임 코드"
-                value={groupEditSlug}
-                onChange={(e) => setGroupEditSlug(e.target.value)}
-              />
-              <select
-                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                value={groupEditType}
-                onChange={(e) => setGroupEditType(e.target.value)}
-              >
-                <option value="church">교회 모임</option>
-                <option value="work_school">학교/직장 모임</option>
-                <option value="family">가족 모임</option>
-                <option value="etc">기타 모임</option>
-              </select>
-              <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="새 비밀번호(선택)"
-                type="password"
-                value={groupEditPassword}
-                onChange={(e) => setGroupEditPassword(e.target.value)}
-              />
-              <textarea
-                className="w-full min-h-[100px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="모임 소개"
-                value={groupEditDescription}
-                onChange={(e) => setGroupEditDescription(e.target.value)}
-              />
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 이름</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 이름"
+                  value={groupEditName}
+                  onChange={(e) => setGroupEditName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 아이디</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 아이디"
+                  value={groupEditSlug}
+                  onChange={(e) => setGroupEditSlug(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 유형</div>
+                <select
+                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  value={groupEditType}
+                  onChange={(e) => setGroupEditType(e.target.value)}
+                >
+                  <option value="church">교회 모임</option>
+                  <option value="work_school">학교/직장 모임</option>
+                  <option value="family">가족 모임</option>
+                  <option value="etc">기타 모임</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 비밀번호</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="새 비밀번호(선택)"
+                  type="password"
+                  value={groupEditPassword}
+                  onChange={(e) => setGroupEditPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 소개</div>
+                <textarea
+                  className="w-full min-h-[100px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 소개"
+                  value={groupEditDescription}
+                  onChange={(e) => setGroupEditDescription(e.target.value)}
+                />
+              </div>
               <div className="rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-2">
                 <div className="text-base font-bold text-zinc-700">모임 대표 이미지</div>
                 <div className="flex items-center gap-2">

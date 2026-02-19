@@ -521,9 +521,11 @@ export default function CommunityPage() {
   const GroupCard = ({ row }: { row: GroupRow }) => {
     const membership = membershipMap.get(row.id);
     const roleText = membership
-      ? membership.role === "owner" || membership.role === "leader"
+      ? membership.role === "owner"
         ? "관리자"
-        : "모임원"
+        : membership.role === "leader"
+        ? "리더"
+        : "일반멤버"
       : "비가입";
 
     const count = memberCounts[row.id] ?? 0;
