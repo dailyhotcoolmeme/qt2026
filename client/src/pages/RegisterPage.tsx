@@ -271,7 +271,7 @@ export default function RegisterPage() {
             <h1 className="font-black text-zinc-900 leading-[1.45]" style={{ fontSize: `${fontSize * 1.25}px` }}>
               3초만에 가입하고<br />
               <span className="text-[#4A6741]" style={{ fontSize: `${fontSize * 1.65}px` }}>
-                묵상 일기를 남겨보세요
+                신앙 기록을 보관하세요
               </span>
             </h1>
           </motion.div>

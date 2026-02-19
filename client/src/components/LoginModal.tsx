@@ -86,7 +86,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                   className="leading-[1.3] tracking-tighter text-zinc-900 font-black"
                   style={{ fontSize: `${fontSize * 1.5}px` }}
                 >
-                  �α����� �ʿ��մϴ�
+                  로그인이 필요합니다
                 </h2>
               </div>
 
@@ -94,13 +94,13 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 onClick={handleKakaoLogin}
                 className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95"
               >
-                <img src="/kakao-login.png" className="h-6 w-6" alt="īī��" />
-                īī���� �����ϱ�
+                <img src="/kakao-login.png" className="h-6 w-6" alt="카카오" />
+                카카오로 로그인하기
               </button>
 
               <div className="flex w-full items-center justify-center gap-3">
                 <div className="h-px flex-1 bg-zinc-200" />
-                <span className="text-sm font-medium text-zinc-400">�Ǵ�</span>
+                <span className="text-sm font-medium text-zinc-400">또는</span>
                 <div className="h-px flex-1 bg-zinc-200" />
               </div>
 
@@ -108,7 +108,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 onClick={handleEmailLogin}
                 className="h-[64px] w-full rounded-[22px] border-2 border-zinc-300 bg-white font-bold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95"
               >
-                ���̵�� �α���
+                이메일로 로그인
               </button>
 
               <button
@@ -118,7 +118,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 }}
                 className="w-full py-3 text-sm font-medium text-zinc-500 hover:text-zinc-700"
               >
-                ȸ������ �ϱ�
+                회원가입 하기
               </button>
             </div>
           </motion.div>

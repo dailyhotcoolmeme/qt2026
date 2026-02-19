@@ -366,6 +366,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     }
   };
 
+  // 삭제 확인 모달 상태
+  const [pendingDeleteRecordId, setPendingDeleteRecordId] = useState<string | null>(null);
+
   const removeRecord = async (recordId: string) => {
     const next = savedCards.filter((card) => card.id !== recordId);
     setSavedCards(next);
@@ -484,7 +487,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             <img src={record.imageDataUrl} alt={record.title} className="aspect-[4/5] w-full object-cover" />
                           </button>
                           <button
-                            onClick={() => void removeRecord(record.id)}
+                            onClick={() => setPendingDeleteRecordId(record.id)}
                             className="absolute right-1 top-1 rounded-full bg-black/55 p-1 text-white"
                             aria-label="삭제"
                           >
@@ -533,6 +536,52 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
           </AnimatePresence>
         </div>
       )}
+    {/* 카드 삭제 확인 모달 */}
+    <AnimatePresence>
+      {pendingDeleteRecordId && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPendingDeleteRecordId(null)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+          >
+            <h4 className="mb-2 text-base font-bold text-zinc-900">
+              카드를 삭제할까요?
+            </h4>
+            <p className="mb-6 text-sm text-zinc-500">
+              삭제한 이미지는 복구할 수 없습니다.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setPendingDeleteRecordId(null)}
+                className="flex-1 rounded-xl bg-zinc-100 py-3 text-sm font-bold text-zinc-600 transition-active active:scale-95"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  if (pendingDeleteRecordId) {
+                    removeRecord(pendingDeleteRecordId);
+                    setPendingDeleteRecordId(null);
+                  }
+                }}
+                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition-active active:scale-95"
+              >
+                삭제
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </AnimatePresence>
+  </AnimatePresence>
   );
 }
