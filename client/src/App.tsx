@@ -27,6 +27,26 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 
+const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
+const GROUP_INVITE_QUERY_KEY = "invite_group";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function readInviteGroupIdFromUrl(): string | null {
+  const searchParams = new URLSearchParams(window.location.search);
+  const fromSearch = String(searchParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
+  if (UUID_REGEX.test(fromSearch)) return fromSearch;
+
+  const hash = window.location.hash || "";
+  const queryIdx = hash.indexOf("?");
+  if (queryIdx >= 0) {
+    const hashParams = new URLSearchParams(hash.substring(queryIdx + 1));
+    const fromHash = String(hashParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
+    if (UUID_REGEX.test(fromHash)) return fromHash;
+  }
+
+  return null;
+}
+
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
@@ -68,11 +88,73 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
+    let inviteJoinInFlight = false;
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
         console.error("Service Worker registration failed:", err);
       });
     }
+
+    const persistPendingInviteFromUrl = () => {
+      const inviteGroupId = readInviteGroupIdFromUrl();
+      if (!inviteGroupId) return;
+      try {
+        localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
+      } catch (error) {
+        console.error("failed to persist invite group id:", error);
+      }
+    };
+
+    const joinPendingInviteGroup = async (sessionUserId?: string | null) => {
+      if (inviteJoinInFlight) return;
+
+      let pendingGroupId = "";
+      try {
+        pendingGroupId = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
+      } catch (error) {
+        console.error("failed to read pending invite:", error);
+        return;
+      }
+
+      if (!pendingGroupId) return;
+      if (!UUID_REGEX.test(pendingGroupId)) {
+        localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
+        return;
+      }
+
+      let userId = sessionUserId || null;
+      if (!userId) {
+        const { data: sessionData } = await supabase.auth.getSession();
+        userId = sessionData?.session?.user?.id ?? null;
+      }
+      if (!userId) return;
+
+      inviteJoinInFlight = true;
+      try {
+        const { data, error } = await supabase.rpc("join_group_by_invite_link", {
+          p_group_id: pendingGroupId,
+        });
+
+        if (error) {
+          console.error("join pending invite failed:", error);
+          return;
+        }
+
+        const joinedGroupId = String(data || pendingGroupId).trim();
+        if (!UUID_REGEX.test(joinedGroupId)) return;
+
+        localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
+
+        const targetPath = `/group/${joinedGroupId}`;
+        const targetHash = `#${targetPath}`;
+        if (!window.location.hash.startsWith(targetHash)) {
+          window.location.href = `${window.location.origin}/#${targetPath}`;
+        }
+      } finally {
+        inviteJoinInFlight = false;
+      }
+    };
 
     const fixKakaoHash = () => {
       const href = window.location.href;
@@ -177,15 +259,18 @@ export default function App() {
       }
     };
 
+    persistPendingInviteFromUrl();
     // Process OAuth hash and returnTo FIRST, before any other async operations
     handleSupabaseHash();
     // Then check and sync agreements after hash is cleared
     fixKakaoHash();
     syncAgreements();
+    void joinPendingInviteGroup();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
         syncAgreements();
+        void joinPendingInviteGroup(session?.user?.id ?? null);
       }
     });
 

@@ -210,6 +210,25 @@ async function loadVerseCards(userId?: string | null): Promise<VerseCardRecord[]
   return cards;
 }
 
+async function saveVerseCards(userId: string, cards: VerseCardRecord[]) {
+  const key = verseCardStorageKey(userId);
+  const db = await openVerseCardDB();
+  if (!db) {
+    localStorage.setItem(key, JSON.stringify(cards));
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(VERSE_CARD_STORE, "readwrite");
+    const store = tx.objectStore(VERSE_CARD_STORE);
+    store.put(cards, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+  db.close();
+}
+
 async function downloadDataUrl(dataUrl: string, fileName: string) {
   const a = document.createElement("a");
   a.href = dataUrl;
@@ -255,6 +274,7 @@ export default function ArchivePage() {
   const [groupsMap, setGroupsMap] = useState<Record<string, string>>({});
   const [verseCards, setVerseCards] = useState<VerseCardRecord[]>([]);
   const [activeVerseCard, setActiveVerseCard] = useState<VerseCardRecord | null>(null);
+  const [pendingDeleteVerseCard, setPendingDeleteVerseCard] = useState<VerseCardRecord | null>(null);
   const [retention, setRetention] = useState<RetentionSummary>({
     voiceTotal: 0,
     voiceExpiringSoon: 0,
@@ -317,6 +337,23 @@ export default function ArchivePage() {
         console.error("share verse card failed:", error);
         alert("이미지 공유에 실패했습니다.");
       }
+    }
+  };
+
+  const deleteVerseCard = async (card: VerseCardRecord) => {
+    if (!user?.id) return;
+    const nextCards = verseCards.filter((item) => item.id !== card.id);
+    setVerseCards(nextCards);
+    if (activeVerseCard?.id === card.id) {
+      setActiveVerseCard(null);
+    }
+    setPendingDeleteVerseCard(null);
+
+    try {
+      await saveVerseCards(user.id, nextCards);
+    } catch (error) {
+      console.error("delete verse card failed:", error);
+      alert("말씀카드 삭제에 실패했습니다.");
     }
   };
 
@@ -554,17 +591,29 @@ export default function ArchivePage() {
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {verseCards.map((card) => (
-                <button
-                  key={card.id}
-                  onClick={() => setActiveVerseCard(card)}
-                  className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-left"
-                >
-                  <img src={card.imageDataUrl} alt={card.title || "말씀카드"} className="aspect-[4/5] w-full object-cover" />
-                  <div className="px-2 py-1.5">
-                    <p className="text-[11px] font-bold text-zinc-700 line-clamp-1">{card.title || "말씀카드"}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">{formatDateTime(card.createdAt)}</p>
-                  </div>
-                </button>
+                <div key={card.id} className="relative">
+                  <button
+                    onClick={() => setActiveVerseCard(card)}
+                    className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-left"
+                  >
+                    <img src={card.imageDataUrl} alt={card.title || "말씀카드"} className="aspect-[4/5] w-full object-cover" />
+                    <div className="px-2 py-1.5">
+                      <p className="text-[11px] font-bold text-zinc-700 line-clamp-1">{card.title || "말씀카드"}</p>
+                      <p className="text-[10px] text-zinc-500 mt-0.5">{formatDateTime(card.createdAt)}</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPendingDeleteVerseCard(card);
+                    }}
+                    className="absolute right-1.5 top-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                    aria-label="카드 삭제"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -773,6 +822,48 @@ export default function ArchivePage() {
               </div>
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {pendingDeleteVerseCard && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingDeleteVerseCard(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+            >
+              <h4 className="mb-2 text-base font-bold text-zinc-900">
+                카드를 삭제할까요?
+              </h4>
+              <p className="mb-6 text-sm text-zinc-500">
+                삭제한 이미지는 복구할 수 없습니다.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingDeleteVerseCard(null)}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 text-sm font-bold text-zinc-600 transition-active active:scale-95"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => void deleteVerseCard(pendingDeleteVerseCard)}
+                  className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition-active active:scale-95"
+                >
+                  삭제
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

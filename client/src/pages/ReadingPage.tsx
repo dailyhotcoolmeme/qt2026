@@ -107,6 +107,7 @@ export default function ReadingPage() {
   const audioObjectUrlRef = useRef<string | null>(null);
   const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentPageIdxRef = useRef<number>(0);  // 현재 인덱스를 ref로도 관리
+  const previousDateRef = useRef<string>(new Date().toDateString());
   
   // 재생 방식 선택 및 전체 재생 모드 관련 상태
   const [showPlayModePopup, setShowPlayModePopup] = useState(false);
@@ -222,17 +223,18 @@ useEffect(() => {
 }, []);
 
 // 날짜별 말씀 로드 (로그인한 회원용)
-const loadDailyVerse = async (date: Date) => {
+const loadDailyVerse = async (date: Date, options?: { forceTodayRestore?: boolean }) => {
   // 로그인하지 않았으면 실행 안 함
   if (!user) return;
   
   const today = new Date();
   const isToday = date.toDateString() === today.toDateString();
+  const forceTodayRestore = Boolean(options?.forceTodayRestore);
   
   console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
   
   // 오늘 날짜이고 rangePages가 비어있으면 localStorage 복원
-  if (isToday && rangePages.length === 0) {
+  if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
     const savedPages = localStorage.getItem('reading_pages');
     const savedDate = localStorage.getItem('reading_date');
     const savedIdx = localStorage.getItem('reading_page_idx');
@@ -261,6 +263,15 @@ const loadDailyVerse = async (date: Date) => {
       localStorage.removeItem('reading_pages');
       localStorage.removeItem('reading_date');
       localStorage.removeItem('reading_page_idx');
+      if (forceTodayRestore) {
+        setRangePages([]);
+        setCurrentPageIdx(0);
+        setBibleData(null);
+      }
+    } else if (forceTodayRestore) {
+      setRangePages([]);
+      setCurrentPageIdx(0);
+      setBibleData(null);
     }
   }
   
@@ -385,16 +396,26 @@ useEffect(() => {
   if (!isInitialized) return;
   
   const today = new Date();
-  const isToday = currentDate.toDateString() === today.toDateString();
+  const todayKey = today.toDateString();
+  const currentKey = currentDate.toDateString();
+  const isToday = currentKey === todayKey;
+  const wasToday = previousDateRef.current === todayKey;
+  let forceTodayRestore = false;
   
   // 오늘이 아닌 경우만 화면 클리어
   if (!isToday) {
     setRangePages([]);
     setBibleData(null);
+  } else if (!wasToday) {
+    setRangePages([]);
+    setBibleData(null);
+    forceTodayRestore = true;
   }
   
+  previousDateRef.current = currentKey;
+
   if (user) {
-    loadDailyVerse(currentDate);
+    loadDailyVerse(currentDate, { forceTodayRestore });
   }
 }, [user, currentDate, isInitialized]);
 
@@ -410,25 +431,38 @@ useEffect(() => {
     const savedSelection = localStorage.getItem('reading_selection');
     const savedPages = localStorage.getItem('reading_pages');
     const savedIdx = localStorage.getItem('reading_page_idx');
+    const savedDate = localStorage.getItem('reading_date');
+    const todayStr = new Date().toISOString().split('T')[0];
     
-    if (savedSelection && savedPages) {
+    if (savedSelection) {
       try {
         const selection = JSON.parse(savedSelection);
-        const pages = JSON.parse(savedPages);
-        const idx = Number(savedIdx) || 0;
-        
         setTempSelection(selection);
-        setRangePages(pages);
-        setCurrentPageIdx(idx);
-        if (pages[idx]) {
-          setBibleData(pages[idx]);
-        }
       } catch (e) {
         console.error('상태 복원 실패:', e);
       }
     }
     
     // 복원 완료 표시
+    if (savedPages && savedDate === todayStr) {
+      try {
+        const pages = JSON.parse(savedPages);
+        const idx = Number(savedIdx) || 0;
+
+        setRangePages(pages);
+        setCurrentPageIdx(idx);
+        if (pages[idx]) {
+          setBibleData(pages[idx]);
+        }
+      } catch (e) {
+        console.error('state restore failed:', e);
+      }
+    } else if (savedPages && savedDate !== todayStr) {
+      localStorage.removeItem('reading_pages');
+      localStorage.removeItem('reading_date');
+      localStorage.removeItem('reading_page_idx');
+    }
+
     setIsInitialized(true);
   }, []);
 

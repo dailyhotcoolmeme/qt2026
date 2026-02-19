@@ -298,6 +298,7 @@ async function uploadFileToR2(fileName: string, blob: Blob, contentType: string)
 }
 
 const LAST_GROUP_KEY = "last_group_id";
+const GROUP_INVITE_PARAM = "invite_group";
 const HEADER_PALETTE = ["#4A6741", "#1F4E5F", "#7C3A2D", "#3E335A", "#2F4858", "#5C4A3D", "#4B3F72", "#374151"];
 
 export default function GroupDashboard() {
@@ -1888,6 +1889,56 @@ export default function GroupDashboard() {
     setLocation("/community?list=1");
   };
 
+  const buildInviteUrl = () => {
+    if (!group?.id) return "";
+    return `${window.location.origin}/#/register?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
+  };
+
+  const buildInviteMessage = () => {
+    if (!group) return "";
+    const groupCode = group.group_slug || "-";
+    const inviteUrl = buildInviteUrl();
+    return [
+      "myAmen(마이아멘)",
+      `${group.name}(${groupCode})에서 당신을 초대했어요.`,
+      "아래 링크에서 회원가입하면 바로 모임에 입장할 수 있어요.",
+      inviteUrl,
+    ].join("\n");
+  };
+
+  const copyInviteMessage = async () => {
+    const text = buildInviteMessage();
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      alert("초대장을 복사했습니다. 카카오톡에 붙여넣어 보내주세요.");
+    } catch (error) {
+      console.error("invite copy failed:", error);
+      alert("초대장 복사에 실패했습니다.");
+    }
+  };
+
+  const shareInviteMessage = async () => {
+    if (!group) return;
+    const inviteUrl = buildInviteUrl();
+    const text = buildInviteMessage();
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `myAmen 모임 초대 - ${group.name}`,
+          text,
+          url: inviteUrl,
+        });
+        return;
+      }
+      await copyInviteMessage();
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      console.error("invite share failed:", error);
+      await copyInviteMessage();
+    }
+  };
+
   if (!groupId) return null;
 
   if (!authReady || loading) {
@@ -2458,7 +2509,7 @@ export default function GroupDashboard() {
               </div>
             </div>
 
-            {isManager && (
+            {role !== "guest" && (
               <button
                 onClick={() => setShowInviteModal(true)}
                 className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
@@ -2952,17 +3003,26 @@ export default function GroupDashboard() {
                 <div className="text-base text-zinc-500">모임 코드</div>
                 <div className="font-bold text-zinc-900">{group.group_slug || "-"}</div>
               </div>
-              <div className="text-base text-zinc-500">가입 비밀번호는 별도로 전달해주세요.</div>
+              <div>
+                <div className="text-base text-zinc-500">초대 링크</div>
+                <div className="break-all font-bold text-zinc-900">{buildInviteUrl()}</div>
+              </div>
+              <div className="text-base text-zinc-500">링크를 받은 사용자는 회원가입 후 즉시 모임에 자동 가입됩니다.</div>
             </div>
-            <button
-              onClick={() => {
-                const text = `[${group.name}] 모임 코드: ${group.group_slug || "-"}`;
-                navigator.clipboard.writeText(text).then(() => alert("초대 정보가 복사되었습니다."));
-              }}
-              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
-            >
-              초대 문구 복사
-            </button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={() => void shareInviteMessage()}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+              >
+                카카오톡으로 초대장 보내기
+              </button>
+              <button
+                onClick={() => void copyInviteMessage()}
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base"
+              >
+                초대장 복사
+              </button>
+            </div>
           </div>
         </div>
       )}
