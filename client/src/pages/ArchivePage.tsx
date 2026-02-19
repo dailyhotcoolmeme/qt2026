@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, HandHeart, LibraryBig, Link2, SearchCheck } from "lucide-react";
+import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, SearchCheck, Share2, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 
@@ -42,8 +42,17 @@ type RetentionSummary = {
   photoSoonestExpireAt: string | null;
 };
 
+type VerseCardRecord = {
+  id: string;
+  title: string;
+  imageDataUrl: string;
+  createdAt: string;
+};
+
 const RETENTION_DAYS = 30;
 const EXPIRING_SOON_DAYS = 7;
+const VERSE_CARD_DB = "myamen_verse_cards";
+const VERSE_CARD_STORE = "cards";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
@@ -158,6 +167,72 @@ function calculateRetention(createdAtList: string[]): {
   };
 }
 
+function verseCardStorageKey(userId?: string | null) {
+  return `verse-card-records:${userId || "guest"}`;
+}
+
+function openVerseCardDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(VERSE_CARD_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(VERSE_CARD_STORE)) {
+        db.createObjectStore(VERSE_CARD_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function loadVerseCards(userId?: string | null): Promise<VerseCardRecord[]> {
+  const key = verseCardStorageKey(userId);
+  const db = await openVerseCardDB();
+  if (!db) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as VerseCardRecord[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  const cards = await new Promise<VerseCardRecord[]>((resolve) => {
+    const tx = db.transaction(VERSE_CARD_STORE, "readonly");
+    const store = tx.objectStore(VERSE_CARD_STORE);
+    const req = store.get(key);
+    req.onsuccess = () => resolve((req.result as VerseCardRecord[]) ?? []);
+    req.onerror = () => resolve([]);
+  });
+
+  db.close();
+  return cards;
+}
+
+async function downloadDataUrl(dataUrl: string, fileName: string) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = fileName;
+  a.click();
+}
+
+async function shareDataUrl(dataUrl: string, title: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const file = new File([blob], "verse-card.jpg", { type: blob.type || "image/jpeg" });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({
+      title: "말씀 카드",
+      text: title,
+      files: [file],
+    });
+    return true;
+  }
+  return false;
+}
+
 export default function ArchivePage() {
   const { user, isLoading } = useAuth();
   const [, setLocation] = useLocation();
@@ -178,6 +253,8 @@ export default function ArchivePage() {
   const [logs, setLogs] = useState<ActivityLogRow[]>([]);
   const [links, setLinks] = useState<ActivityLinkRow[]>([]);
   const [groupsMap, setGroupsMap] = useState<Record<string, string>>({});
+  const [verseCards, setVerseCards] = useState<VerseCardRecord[]>([]);
+  const [activeVerseCard, setActiveVerseCard] = useState<VerseCardRecord | null>(null);
   const [retention, setRetention] = useState<RetentionSummary>({
     voiceTotal: 0,
     voiceExpiringSoon: 0,
@@ -194,11 +271,54 @@ export default function ArchivePage() {
       setLogs([]);
       setLinks([]);
       setGroupsMap({});
+      setVerseCards([]);
+      setActiveVerseCard(null);
       setLoading(false);
       return;
     }
     void loadData(user.id);
   }, [user?.id, startDate, endDate]);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setVerseCards([]);
+      setActiveVerseCard(null);
+      return;
+    }
+
+    loadVerseCards(user.id)
+      .then((cards) =>
+        setVerseCards(
+          cards
+            .filter((card) => Boolean(card?.id && card?.imageDataUrl))
+            .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+        )
+      )
+      .catch(() => setVerseCards([]));
+  }, [user?.id]);
+
+  const saveVerseCardToPhone = async (card: VerseCardRecord) => {
+    try {
+      await downloadDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);
+    } catch (error) {
+      console.error("download verse card failed:", error);
+      alert("이미지 저장에 실패했습니다.");
+    }
+  };
+
+  const shareVerseCard = async (card: VerseCardRecord) => {
+    try {
+      const shared = await shareDataUrl(card.imageDataUrl, card.title || "말씀 카드");
+      if (!shared) {
+        await downloadDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.error("share verse card failed:", error);
+        alert("이미지 공유에 실패했습니다.");
+      }
+    }
+  };
 
   const loadRetentionSummary = async (userId: string) => {
     const [{ data: prayerRows }, { data: qtRows }] = await Promise.all([
@@ -421,6 +541,35 @@ export default function ArchivePage() {
           </div>
         </section>
 
+        <section className="bg-white rounded-3xl border border-zinc-100 p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-black text-zinc-900 text-sm">말씀카드 이미지 기록</h2>
+            <span className="text-xs text-zinc-500">{verseCards.length}개</span>
+          </div>
+
+          {verseCards.length === 0 ? (
+            <div className="rounded-2xl bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
+              저장된 말씀카드가 없습니다.
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              {verseCards.map((card) => (
+                <button
+                  key={card.id}
+                  onClick={() => setActiveVerseCard(card)}
+                  className="overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-left"
+                >
+                  <img src={card.imageDataUrl} alt={card.title || "말씀카드"} className="aspect-[4/5] w-full object-cover" />
+                  <div className="px-2 py-1.5">
+                    <p className="text-[11px] font-bold text-zinc-700 line-clamp-1">{card.title || "말씀카드"}</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{formatDateTime(card.createdAt)}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+
         <section className="bg-white rounded-3xl border border-zinc-100 p-3">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
             {menuConfig.map((item) => (
@@ -583,6 +732,49 @@ export default function ArchivePage() {
           )}
         </motion.section>
       </div>
+
+      <AnimatePresence>
+        {activeVerseCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[230] bg-black/75 p-4 flex items-center justify-center"
+          >
+            <button
+              onClick={() => setActiveVerseCard(null)}
+              className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white"
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-full max-w-sm rounded-2xl bg-white p-3 shadow-2xl">
+              <img
+                src={activeVerseCard.imageDataUrl}
+                alt={activeVerseCard.title || "말씀카드"}
+                className="mx-auto aspect-[4/5] w-full rounded-xl object-cover"
+              />
+              <p className="mt-2 text-center text-sm font-bold text-zinc-800">{activeVerseCard.title || "말씀카드"}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => void saveVerseCardToPhone(activeVerseCard)}
+                  className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+                >
+                  <Download size={14} />
+                  핸드폰 저장
+                </button>
+                <button
+                  onClick={() => void shareVerseCard(activeVerseCard)}
+                  className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+                >
+                  <Share2 size={14} />
+                  공유
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

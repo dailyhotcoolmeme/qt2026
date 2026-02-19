@@ -309,11 +309,19 @@ export function TopBar() {
   const handleNotificationClick = (item: TopNotificationItem) => {
     markAsRead(item.id);
     setShowNotificationPanel(false);
+    if (item.type === "join_pending") {
+      window.location.hash = `#/group/${item.groupId}?tab=members`;
+      return;
+    }
     setLocation(item.targetPath);
   };
 
   const handleOpenNotifications = async () => {
-    setShowNotificationPanel((prev) => !prev);
+    const nextOpen = !showNotificationPanel;
+    setShowNotificationPanel(nextOpen);
+    if (nextOpen) {
+      markAllAsRead();
+    }
     if ("Notification" in window && Notification.permission === "default") {
       try {
         await Notification.requestPermission();

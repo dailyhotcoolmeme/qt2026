@@ -254,6 +254,23 @@ function getHashQueryParams() {
   return new URLSearchParams(hash.substring(queryIdx + 1));
 }
 
+function getTabQueryParam(pathWithQuery?: string) {
+  const fromHash = getHashQueryParams().get("tab");
+  if (fromHash) return fromHash;
+
+  const fromSearch = new URLSearchParams(window.location.search).get("tab");
+  if (fromSearch) return fromSearch;
+
+  const source = String(pathWithQuery || "");
+  const queryIdx = source.indexOf("?");
+  if (queryIdx >= 0) {
+    const fromPathQuery = new URLSearchParams(source.substring(queryIdx + 1)).get("tab");
+    if (fromPathQuery) return fromPathQuery;
+  }
+
+  return null;
+}
+
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
   const response = await fetch("/api/file/upload", {
@@ -382,7 +399,7 @@ export default function GroupDashboard() {
 
   useEffect(() => {
     if (!groupId) return;
-    const queryTab = getHashQueryParams().get("tab");
+    const queryTab = getTabQueryParam(location);
     const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin"];
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
@@ -1577,6 +1594,16 @@ export default function GroupDashboard() {
 
     if (error) {
       console.error("resolve_join_request failed:", error);
+      if (error.code === "23505") {
+        await loadAll(group.id, user.id);
+        alert("이미 처리된 가입 요청입니다. 목록을 갱신했습니다.");
+        return;
+      }
+      if ((error.code === "P0001" || error.code === "PGRST116") && String(error.message || "").includes("pending request not found")) {
+        await loadAll(group.id, user.id);
+        alert("이미 처리된 가입 요청입니다. 목록을 갱신했습니다.");
+        return;
+      }
       if (error.code === "PGRST202" || error.code === "42883") {
         alert("서버 DB 마이그레이션이 필요합니다. 최신 배포 후 다시 시도해주세요.");
       } else {
