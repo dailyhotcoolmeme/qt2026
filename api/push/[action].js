@@ -10,24 +10,26 @@ function applyCors(res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-push-server-key");
 }
 
-function getEnv() {
+function getBaseEnv() {
   const url = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!url || !serviceKey || !anonKey) {
+    throw new Error("Missing Supabase env for push API");
+  }
+  return { url, serviceKey, anonKey };
+}
+
+function getSendEnv() {
+  const base = getBaseEnv();
   const vapidPublic = process.env.VAPID_PUBLIC_KEY;
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY;
   const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@myamen.co.kr";
-  if (!url || !serviceKey || !anonKey) {
-    throw new Error("Missing Supabase env for push send API");
-  }
   if (!vapidPublic || !vapidPrivate) {
     throw new Error("Missing VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY");
   }
-
   return {
-    url,
-    serviceKey,
-    anonKey,
+    ...base,
     vapidPublic,
     vapidPrivate,
     vapidSubject,
@@ -39,18 +41,6 @@ function parseBearerToken(req) {
   const raw = String(req.headers.authorization || "");
   if (!raw.toLowerCase().startsWith("bearer ")) return null;
   return raw.slice(7).trim() || null;
-}
-
-async function resolveAuthedUser(req, env) {
-  const token = parseBearerToken(req);
-  if (!token) return null;
-
-  const authClient = createClient(env.url, env.anonKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-  const { data, error } = await authClient.auth.getUser(token);
-  if (error || !data?.user) return null;
-  return data.user;
 }
 
 function toUniqueIds(values) {
@@ -79,6 +69,30 @@ function parseSubscriptionPayload(raw) {
   };
 }
 
+async function resolveAuthedUser(req, env) {
+  const token = parseBearerToken(req);
+  if (!token) return null;
+
+  const authClient = createClient(env.url, env.anonKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { data, error } = await authClient.auth.getUser(token);
+  if (error || !data?.user) return null;
+  return data.user;
+}
+
+function getAction(req) {
+  const raw = req.query?.action;
+  if (Array.isArray(raw) && raw.length > 0) return String(raw[0]).toLowerCase();
+  if (typeof raw === "string" && raw.trim()) return raw.trim().toLowerCase();
+
+  const fallbackUrl = String(req.url || "");
+  const match = fallbackUrl.match(/\/api\/push\/([^/?#]+)/i);
+  if (match?.[1]) return match[1].toLowerCase();
+
+  return "";
+}
+
 async function resolveGroupManagers(admin, groupId) {
   const { data: group, error: groupError } = await admin
     .from("groups")
@@ -102,7 +116,7 @@ async function resolveGroupManagers(admin, groupId) {
   ]);
 
   return {
-    groupName: String(group.name || "¸ğÀÓ"),
+    groupName: String(group.name || "ëª¨ì„"),
     managerIds,
   };
 }
@@ -138,13 +152,13 @@ async function buildEventNotification(admin, actorUserId, eventType, payload) {
       .eq("id", actorUserId)
       .maybeSingle();
 
-    const requesterName = String(profile?.nickname || profile?.username || "½ÅÃ»ÀÚ");
+    const requesterName = String(profile?.nickname || profile?.username || "ì‹ ì²­ì");
 
     return {
       targetUserIds,
       payload: {
-        title: `${groupName} °¡ÀÔ ½ÅÃ»`,
-        body: `${requesterName}´ÔÀÇ °¡ÀÔ ¿äÃ»ÀÌ ´ë±â ÁßÀÔ´Ï´Ù.`,
+        title: `${groupName} ê°€ì… ì‹ ì²­`,
+        body: `${requesterName}ë‹˜ì˜ ê°€ì… ìš”ì²­ì´ ëŒ€ê¸° ì¤‘ì…ë‹ˆë‹¤.`,
         url: `/#/group/${groupId}?tab=members`,
         tag: `join-pending-${joinRequest.id}`,
         data: {
@@ -210,10 +224,10 @@ async function buildEventNotification(admin, actorUserId, eventType, payload) {
     return {
       targetUserIds: [joinRequest.user_id],
       payload: {
-        title: `${group.name || "¸ğÀÓ"} °¡ÀÔ ${approved ? "½ÂÀÎ" : "°ÅÀı"}`,
+        title: `${group.name || "ëª¨ì„"} ê°€ì… ${approved ? "ìŠ¹ì¸" : "ê±°ì ˆ"}`,
         body: approved
-          ? "°¡ÀÔÀÌ ½ÂÀÎµÇ¾ú½À´Ï´Ù. ÅÇÇÏ¿© ¸ğÀÓÀ¸·Î ÀÌµ¿ÇÕ´Ï´Ù."
-          : "°¡ÀÔ ¿äÃ»ÀÌ °ÅÀıµÇ¾ú½À´Ï´Ù.",
+          ? "ê°€ì…ì´ ìŠ¹ì¸ë˜ì—ˆìŠµë‹ˆë‹¤. íƒ­í•˜ì—¬ ëª¨ì„ìœ¼ë¡œ ì´ë™í•©ë‹ˆë‹¤."
+          : "ê°€ì… ìš”ì²­ì´ ê±°ì ˆë˜ì—ˆìŠµë‹ˆë‹¤.",
         url: approved ? `/#/group/${group.id}` : "/#/community?list=1",
         tag: `join-decision-${joinRequest.id}-${normalizedStatus}`,
         data: {
@@ -326,95 +340,166 @@ async function sendWebPushBatch(admin, subscriptions, payload, ttl) {
   return { sent, failed, removed: staleIds.length };
 }
 
+async function handleSubscribe(req, res) {
+  const env = getBaseEnv();
+  const user = await resolveAuthedUser(req, env);
+  if (!user?.id) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
+  const subscription = parseSubscriptionPayload(req.body?.subscription);
+  if (!subscription) {
+    return res.status(400).json({ success: false, error: "Invalid push subscription payload" });
+  }
+
+  const admin = createClient(env.url, env.serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const nowIso = new Date().toISOString();
+  const { error } = await admin.from("push_subscriptions").upsert(
+    {
+      user_id: user.id,
+      endpoint: subscription.endpoint,
+      subscription,
+      user_agent: req.headers["user-agent"] ? String(req.headers["user-agent"]) : null,
+      updated_at: nowIso,
+      last_error: null,
+    },
+    { onConflict: "endpoint" }
+  );
+
+  if (error) {
+    return res.status(500).json({ success: false, error: error.message || "Failed to save subscription" });
+  }
+
+  return res.status(200).json({ success: true });
+}
+
+async function handleUnsubscribe(req, res) {
+  const env = getBaseEnv();
+  const user = await resolveAuthedUser(req, env);
+  if (!user?.id) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
+  const endpoint = String(req.body?.endpoint || "").trim();
+  if (!endpoint) {
+    return res.status(400).json({ success: false, error: "endpoint is required" });
+  }
+
+  const admin = createClient(env.url, env.serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { error } = await admin.from("push_subscriptions").delete().eq("user_id", user.id).eq("endpoint", endpoint);
+  if (error) {
+    return res.status(500).json({ success: false, error: error.message || "Failed to delete subscription" });
+  }
+
+  return res.status(200).json({ success: true });
+}
+
+async function handleSend(req, res) {
+  const env = getSendEnv();
+  const rawServerKey = String(req.headers["x-push-server-key"] || "").trim();
+  const isServerAuthorized = Boolean(env.pushServerKey) && rawServerKey === env.pushServerKey;
+
+  const actor = isServerAuthorized ? null : await resolveAuthedUser(req, env);
+  if (!isServerAuthorized && !actor?.id) {
+    return res.status(401).json({ success: false, error: "Unauthorized" });
+  }
+
+  webpush.setVapidDetails(env.vapidSubject, env.vapidPublic, env.vapidPrivate);
+
+  const admin = createClient(env.url, env.serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const eventType = String(req.body?.eventType || "").trim();
+  let targetUserIds = [];
+  let notificationPayload = null;
+  let eventDebug = null;
+
+  if (eventType) {
+    if (!actor?.id) {
+      return res.status(403).json({ success: false, error: "eventType calls require user authentication" });
+    }
+
+    const eventResult = await buildEventNotification(admin, actor.id, eventType, req.body || {});
+    if (!eventResult) {
+      return res.status(400).json({ success: false, error: "Unsupported eventType" });
+    }
+    targetUserIds = toUniqueIds(eventResult.targetUserIds);
+    notificationPayload = eventResult.payload;
+    eventDebug = eventResult.eventDebug || null;
+  } else {
+    targetUserIds = toUniqueIds(
+      Array.isArray(req.body?.userIds) ? req.body.userIds : req.body?.userId ? [req.body.userId] : []
+    );
+    notificationPayload = {
+      title: String(req.body?.title || "").trim(),
+      body: String(req.body?.body || "").trim(),
+      url: String(req.body?.url || "").trim() || "/",
+      tag: req.body?.tag ? String(req.body.tag) : undefined,
+      data: req.body?.data && typeof req.body.data === "object" ? req.body.data : {},
+    };
+
+    if (!notificationPayload.title || !notificationPayload.body) {
+      return res.status(400).json({ success: false, error: "title and body are required" });
+    }
+
+    if (!isServerAuthorized) {
+      const actorId = String(actor.id);
+      if (!targetUserIds.length) targetUserIds = [actorId];
+      const notSelfTarget = targetUserIds.some((id) => id !== actorId);
+      if (notSelfTarget) {
+        return res.status(403).json({ success: false, error: "Only server key can send to other users" });
+      }
+    }
+  }
+
+  if (!targetUserIds.length) {
+    return res.status(200).json({
+      success: true,
+      message: "No push targets",
+      sent: 0,
+      failed: 0,
+      removed: 0,
+    });
+  }
+
+  const subscriptions = await loadSubscriptions(admin, targetUserIds);
+  const result = await sendWebPushBatch(admin, subscriptions, notificationPayload, req.body?.ttl);
+
+  return res.status(200).json({
+    success: true,
+    targets: targetUserIds.length,
+    subscriptions: subscriptions.length,
+    sent: result.sent,
+    failed: result.failed,
+    removed: result.removed,
+    eventType: eventType || null,
+    event: eventDebug,
+  });
+}
+
 export default async function handler(req, res) {
   applyCors(res);
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ success: false, error: "Method not allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ success: false, error: "Method not allowed" });
+  }
 
   try {
-    const env = getEnv();
+    const action = getAction(req);
 
-    const rawServerKey = String(req.headers["x-push-server-key"] || "").trim();
-    const isServerAuthorized = Boolean(env.pushServerKey) && rawServerKey === env.pushServerKey;
+    if (action === "subscribe") return await handleSubscribe(req, res);
+    if (action === "unsubscribe") return await handleUnsubscribe(req, res);
+    if (action === "send") return await handleSend(req, res);
 
-    const actor = isServerAuthorized ? null : await resolveAuthedUser(req, env);
-    if (!isServerAuthorized && !actor?.id) {
-      return res.status(401).json({ success: false, error: "Unauthorized" });
-    }
-
-    webpush.setVapidDetails(env.vapidSubject, env.vapidPublic, env.vapidPrivate);
-
-    const admin = createClient(env.url, env.serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const eventType = String(req.body?.eventType || "").trim();
-    let targetUserIds = [];
-    let notificationPayload = null;
-    let eventDebug = null;
-
-    if (eventType) {
-      if (!actor?.id) {
-        return res.status(403).json({ success: false, error: "eventType calls require user authentication" });
-      }
-
-      const eventResult = await buildEventNotification(admin, actor.id, eventType, req.body || {});
-      if (!eventResult) {
-        return res.status(400).json({ success: false, error: "Unsupported eventType" });
-      }
-      targetUserIds = toUniqueIds(eventResult.targetUserIds);
-      notificationPayload = eventResult.payload;
-      eventDebug = eventResult.eventDebug || null;
-    } else {
-      targetUserIds = toUniqueIds(
-        Array.isArray(req.body?.userIds) ? req.body.userIds : req.body?.userId ? [req.body.userId] : []
-      );
-      notificationPayload = {
-        title: String(req.body?.title || "").trim(),
-        body: String(req.body?.body || "").trim(),
-        url: String(req.body?.url || "").trim() || "/",
-        tag: req.body?.tag ? String(req.body.tag) : undefined,
-        data: req.body?.data && typeof req.body.data === "object" ? req.body.data : {},
-      };
-
-      if (!notificationPayload.title || !notificationPayload.body) {
-        return res.status(400).json({ success: false, error: "title and body are required" });
-      }
-
-      if (!isServerAuthorized) {
-        const actorId = String(actor.id);
-        if (!targetUserIds.length) targetUserIds = [actorId];
-        const notSelfTarget = targetUserIds.some((id) => id !== actorId);
-        if (notSelfTarget) {
-          return res.status(403).json({ success: false, error: "Only server key can send to other users" });
-        }
-      }
-    }
-
-    if (!targetUserIds.length) {
-      return res.status(200).json({
-        success: true,
-        message: "No push targets",
-        sent: 0,
-        failed: 0,
-        removed: 0,
-      });
-    }
-
-    const subscriptions = await loadSubscriptions(admin, targetUserIds);
-    const result = await sendWebPushBatch(admin, subscriptions, notificationPayload, req.body?.ttl);
-
-    return res.status(200).json({
-      success: true,
-      targets: targetUserIds.length,
-      subscriptions: subscriptions.length,
-      sent: result.sent,
-      failed: result.failed,
-      removed: result.removed,
-      eventType: eventType || null,
-      event: eventDebug,
-    });
+    return res.status(404).json({ success: false, error: "Unknown push action" });
   } catch (error) {
     const status = Number(error?.status || 500);
     return res.status(status >= 400 && status < 600 ? status : 500).json({
