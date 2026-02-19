@@ -142,37 +142,37 @@ export default function App() {
     };
 
     const syncAgreements = async () => {
-      const { data: { user }, error: userErr } = await supabase.auth.getUser();
-      if (userErr) {
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+      if (sessionErr) {
         // eslint-disable-next-line no-console
-        console.warn('syncAgreements: getUser error', userErr);
+        console.warn('syncAgreements: getSession error', sessionErr);
+        return;
+      }
+      const user = sessionData?.session?.user;
+      if (!user?.id) return;
+
+      const { data: existing, error: selectErr } = await supabase
+        .from('user_terms_agreements')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (selectErr) {
+        // eslint-disable-next-line no-console
+        console.warn('syncAgreements: select error', selectErr);
         return;
       }
 
-      if (user) {
-        const { data: existing, error: selectErr } = await supabase
-          .from('user_terms_agreements')
-          .select('id')
-          .eq('user_id', user.id)
-          .limit(1);
+      if (!existing || existing.length === 0) {
+        const { error: insErr } = await supabase.from('user_terms_agreements').insert([
+          { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
+          { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
+        ]);
 
-        if (selectErr) {
+        if (insErr) {
           // eslint-disable-next-line no-console
-          console.warn('syncAgreements: select error', selectErr);
+          console.warn('syncAgreements: insert error', insErr);
           return;
-        }
-
-        if (!existing || existing.length === 0) {
-          const { data: insData, error: insErr } = await supabase.from('user_terms_agreements').insert([
-            { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-            { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-          ]);
-
-          if (insErr) {
-            // eslint-disable-next-line no-console
-            console.warn('syncAgreements: insert error', insErr);
-            return;
-          }
         }
       }
     };
