@@ -10,6 +10,9 @@
     { "source": "/api/file/upload", "destination": "/api/file/upload" },
     { "source": "/api/audio/delete", "destination": "/api/audio/delete" },
     { "source": "/api/audio/move", "destination": "/api/audio/move" },
+    { "source": "/api/push/subscribe", "destination": "/api/push/subscribe" },
+    { "source": "/api/push/unsubscribe", "destination": "/api/push/unsubscribe" },
+    { "source": "/api/push/send", "destination": "/api/push/send" },
     { "source": "/api/prayer/transcribe", "destination": "/api/prayer/transcribe" },
     { "source": "/api/auth/user", "destination": "/api/auth/user" }
   ]

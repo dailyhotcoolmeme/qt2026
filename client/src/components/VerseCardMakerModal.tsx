@@ -95,8 +95,12 @@ function openVerseCardDB(): Promise<IDBDatabase | null> {
 async function loadCardsFromStore(key: string): Promise<SavedCard[]> {
   const db = await openVerseCardDB();
   if (!db) {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as SavedCard[]) : [];
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? (JSON.parse(raw) as SavedCard[]) : [];
+    } catch {
+      return [];
+    }
   }
 
   const cards = await new Promise<SavedCard[]>((resolve) => {
@@ -113,7 +117,12 @@ async function loadCardsFromStore(key: string): Promise<SavedCard[]> {
 async function saveCardsToStore(key: string, cards: SavedCard[]) {
   const db = await openVerseCardDB();
   if (!db) {
-    localStorage.setItem(key, JSON.stringify(cards));
+    try {
+      localStorage.setItem(key, JSON.stringify(cards));
+    } catch {
+      const compact = cards.slice(0, 3);
+      localStorage.setItem(key, JSON.stringify(compact));
+    }
     return;
   }
 
@@ -137,10 +146,37 @@ function normalizeVerseText(raw: string): string {
   return lines.join("\n");
 }
 
+async function dataUrlToFile(dataUrl: string, fileName: string) {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+}
+
+async function downloadDataUrl(dataUrl: string, fileName: string) {
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = fileName;
+  a.click();
+}
+
+async function shareDataUrl(dataUrl: string, title: string) {
+  const file = await dataUrlToFile(dataUrl, "verse-card.jpg");
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    await navigator.share({
+      title: "말씀 카드",
+      text: title,
+      files: [file],
+    });
+    return true;
+  }
+  return false;
+}
+
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const [mode, setMode] = useState<ThemeMode>("color");
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
+  const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
   const CANVAS_WIDTH = 900;
   const CANVAS_HEIGHT = 1125;
   const BODY_FONT_PX = 50;
@@ -162,7 +198,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const previewRefFontPx = Math.max(10, Math.round((REFERENCE_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setActiveRecord(null);
+      return;
+    }
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     const randomized = pool[Math.floor(Math.random() * pool.length)] || pool[0];
     if (randomized) setSelectedId(randomized.id);
@@ -287,7 +326,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     try {
       const canvas = await drawToCanvas();
       if (!canvas) return;
-      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.78);
       const entry: SavedCard = {
         id: `${Date.now()}`,
         title,
@@ -297,9 +336,44 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       const next = [entry, ...savedCards].slice(0, 30);
       setSavedCards(next);
       await saveCardsToStore(storageKey(userId), next);
+      alert("기록함에 보관되었습니다.");
     } catch (error) {
       console.error("save card failed:", error);
       alert("기록함 보관에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    }
+  };
+
+  const saveRecordToPhone = async (record: SavedCard) => {
+    try {
+      await downloadDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+    } catch (error) {
+      console.error("download saved card failed:", error);
+      alert("이미지 저장에 실패했습니다.");
+    }
+  };
+
+  const shareRecord = async (record: SavedCard) => {
+    try {
+      const shared = await shareDataUrl(record.imageDataUrl, record.title);
+      if (!shared) {
+        await downloadDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+      }
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.error("share saved card failed:", error);
+        alert("이미지 공유에 실패했습니다.");
+      }
+    }
+  };
+
+  const removeRecord = async (recordId: string) => {
+    const next = savedCards.filter((card) => card.id !== recordId);
+    setSavedCards(next);
+    if (activeRecord?.id === recordId) setActiveRecord(null);
+    try {
+      await saveCardsToStore(storageKey(userId), next);
+    } catch (error) {
+      console.error("delete saved card failed:", error);
     }
   };
 
@@ -390,9 +464,73 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                     기록함 보관
                   </button>
                 </div>
+
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-sm font-bold text-zinc-800">기록함</p>
+                    <p className="text-xs text-zinc-500">{savedCards.length}개</p>
+                  </div>
+
+                  {savedCards.length === 0 ? (
+                    <p className="py-6 text-center text-xs text-zinc-500">보관된 카드가 없습니다.</p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-2">
+                      {savedCards.map((record) => (
+                        <div key={record.id} className="relative">
+                          <button
+                            onClick={() => setActiveRecord(record)}
+                            className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                          >
+                            <img src={record.imageDataUrl} alt={record.title} className="aspect-[4/5] w-full object-cover" />
+                          </button>
+                          <button
+                            onClick={() => void removeRecord(record.id)}
+                            className="absolute right-1 top-1 rounded-full bg-black/55 p-1 text-white"
+                            aria-label="삭제"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </motion.div>
+
+          <AnimatePresence>
+            {activeRecord && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
+              >
+                <button onClick={() => setActiveRecord(null)} className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white">
+                  <X size={18} />
+                </button>
+                <div className="w-full max-w-sm rounded-2xl bg-white p-3 shadow-2xl">
+                  <img src={activeRecord.imageDataUrl} alt={activeRecord.title} className="mx-auto aspect-[4/5] w-full rounded-xl object-cover" />
+                  <p className="mt-2 text-center text-sm font-bold text-zinc-800">{activeRecord.title}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => void saveRecordToPhone(activeRecord)}
+                      className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white"
+                    >
+                      핸드폰 저장
+                    </button>
+                    <button
+                      onClick={() => void shareRecord(activeRecord)}
+                      className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white"
+                    >
+                      공유
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
     </AnimatePresence>

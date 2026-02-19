@@ -41,6 +41,18 @@ function writeStringSet(key: string, values: Set<string>) {
   }
 }
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
@@ -58,6 +70,8 @@ export function TopBar() {
   const seenKey = useMemo(() => `topbar_seen_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedKey = useMemo(() => `topbar_pushed_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedIdsRef = useRef<Set<string>>(new Set());
+  const pushSyncedKeyRef = useRef<string>("");
+  const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").trim();
 
   const handleLogout = () => setShowLogoutConfirm(true);
 
@@ -97,6 +111,48 @@ export function TopBar() {
       body: item.message,
       tag: item.id,
     });
+  };
+
+  const getAccessToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  };
+
+  const syncPushSubscription = async (force = false) => {
+    if (!isAuthenticated || !user?.id || !vapidPublicKey) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (Notification.permission !== "granted") return;
+
+    const cacheKey = `${user.id}:${Notification.permission}:${vapidPublicKey}`;
+    if (!force && pushSyncedKeyRef.current === cacheKey) return;
+
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let subscription = await reg.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
+
+      const token = await getAccessToken();
+      if (!token) return;
+
+      const response = await fetch("/api/push/subscribe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ subscription: subscription.toJSON() }),
+      });
+
+      if (!response.ok) return;
+      pushSyncedKeyRef.current = cacheKey;
+    } catch (error) {
+      console.error("push subscription sync failed:", error);
+    }
   };
 
   const fetchNotifications = async () => {
@@ -218,6 +274,14 @@ export function TopBar() {
   }, [pushedKey]);
 
   useEffect(() => {
+    if (!isAuthenticated || !user?.id) {
+      pushSyncedKeyRef.current = "";
+      return;
+    }
+    void syncPushSubscription(false);
+  }, [isAuthenticated, user?.id, vapidPublicKey]);
+
+  useEffect(() => {
     void fetchNotifications();
     if (!isAuthenticated || !user?.id) return;
 
@@ -253,9 +317,14 @@ export function TopBar() {
     if ("Notification" in window && Notification.permission === "default") {
       try {
         await Notification.requestPermission();
+        if (Notification.permission === "granted") {
+          await syncPushSubscription(true);
+        }
       } catch {
         // ignore
       }
+    } else if (Notification.permission === "granted") {
+      await syncPushSubscription(false);
     }
   };
 

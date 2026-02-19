@@ -465,6 +465,25 @@ export default function GroupDashboard() {
 
   const isManager = role === "owner" || role === "leader";
 
+  const sendPushEvent = async (payload: Record<string, unknown>) => {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+
+      await fetch("/api/push/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch (error) {
+      console.error("push event send failed:", error);
+    }
+  };
+
   const loadAll = async (targetGroupId: string, userId: string | null) => {
     setLoading(true);
 
@@ -921,6 +940,10 @@ export default function GroupDashboard() {
       setJoinMessage("");
       setGuestJoinPending(true);
       alert("가입 신청이 접수되었습니다.");
+      void sendPushEvent({
+        eventType: "group_join_request_created",
+        groupId: group.id,
+      });
     } finally {
       setJoinSubmitting(false);
     }
@@ -1564,6 +1587,11 @@ export default function GroupDashboard() {
 
     await loadAll(group.id, user.id);
     alert(approve ? "가입 요청을 승인했습니다." : "가입 요청을 거절했습니다.");
+    void sendPushEvent({
+      eventType: "group_join_request_resolved",
+      requestId,
+      approved: approve,
+    });
   };
 
   const saveHeaderSettings = async () => {
@@ -1606,7 +1634,14 @@ export default function GroupDashboard() {
       const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
       if (!imageUrl) throw new Error("invalid image url");
 
-      setGroup((prev) => (prev ? { ...prev, group_image: imageUrl } : prev));
+      const { error: persistError } = await supabase
+        .from("groups")
+        .update({ group_image: imageUrl, header_image_url: imageUrl })
+        .eq("id", group.id);
+      if (persistError) throw persistError;
+
+      setGroup((prev) => (prev ? { ...prev, group_image: imageUrl, header_image_url: imageUrl } : prev));
+      setHeaderImageDraft(imageUrl);
       setGroupEditImageFile(null);
       alert("대표 이미지를 업로드했습니다.");
     } catch (error) {

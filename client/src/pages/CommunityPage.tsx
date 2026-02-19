@@ -144,25 +144,38 @@ export default function CommunityPage() {
     setHasLeadershipScope((data?.length ?? 0) > 0);
   };
 
-  const loadMemberCountsForGroupIds = async (groupIds: string[]) => {
-    if (groupIds.length === 0) return;
-    const uniqueGroupIds = Array.from(new Set(groupIds));
-    const [{ data: members, error: memberErr }, { data: groups, error: groupErr }] = await Promise.all([
+  const loadMemberCountsForGroups = async (groupsInput: Array<Pick<GroupRow, "id" | "owner_id">>) => {
+    if (groupsInput.length === 0) return;
+    const uniqueGroupIds = Array.from(new Set(groupsInput.map((row) => String(row.id))));
+    const ownerByGroup = new Map<string, string>();
+    groupsInput.forEach((row) => {
+      const gid = String(row.id || "");
+      const ownerId = String(row.owner_id || "");
+      if (gid && ownerId) ownerByGroup.set(gid, ownerId);
+    });
+
+    const [{ data: members, error: memberErr }, { data: groups }] = await Promise.all([
       supabase.from("group_members").select("group_id,user_id").in("group_id", uniqueGroupIds),
       supabase.from("groups").select("id,owner_id").in("id", uniqueGroupIds),
     ]);
-    if (memberErr || groupErr) return;
+    if (memberErr) return;
 
     const bucket = new Map<string, Set<string>>();
     uniqueGroupIds.forEach((id) => bucket.set(id, new Set<string>()));
+
     (members ?? []).forEach((row: any) => {
-      const gid = String(row.group_id);
+      const gid = String(row.group_id || "");
       const uid = String(row.user_id || "");
-      if (bucket.has(gid) && uid) bucket.get(gid)!.add(uid);
+      if (gid && uid && bucket.has(gid)) bucket.get(gid)!.add(uid);
     });
+
     (groups ?? []).forEach((row: any) => {
-      const gid = String(row.id);
+      const gid = String(row.id || "");
       const ownerId = String(row.owner_id || "");
+      if (gid && ownerId && bucket.has(gid)) bucket.get(gid)!.add(ownerId);
+    });
+
+    ownerByGroup.forEach((ownerId, gid) => {
       if (bucket.has(gid) && ownerId) bucket.get(gid)!.add(ownerId);
     });
 
@@ -174,29 +187,53 @@ export default function CommunityPage() {
   };
 
   const loadJoinedGroups = async (userId: string): Promise<JoinedGroup[]> => {
-    const { data, error } = await supabase
-      .from("group_members")
-      .select("group_id, role, groups(*)")
-      .eq("user_id", userId)
-      .order("joined_at", { ascending: false });
+    const [{ data: memberRows, error: memberError }, { data: ownedRows, error: ownedError }] = await Promise.all([
+      supabase
+        .from("group_members")
+        .select("group_id, role, groups(*)")
+        .eq("user_id", userId)
+        .order("joined_at", { ascending: false }),
+      supabase
+        .from("groups")
+        .select("id, name, description, group_image, group_slug, owner_id, group_type, created_at")
+        .eq("owner_id", userId)
+        .order("created_at", { ascending: false }),
+    ]);
 
-    if (error) {
-      console.error("Failed to load joined groups:", error);
+    if (memberError) {
+      console.error("Failed to load joined groups:", memberError);
       setJoinedGroups([]);
       return [];
     }
 
-    const mapped: JoinedGroup[] = (data ?? [])
-      .map((row: any) => {
-        const g = row.groups as GroupRow | null;
-        if (!g) return null;
-        const role: MemberRole = g.owner_id === userId ? "owner" : (row.role ?? "member");
-        return { group: g, role };
-      })
-      .filter(Boolean) as JoinedGroup[];
+    if (ownedError) {
+      console.error("Failed to load owned groups:", ownedError);
+    }
+
+    const map = new Map<string, JoinedGroup>();
+
+    (memberRows ?? []).forEach((row: any) => {
+      const g = row.groups as GroupRow | null;
+      if (!g?.id) return;
+      const role: MemberRole = g.owner_id === userId ? "owner" : (row.role ?? "member");
+      map.set(g.id, { group: g, role });
+    });
+
+    (ownedRows ?? []).forEach((g: any) => {
+      const row = g as GroupRow;
+      if (!row?.id) return;
+      const prev = map.get(row.id);
+      map.set(row.id, { group: prev?.group || row, role: "owner" });
+    });
+
+    const mapped = Array.from(map.values()).sort((a, b) => {
+      const at = new Date(a.group.created_at || 0).getTime();
+      const bt = new Date(b.group.created_at || 0).getTime();
+      return bt - at;
+    });
 
     setJoinedGroups(mapped);
-    await loadMemberCountsForGroupIds(mapped.map((item) => item.group.id));
+    await loadMemberCountsForGroups(mapped.map((item) => ({ id: item.group.id, owner_id: item.group.owner_id })));
     return mapped;
   };
 
@@ -224,7 +261,7 @@ export default function CommunityPage() {
 
     const rows = (data ?? []) as GroupRow[];
     setGroupSearchResults(rows);
-    await loadMemberCountsForGroupIds(rows.map((row) => row.id));
+    await loadMemberCountsForGroups(rows.map((row) => ({ id: row.id, owner_id: row.owner_id })));
   };
 
   const membershipMap = useMemo(() => {
