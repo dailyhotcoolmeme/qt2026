@@ -68,6 +68,12 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/sw.js").catch((err) => {
+        console.error("Service Worker registration failed:", err);
+      });
+    }
+
     const fixKakaoHash = () => {
       const href = window.location.href;
       if (href.includes("/#/#")) {

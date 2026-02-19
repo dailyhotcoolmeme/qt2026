@@ -147,18 +147,29 @@ export default function CommunityPage() {
   const loadMemberCountsForGroupIds = async (groupIds: string[]) => {
     if (groupIds.length === 0) return;
     const uniqueGroupIds = Array.from(new Set(groupIds));
-    const { data, error } = await supabase.from("group_members").select("group_id").in("group_id", uniqueGroupIds);
-    if (error) return;
+    const [{ data: members, error: memberErr }, { data: groups, error: groupErr }] = await Promise.all([
+      supabase.from("group_members").select("group_id,user_id").in("group_id", uniqueGroupIds),
+      supabase.from("groups").select("id,owner_id").in("id", uniqueGroupIds),
+    ]);
+    if (memberErr || groupErr) return;
+
+    const bucket = new Map<string, Set<string>>();
+    uniqueGroupIds.forEach((id) => bucket.set(id, new Set<string>()));
+    (members ?? []).forEach((row: any) => {
+      const gid = String(row.group_id);
+      const uid = String(row.user_id || "");
+      if (bucket.has(gid) && uid) bucket.get(gid)!.add(uid);
+    });
+    (groups ?? []).forEach((row: any) => {
+      const gid = String(row.id);
+      const ownerId = String(row.owner_id || "");
+      if (bucket.has(gid) && ownerId) bucket.get(gid)!.add(ownerId);
+    });
 
     const nextCounts: Record<string, number> = {};
-    uniqueGroupIds.forEach((id) => {
-      nextCounts[id] = 0;
+    bucket.forEach((set, gid) => {
+      nextCounts[gid] = set.size;
     });
-    (data ?? []).forEach((row: any) => {
-      const key = String(row.group_id);
-      nextCounts[key] = (nextCounts[key] ?? 0) + 1;
-    });
-
     setMemberCounts((prev) => ({ ...prev, ...nextCounts }));
   };
 

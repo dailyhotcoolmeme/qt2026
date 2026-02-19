@@ -74,6 +74,60 @@ function storageKey(userId?: string | null) {
   return `verse-card-records:${userId || "guest"}`;
 }
 
+const VERSE_CARD_DB = "myamen_verse_cards";
+const VERSE_CARD_STORE = "cards";
+
+function openVerseCardDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(VERSE_CARD_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(VERSE_CARD_STORE)) {
+        db.createObjectStore(VERSE_CARD_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function loadCardsFromStore(key: string): Promise<SavedCard[]> {
+  const db = await openVerseCardDB();
+  if (!db) {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as SavedCard[]) : [];
+  }
+
+  const cards = await new Promise<SavedCard[]>((resolve) => {
+    const tx = db.transaction(VERSE_CARD_STORE, "readonly");
+    const store = tx.objectStore(VERSE_CARD_STORE);
+    const req = store.get(key);
+    req.onsuccess = () => resolve((req.result as SavedCard[]) ?? []);
+    req.onerror = () => resolve([]);
+  });
+  db.close();
+  return cards;
+}
+
+async function saveCardsToStore(key: string, cards: SavedCard[]) {
+  const db = await openVerseCardDB();
+  if (!db) {
+    localStorage.setItem(key, JSON.stringify(cards));
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(VERSE_CARD_STORE, "readwrite");
+    const store = tx.objectStore(VERSE_CARD_STORE);
+    store.put(cards, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
+  });
+  db.close();
+}
+
 function normalizeVerseText(raw: string): string {
   const lines = String(raw || "")
     .split("\n")
@@ -112,13 +166,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     const randomized = pool[Math.floor(Math.random() * pool.length)] || pool[0];
     if (randomized) setSelectedId(randomized.id);
-    try {
-      const raw = localStorage.getItem(storageKey(userId));
-      const parsed = raw ? (JSON.parse(raw) as SavedCard[]) : [];
-      setSavedCards(parsed);
-    } catch {
-      setSavedCards([]);
-    }
+    const key = storageKey(userId);
+    loadCardsFromStore(key).then(setSavedCards).catch(() => setSavedCards([]));
   }, [open, mode, userId, imagePresets]);
 
   const drawToCanvas = async () => {
@@ -238,7 +287,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     try {
       const canvas = await drawToCanvas();
       if (!canvas) return;
-      const imageDataUrl = canvas.toDataURL("image/png");
+      const imageDataUrl = canvas.toDataURL("image/jpeg", 0.88);
       const entry: SavedCard = {
         id: `${Date.now()}`,
         title,
@@ -247,7 +296,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       };
       const next = [entry, ...savedCards].slice(0, 30);
       setSavedCards(next);
-      localStorage.setItem(storageKey(userId), JSON.stringify(next));
+      await saveCardsToStore(storageKey(userId), next);
     } catch (error) {
       console.error("save card failed:", error);
       alert("기록함 보관에 실패했습니다. 잠시 후 다시 시도해 주세요.");

@@ -1,11 +1,45 @@
-﻿import React, { useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, BookType, LogOut } from "lucide-react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Menu, X, User, Type, ChevronRight, Lock, BookType, LogOut, Bell, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { LoginModal } from "./LoginModal";
 import { Link, useLocation } from "wouter";
+import { supabase } from "../lib/supabase";
+
+type TopNotificationItem = {
+  id: string;
+  type: "join_pending" | "join_approved" | "join_rejected";
+  title: string;
+  message: string;
+  createdAt: string;
+  groupId: string;
+  targetPath: string;
+};
+
+function ensureHttpsUrl(url?: string | null) {
+  if (!url) return "";
+  return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
+}
+
+function readStringSet(key: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? (JSON.parse(raw) as string[]) : [];
+    return new Set(parsed);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeStringSet(key: string, values: Set<string>) {
+  try {
+    localStorage.setItem(key, JSON.stringify(Array.from(values).slice(-300)));
+  } catch {
+    // ignore
+  }
+}
 
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -13,10 +47,17 @@ export function TopBar() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const { fontSize, setFontSize } = useDisplaySettings();
   const { user, logout, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+
+  const seenKey = useMemo(() => `topbar_seen_notifications:${user?.id || "guest"}`, [user?.id]);
+  const pushedKey = useMemo(() => `topbar_pushed_notifications:${user?.id || "guest"}`, [user?.id]);
+  const pushedIdsRef = useRef<Set<string>>(new Set());
 
   const handleLogout = () => setShowLogoutConfirm(true);
 
@@ -34,6 +75,188 @@ export function TopBar() {
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFontSize(Number(e.target.value));
+  };
+
+  const showSystemNotification = async (item: TopNotificationItem) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    const url = `${window.location.origin}/#${item.targetPath}`;
+
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.showNotification(item.title, {
+          body: item.message,
+          tag: item.id,
+          data: { url },
+        });
+        return;
+      }
+    }
+
+    new Notification(item.title, {
+      body: item.message,
+      tag: item.id,
+    });
+  };
+
+  const fetchNotifications = async () => {
+    if (!isAuthenticated || !user?.id) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
+
+    try {
+      const groupNameMap = new Map<string, string>();
+      const managerGroupIds = new Set<string>();
+
+      const [{ data: ownedGroups }, { data: leaderRows }] = await Promise.all([
+        supabase.from("groups").select("id,name").eq("owner_id", user.id),
+        supabase.from("group_members").select("group_id, role, groups(id,name)").eq("user_id", user.id).eq("role", "leader"),
+      ]);
+
+      (ownedGroups ?? []).forEach((g: any) => {
+        managerGroupIds.add(String(g.id));
+        groupNameMap.set(String(g.id), String(g.name || "모임"));
+      });
+      (leaderRows ?? []).forEach((row: any) => {
+        const gid = String(row.group_id);
+        managerGroupIds.add(gid);
+        const linked = row.groups as any;
+        if (linked?.name) groupNameMap.set(gid, String(linked.name));
+      });
+
+      const allItems: TopNotificationItem[] = [];
+
+      if (managerGroupIds.size > 0) {
+        const groupIds = Array.from(managerGroupIds);
+        const { data: pendingRows } = await supabase
+          .from("group_join_requests")
+          .select("id,group_id,user_id,message,created_at")
+          .in("group_id", groupIds)
+          .eq("status", "pending")
+          .order("created_at", { ascending: false })
+          .limit(30);
+
+        const applicantIds = Array.from(new Set((pendingRows ?? []).map((row: any) => String(row.user_id))));
+        const { data: applicants } = applicantIds.length
+          ? await supabase.from("profiles").select("id,username,nickname").in("id", applicantIds)
+          : { data: [] as any[] };
+        const applicantMap = new Map<string, string>();
+        (applicants ?? []).forEach((a: any) => {
+          applicantMap.set(String(a.id), String(a.nickname || a.username || "신청자"));
+        });
+
+        (pendingRows ?? []).forEach((row: any) => {
+          const gid = String(row.group_id);
+          const applicant = applicantMap.get(String(row.user_id)) || "신청자";
+          allItems.push({
+            id: `pending-${row.id}`,
+            type: "join_pending",
+            title: `${groupNameMap.get(gid) || "모임"} 가입 신청`,
+            message: `${applicant}님의 가입 요청이 대기 중입니다.`,
+            createdAt: String(row.created_at || new Date().toISOString()),
+            groupId: gid,
+            targetPath: `/group/${gid}?tab=members`,
+          });
+        });
+      }
+
+      const { data: decisionRows } = await supabase
+        .from("group_join_requests")
+        .select("id,group_id,status,resolved_at,created_at")
+        .eq("user_id", user.id)
+        .in("status", ["approved", "rejected"])
+        .not("resolved_at", "is", null)
+        .order("resolved_at", { ascending: false })
+        .limit(30);
+
+      const decisionGroupIds = Array.from(new Set((decisionRows ?? []).map((row: any) => String(row.group_id))));
+      if (decisionGroupIds.length > 0) {
+        const { data: decisionGroups } = await supabase.from("groups").select("id,name").in("id", decisionGroupIds);
+        (decisionGroups ?? []).forEach((g: any) => groupNameMap.set(String(g.id), String(g.name || "모임")));
+      }
+
+      (decisionRows ?? []).forEach((row: any) => {
+        const gid = String(row.group_id);
+        const isApproved = row.status === "approved";
+        allItems.push({
+          id: `decision-${row.id}-${row.status}`,
+          type: isApproved ? "join_approved" : "join_rejected",
+          title: `${groupNameMap.get(gid) || "모임"} 가입 ${isApproved ? "승인" : "거절"}`,
+          message: isApproved ? "가입이 승인되었습니다. 탭하여 모임으로 이동합니다." : "가입 요청이 거절되었습니다.",
+          createdAt: String(row.resolved_at || row.created_at || new Date().toISOString()),
+          groupId: gid,
+          targetPath: isApproved ? `/group/${gid}` : "/community?list=1",
+        });
+      });
+
+      allItems.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      setNotifications(allItems);
+
+      const seen = readStringSet(seenKey);
+      const unread = allItems.filter((item) => !seen.has(item.id));
+      setUnreadCount(unread.length);
+
+      if (Notification.permission === "granted") {
+        const pushed = pushedIdsRef.current;
+        unread.forEach((item) => {
+          if (!pushed.has(item.id)) {
+            void showSystemNotification(item);
+            pushed.add(item.id);
+          }
+        });
+        writeStringSet(pushedKey, pushed);
+      }
+    } catch (error) {
+      console.error("notification fetch failed:", error);
+    }
+  };
+
+  useEffect(() => {
+    pushedIdsRef.current = readStringSet(pushedKey);
+  }, [pushedKey]);
+
+  useEffect(() => {
+    void fetchNotifications();
+    if (!isAuthenticated || !user?.id) return;
+
+    const timer = window.setInterval(() => {
+      void fetchNotifications();
+    }, 45000);
+
+    return () => window.clearInterval(timer);
+  }, [isAuthenticated, user?.id]);
+
+  const markAsRead = (id: string) => {
+    const seen = readStringSet(seenKey);
+    seen.add(id);
+    writeStringSet(seenKey, seen);
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  };
+
+  const markAllAsRead = () => {
+    const seen = readStringSet(seenKey);
+    notifications.forEach((item) => seen.add(item.id));
+    writeStringSet(seenKey, seen);
+    setUnreadCount(0);
+  };
+
+  const handleNotificationClick = (item: TopNotificationItem) => {
+    markAsRead(item.id);
+    setShowNotificationPanel(false);
+    setLocation(item.targetPath);
+  };
+
+  const handleOpenNotifications = async () => {
+    setShowNotificationPanel((prev) => !prev);
+    if ("Notification" in window && Notification.permission === "default") {
+      try {
+        await Notification.requestPermission();
+      } catch {
+        // ignore
+      }
+    }
   };
 
   return (
@@ -61,6 +284,18 @@ export function TopBar() {
             className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
           >
             <Type className="h-5 w-5" />
+          </button>
+          <button
+            onClick={handleOpenNotifications}
+            className={`relative rounded-full p-2 transition-colors ${showNotificationPanel ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
+            aria-label="알림"
+          >
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                {unreadCount > 99 ? "99+" : unreadCount}
+              </span>
+            )}
           </button>
         </div>
 
@@ -90,6 +325,42 @@ export function TopBar() {
         )}
       </div>
 
+      {showNotificationPanel && <div className="fixed inset-0 z-[161]" onClick={() => setShowNotificationPanel(false)} />}
+      {showNotificationPanel && (
+        <div className="fixed right-4 top-16 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
+            <h4 className="text-sm font-bold text-zinc-900">알림</h4>
+            <button onClick={markAllAsRead} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
+              <CheckCheck size={13} />
+              모두 읽음
+            </button>
+          </div>
+          <div className="max-h-[56vh] overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-zinc-500 text-center">새 알림이 없습니다.</div>
+            ) : (
+              notifications.map((item) => {
+                const isUnread = !readStringSet(seenKey).has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item)}
+                    className={`w-full border-b border-zinc-100 px-4 py-3 text-left hover:bg-zinc-50 ${isUnread ? "bg-emerald-50/40" : "bg-white"}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-zinc-900 line-clamp-1">{item.title}</p>
+                      {isUnread && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-600 line-clamp-2">{item.message}</p>
+                    <p className="mt-1 text-[11px] text-zinc-400">{new Date(item.createdAt).toLocaleString("ko-KR")}</p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
       {isMenuOpen && <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
 
       <div className={`fixed left-0 top-0 z-[210] h-full w-[280px] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
@@ -97,7 +368,7 @@ export function TopBar() {
           <div className="mb-8 pt-2">
             <div className="mb-4 flex items-start justify-between">
               {user?.avatar_url ? (
-                <img src={user.avatar_url} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
+                <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
               ) : (
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
                   <User className="h-8 w-8 text-zinc-400" />

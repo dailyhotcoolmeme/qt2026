@@ -41,6 +41,8 @@ type GroupRow = {
   group_slug: string | null;
   description: string | null;
   owner_id: string | null;
+  group_type?: string | null;
+  password?: string | null;
   group_image?: string | null;
   header_image_url?: string | null;
   header_color?: string | null;
@@ -214,6 +216,44 @@ function ensureHttpsUrl(url?: string | null) {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
+async function resizeImageFile(file: File, maxSize = 1280, quality = 0.84): Promise<File> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = dataUrl;
+  });
+
+  const ratio = Math.min(1, maxSize / Math.max(img.width, img.height));
+  const targetW = Math.max(1, Math.round(img.width * ratio));
+  const targetH = Math.max(1, Math.round(img.height * ratio));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return file;
+  ctx.drawImage(img, 0, 0, targetW, targetH);
+
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+  if (!blob) return file;
+  return new File([blob], file.name.replace(/\.(png|webp|jpeg|jpg)$/i, ".jpg"), { type: "image/jpeg" });
+}
+
+function getHashQueryParams() {
+  const hash = window.location.hash || "";
+  const queryIdx = hash.indexOf("?");
+  if (queryIdx < 0) return new URLSearchParams();
+  return new URLSearchParams(hash.substring(queryIdx + 1));
+}
+
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
   const response = await fetch("/api/file/upload", {
@@ -236,7 +276,7 @@ const HEADER_PALETTE = ["#4A6741", "#1F4E5F", "#7C3A2D", "#3E335A", "#2F4858", "
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
   const groupId = matched ? (routeParams as { id: string }).id : null;
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
@@ -309,6 +349,16 @@ export default function GroupDashboard() {
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
   const [headerColorDraft, setHeaderColorDraft] = useState("#4A6741");
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
+
+  const [groupEditName, setGroupEditName] = useState("");
+  const [groupEditSlug, setGroupEditSlug] = useState("");
+  const [groupEditDescription, setGroupEditDescription] = useState("");
+  const [groupEditType, setGroupEditType] = useState("etc");
+  const [groupEditPassword, setGroupEditPassword] = useState("");
+  const [groupEditImageFile, setGroupEditImageFile] = useState<File | null>(null);
+  const [groupEditImageUploading, setGroupEditImageUploading] = useState(false);
+  const [groupEditSaving, setGroupEditSaving] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -332,9 +382,15 @@ export default function GroupDashboard() {
 
   useEffect(() => {
     if (!groupId) return;
-    setActiveTab("faith");
+    const queryTab = getHashQueryParams().get("tab");
+    const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin"];
+    if (queryTab && validTabs.includes(queryTab as TabKey)) {
+      setActiveTab(queryTab as TabKey);
+    } else {
+      setActiveTab("faith");
+    }
     void loadAll(groupId, user?.id ?? null);
-  }, [groupId, user?.id]);
+  }, [groupId, user?.id, location]);
 
   useEffect(() => {
     return () => {
@@ -372,6 +428,35 @@ export default function GroupDashboard() {
   }, [group?.id, group?.header_color, group?.header_image_url, group?.group_image]);
 
   useEffect(() => {
+    if (!group) return;
+    setGroupEditName(group.name || "");
+    setGroupEditSlug(group.group_slug || "");
+    setGroupEditDescription(group.description || "");
+    setGroupEditType(group.group_type || "etc");
+  }, [group?.id, group?.name, group?.group_slug, group?.description, group?.group_type]);
+
+  useEffect(() => {
+    const scrollContainer = (document.querySelector("main.flex-1") as HTMLElement | null) || window;
+    let lastY = scrollContainer instanceof Window ? scrollContainer.scrollY : scrollContainer.scrollTop;
+    const onScroll = () => {
+      const currentY = scrollContainer instanceof Window ? scrollContainer.scrollY : scrollContainer.scrollTop;
+      if (currentY <= 24) {
+        setHeaderCollapsed(false);
+      } else if (currentY > lastY + 6) {
+        setHeaderCollapsed(true);
+      } else if (currentY < lastY - 6) {
+        setHeaderCollapsed(false);
+      }
+      lastY = currentY;
+    };
+
+    scrollContainer.addEventListener("scroll", onScroll, { passive: true } as AddEventListenerOptions);
+    return () => {
+      scrollContainer.removeEventListener("scroll", onScroll as EventListener);
+    };
+  }, []);
+
+  useEffect(() => {
     if (!group?.id) return;
     if (!(role === "owner" || role === "leader")) return;
     if (members.length === 0) return;
@@ -401,6 +486,8 @@ export default function GroupDashboard() {
       group_slug: groupData.group_slug ?? null,
       description: groupData.description ?? null,
       owner_id: groupData.owner_id ?? null,
+      group_type: (groupData as any).group_type ?? "etc",
+      password: (groupData as any).password ?? null,
       group_image: ensureHttpsUrl((groupData as any).group_image) ?? null,
       header_image_url: ensureHttpsUrl((groupData as any).header_image_url) ?? null,
       header_color: (groupData as any).header_color ?? "#4A6741",
@@ -1475,7 +1562,8 @@ export default function GroupDashboard() {
       return;
     }
 
-    await Promise.all([loadJoinRequests(group.id), loadMembers(group.id, group.owner_id)]);
+    await loadAll(group.id, user.id);
+    alert(approve ? "가입 요청을 승인했습니다." : "가입 요청을 거절했습니다.");
   };
 
   const saveHeaderSettings = async () => {
@@ -1508,13 +1596,95 @@ export default function GroupDashboard() {
     setShowHeaderEditModal(false);
   };
 
+  const uploadGroupEditImage = async () => {
+    if (!group || !user || !groupEditImageFile) return;
+    setGroupEditImageUploading(true);
+    try {
+      const optimized = await resizeImageFile(groupEditImageFile, 1280, 0.84);
+      const safeName = sanitizeFileName(optimized.name || "group.jpg");
+      const key = `images/group/${group.id}/${user.id}/${Date.now()}_${safeName}`;
+      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
+      if (!imageUrl) throw new Error("invalid image url");
+
+      setGroup((prev) => (prev ? { ...prev, group_image: imageUrl } : prev));
+      setGroupEditImageFile(null);
+      alert("대표 이미지를 업로드했습니다.");
+    } catch (error) {
+      console.error(error);
+      alert("대표 이미지 업로드에 실패했습니다.");
+    } finally {
+      setGroupEditImageUploading(false);
+    }
+  };
+
+  const saveGroupBasicSettings = async () => {
+    if (!group || !isManager) return;
+    const name = groupEditName.trim();
+    const slug = groupEditSlug.trim().toLowerCase();
+    const description = groupEditDescription.trim();
+    const groupType = groupEditType.trim() || "etc";
+    const nextImageUrl = ensureHttpsUrl(group?.group_image || null);
+
+    if (!name || !slug) {
+      alert("모임 이름과 모임 코드를 입력해주세요.");
+      return;
+    }
+
+    setGroupEditSaving(true);
+    try {
+      if (slug !== (group.group_slug || "")) {
+        const { data: slugDup } = await supabase.from("groups").select("id").eq("group_slug", slug).maybeSingle();
+        if (slugDup && slugDup.id !== group.id) {
+          alert("이미 사용 중인 모임 코드입니다.");
+          return;
+        }
+      }
+
+      const updatePayload: Record<string, unknown> = {
+        name,
+        group_slug: slug,
+        description: description || null,
+        group_type: groupType,
+        group_image: nextImageUrl || null,
+      };
+      if (groupEditPassword.trim()) {
+        updatePayload.password = groupEditPassword.trim();
+      }
+
+      const { error } = await supabase.from("groups").update(updatePayload).eq("id", group.id);
+      if (error) throw error;
+
+      setGroup((prev) =>
+        prev
+          ? {
+              ...prev,
+              name,
+              group_slug: slug,
+              description: description || null,
+              group_type: groupType,
+              group_image: nextImageUrl || null,
+              password: groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null,
+            }
+          : prev
+      );
+      setGroupEditPassword("");
+      alert("모임 설정을 저장했습니다.");
+    } catch (error) {
+      console.error(error);
+      alert("모임 설정 저장에 실패했습니다.");
+    } finally {
+      setGroupEditSaving(false);
+    }
+  };
+
   const uploadHeaderImage = async () => {
     if (!group || !user || !headerImageFile) return;
     setHeaderImageUploading(true);
     try {
-      const safeName = sanitizeFileName(headerImageFile.name || "header.jpg");
+      const optimized = await resizeImageFile(headerImageFile, 1600, 0.86);
+      const safeName = sanitizeFileName(optimized.name || "header.jpg");
       const key = `images/group-header/${group.id}/${user.id}/${Date.now()}_${safeName}`;
-      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, headerImageFile, headerImageFile.type || "image/jpeg"));
+      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
       setHeaderImageDraft(imageUrl || "");
 
       // Persist immediately so the image remains after navigation/reload.
@@ -1633,16 +1803,19 @@ export default function GroupDashboard() {
     }
     if (!confirm("모임에서 나가시겠습니까?")) return;
 
-    const { error } = await supabase
-      .from("group_members")
-      .delete()
-      .eq("group_id", group.id)
-      .eq("user_id", user.id);
+    const { error } = await supabase.rpc("leave_group", {
+      p_group_id: group.id,
+    });
 
     if (error) {
-      alert("모임 나가기에 실패했습니다.");
+      if (error.code === "PGRST202" || error.code === "42883") {
+        alert("서버 DB 마이그레이션이 필요합니다. 최신 배포 후 다시 시도해주세요.");
+      } else {
+        alert("모임 나가기에 실패했습니다.");
+      }
       return;
     }
+    alert("모임에서 나갔습니다.");
     setLocation("/community?list=1");
   };
 
@@ -1743,7 +1916,7 @@ export default function GroupDashboard() {
   return (
     <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
       <header
-        className="relative overflow-hidden"
+        className={`relative overflow-hidden transition-all duration-250 ${headerCollapsed ? "max-h-0 opacity-0 pointer-events-none" : "max-h-[320px] opacity-100"}`}
         style={{
           background:
             ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -1798,7 +1971,7 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div className="sticky top-20 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200">
         <div className="w-full">
           <nav className="flex items-center">
           {([
@@ -2243,6 +2416,84 @@ export default function GroupDashboard() {
 
         {activeTab === "admin" && isManager && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
+              <h3 className="font-black text-zinc-900 text-base">모임 기본 정보 수정</h3>
+              <input
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="모임 이름"
+                value={groupEditName}
+                onChange={(e) => setGroupEditName(e.target.value)}
+              />
+              <input
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="모임 코드"
+                value={groupEditSlug}
+                onChange={(e) => setGroupEditSlug(e.target.value)}
+              />
+              <select
+                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                value={groupEditType}
+                onChange={(e) => setGroupEditType(e.target.value)}
+              >
+                <option value="church">교회 모임</option>
+                <option value="work_school">학교/직장 모임</option>
+                <option value="family">가족 모임</option>
+                <option value="etc">기타 모임</option>
+              </select>
+              <input
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="새 비밀번호(선택)"
+                type="password"
+                value={groupEditPassword}
+                onChange={(e) => setGroupEditPassword(e.target.value)}
+              />
+              <textarea
+                className="w-full min-h-[100px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="모임 소개"
+                value={groupEditDescription}
+                onChange={(e) => setGroupEditDescription(e.target.value)}
+              />
+              <div className="rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-2">
+                <div className="text-base font-bold text-zinc-700">모임 대표 이미지</div>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={13} />
+                    이미지 선택
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setGroupEditImageFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {groupEditImageFile && <span className="text-base text-zinc-600 truncate">{groupEditImageFile.name}</span>}
+                </div>
+                <button
+                  onClick={uploadGroupEditImage}
+                  disabled={!groupEditImageFile || groupEditImageUploading}
+                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
+                >
+                  {groupEditImageUploading ? "업로드 중..." : "대표 이미지 업로드"}
+                </button>
+                {(group?.group_image || headerImageDraft) && (
+                  <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
+                    <img
+                      src={ensureHttpsUrl(group?.group_image) || headerImageDraft}
+                      alt="group-image-preview"
+                      className="w-full h-28 object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={saveGroupBasicSettings}
+                disabled={groupEditSaving}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
+              >
+                {groupEditSaving ? "저장 중..." : "모임 설정 저장"}
+              </button>
+            </section>
+
             <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
               <h3 className="font-black text-zinc-900 text-base">신앙활동 항목 관리</h3>
               <input
