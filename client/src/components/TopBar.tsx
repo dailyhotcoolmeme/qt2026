@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, BookSearch, LogOut, Bell, CheckCheck } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, Lock, BookType, LogOut, Bell, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
