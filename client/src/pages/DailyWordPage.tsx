@@ -217,7 +217,8 @@ export default function DailyWordPage() {
           onDragEnd={onDragEnd}
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="z-10 flex aspect-[4/5] w-[82%] max-w-sm flex-col items-start justify-center rounded-[32px] border border-white bg-white p-10 pb-8 text-left shadow-[0_15px_45px_rgba(0,0,0,0.06)]"
+          exit={{ opacity: 0, x: -20 }}
+          className="z-10 flex aspect-[4/5] w-[82%] max-w-sm flex-col items-start justify-center rounded-[32px] border border-white bg-white p-10 pb-8 text-left shadow-[0_15px_45px_rgba(0,0,0,0.06)] touch-none cursor-grab active:cursor-grabbing"
         >
           {bibleData ? (
             <>
