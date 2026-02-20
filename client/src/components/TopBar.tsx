@@ -335,7 +335,7 @@ export function TopBar() {
         <div className="flex items-center gap-1">
           <Link href="/search">
             <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
-              <BookType className="h-5 w-5" />
+              <BookSearch className="h-5 w-5" />
             </button>
           </Link>
           <button
