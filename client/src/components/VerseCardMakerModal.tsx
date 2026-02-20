@@ -492,9 +492,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             exit={{ y: 30, opacity: 0 }}
             className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6"
           >
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-zinc-900">말씀 카드 생성</h3>
-              <button onClick={onClose} className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100">
+            <div className="mb-1 flex items-center justify-between">
+              <h3></h3>
+              <button onClick={onClose} className="rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100">
                 <X size={18} />
               </button>
             </div>
@@ -527,14 +527,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
               <div className="space-y-4">
 
                 <div className="grid grid-cols-3 gap-2">
-                  <button onClick={() => { setUserBgTab(false); setMode("color"); }} className={`rounded-xl px-3 py-2 text-sm font-bold ${!userBgTab && mode === "color" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
-                    배경 색상 프리셋
+                  <button onClick={() => { setUserBgTab(false); setMode("image"); }} className={`rounded-none px-2 py-2 text-sm text-gray-400 font-base ${!userBgTab && mode === "image" ? "bg-gray-600 text-white font-bold" : "bg-zinc-100 text-zinc-700"}`}>
+                    이미지 프리셋
                   </button>
-                  <button onClick={() => { setUserBgTab(false); setMode("image"); }} className={`rounded-xl px-3 py-2 text-sm font-bold ${!userBgTab && mode === "image" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
-                    배경 이미지 프리셋
+                  <button onClick={() => { setUserBgTab(false); setMode("color"); }} className={`rounded-none px-2 py-2 text-sm text-gray-400 font-base ${!userBgTab && mode === "color" ? "bg-gray-600 text-white font-bold" : "bg-zinc-100 text-zinc-700"}`}>
+                    배경색 프리셋
                   </button>
-                  <button onClick={() => setUserBgTab(true)} className={`rounded-xl px-3 py-2 text-sm font-bold ${userBgTab ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
-                    사용자 지정
+                  <button onClick={() => setUserBgTab(true)} className={`rounded-none px-2 py-2 text-sm text-gray-400 font-base ${userBgTab ? "bg-gray-600 text-white font-bold" : "bg-zinc-100 text-zinc-700"}`}>
+                    사용자 등록
                   </button>
                 </div>
 
@@ -544,7 +544,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       <button
                         key={preset.id}
                         onClick={() => setSelectedId(preset.id)}
-                        className={`h-14 rounded-lg border-2 ${selectedId === preset.id ? "border-zinc-900" : "border-zinc-200"}`}
+                        className={`h-12 rounded-none border border-zinc-200 bg-zinc-50/60 ${selectedId === preset.id ? "border-zinc-500" : "border-zinc-200"}`}
                         style={
                           preset.mode === "image"
                             ? { backgroundImage: `url(${preset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -566,12 +566,12 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="rounded-lg bg-emerald-500 text-white px-3 py-2 text-xs font-bold disabled:opacity-60"
+                        className="rounded-none bg-gray-300 text-gray-700 px-3 py-2 text-xs font-base disabled:opacity-60"
                         disabled={uploading}
                       >
-                        {uploading ? "업로드 중..." : "배경 이미지 업로드"}
+                        {uploading ? "업로드 중..." : "이미지 업로드"}
                       </button>
-                      <span className="text-xs text-zinc-500">최대 10장, 1장당 0.4MB</span>
+                      
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       {userBgs.length === 0 ? (
@@ -581,7 +581,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                           <button
                             key={bg.url}
                             onClick={() => setSelectedId(`user-${idx}`)}
-                            className={`h-14 rounded-lg border-2 ${selectedId === `user-${idx}` ? "border-zinc-900" : "border-zinc-200"}`}
+                            className={`h-12 rounded-none border border-zinc-200 bg-zinc-50/60 ${selectedId === `user-${idx}` ? "border-zinc-900" : "border-zinc-200"}`}
                             style={{ backgroundImage: `url(${bg.url})`, backgroundSize: "cover", backgroundPosition: "center" }}
                             title={`${bg.name} (by ${bg.uploader})`}
                           />
@@ -600,28 +600,28 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 )}
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
-                  <button onClick={() => exportImage(false)} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={() => exportImage(false)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Download size={15} />
                     핸드폰 저장
                   </button>
-                  <button onClick={() => exportImage(true)} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={() => exportImage(true)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Share2 size={15} />
-                    공유
+                    카톡 공유
                   </button>
-                  <button onClick={saveToRecords} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
+                  <button onClick={saveToRecords} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Save size={15} />
                     기록함 보관
                   </button>
                 </div>
 
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
-                  <div className="mb-2 flex items-center justify-between">
+                <div className="rounded-none border border-zinc-200 bg-zinc-50/60 p-3">
+                  <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-bold text-zinc-800">기록함</p>
                     <p className="text-xs text-zinc-500">{savedCards.length}개</p>
                   </div>
 
                   {savedCards.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-zinc-500">보관된 카드가 없습니다.</p>
+                    <p className="py-6 text-center text-xs text-zinc-500">보관한 말씀 카드가 없습니다.</p>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
                       {savedCards.map((record) => (
