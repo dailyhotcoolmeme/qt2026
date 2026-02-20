@@ -357,6 +357,7 @@ export default function GroupDashboard() {
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
+  const [expandedPosts, setExpandedPosts] = useState<Record<number, boolean>>({});
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
@@ -1966,13 +1967,13 @@ export default function GroupDashboard() {
           <div className="max-w-2xl mx-auto px-4">
             <button
               onClick={() => setLocation("/community?list=1")}
-              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+              className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur pb-6"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             <div className="mt-6 text-white">
-              <div className="text-2xl font-black">{group.name}</div>
-              <div className="text-base text-white/90 mt-1">{group.group_slug ? `코드: ${group.group_slug}` : ""}</div>
+              <div className="text-lg font-bold">{group.name}</div>
+              <div className="text-base text-white/90 mt-1.5">{group.group_slug ? `모임 아이디: ${group.group_slug}` : ""}</div>
             </div>
           </div>
         </div>
@@ -2152,18 +2153,7 @@ export default function GroupDashboard() {
                 </button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                <button
-                  onClick={() => setShowPrayerLinkModal(true)}
-                  className="py-3 rounded-sm bg-zinc-100 text-zinc-700 font-bold inline-flex items-center justify-center gap-2"
-                >
-                  <Link2 size={16} /> PrayerPage 기록 연결
-                </button>
-                <button
-                  onClick={() => setLocation("/prayer")}
-                  className="py-3 rounded-sm bg-[#4A6741] text-white font-bold"
-                >
-                  PrayerPage 이동
-                </button>
+                <div className="py-3 text-sm text-zinc-500">모임 내부에서 기도를 녹음하고 저장할 수 있습니다.</div>
               </div>
             </section>
 
@@ -2359,7 +2349,12 @@ export default function GroupDashboard() {
                           <span className="text-base text-zinc-500">{authorName}</span>
                         </div>
                         <div className={`mt-1 ${socialViewMode === "board" ? "text-base font-bold" : "text-base font-black"} text-zinc-900`}>
-                          {displayTitle}
+                            <button
+                              onClick={() => setExpandedPosts((s) => ({ ...s, [post.id]: !s[post.id] }))}
+                              className="text-left w-full"
+                            >
+                              {displayTitle}
+                            </button>
                         </div>
                         <div className="text-base text-zinc-500 mt-1">{formatDateTime(post.created_at)}</div>
                       </div>
@@ -2373,19 +2368,26 @@ export default function GroupDashboard() {
                       )}
                     </div>
                     {socialViewMode === "board" ? (
-                      <p className="text-base text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
+                      expandedPosts[post.id] ? (
+                        <p className="text-base text-zinc-700 whitespace-pre-wrap">{post.content}</p>
+                      ) : (
+                        <p className="text-base text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
+                      )
                     ) : (
-                      <p className="text-base text-zinc-800 whitespace-pre-wrap line-clamp-5">{post.content}</p>
+                      <p className="text-base text-zinc-800 whitespace-pre-wrap">{post.content}</p>
                     )}
 
                     {post.image_urls && post.image_urls.length > 0 && (
                       socialViewMode === "blog" ? (
-                        <div className="mt-3 grid grid-cols-2 gap-2">
-                          {post.image_urls.slice(0, 10).map((url, index) => (
-                            <div key={`post-image-${post.id}-${index}`} className="overflow-hidden bg-zinc-100">
-                              <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-32 object-cover" />
-                            </div>
-                          ))}
+                        <div className="mt-3">
+                          <div className="overflow-x-auto -mx-4 px-4 flex gap-2 touch-pan-x">
+                            {post.image_urls.slice(0, 10).map((url, index) => (
+                              <div key={`post-image-${post.id}-${index}`} className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100">
+                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
                         </div>
                       ) : (
                         <div className="mt-2 text-base text-zinc-500">사진 {post.image_urls.length}장</div>
