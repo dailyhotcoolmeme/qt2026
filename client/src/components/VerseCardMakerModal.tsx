@@ -4,6 +4,7 @@ import { Download, Save, Share2, X } from "lucide-react";
 
 import imageCompression from "browser-image-compression";
 import { uploadFileToR2 } from "../utils/upload";
+import { supabase } from "../lib/supabase";
 
 type Props = {
   open: boolean;
@@ -177,7 +178,7 @@ async function shareDataUrl(dataUrl: string, title: string) {
   return false;
 }
 
-type UserBg = { url: string; name: string };
+type UserBg = { url: string; name: string; uploader: string; createdAt: string };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const [mode, setMode] = useState<ThemeMode>("color");
@@ -186,6 +187,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
   const [userBgTab, setUserBgTab] = useState(false);
   const [userBgs, setUserBgs] = useState<UserBg[]>([]);
+  const [bgPage, setBgPage] = useState(1);
+  const [bgHasMore, setBgHasMore] = useState(true);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const CANVAS_WIDTH = 900;
@@ -214,42 +217,52 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     return pool.find((v) => v.id === selectedId) || pool[0];
   }, [mode, selectedId, imagePresets, userBgTab, userBgs]);
-  // Load user backgrounds from localStorage (or future: Supabase)
+  // Load global backgrounds from Supabase
   useEffect(() => {
-    if (!userId) return;
-    const key = `verse-card-user-bgs:${userId}`;
-    try {
-      const raw = localStorage.getItem(key);
-      if (raw) setUserBgs(JSON.parse(raw));
-    } catch {}
-  }, [userId, open]);
+    if (!open) return;
+    const fetchBgs = async () => {
+      const { data, error } = await supabase
+        .from("verse_card_backgrounds")
+        .select("url, name, uploader, created_at")
+        .order("created_at", { ascending: false })
+        .limit(12)
+        .range((bgPage - 1) * 12, bgPage * 12 - 1);
+      if (error) {
+        setUserBgs([]);
+        setBgHasMore(false);
+        return;
+      }
+      setUserBgs((prev) => bgPage === 1 ? (data ?? []) : [...prev, ...(data ?? [])]);
+      setBgHasMore((data?.length ?? 0) === 12);
+    };
+    fetchBgs();
+  }, [open, bgPage]);
 
-  // Save user backgrounds to localStorage
-  const saveUserBgs = (bgs: UserBg[]) => {
-    if (!userId) return;
-    setUserBgs(bgs);
-    localStorage.setItem(`verse-card-user-bgs:${userId}`, JSON.stringify(bgs));
-  };
-
-  // Handle image upload
+  // Handle image upload (no per-user limit, always compress, store in Supabase)
   const handleUserBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
     setUploading(true);
     try {
-      // Compress image
+      // Compress image (no size limit, just max dimension)
       const compressed = await imageCompression(file, {
         maxWidthOrHeight: 1200,
-        maxSizeMB: 0.4,
         useWebWorker: true,
       });
       // Upload to R2
       const url = await uploadFileToR2(
         new File([compressed], file.name, { type: compressed.type }),
-        `user-card-backgrounds/${userId}`
+        `user-card-backgrounds/open` // open folder
       );
-      const next = [{ url, name: file.name }, ...userBgs].slice(0, 10);
-      saveUserBgs(next);
+      // Insert metadata to Supabase
+      const { error } = await supabase.from("verse_card_backgrounds").insert({
+        url,
+        name: file.name,
+        uploader: userId,
+        created_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      setBgPage(1); // reload first page
     } catch (err) {
       alert("이미지 업로드에 실패했습니다. 다시 시도해 주세요.");
     } finally {
@@ -553,11 +566,19 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             onClick={() => setSelectedId(`user-${idx}`)}
                             className={`h-14 rounded-lg border-2 ${selectedId === `user-${idx}` ? "border-zinc-900" : "border-zinc-200"}`}
                             style={{ backgroundImage: `url(${bg.url})`, backgroundSize: "cover", backgroundPosition: "center" }}
-                            title={bg.name}
+                            title={`${bg.name} (by ${bg.uploader})`}
                           />
                         ))
                       )}
                     </div>
+                    {bgHasMore && (
+                      <button
+                        className="mt-2 w-full rounded-lg bg-zinc-100 py-2 text-xs font-bold text-zinc-700"
+                        onClick={() => setBgPage((p) => p + 1)}
+                      >
+                        더보기
+                      </button>
+                    )}
                   </div>
                 )}
 
