@@ -1,6 +1,9 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Download, Save, Share2, X } from "lucide-react";
+
+import imageCompression from "browser-image-compression";
+import { uploadFileToR2 } from "../utils/upload";
 
 type Props = {
   open: boolean;
@@ -44,9 +47,11 @@ const COLOR_PRESETS: ThemePreset[] = [
 const DEFAULT_IMAGE_URLS = Array.from({ length: 12 }, (_, idx) => `/api/card-backgrounds/bg${idx + 1}.jpg`);
 
 function resolveImagePresets(): ThemePreset[] {
-  const fromEnv = String(import.meta.env.VITE_VERSE_CARD_IMAGE_PRESETS || "")
+  // Workaround for Vite env typing issues in some setups
+  const env = (typeof import.meta !== "undefined" && (import.meta as any).env) || (globalThis as any).importMetaEnv || {};
+  const fromEnv = String(env.VITE_VERSE_CARD_IMAGE_PRESETS || "")
     .split(",")
-    .map((v) => v.trim())
+    .map((v: string) => v.trim())
     .filter(Boolean);
   const urls = fromEnv.length > 0 ? fromEnv : DEFAULT_IMAGE_URLS;
   return urls.map((bg, index) => ({
@@ -172,11 +177,17 @@ async function shareDataUrl(dataUrl: string, title: string) {
   return false;
 }
 
+type UserBg = { url: string; name: string };
+
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const [mode, setMode] = useState<ThemeMode>("color");
   const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
+  const [userBgTab, setUserBgTab] = useState(false);
+  const [userBgs, setUserBgs] = useState<UserBg[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const CANVAS_WIDTH = 900;
   const CANVAS_HEIGHT = 1125;
   const BODY_FONT_PX = 50;
@@ -188,9 +199,64 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const cleanContent = useMemo(() => normalizeVerseText(content), [content]);
 
   const currentPreset = useMemo(() => {
+    if (userBgTab) {
+      const found = userBgs.find((bg, idx) => selectedId === `user-${idx}`);
+      if (found) {
+        return {
+          id: selectedId,
+          mode: "image" as const,
+          bg: found.url,
+          textColor: "#ffffff",
+          subColor: "#f4f4f5",
+        };
+      }
+    }
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     return pool.find((v) => v.id === selectedId) || pool[0];
-  }, [mode, selectedId, imagePresets]);
+  }, [mode, selectedId, imagePresets, userBgTab, userBgs]);
+  // Load user backgrounds from localStorage (or future: Supabase)
+  useEffect(() => {
+    if (!userId) return;
+    const key = `verse-card-user-bgs:${userId}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) setUserBgs(JSON.parse(raw));
+    } catch {}
+  }, [userId, open]);
+
+  // Save user backgrounds to localStorage
+  const saveUserBgs = (bgs: UserBg[]) => {
+    if (!userId) return;
+    setUserBgs(bgs);
+    localStorage.setItem(`verse-card-user-bgs:${userId}`, JSON.stringify(bgs));
+  };
+
+  // Handle image upload
+  const handleUserBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !userId) return;
+    setUploading(true);
+    try {
+      // Compress image
+      const compressed = await imageCompression(file, {
+        maxWidthOrHeight: 1200,
+        maxSizeMB: 0.4,
+        useWebWorker: true,
+      });
+      // Upload to R2
+      const url = await uploadFileToR2(
+        new File([compressed], file.name, { type: compressed.type }),
+        `user-card-backgrounds/${userId}`
+      );
+      const next = [{ url, name: file.name }, ...userBgs].slice(0, 10);
+      saveUserBgs(next);
+    } catch (err) {
+      alert("이미지 업로드에 실패했습니다. 다시 시도해 주세요.");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const effectiveTextColor = currentPreset?.mode === "image" ? "#ffffff" : currentPreset?.textColor || "#3f3f46";
   const effectiveSubColor = currentPreset?.mode === "image" ? "#f8fafc" : currentPreset?.subColor || "#52525b";
@@ -429,29 +495,71 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
               </div>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-2">
-                  <button onClick={() => setMode("color")} className={`rounded-xl px-3 py-2 text-sm font-bold ${mode === "color" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button onClick={() => { setUserBgTab(false); setMode("color"); }} className={`rounded-xl px-3 py-2 text-sm font-bold ${!userBgTab && mode === "color" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
                     배경 색상 프리셋
                   </button>
-                  <button onClick={() => setMode("image")} className={`rounded-xl px-3 py-2 text-sm font-bold ${mode === "image" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
-                    배경 이미지 선택
+                  <button onClick={() => { setUserBgTab(false); setMode("image"); }} className={`rounded-xl px-3 py-2 text-sm font-bold ${!userBgTab && mode === "image" ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
+                    배경 이미지 프리셋
+                  </button>
+                  <button onClick={() => setUserBgTab(true)} className={`rounded-xl px-3 py-2 text-sm font-bold ${userBgTab ? "bg-emerald-600 text-white" : "bg-zinc-100 text-zinc-700"}`}>
+                    사용자 지정
                   </button>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2">
-                  {(mode === "color" ? COLOR_PRESETS : imagePresets).map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setSelectedId(preset.id)}
-                      className={`h-14 rounded-lg border-2 ${selectedId === preset.id ? "border-zinc-900" : "border-zinc-200"}`}
-                      style={
-                        preset.mode === "image"
-                          ? { backgroundImage: `url(${preset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
-                          : { background: preset.bg }
-                      }
-                    />
-                  ))}
-                </div>
+                {!userBgTab ? (
+                  <div className="grid grid-cols-4 gap-2">
+                    {(mode === "color" ? COLOR_PRESETS : imagePresets).map((preset) => (
+                      <button
+                        key={preset.id}
+                        onClick={() => setSelectedId(preset.id)}
+                        className={`h-14 rounded-lg border-2 ${selectedId === preset.id ? "border-zinc-900" : "border-zinc-200"}`}
+                        style={
+                          preset.mode === "image"
+                            ? { backgroundImage: `url(${preset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
+                            : { background: preset.bg }
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        style={{ display: "none" }}
+                        onChange={handleUserBgUpload}
+                        disabled={uploading}
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="rounded-lg bg-emerald-500 text-white px-3 py-2 text-xs font-bold disabled:opacity-60"
+                        disabled={uploading}
+                      >
+                        {uploading ? "업로드 중..." : "배경 이미지 업로드"}
+                      </button>
+                      <span className="text-xs text-zinc-500">최대 10장, 1장당 0.4MB</span>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2">
+                      {userBgs.length === 0 ? (
+                        <span className="col-span-4 text-xs text-zinc-400 py-6 text-center">등록된 이미지가 없습니다.</span>
+                      ) : (
+                        userBgs.map((bg, idx) => (
+                          <button
+                            key={bg.url}
+                            onClick={() => setSelectedId(`user-${idx}`)}
+                            className={`h-14 rounded-lg border-2 ${selectedId === `user-${idx}` ? "border-zinc-900" : "border-zinc-200"}`}
+                            style={{ backgroundImage: `url(${bg.url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                            title={bg.name}
+                          />
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <button onClick={() => exportImage(false)} className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white flex items-center justify-center gap-2">
