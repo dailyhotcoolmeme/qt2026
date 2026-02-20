@@ -262,7 +262,24 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         created_at: new Date().toISOString(),
       });
       if (error) throw error;
-      setBgPage(1); // reload first page
+
+      // Immediately reload the first page of backgrounds so the UI reflects
+      // the newly uploaded image instead of waiting for a page-change.
+      try {
+        const { data: fresh, error: fetchErr } = await supabase
+          .from("verse_card_backgrounds")
+          .select("url, name, uploader, created_at")
+          .order("created_at", { ascending: false })
+          .limit(12)
+          .range(0, 11);
+        if (!fetchErr && Array.isArray(fresh)) {
+          setUserBgs(fresh as UserBg[]);
+          setBgHasMore((fresh?.length ?? 0) === 12);
+          setSelectedId("user-0");
+        }
+      } catch (e) {
+        // ignore fetch error, upload already succeeded
+      }
     } catch (err) {
       alert("이미지 업로드에 실패했습니다. 다시 시도해 주세요.");
     } finally {
