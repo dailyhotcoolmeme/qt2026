@@ -384,8 +384,7 @@ export default function GroupDashboard() {
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
   const [headerColorDraft, setHeaderColorDraft] = useState("#4A6741");
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const [tabsPinned, setTabsPinned] = useState(false);
+  // Removed dynamic header/tab pinning logic
 
   const [groupEditName, setGroupEditName] = useState("");
   const [groupEditSlug, setGroupEditSlug] = useState("");
@@ -471,37 +470,7 @@ export default function GroupDashboard() {
     setGroupEditType(group.group_type || "etc");
   }, [group?.id, group?.name, group?.group_slug, group?.description, group?.group_type]);
 
-  useEffect(() => {
-    let lastY = Math.max(window.scrollY || 0, 0);
-
-    const onScroll = () => {
-      const currentY = Math.max(window.scrollY || 0, 0);
-      if (currentY <= 24) {
-        setHeaderCollapsed(false);
-        setTabsPinned(false);
-        lastY = currentY;
-        return;
-      }
-
-      if (currentY < lastY - 6) {
-        // Scrolling up: keep tabs fixed under TopBar and hide the big header.
-        setHeaderCollapsed(true);
-        setTabsPinned(true);
-      } else if (currentY > lastY + 6) {
-        // Scrolling down: show header again and release sticky tabs.
-        setHeaderCollapsed(false);
-        setTabsPinned(false);
-      }
-
-      lastY = currentY;
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-    };
-  }, []);
+  // Removed dynamic header/tab pinning effect
 
   useEffect(() => {
     if (!group?.id) return;
@@ -2128,7 +2097,7 @@ export default function GroupDashboard() {
   return (
     <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
       <header
-        className={`relative overflow-hidden transition-all duration-250 ${headerCollapsed ? "max-h-0 opacity-0 pointer-events-none" : "max-h-[320px] opacity-100"}`}
+        className="relative overflow-hidden max-h-[320px] opacity-100 transition-all duration-250"
         style={{
           background:
             ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -2173,28 +2142,26 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div
-        className={`${tabsPinned ? "sticky top-16 z-30" : "relative z-20"} bg-white/95 backdrop-blur border-b border-zinc-200 transition-all`}
-      >
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all">
         <div className="w-full">
           <nav className="flex items-center">
-          {([
-            ["faith", "신앙생활"],
-            ["prayer", "중보기도"],
-            ["social", "교제나눔"],
-          ] as Array<[TabKey, string]>).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${
-                activeTab === id
-                  ? "border-[#4A6741] text-zinc-900 bg-white"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
+            {([
+              ["faith", "신앙생활"],
+              ["prayer", "중보기도"],
+              ["social", "교제나눔"],
+            ] as Array<[TabKey, string]>).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${
+                  activeTab === id
+                    ? "border-[#4A6741] text-zinc-900 bg-white"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </nav>
         </div>
       </div>
@@ -2300,14 +2267,16 @@ export default function GroupDashboard() {
               <div className="py-3">
                 <div className="overflow-x-auto -mx-2 px-2">
                   <div className="min-w-[560px]">
-                    <div className="grid grid-cols-7 gap-2">
-                      {weekDates.map((date) => {
+                    {/* Days header row: Sun-Sat, today centered */}
+                    <div className="flex gap-2 justify-center items-end">
+                      {weekDates.map((date, idx) => {
                         const dt = new Date(date);
                         const isToday = date === new Date().toISOString().split("T")[0];
                         return (
                           <div
                             key={date}
-                            className={`p-2 text-center ${isToday ? "ring-2 ring-[#4A6741] rounded-lg bg-white" : ""}`}>
+                            className={`flex flex-col items-center justify-center w-14 p-1 ${isToday ? "ring-2 ring-[#4A6741] rounded-lg bg-white z-10" : ""}`}
+                          >
                             <div className="text-sm font-bold">{dt.toLocaleDateString("ko-KR", { weekday: "short" })}</div>
                             <div className="text-xs text-zinc-500 mt-1">{dt.getDate()}</div>
                           </div>
@@ -2315,14 +2284,15 @@ export default function GroupDashboard() {
                       })}
                     </div>
 
-                    <div className="mt-3 space-y-3">
+                    {/* Faith items rows: fixed label, swipeable, today centered */}
+                    <div className="mt-3 space-y-2">
                       {faithItemSlots.map((slot) => {
                         const item = slot.item;
                         return (
                           <div key={slot.key} className="flex items-center gap-3">
-                            <div className="w-28 font-bold text-zinc-900">{slot.label}</div>
+                            <div className="w-24 font-bold text-zinc-900 flex-shrink-0 text-right pr-2">{slot.label}</div>
                             <div className="flex-1 overflow-x-auto -mx-2 px-2">
-                              <div className="min-w-[560px] grid grid-cols-7 gap-2">
+                              <div className="flex gap-2 min-w-[560px]">
                                 {weekDates.map((date) => {
                                   const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
                                   const disabled = !item;
@@ -2332,14 +2302,14 @@ export default function GroupDashboard() {
                                       key={`${slot.key}-${date}`}
                                       onClick={() => item && void handleFaithToggleForDate(item, date)}
                                       disabled={disabled}
-                                      className={`h-12 rounded-lg flex items-center justify-center text-sm font-bold transition-colors ${
+                                      className={`h-12 w-14 rounded-lg flex items-center justify-center text-sm font-bold transition-colors border ${
                                         disabled
-                                          ? "opacity-40 cursor-not-allowed bg-white border border-zinc-100 text-zinc-300"
+                                          ? "opacity-40 cursor-not-allowed bg-white border-zinc-100 text-zinc-300"
                                           : val > 0
-                                          ? "bg-[#4A6741] text-white"
+                                          ? "bg-[#4A6741] text-white border-[#4A6741]"
                                           : isToday
-                                          ? "bg-white border border-zinc-200 text-[#4A6741]"
-                                          : "bg-white border border-zinc-100 text-[#4A6741]"
+                                          ? "bg-white border-[#4A6741] text-[#4A6741]"
+                                          : "bg-white border-zinc-200 text-[#4A6741]"
                                       }`}
                                     >
                                       {val > 0 ? "완료" : "—"}
@@ -2422,119 +2392,71 @@ export default function GroupDashboard() {
 
         {activeTab === "social" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-[#F6F7F8] border-b border-zinc-200 pb-3 flex items-center justify-between gap-3">
-              <h2 className="font-black text-zinc-900">모임 소통</h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setSocialViewMode("board")}
-                  className={`px-3 py-2 border-b-2 text-base font-bold inline-flex items-center gap-1 ${
-                    socialViewMode === "board" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
-                  }`}
-                >
-                  <LayoutList size={14} />
-                  게시글형
-                </button>
-                <button
-                  onClick={() => setSocialViewMode("blog")}
-                  className={`px-3 py-2 border-b-2 text-base font-bold inline-flex items-center gap-1 ${
-                    socialViewMode === "blog" ? "border-[#4A6741] text-zinc-900" : "border-transparent text-zinc-500"
-                  }`}
-                >
-                  <LayoutGrid size={14} />
-                  블로그형
-                </button>
-              </div>
-            </div>
-
             <div className="bg-[#F6F7F8]">
-              {posts.map((post) => {
-                const author = authorMap[post.author_id];
-                const authorName = author?.nickname || author?.username || "이름 없음";
-                const canDelete = isManager || post.author_id === user.id;
-                const displayTitle = post.title?.trim() || post.content.slice(0, 40) || "제목 없음";
-                const isNotice = post.post_type === "notice";
+              <div className="grid gap-4">
+                {posts.map((post) => {
+                  const author = authorMap[post.author_id];
+                  const authorName = author?.nickname || author?.username || "이름 없음";
+                  const canDelete = isManager || post.author_id === user.id;
+                  const displayTitle = post.title?.trim() || post.content.slice(0, 40) || "제목 없음";
+                  const isNotice = post.post_type === "notice";
 
-                return (
-                  <div
-                    key={post.id}
-                    className={`border-b border-zinc-200 py-4 ${socialViewMode === "board" ? "px-1" : "px-2"}`}
-                  >
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`px-2 py-0.5 text-base font-bold ${
-                              isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"
-                            }`}
+                  return (
+                    <div
+                      key={post.id}
+                      className="rounded-lg bg-white shadow border border-zinc-100 p-4 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
+                            <span className={`px-2 py-0.5 font-bold rounded ${isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"}`}>{isNotice ? "공지" : "일반"}</span>
+                            <span className="truncate">{authorName}</span>
+                            <span>· {formatDateTime(post.created_at)}</span>
+                          </div>
+                          <div className="font-bold text-zinc-900 truncate text-base mb-1">{displayTitle}</div>
+                        </div>
+                        {canDelete && (
+                          <button
+                            onClick={() => removePost(post)}
+                            className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
                           >
-                            {isNotice ? "공지" : "일반"}
-                          </span>
-                          <span className="text-base text-zinc-500">{authorName}</span>
-                        </div>
-                        <div className={`mt-1 ${socialViewMode === "board" ? "text-base font-bold" : "text-base font-black"} text-zinc-900`}>
-                            <button
-                              onClick={() => setExpandedPosts((s) => ({ ...s, [post.id]: !s[post.id] }))}
-                              className="text-left w-full"
-                            >
-                              {displayTitle}
-                            </button>
-                        </div>
-                        <div className="text-base text-zinc-500 mt-1">{formatDateTime(post.created_at)}</div>
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
-                      {canDelete && (
-                        <button
-                          onClick={() => removePost(post)}
-                          className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <div className="text-zinc-800 text-base whitespace-pre-wrap">
+                        {post.content}
+                      </div>
+                      {post.image_urls && post.image_urls.length > 0 && (
+                        <div className="mt-2">
+                          <div className="overflow-x-auto flex gap-2 touch-pan-x snap-x snap-mandatory">
+                            {post.image_urls.slice(0, 10).map((url, index) => (
+                              <div
+                                key={`post-image-${post.id}-${index}`}
+                                className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100 snap-center cursor-pointer"
+                                onClick={() => {
+                                  setModalImages(post.image_urls ?? []);
+                                  setModalIndex(index);
+                                  setShowImageModal(true);
+                                }}
+                              >
+                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
+                        </div>
                       )}
                     </div>
-                    {socialViewMode === "board" ? (
-                      expandedPosts[post.id] ? (
-                        <p className="text-base text-zinc-700 whitespace-pre-wrap">{post.content}</p>
-                      ) : (
-                        <p className="text-base text-zinc-700 whitespace-pre-wrap line-clamp-2">{post.content}</p>
-                      )
-                    ) : (
-                      <p className="text-base text-zinc-800 whitespace-pre-wrap">{post.content}</p>
-                    )}
-
-                      {post.image_urls && post.image_urls.length > 0 && (
-                        socialViewMode === "blog" ? (
-                          <div className="mt-3">
-                            <div className="overflow-x-auto -mx-4 px-4 flex gap-2 touch-pan-x snap-x snap-mandatory">
-                              {post.image_urls.slice(0, 10).map((url, index) => (
-                                <div
-                                  key={`post-image-${post.id}-${index}`}
-                                  className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100 snap-center cursor-pointer"
-                                  onClick={() => {
-                                    setModalImages(post.image_urls ?? []);
-                                    setModalIndex(index);
-                                    setShowImageModal(true);
-                                  }}
-                                >
-                                  <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
-                                </div>
-                              ))}
-                            </div>
-                            <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
-                          </div>
-                        ) : (
-                          <div className="mt-2 text-base text-zinc-500">사진 {post.image_urls.length}장</div>
-                        )
-                      )}
+                  );
+                })}
+                {posts.length === 0 && (
+                  <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
+                    아직 게시글이 없습니다.
                   </div>
-                );
-              })}
-
-              {posts.length === 0 && (
-                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
-                  아직 게시글이 없습니다.
-                </div>
-              )}
+                )}
+              </div>
             </div>
-
             <button
               onClick={() => setShowPostComposerModal(true)}
               className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
