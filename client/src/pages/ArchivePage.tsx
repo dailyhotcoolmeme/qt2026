@@ -1,12 +1,12 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, SearchCheck, Share2, X } from "lucide-react";
+import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, SearchCheck, Share2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
-type MenuType = "all" | ActivityType;
+type MenuType = "all" | ActivityType | "group";
 type SourceFilter = "all" | "personal" | "group" | "linked";
 
 type ActivityLogRow = {
@@ -547,54 +547,95 @@ export default function ArchivePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pt-20 pb-10 px-4">
+    <div className="min-h-screen bg-[#F6F7F8] pt-20 pb-10 px-4 text-[clamp(13px,1.1em,18px)]">
       <div className="max-w-3xl mx-auto space-y-4">
-        <section className="bg-white rounded-none border border-zinc-100 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <AlarmClock size={16} className="text-[#4A6741]" />
-            <h2 className="font-black text-zinc-900 text-sm">개인 저장파일 보관 현황 (30일 무료)</h2>
-          </div>
+        {/* Removed 개인 저장파일 보관 현황 (30일 무료) section */}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-zinc-50 p-3">
-              <div className="text-xs text-zinc-500 mb-1">음성 기도/QT 음성</div>
-              <div className="text-sm font-black text-zinc-900">총 {retention.voiceTotal}개</div>
-              <div className="text-xs text-amber-700 mt-1">만료 임박 {retention.voiceExpiringSoon}개</div>
-              <div className="text-xs text-rose-600">만료 {retention.voiceExpired}개</div>
-              {retention.voiceSoonestExpireAt && (
-                <div className="text-[11px] text-zinc-500 mt-1">
-                  가장 가까운 만료일: {formatDateOnly(retention.voiceSoonestExpireAt)}
-                </div>
-              )}
+        {/* 말씀카드 이미지 기록 섹션 완전 삭제 */}
+
+        {/* 기간+서브탭 한 박스, 스크롤바 숨김, 돋보기 버튼, 아이콘 추가 */}
+        <section className="bg-[#F6F7F8] rounded-none border border-zinc-100 p-3">
+          <div className="flex flex-col gap-2">
+            <div className="overflow-x-auto whitespace-nowrap flex gap-3 pb-1 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehaviorX: 'contain' }}>
+              {(() => {
+                const tabIcons: Record<MenuType, JSX.Element> = {
+                  all: <SearchCheck size={18} />,
+                  bookmark: <Sun size={18} />,
+                  reading: <BookOpenText size={18} />,
+                  qt: <BookHeart size={18} />,
+                  prayer: <HandHeart size={18} />,
+                  group: <Church size={18} />,
+                };
+                const tabList: { key: MenuType; label: string }[] = [
+                  { key: "all", label: "전체조회" },
+                  { key: "bookmark", label: "말씀카드" },
+                  { key: "reading", label: "성경읽기" },
+                  { key: "qt", label: "QT일기" },
+                  { key: "prayer", label: "매일기도" },
+                  { key: "group", label: "중보모임" },
+                ];
+                return tabList.map((item) => {
+                  const Icon = tabIcons[item.key];
+                  return (
+                    <button
+                      key={item.key}
+                      onClick={() => setMenuType(item.key as MenuType)}
+                      className={`px-4 py-2 rounded-none text-base font-bold inline-flex items-center justify-center gap-2 ${
+                        menuType === item.key ? "bg-[#4A6741] text-white" : "bg-zinc-50 text-zinc-700"
+                      }`}
+                      style={{ minWidth: 110 }}
+                    >
+                      {Icon}
+                      {item.label}
+                    </button>
+                  );
+                });
+              })()}
             </div>
-
-            <div className="rounded-2xl bg-zinc-50 p-3">
-              <div className="text-xs text-zinc-500 mb-1">사진 파일</div>
-              <div className="text-sm font-black text-zinc-900">총 {retention.photoTotal}개</div>
-              <div className="text-xs text-amber-700 mt-1">만료 임박 {retention.photoExpiringSoon}개</div>
-              <div className="text-xs text-rose-600">만료 {retention.photoExpired}개</div>
-              <div className="text-[11px] text-zinc-500 mt-1">사진 저장 기능은 다음 단계에서 연동됩니다.</div>
+            <div className="flex flex-wrap items-end gap-2 mt-1">
+              <div>
+                <label className="text-xs text-zinc-500">시작</label>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={endDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="ml-1 px-2 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-sm"
+                  style={{ width: 120 }}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-zinc-500">종료</label>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  max={defaultEnd}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="ml-1 px-2 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-sm"
+                  style={{ width: 120 }}
+                />
+              </div>
+              <button
+                onClick={() => void loadData(user.id)}
+                className="ml-2 w-8 h-8 rounded-full bg-white border border-zinc-200 flex items-center justify-center"
+                aria-label="조회"
+              >
+                <SearchCheck size={18}/>
+              </button>
             </div>
           </div>
         </section>
 
-        <section className="bg-white rounded-3xl border border-zinc-100 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-black text-zinc-900 text-sm">말씀카드 이미지 기록</h2>
-            <span className="text-xs text-zinc-500">{verseCards.length}개</span>
-          </div>
-
-          {verseCards.length === 0 ? (
-            <div className="rounded-2xl bg-zinc-50 px-4 py-6 text-center text-sm text-zinc-500">
-              저장된 말씀카드가 없습니다.
-            </div>
-          ) : (
+        {/* 리스트: 각 탭별 사각형(rounded-none) div, 말씀카드는 기존 유지, 나머지는 일자/시간/기록/음성 등 */}
+        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
+          {menuType === "bookmark" ? (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
               {verseCards.map((card) => (
                 <div key={card.id} className="relative">
                   <button
                     onClick={() => setActiveVerseCard(card)}
-                    className="w-full overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 text-left"
+                    className="w-full overflow-hidden rounded-none border border-zinc-200 bg-zinc-50 text-left"
                   >
                     <img src={card.imageDataUrl} alt={card.title || "말씀카드"} className="aspect-[4/5] w-full object-cover" />
                     <div className="px-2 py-1.5">
@@ -608,7 +649,7 @@ export default function ArchivePage() {
                       e.stopPropagation();
                       setPendingDeleteVerseCard(card);
                     }}
-                    className="absolute right-1.5 top-1.5 h-6 w-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                    className="absolute right-1.5 top-1.5 h-6 w-6 rounded-none bg-black/60 text-white flex items-center justify-center"
                     aria-label="카드 삭제"
                   >
                     <X size={14} />
@@ -616,166 +657,65 @@ export default function ArchivePage() {
                 </div>
               ))}
             </div>
-          )}
-        </section>
-
-        <section className="bg-white rounded-3xl border border-zinc-100 p-3">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {menuConfig.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setMenuType(item.key)}
-                className={`py-2 px-2 rounded-xl text-xs font-bold inline-flex items-center justify-center gap-1 ${
-                  menuType === item.key ? "bg-[#4A6741] text-white" : "bg-zinc-50 text-zinc-700"
-                }`}
-              >
-                {item.icon}
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section className="bg-white rounded-3xl border border-zinc-100 p-4 space-y-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              ["all", "전체"],
-              ["personal", "개인"],
-              ["group", "모임"],
-              ["linked", "개인+모임"],
-            ].map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setSourceFilter(key as SourceFilter)}
-                className={`py-2 rounded-xl text-xs font-bold ${
-                  sourceFilter === key ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-700"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div>
-              <label className="text-[11px] text-zinc-500">시작일</label>
-              <input
-                type="date"
-                value={startDate}
-                max={endDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm"
-              />
-            </div>
-            <div>
-              <label className="text-[11px] text-zinc-500">종료일</label>
-              <input
-                type="date"
-                value={endDate}
-                min={startDate}
-                max={defaultEnd}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full mt-1 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {menuConfig.map((item) => (
-              <button
-                key={`stats-${item.key}`}
-                onClick={() => setStatsType(item.key)}
-                className={`py-2 rounded-xl text-xs font-bold ${
-                  statsType === item.key ? "bg-[#4A6741] text-white" : "bg-zinc-50 text-zinc-700"
-                }`}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="bg-zinc-50 rounded-2xl p-3">
-              <div className="text-[11px] text-zinc-500">QT 횟수</div>
-              <div className="font-black text-zinc-900">{stats.qtCount}회</div>
-            </div>
-            <div className="bg-zinc-50 rounded-2xl p-3">
-              <div className="text-[11px] text-zinc-500">기도</div>
-              <div className="font-black text-zinc-900">{stats.prayerCount}회</div>
-              <div className="text-[11px] text-zinc-500 mt-1">{Math.floor(stats.prayerDurationSec / 60)}분</div>
-            </div>
-            <div className="bg-zinc-50 rounded-2xl p-3">
-              <div className="text-[11px] text-zinc-500">성경읽기</div>
-              <div className="font-black text-zinc-900">{stats.readingCount}회</div>
-              <div className="text-[11px] text-zinc-500 mt-1">총 {stats.readingChapters}장</div>
-            </div>
-            <div className="bg-zinc-50 rounded-2xl p-3">
-              <div className="text-[11px] text-zinc-500">즐겨찾기 말씀</div>
-              <div className="font-black text-zinc-900">{stats.bookmarkCount}회</div>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-zinc-500">
-            조회 기간: {startDate} ~ {endDate}
-          </div>
-        </section>
-
-        <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
-          {menuLogs.map((log) => {
-            const relatedLinks = linkMap.get(log.id) ?? [];
-            const groupNames =
-              log.source_kind === "group_direct"
-                ? log.source_group_id
-                  ? [groupsMap[log.source_group_id]].filter(Boolean)
-                  : []
-                : relatedLinks.map((link) => groupsMap[link.group_id]).filter(Boolean);
-
-            const contextText =
-              log.source_kind === "group_direct"
-                ? "모임"
-                : relatedLinks.length > 0
-                ? "개인+모임"
-                : "개인";
-
-            return (
-              <button
-                key={log.id}
-                onClick={() => setLocation(routeByActivity(log))}
-                className="w-full text-left bg-white rounded-3xl border border-zinc-100 p-4 hover:bg-zinc-50 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="font-bold text-zinc-900 text-sm line-clamp-2">{getTitle(log)}</div>
-                  <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 text-[11px] font-bold">
-                    {contextText}
-                  </span>
+          ) : (
+            menuLogs.map((log) => {
+              // 개인/모임 구분 태그 완전 삭제, 모임일 때만 신앙생활/중보기도/교제나눔 태그
+              return (
+                <div
+                  key={log.id}
+                  className="w-full text-left bg-white rounded-none border border-zinc-100 p-4 hover:bg-zinc-50 transition-colors mb-2 text-[clamp(13px,1.1em,18px)] flex items-center"
+                  style={{ minHeight: 80 }}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="font-bold text-zinc-900 text-sm line-clamp-2">{getTitle(log)}</div>
+                      {/* 모임일 때만 태그 */}
+                      {log.source_kind === "group_direct" && ((() => {
+                        let tagIcon: React.ReactNode = null;
+                        let tagLabel = "";
+                        if (log.activity_type === "qt") {
+                          tagIcon = <BookHeart size={13} />;
+                          tagLabel = "신앙생활";
+                        } else if (log.activity_type === "prayer") {
+                          tagIcon = <HandHeart size={13} />;
+                          tagLabel = "중보기도";
+                        } else if (log.activity_type === "reading") {
+                          tagIcon = <BookOpenText size={13} />;
+                          tagLabel = "교제나눔";
+                        }
+                        return (
+                          <span className="px-2 py-0.5 rounded-none bg-white text-zinc-600 text-[11px] font-bold flex items-center gap-1">
+                            {tagIcon} {tagLabel}
+                          </span>
+                        );
+                      })() as React.ReactNode)}
+                    </div>
+                    <div className="text-xs text-zinc-500 mb-1">{formatDateTime(log.occurred_at)}</div>
+                    {(() => {
+                      if (log.activity_type === "qt" && log.payload && (log.payload as any).meditation_excerpt) {
+                        return <div className="text-xs text-zinc-700 mt-1">{String((log.payload as any).meditation_excerpt)}</div>;
+                      } else if (log.activity_type === "prayer" && log.payload && (log.payload as any).audio_url) {
+                        return <audio controls className="w-full mt-1" src={String((log.payload as any).audio_url)} preload="none" />;
+                      } else if (log.activity_type === "reading" && log.payload && (log.payload as any).book_name) {
+                        return <div className="text-xs text-zinc-700 mt-1">{String((log.payload as any).book_name)} {String((log.payload as any).chapter)}장</div>;
+                      } else {
+                        return null;
+                      }
+                    })()}
+                  </div>
+                  <button
+                    className="ml-4 flex-shrink-0 w-8 h-8 rounded-full bg-white hover:bg-zinc-100 flex items-center justify-center"
+                    onClick={() => window.location.href = `/record/${log.id}`}
+                    aria-label="기록 상세로 이동"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
                 </div>
-
-                <div className="text-xs text-zinc-500 mt-2">{formatDateTime(log.occurred_at)}</div>
-
-                {log.source_kind === "personal" && relatedLinks.length > 0 && (
-                  <div className="text-xs text-zinc-600 mt-2 leading-5">
-                    개인
-                    <br />
-                    모임: {groupNames.join(", ") || "-"}
-                  </div>
-                )}
-
-                {log.source_kind === "group_direct" && groupNames.length > 0 && (
-                  <div className="mt-2 flex items-center gap-1 flex-wrap">
-                    <Link2 size={12} className="text-zinc-400" />
-                    {groupNames.map((name, idx) => (
-                      <span key={`${name}-${idx}`} className="text-xs text-zinc-600 bg-zinc-100 px-2 py-0.5 rounded-full">
-                        {name}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </button>
-            );
-          })}
-
+              );
+            })
+          )}
           {menuLogs.length === 0 && (
-            <div className="bg-white rounded-2xl border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
+            <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
               조건에 맞는 기록이 없습니다.
             </div>
           )}
