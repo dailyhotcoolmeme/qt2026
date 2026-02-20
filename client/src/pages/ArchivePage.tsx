@@ -533,11 +533,11 @@ export default function ArchivePage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-white rounded-3xl border border-zinc-100 p-6 text-center">
+        <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none border border-zinc-100 p-6 text-center">
           <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 기록함을 확인할 수 있습니다.</p>
           <button
             onClick={() => setLocation("/")}
-            className="px-4 py-2 rounded-xl bg-[#4A6741] text-white text-sm font-bold"
+            className="px-4 py-2 rounded-none bg-[#4A6741] text-white text-sm font-bold"
           >
             돌아가기
           </button>
@@ -547,9 +547,9 @@ export default function ArchivePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pt-24 pb-28 px-4">
+    <div className="min-h-screen bg-[#F6F7F8] pt-20 pb-10 px-4">
       <div className="max-w-3xl mx-auto space-y-4">
-        <section className="bg-white rounded-3xl border border-zinc-100 p-4">
+        <section className="bg-white rounded-none border border-zinc-100 p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlarmClock size={16} className="text-[#4A6741]" />
             <h2 className="font-black text-zinc-900 text-sm">개인 저장파일 보관 현황 (30일 무료)</h2>

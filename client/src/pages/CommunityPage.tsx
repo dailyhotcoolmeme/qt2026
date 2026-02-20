@@ -539,7 +539,7 @@ export default function CommunityPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-            <span className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[11px] font-semibold rounded-sm">{roleText}</span>
+            <span className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-xs font-semibold rounded-none">{roleText}</span>
           </div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
@@ -547,7 +547,7 @@ export default function CommunityPage() {
 
         <button
           onClick={() => openGroup(row.id)}
-          className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
+          className="w-9 h-9 bg-[#4A6741] opacity-90 text-white rounded-sm flex items-center justify-center"
           aria-label="입장"
         >
           <ChevronRight size={16} />
@@ -557,28 +557,30 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F6F7] pt-24 pb-28 px-4 text-base">
+    <div className="min-h-screen bg-[#F5F6F7] pt-20 pb-10 px-4 text-sm">
       <div className="max-w-2xl mx-auto space-y-4">
         {hasLeadershipScope && (
           <div className="flex justify-end">
             <button
               onClick={() => setLocation("/leadership")}
-              className="text-base font-bold px-3 py-2 bg-[#4A6741] text-white flex items-center gap-1"
+              className="text-sm font-bold px-3 py-2 bg-[#4A6741] opacity-90 text-white flex items-center gap-1"
             >
-              <Shield size={14} /> 상위 리더 현황
+              <Shield size={14} /> 상위 리더 대쉬보드
             </button>
           </div>
         )}
 
         {!user && (
-          <div className="bg-white p-6 border border-[#F5F6F7] text-center">
-            <p className="text-base text-zinc-600 font-bold">로그인 후 모임 생성/가입/활동이 가능합니다.</p>
+          <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
+            <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none border border-zinc-100 p-6 text-center">
+            <p className="text-sm text-zinc-600 font-bold">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
             <button
               onClick={() => setShowLoginModal(true)}
-              className="mt-4 px-4 py-2 bg-[#4A6741] text-white text-base font-bold"
+              className="mt-4 px-4 py-2 bg-[#4A6741] text-white text-sm font-bold"
             >
               로그인
             </button>
+            </div>
           </div>
         )}
 
@@ -628,7 +630,7 @@ export default function CommunityPage() {
                 <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
               </div>
             ) : joinedGroups.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {joinedGroups.map((item) => (
                   <GroupCard key={item.group.id} row={item.group} />
                 ))}
@@ -642,7 +644,7 @@ export default function CommunityPage() {
         <>
           <button
             onClick={() => setShowSearchModal(true)}
-            className="fixed right-6 bottom-44 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
+            className="fixed right-6 bottom-44 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
             aria-label="모임 검색"
           >
             <Search size={22} />
@@ -650,7 +652,7 @@ export default function CommunityPage() {
 
           <button
             onClick={() => setShowCreateModal(true)}
-            className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
+            className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
             aria-label="모임 생성"
           >
             <Plus size={24} />

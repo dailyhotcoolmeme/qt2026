@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { HandHeart, Plus, X, Mic, Square, Play, Pause, Check, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Link2 } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Link } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
@@ -727,18 +727,24 @@ export default function PrayerPage() {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-6">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-6">
+      <div className="flex items-center px-6 gap-2">
+            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <h3 className="font-bold text-[#4A6741] opacity-80" style={{ fontSize: `${fontSize * 1.0}px` }}>
+              함께 기도해요
+            </h3>
+      </div>
       {/* 상단: 공개된 기도제목 fade in/out */}
-      <div className="relative h-[100px] pt-12 flex flex-col items-center justify-center px-6">
+      <div className="relative h-[70px] flex flex-col justify-center px-10">
         {publicTopics.length > 0 && (
           <motion.div 
-            className="w-full max-w-md flex items-center justify-center gap-3"
+            className="w-full max-w-md flex justify-center gap-3"
             animate={{ opacity: topicOpacity }}
-            transition={{ duration: 5, delay: 2, ease: "easeInOut" }}
+            transition={{ duration: 5, delay: 3, ease: "easeInOut" }}
           >
             <p 
-              className="text-zinc-500 text-left font-semibold flex-1 opacity-50"
-              style={{ fontSize: `${fontSize * 0.85}px` }}
+              className="text-zinc-700 text-left font-bold flex-1 opacity-70"
+              style={{ fontSize: `${fontSize * 0.90}px` }}
             >
               {publicTopics[currentTopicIndex]?.topic_text || ""}
             </p>
@@ -747,8 +753,8 @@ export default function PrayerPage() {
               className="flex items-center gap-1 text-[#4A6741] hover:scale-110 active:scale-95 transition-all"
               title="함께 기도하기"
             >
-              <HandHeart size={18} strokeWidth={0.5} />
-              <span className="text-xs font-medium opacity-50">
+              <HandHeart size={22} strokeWidth={1.0} />
+              <span className="text-xs font-bold opacity-70">
                 {getPrayerCount(publicTopics[currentTopicIndex])}
               </span>
             </button>
@@ -761,7 +767,7 @@ export default function PrayerPage() {
         <motion.button
           onClick={handleStartPrayerMode}
           whileTap={{ scale: 0.95 }}
-          className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex flex-col items-center justify-center gap-2"
+          className="w-24 h-24 rounded-full bg-[#4A6741] text-white shadow-2xl flex flex-col items-center justify-center gap-2"
           animate={{
             scale: [1, 1.05, 1],
           }}
@@ -774,7 +780,7 @@ export default function PrayerPage() {
         >
           <HandHeart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.9}px` }}>
-            기도하기
+            통성기도
           </span>
         </motion.button>
       </div>
@@ -783,10 +789,12 @@ export default function PrayerPage() {
       <div className="px-6 pb-6">
         {/* 나의 기도제목 */}
         <div className="mb-16">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-[#4A6741]" style={{ fontSize: `${fontSize * 0.95}px` }}>
-              기도 제목
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <h3 className="font-bold text-[#4A6741] opacity-80" style={{ fontSize: `${fontSize * 1.0}px` }}>
+              나의 기도 제목
             </h3>
+            
             <button
               onClick={() => {
                 if (!user) {
@@ -795,18 +803,18 @@ export default function PrayerPage() {
                 }
                 setShowAddInput(true);
               }}
-              className="text-[#4A6741] hover:text-[#3a5331] transition-colors"
+              className="text-[#4A6741] items-center hover:text-[#3a5331] transition-colors gap-10"
               title="기도제목 추가"
             >
-              <Plus size={18} />
+              <ClipboardPen size={18} />
             </button>
           </div>
 
           <div className="space-y-1">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex items-start gap-2 py-1.5">
-                <span className="text-[#4A6741] mt-1.5" style={{ fontSize: '4px' }}>●</span>
-                <p className="text-zinc-600 flex-1" style={{ fontSize: `${fontSize * 0.85}px` }}>
+              <div key={topic.id} className="flex items-start items-center justify-center gap-1 py-1.5">
+                <Check size={14} />
+                <p className="text-zinc-600 font-bold flex-1" style={{ fontSize: `${fontSize * 0.90}px` }}>
                   {topic.topic_text}
                 </p>
                 <div className="flex items-center gap-2">
@@ -849,7 +857,7 @@ export default function PrayerPage() {
                         onChange={(e) => setIsPublic(e.target.checked)}
                         className="rounded"
                       />
-                      공개하기
+                      공개 (함께 기도해요)
                     </label>
                     <div className="flex gap-2">
                       <button
@@ -879,15 +887,18 @@ export default function PrayerPage() {
         {/* 기도 녹음 기록 */}
         {prayerRecords.length > 0 && (
           <div>
-            <h3 className="font-medium text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
-              기도 기록
+            <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <h3 className="font-bold text-[#4A6741] opacity-80" style={{ fontSize: `${fontSize * 1.0}px` }}>
+              나의 기도 기록
             </h3>
+          </div>
             <div className="space-y-3">
               {prayerRecords.map((record) => (
                 <div key={record.id} className="bg-white rounded-xl p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
-                      <h4 className="font-normal text-[#4A6741] text-zinc-800 mb-1" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                      <h4 className="text-[#4A6741] text-zinc-800 font-bold mb-1" style={{ fontSize: `${fontSize * 0.90}px` }}>
                         {record.title || '제목없음'}
                       </h4>
                       {record.hashtags && record.hashtags.length > 0 && (
@@ -914,7 +925,7 @@ export default function PrayerPage() {
                         className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-500 hover:text-[#4A6741] flex items-center justify-center"
                         title="모임 연결"
                       >
-                        <Link2 size={13} />
+                        <Link size={13} />
                       </button>
                       <button
                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}
@@ -929,7 +940,7 @@ export default function PrayerPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <button
                       onClick={() => playRecording(record.audio_url, record.id)}
-                      className="w-10 h-10 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
                     >
                       {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
                         <Pause size={16} fill="white" />
@@ -1058,16 +1069,16 @@ export default function PrayerPage() {
                 exit={{ scale: 0.8, opacity: 0 }}
                 className="text-center px-6 flex flex-col items-center"
               >
-                <h2 className="text-gray-100 opacity-50 font-semibold mb-24" style={{ fontSize: `${fontSize * 1.2}px` }}>
+                <h2 className="text-gray-100 opacity-50 font-bold mb-24" style={{ fontSize: `${fontSize * 1.3}px` }}>
                   주여, 내 기도를 들으소서
                 </h2>
                 
                 <motion.button
                   onClick={handleStartRecording}
                   whileTap={{ scale: 0.95 }}
-                  className="w-32 h-32 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center opacity-70 justify-center mb-24"
+                  className="w-24 h-24 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center opacity-70 justify-center mb-24"
                   animate={{
-                    scale: [1, 1.05, 1],
+                    scale: [0.9, 1.05, 0.9],
                   }}
                   transition={{
                     duration: 20,
@@ -1076,17 +1087,17 @@ export default function PrayerPage() {
                     ease: "easeInOut"
                   }}
                 >
-                  <Mic size={48} />
+                  <Mic size={32} />
                 </motion.button>
 
-                <p className="text-gray-100 opacity-50 max-w-md text-center leading-relaxed" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                <p className="text-gray-100 opacity-50 max-w-md text-center leading-relaxed" style={{ fontSize: `${fontSize * 1.0}px` }}>
                   소리내어 울부짖지 않아도, 속삭이는 기도에도,<br />
                   마음속 외침에도 모두 듣고 계십니다
                 </p>
 
                 <button
                   onClick={handleClosePrayer}
-                  className="mt-24 text-gray-100 opacity-50 underline w-full max-w-md flex items- justify-end gap-3" style={{ fontSize: `${fontSize * 0.9}px` }}
+                  className="mt-24 text-gray-100 opacity-50 underline w-full max-w-md flex items- justify-end gap-3" style={{ fontSize: `${fontSize * 0.95}px` }}
                 >
                   닫기
                 </button>
@@ -1109,13 +1120,13 @@ export default function PrayerPage() {
                     repeat: isPaused ? 0 : Infinity,
                     ease: "easeInOut"
                   }}
-                  className="w-32 h-32 rounded-full bg-red-500/20 flex items-center justify-center mb-8"
+                  className="w-24 h-24 rounded-full bg-red-500/20 flex items-center justify-center mb-8"
                 >
-                  <Mic size={64} className="text-red-500" />
+                  <Mic size={32} className="text-red-500" />
                 </motion.div>
 
                 {/* 녹음 시간 */}
-                <p className="text-5xl font-bold text-white mb-12">
+                <p className="text-3xl font-bold text-white opacity-50 mb-12">
                   {formatTime(recordingTime)}
                 </p>
 
@@ -1124,27 +1135,27 @@ export default function PrayerPage() {
                   {!isPaused ? (
                     <button
                       onClick={handlePauseRecording}
-                      className="px-6 py-3 rounded-full bg-white text-zinc-800 font-medium flex items-center gap-2"
+                      className="px-6 py-3 rounded-full bg-black text-white opacity-50 font-bold flex items-center gap-2"
                     >
-                      <Pause size={20} />
+                      <Pause size={16} />
                       일시정지
                     </button>
                   ) : (
                     <button
                       onClick={handleResumeRecording}
-                      className="px-6 py-3 rounded-full bg-[#4A6741] text-white font-medium flex items-center gap-2"
+                      className="px-6 py-3 rounded-full bg-black text-white opacity-50 font-bold flex items-center gap-2"
                     >
-                      <Play size={20} />
+                      <Play size={16} />
                       이어서 기도하기
                     </button>
                   )}
 
                   <button
                     onClick={handleStopRecording}
-                    className="px-6 py-3 rounded-full bg-white text-zinc-800 font-bold flex items-center gap-2"
+                    className="px-6 py-3 rounded-full bg-black text-white opacity-50 font-bold flex items-center gap-2"
                   >
-                    <Square size={20} />
-                    종료
+                    <Square size={16} />
+                    기도 종료
                   </button>
                 </div>
               </motion.div>
@@ -1156,17 +1167,17 @@ export default function PrayerPage() {
                 animate={{ scale: 1, opacity: 1 }}
                 className="text-center px-6 w-full max-w-md flex flex-col items-center"
               >
-                <h3 className="text-white text-xl font-bold mb-6">기도 녹음 완료</h3>
+                <h3 className="text-white opacity-50 text-lg font-bold mb-4">다시 듣기</h3>
 
                 {/* 재생 버튼 */}
                 <button
                   onClick={playRecordedAudio}
-                  className="w-20 h-20 rounded-full bg-[#4A6741] text-white flex items-center justify-center mb-4"
+                  className="w-16 h-16 rounded-full bg-[#4A6741] opacity-50 text-white flex items-center justify-center mb-10"
                 >
                   {recordedAudioRef.current && !recordedAudioRef.current.paused ? (
-                    <Pause size={32} />
+                    <Pause size={24} />
                   ) : (
-                    <Play size={32} />
+                    <Play size={24} />
                   )}
                 </button>
 
@@ -1186,24 +1197,25 @@ export default function PrayerPage() {
                 <div className="flex gap-2 w-full">
                   <button
                     onClick={handleOpenSaveModal}
-                    className="flex-1 py-3 rounded-full bg-[#4A6741] text-white font-medium flex items-center justify-center gap-1"
+                    className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
                   >
-                    <Download size={18} />
+                    <Download size={16} />
                     저장
                   </button>
                   
                   <button
                     onClick={handleSharePrayer}
-                    className="flex-1 py-3 rounded-full bg-white text-zinc-800 font-medium flex items-center justify-center gap-1"
+                    className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
                   >
-                    <Share2 size={18} />
+                    <Share2 size={16} />
                     전달
                   </button>
                   
                   <button
                     onClick={handleClosePrayer}
-                    className="flex-1 py-3 rounded-full bg-zinc-700 text-white font-medium"
+                    className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
                   >
+                    <X size={16} />
                     닫기
                   </button>
                 </div>

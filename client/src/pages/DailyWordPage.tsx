@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, Image as ImageIcon } from "lucide-react";
+import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, ImagePlus as ImageIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
