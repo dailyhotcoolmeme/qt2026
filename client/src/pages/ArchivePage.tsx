@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, SearchCheck, Share2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
+import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Share2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 
@@ -508,11 +508,11 @@ export default function ArchivePage() {
   }, [statsLogs]);
 
   const menuConfig: Array<{ key: MenuType; label: string; icon: React.ReactNode }> = [
-    { key: "all", label: "전체", icon: <SearchCheck size={15} /> },
-    { key: "qt", label: "QT일기", icon: <BookOpenCheck size={15} /> },
-    { key: "prayer", label: "기도(myAmen)", icon: <HandHeart size={15} /> },
-    { key: "reading", label: "성경읽기", icon: <LibraryBig size={15} /> },
-    { key: "bookmark", label: "즐겨찾기 말씀", icon: <Bookmark size={15} /> },
+    { key: "all", label: "전체", icon: <Search size={18} /> },
+    { key: "qt", label: "QT일기", icon: <BookOpenCheck size={18} /> },
+    { key: "prayer", label: "기도(myAmen)", icon: <HandHeart size={18} /> },
+    { key: "reading", label: "성경읽기", icon: <LibraryBig size={18} /> },
+    { key: "bookmark", label: "즐겨찾기 말씀", icon: <Bookmark size={18} /> },
   ];
 
   const routeByActivity = (log: ActivityLogRow) => {
@@ -524,7 +524,7 @@ export default function ArchivePage() {
 
   if (isLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F6F7F8]">
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8]">
         <div className="w-8 h-8 rounded-full border-4 border-[#4A6741] border-t-transparent animate-spin" />
       </div>
     );
@@ -532,8 +532,8 @@ export default function ArchivePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none border border-zinc-100 p-6 text-center">
+      <div className="min-h-screen bg-[#F8F8F8] flex items-center justify-center px-4">
+        <div className="max-w-sm w-full bg-[#F8F8F8] rounded-none border border-zinc-100 p-6 text-center">
           <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 기록함을 확인할 수 있습니다.</p>
           <button
             onClick={() => setLocation("/")}
@@ -547,24 +547,24 @@ export default function ArchivePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pt-20 pb-10 px-4 text-[clamp(13px,1.1em,18px)]">
+    <div className="min-h-screen bg-[#F8F8F8] pt-20 pb-10 px-4 text-[clamp(13px,1.1em,18px)]">
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Removed 개인 저장파일 보관 현황 (30일 무료) section */}
 
         {/* 말씀카드 이미지 기록 섹션 완전 삭제 */}
 
         {/* 기간+서브탭 한 박스, 스크롤바 숨김, 돋보기 버튼, 아이콘 추가 */}
-        <section className="bg-[#F6F7F8] rounded-none border border-zinc-100 p-3">
+        <section className="bg-[#F8F8F8] rounded-none border border-zinc-100 p-3">
           <div className="flex flex-col gap-2">
             <div className="overflow-x-auto whitespace-nowrap flex gap-3 pb-1 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehaviorX: 'contain' }}>
               {(() => {
                 const tabIcons: Record<MenuType, JSX.Element> = {
-                  all: <SearchCheck size={18} />,
-                  bookmark: <Sun size={18} />,
-                  reading: <BookOpenText size={18} />,
-                  qt: <BookHeart size={18} />,
-                  prayer: <HandHeart size={18} />,
-                  group: <Church size={18} />,
+                  all: <Search size={24} />,
+                  bookmark: <Sun size={24} />,
+                  reading: <BookOpenText size={24} />,
+                  qt: <BookHeart size={24} />,
+                  prayer: <HandHeart size={24} />,
+                  group: <Church size={24} />,
                 };
                 const tabList: { key: MenuType; label: string }[] = [
                   { key: "all", label: "전체조회" },
@@ -580,8 +580,8 @@ export default function ArchivePage() {
                     <button
                       key={item.key}
                       onClick={() => setMenuType(item.key as MenuType)}
-                      className={`px-4 py-2 rounded-none text-base font-bold inline-flex items-center justify-center gap-2 ${
-                        menuType === item.key ? "bg-[#4A6741] text-white" : "bg-zinc-50 text-zinc-700"
+                      className={`px-4 py-1.5 bg-[#F8F8F8]rounded-none text-base font-bold inline-flex items-center justify-center gap-2 ${
+                        menuType === item.key ? "bg-[#4A6741] opacity-80 text-white" : "bg-zinc-50 text-zinc-700"
                       }`}
                       style={{ minWidth: 110 }}
                     >
@@ -592,37 +592,38 @@ export default function ArchivePage() {
                 });
               })()}
             </div>
-            <div className="flex flex-wrap items-end gap-2 mt-1">
+            <div className="flex flex-wrap justify-center items-center gap-3 mt-1">
               <div>
-                <label className="text-xs text-zinc-500">시작</label>
+                <label className="text-xs text-zinc-700">시작</label>
                 <input
                   type="date"
                   value={startDate}
                   max={endDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="ml-1 px-2 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-sm"
+                  className="ml-1 px-3 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-xs"
                   style={{ width: 120 }}
                 />
               </div>
               <div>
-                <label className="text-xs text-zinc-500">종료</label>
+                <label className="text-xs text-zinc-700">종료</label>
                 <input
                   type="date"
                   value={endDate}
                   min={startDate}
                   max={defaultEnd}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="ml-1 px-2 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-sm"
+                  className="ml-1 px-3 py-1 rounded-none bg-zinc-50 border border-zinc-200 text-xs"
                   style={{ width: 120 }}
                 />
               </div>
               <button
-                onClick={() => void loadData(user.id)}
-                className="ml-2 w-8 h-8 rounded-full bg-white border border-zinc-200 flex items-center justify-center"
-                aria-label="조회"
-              >
-                <SearchCheck size={18}/>
-              </button>
+  onClick={() => void loadData(user.id)}
+  /* w-7 h-7 대신 px(가로여백)를 주고, rounded-full 대신 rounded-lg 정도로 수정 */
+  className="px-2 py-1 rounded-none bg-[#4A6741] opacity-80 text-sm font-bold text-white border border-zinc-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
+  aria-label="조회"
+>
+  조회
+</button>
             </div>
           </div>
         </section>
