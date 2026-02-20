@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import confetti from 'canvas-confetti';
 import { 
-  Heart, Headphones, Share2, Copy, Bookmark, 
+  Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Check, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Pencil, NotebookPen,
   BookX, Loader2
@@ -2196,8 +2196,8 @@ const togglePlay = () => {
       </div>
 
       <div className="flex items-center gap-8 mt-3 mb-14"> 
-        <button onClick={() => handlePlayServerAudio()} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Headphones size={22} strokeWidth={1.5} />
+        <button onClick={() => handlePlayServerAudio()} className="flex flex-col items-center gap-1.5  text-[#4A6741]">
+          <BookHeadphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
         <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">

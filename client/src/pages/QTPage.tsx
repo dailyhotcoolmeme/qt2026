@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { 
-  Headphones, Share2, Copy, Bookmark, 
+  Headphones, BookHeadphones, Share2, Copy, Bookmark, 
   Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -1101,8 +1101,8 @@ const onDragEnd = (event: any, info: any) => {
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
   <div className="flex items-center gap-8 mt-3 mb-4"> 
     <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-              className="flex flex-col items-center gap-1.5 text-zinc-400">
-      <Headphones size={22} strokeWidth={1.5} />
+              className="flex flex-col items-center gap-1.5 text-[#4A6741]">
+      <BookHeadphones size={22} strokeWidth={1.5} />
       <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
     </button>
 {/* 말씀 복사 버튼 찾아서 수정 */}

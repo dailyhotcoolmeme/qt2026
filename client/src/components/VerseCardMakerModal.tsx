@@ -649,44 +649,54 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
           </motion.div>
 
           <AnimatePresence>
-            {activeRecord && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
-              >
-                <div className="mb-1 flex items-center justify-between">
-                <h3></h3>
-                <button onClick={() => setActiveRecord(null)} className="absolute right-[27px] top-[135px] rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100">
-                  <X size={18} />
-                </button>
-                </div>
-                <div className="w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
-                  <img src={activeRecord.imageDataUrl} alt={activeRecord.title} className="mx-auto aspect-[4/5] w-full rounded-none object-cover" />
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-  <button
-    onClick={() => void saveRecordToPhone(activeRecord)}
-    /* flex, items-center, justify-center, gap-1 추가 */
-    className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
-  >
-    <Download size={15} />
-    <span>핸드폰 저장</span>
-  </button>
+  {activeRecord && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      // 전체 배경
+      className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
+    >
+      {/* 하얀색 카드 - 여기에 relative 추가 */}
+      <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
+        
+        {/* X 버튼 - 이제 카드(부모)의 오른쪽 위를 기준으로 움직입니다 */}
+        <button 
+          onClick={() => setActiveRecord(null)} 
+          className="absolute -right-2 -top-10 rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100"
+        >
+          <X size={18} />
+        </button>
 
-  <button
-    onClick={() => void shareRecord(activeRecord)}
-    /* flex, items-center, justify-center, gap-1 추가 */
-    className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
-  >
-    <Share2 size={15} />
-    <span>카톡 공유</span>
-  </button>
-</div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {/* 이미지 영역 */}
+        <img 
+          src={activeRecord.imageDataUrl} 
+          alt={activeRecord.title} 
+          className="mx-auto aspect-[4/5] w-full rounded-none object-cover" 
+        />
+
+        {/* 하단 버튼들 */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => void saveRecordToPhone(activeRecord)}
+            className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+          >
+            <Download size={15} />
+            <span>핸드폰 저장</span>
+          </button>
+
+          <button
+            onClick={() => void shareRecord(activeRecord)}
+            className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+          >
+            <Share2 size={15} />
+            <span>카톡 공유</span>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
         </div>
       )}
     {/* 카드 삭제 확인 모달 */}
