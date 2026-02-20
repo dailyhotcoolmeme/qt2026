@@ -502,7 +502,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
                 <div
-                  className="relative aspect-[4/5] rounded-[28px] border border-zinc-200 p-5 overflow-hidden"
+                  className="relative aspect-[4/5] rounded-none border border-zinc-200 p-5 overflow-hidden"
                   style={{ ...previewStyle, width: `${PREVIEW_WIDTH_PX}px` }}
                 >
                   {currentPreset?.mode === "image" ? (
@@ -566,12 +566,12 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="rounded-none bg-gray-300 text-gray-700 px-3 py-2 text-xs font-base disabled:opacity-60"
+                        className="rounded-none bg-gray-300 text-gray-700 px-2 py-2 text-xs font-base disabled:opacity-60"
                         disabled={uploading}
                       >
                         {uploading ? "업로드 중..." : "이미지 업로드"}
                       </button>
-                      
+                      <span className="text-xs text-gray-500"> 회원 등록 배경 이미지 인기순 정렬 </span>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       {userBgs.length === 0 ? (
@@ -628,7 +628,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                         <div key={record.id} className="relative">
                           <button
                             onClick={() => setActiveRecord(record)}
-                            className="w-full overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                            className="w-full overflow-hidden rounded-none border border-zinc-200 bg-white"
                           >
                             <img src={record.imageDataUrl} alt={record.title} className="aspect-[4/5] w-full object-cover" />
                           </button>
@@ -656,26 +656,33 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 exit={{ opacity: 0 }}
                 className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
               >
-                <button onClick={() => setActiveRecord(null)} className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white">
+                <div className="mb-1 flex items-center justify-between">
+                <h3></h3>
+                <button onClick={() => setActiveRecord(null)} className="absolute right-[27px] top-[135px] rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100">
                   <X size={18} />
                 </button>
-                <div className="w-full max-w-sm rounded-2xl bg-white p-3 shadow-2xl">
-                  <img src={activeRecord.imageDataUrl} alt={activeRecord.title} className="mx-auto aspect-[4/5] w-full rounded-xl object-cover" />
-                  <p className="mt-2 text-center text-sm font-bold text-zinc-800">{activeRecord.title}</p>
+                </div>
+                <div className="w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
+                  <img src={activeRecord.imageDataUrl} alt={activeRecord.title} className="mx-auto aspect-[4/5] w-full rounded-none object-cover" />
                   <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => void saveRecordToPhone(activeRecord)}
-                      className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white"
-                    >
-                      핸드폰 저장
-                    </button>
-                    <button
-                      onClick={() => void shareRecord(activeRecord)}
-                      className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white"
-                    >
-                      공유
-                    </button>
-                  </div>
+  <button
+    onClick={() => void saveRecordToPhone(activeRecord)}
+    /* flex, items-center, justify-center, gap-1 추가 */
+    className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+  >
+    <Download size={15} />
+    <span>핸드폰 저장</span>
+  </button>
+
+  <button
+    onClick={() => void shareRecord(activeRecord)}
+    /* flex, items-center, justify-center, gap-1 추가 */
+    className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+  >
+    <Share2 size={15} />
+    <span>카톡 공유</span>
+  </button>
+</div>
                 </div>
               </motion.div>
             )}
