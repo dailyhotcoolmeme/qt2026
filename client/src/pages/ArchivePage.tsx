@@ -554,7 +554,7 @@ export default function ArchivePage() {
         {/* 말씀카드 이미지 기록 섹션 완전 삭제 */}
 
         {/* 기간+서브탭 한 박스, 스크롤바 숨김, 돋보기 버튼, 아이콘 추가 */}
-        <section className="bg-[#F8F8F8] rounded-none border border-zinc-100 p-3">
+        <section className="bg-[#F8F8F8] rounded-none border border-zinc-100">
           <div className="flex flex-col gap-2">
             <div className="overflow-x-auto whitespace-nowrap flex gap-3 pb-1 hide-scrollbar" style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehaviorX: 'contain' }}>
               {(() => {
@@ -576,17 +576,24 @@ export default function ArchivePage() {
                 ];
                 return tabList.map((item) => {
                   const Icon = tabIcons[item.key];
+                  const isSelected = menuType === item.key;
                   return (
                     <button
                       key={item.key}
                       onClick={() => setMenuType(item.key as MenuType)}
-                      className={`px-4 py-1.5 bg-[#F8F8F8]rounded-none text-base font-bold inline-flex items-center justify-center gap-2 ${
-                        menuType === item.key ? "bg-[#4A6741] opacity-80 text-white" : "bg-zinc-50 text-zinc-700"
+                      className={`px-4 py-1.5 bg-[#F8F8F8] rounded-none text-base font-bold inline-flex items-center justify-center gap-2 relative ${
+                        isSelected ? "text-[#4A6741]" : "text-zinc-700"
                       }`}
                       style={{ minWidth: 110 }}
                     >
                       {Icon}
                       {item.label}
+                      {isSelected && (
+                        <span
+                          className="absolute left-2 right-2 -bottom-1 h-[3px] bg-[#4A6741] rounded-full"
+                          aria-hidden="true"
+                        />
+                      )}
                     </button>
                   );
                 });
@@ -627,6 +634,14 @@ export default function ArchivePage() {
             </div>
           </div>
         </section>
+        <br/>
+        <div className="flex items-center gap-2 mb-6">
+      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+      <h4
+        className="font-bold text-[#4A6741] opacity-80 text-sm">
+        조회 결과
+      </h4>
+    </div>
 
         {/* 리스트: 각 탭별 사각형(rounded-none) div, 말씀카드는 기존 유지, 나머지는 일자/시간/기록/음성 등 */}
         <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
@@ -706,7 +721,7 @@ export default function ArchivePage() {
                   </div>
                   <button
                     className="ml-4 flex-shrink-0 w-8 h-8 rounded-full bg-white hover:bg-zinc-100 flex items-center justify-center"
-                    onClick={() => window.location.href = `/record/${log.id}`}
+                    onClick={() => setLocation(`/record/${log.id}`)}
                     aria-label="기록 상세로 이동"
                   >
                     <ChevronRight size={18} />
