@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, BookType, LogOut, Bell, CheckCheck } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, Lock, LogOut, Bell, CheckCheck } from "lucide-react";
+import BookSearch from "./icons/BookSearch";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -334,7 +335,7 @@ export function TopBar() {
         <div className="flex items-center gap-1">
           <Link href="/search">
             <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
-              <BookSearch className="h-5 w-5" />
+              <BookType className="h-5 w-5" />
             </button>
           </Link>
           <button
