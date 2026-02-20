@@ -4,6 +4,7 @@ import { useLocation, useRoute } from "wouter";
 import {
   Check,
   ChevronLeft,
+  ChevronRight,
   Crown,
   ImagePlus,
   LayoutGrid,
@@ -347,6 +348,8 @@ export default function GroupDashboard() {
   const [faithBoardDate, setFaithBoardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [faithBoardRows, setFaithBoardRows] = useState<FaithBoardRow[]>([]);
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
+  const [weekDates, setWeekDates] = useState<string[]>([]);
+  const [weeklyRecords, setWeeklyRecords] = useState<Record<string, Record<string, number>>>({});
 
   const [posts, setPosts] = useState<GroupPostRow[]>([]);
   const [postType, setPostType] = useState<"post" | "notice">("post");
@@ -358,6 +361,9 @@ export default function GroupDashboard() {
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
   const [expandedPosts, setExpandedPosts] = useState<Record<number, boolean>>({});
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImages, setModalImages] = useState<string[]>([]);
+  const [modalIndex, setModalIndex] = useState(0);
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
@@ -729,6 +735,91 @@ export default function GroupDashboard() {
     });
 
     setFaithRecordDetails(baseDetails);
+  };
+
+  const buildWeekIso = (ref = new Date()) => {
+    const d = new Date(ref);
+    const day = d.getDay();
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - day);
+    sunday.setHours(0, 0, 0, 0);
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const cur = new Date(sunday);
+      cur.setDate(sunday.getDate() + i);
+      dates.push(cur.toISOString().split("T")[0]);
+    }
+    return dates;
+  };
+
+  const loadWeeklyFaithRecords = async () => {
+    if (!group?.id || !user) return;
+    const dates = buildWeekIso(new Date());
+    try {
+      const { data } = await supabase
+        .from("group_faith_records")
+        .select("item_id, value, record_date")
+        .eq("group_id", group.id)
+        .eq("user_id", user.id)
+        .in("record_date", dates as string[]);
+
+      const map: Record<string, Record<string, number>> = {};
+      (data ?? []).forEach((row: any) => {
+        const d = row.record_date;
+        map[d] = map[d] ?? {};
+        map[d][row.item_id] = Number(row.value ?? 0);
+      });
+      setWeekDates(dates);
+      setWeeklyRecords(map);
+    } catch (error) {
+      setWeekDates(buildWeekIso(new Date()));
+      setWeeklyRecords({});
+    }
+  };
+
+  useEffect(() => {
+    void loadWeeklyFaithRecords();
+    // reload when group or user changes
+  }, [group?.id, user?.id]);
+
+  const handleFaithToggleForDate = async (item: FaithItemRow, dateIso: string) => {
+    if (!group || !user) return;
+    const current = (weeklyRecords[dateIso]?.[item.id] ?? 0) as number;
+    const nextValue = current > 0 ? 0 : item.item_type === "count" ? current + 1 : 1;
+
+    try {
+      if (nextValue <= 0) {
+        await supabase
+          .from("group_faith_records")
+          .delete()
+          .eq("group_id", group.id)
+          .eq("item_id", item.id)
+          .eq("user_id", user.id)
+          .eq("record_date", dateIso);
+      } else {
+        const { error } = await supabase.from("group_faith_records").upsert(
+          {
+            group_id: group.id,
+            item_id: item.id,
+            user_id: user.id,
+            record_date: dateIso,
+            value: nextValue,
+            note: null,
+            source_type: "manual",
+            source_event_type: null,
+            source_event_id: null,
+          },
+          { onConflict: "group_id,item_id,user_id,record_date" }
+        );
+        if (error) throw error;
+      }
+      await loadWeeklyFaithRecords();
+      const todayIso = new Date().toISOString().split("T")[0];
+      if (dateIso === todayIso) await loadFaith(group.id, user.id);
+    } catch (error) {
+      console.error("failed to toggle faith record:", error);
+      alert("저장에 실패했습니다.");
+    }
   };
 
   const loadPosts = async (targetGroupId: string) => {
@@ -2113,7 +2204,10 @@ export default function GroupDashboard() {
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <section className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
-              <h2 className="font-black text-zinc-900 mb-3">모임원 기도제목</h2>
+              <h2 className="font-black text-zinc-900 mb-3 flex items-center gap-2">
+                <MessageSquare size={18} className="text-[#4A6741]" />
+                모임원 기도제목
+              </h2>
               <div className="space-y-2">
                 {groupPrayerTopics.map((topic) => {
                   const author = authorMap[topic.author_id];
@@ -2203,34 +2297,63 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <section className="bg-[#F6F7F8] px-1">
               <div className="text-center text-[#4A6741] font-bold py-3 border-b border-zinc-200">{getTodayKoreanLabel()}</div>
-              <div className="py-2">
-                {faithItemSlots.map((slot) => {
-                  const item = slot.item;
-                  const isCompleted = item ? (faithValues[item.id] ?? 0) > 0 : false;
-                  return (
-                    <div key={slot.key} className="py-3 border-b border-zinc-200 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-bold text-zinc-900">{slot.label}</div>
-                        {item && getLinkedFaithDetailText(item.id) && (
-                          <p className="text-base text-zinc-600 mt-1 truncate">{getLinkedFaithDetailText(item.id)}</p>
-                        )}
-                      </div>
-                      <motion.button
-                        whileTap={{ scale: item ? 0.92 : 1 }}
-                        onClick={() => item && void handleFaithToggle(item)}
-                        disabled={!item}
-                        className={`w-20 h-20 rounded-full flex flex-col items-center justify-center shadow transition-all duration-300 ${
-                          isCompleted
-                            ? "bg-[#4A6741] text-white border-none"
-                            : "bg-white text-[#4A6741] border border-zinc-200"
-                        } ${!item ? "opacity-40 cursor-not-allowed" : ""}`}
-                      >
-                        <Check className="w-5 h-5 mb-1" />
-                        <span className="text-base font-bold">{isCompleted ? "완료" : "미완료"}</span>
-                      </motion.button>
+              <div className="py-3">
+                <div className="overflow-x-auto -mx-2 px-2">
+                  <div className="min-w-[560px]">
+                    <div className="grid grid-cols-7 gap-2">
+                      {weekDates.map((date) => {
+                        const dt = new Date(date);
+                        const isToday = date === new Date().toISOString().split("T")[0];
+                        return (
+                          <div
+                            key={date}
+                            className={`p-2 text-center ${isToday ? "ring-2 ring-[#4A6741] rounded-lg bg-white" : ""}`}>
+                            <div className="text-sm font-bold">{dt.toLocaleDateString("ko-KR", { weekday: "short" })}</div>
+                            <div className="text-xs text-zinc-500 mt-1">{dt.getDate()}</div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
+
+                    <div className="mt-3 space-y-3">
+                      {faithItemSlots.map((slot) => {
+                        const item = slot.item;
+                        return (
+                          <div key={slot.key} className="flex items-center gap-3">
+                            <div className="w-28 font-bold text-zinc-900">{slot.label}</div>
+                            <div className="flex-1 overflow-x-auto -mx-2 px-2">
+                              <div className="min-w-[560px] grid grid-cols-7 gap-2">
+                                {weekDates.map((date) => {
+                                  const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
+                                  const disabled = !item;
+                                  const isToday = date === new Date().toISOString().split("T")[0];
+                                  return (
+                                    <button
+                                      key={`${slot.key}-${date}`}
+                                      onClick={() => item && void handleFaithToggleForDate(item, date)}
+                                      disabled={disabled}
+                                      className={`h-12 rounded-lg flex items-center justify-center text-sm font-bold transition-colors ${
+                                        disabled
+                                          ? "opacity-40 cursor-not-allowed bg-white border border-zinc-100 text-zinc-300"
+                                          : val > 0
+                                          ? "bg-[#4A6741] text-white"
+                                          : isToday
+                                          ? "bg-white border border-zinc-200 text-[#4A6741]"
+                                          : "bg-white border border-zinc-100 text-[#4A6741]"
+                                      }`}
+                                    >
+                                      {val > 0 ? "완료" : "—"}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
               {faithItemSlots.some((slot) => !slot.item) && (
                 <div className="py-3 text-base text-zinc-500">
@@ -2377,22 +2500,30 @@ export default function GroupDashboard() {
                       <p className="text-base text-zinc-800 whitespace-pre-wrap">{post.content}</p>
                     )}
 
-                    {post.image_urls && post.image_urls.length > 0 && (
-                      socialViewMode === "blog" ? (
-                        <div className="mt-3">
-                          <div className="overflow-x-auto -mx-4 px-4 flex gap-2 touch-pan-x">
-                            {post.image_urls.slice(0, 10).map((url, index) => (
-                              <div key={`post-image-${post.id}-${index}`} className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100">
-                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
-                              </div>
-                            ))}
+                      {post.image_urls && post.image_urls.length > 0 && (
+                        socialViewMode === "blog" ? (
+                          <div className="mt-3">
+                            <div className="overflow-x-auto -mx-4 px-4 flex gap-2 touch-pan-x snap-x snap-mandatory">
+                              {post.image_urls.slice(0, 10).map((url, index) => (
+                                <div
+                                  key={`post-image-${post.id}-${index}`}
+                                  className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100 snap-center cursor-pointer"
+                                  onClick={() => {
+                                    setModalImages(post.image_urls ?? []);
+                                    setModalIndex(index);
+                                    setShowImageModal(true);
+                                  }}
+                                >
+                                  <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
+                                </div>
+                              ))}
+                            </div>
+                            <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
                           </div>
-                          <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
-                        </div>
-                      ) : (
-                        <div className="mt-2 text-base text-zinc-500">사진 {post.image_urls.length}장</div>
-                      )
-                    )}
+                        ) : (
+                          <div className="mt-2 text-base text-zinc-500">사진 {post.image_urls.length}장</div>
+                        )
+                      )}
                   </div>
                 );
               })}
@@ -2889,6 +3020,44 @@ export default function GroupDashboard() {
             >
               등록하기
             </button>
+          </div>
+        </div>
+      )}
+
+      {showImageModal && (
+        <div className="fixed inset-0 z-[250] p-4 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowImageModal(false)} />
+          <div className="relative w-full max-w-3xl max-h-[80vh] bg-[#F6F7F8] border-b border-zinc-200 p-4 rounded">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm text-zinc-500">{modalIndex + 1} / {modalImages.length}</div>
+              <button onClick={() => setShowImageModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setModalIndex((i) => (modalImages.length ? (i - 1 + modalImages.length) % modalImages.length : 0))}
+                className="px-3 py-2 rounded-sm bg-zinc-100"
+                aria-label="prev"
+              >
+                <ChevronLeft />
+              </button>
+
+              <div className="flex-1">
+                {modalImages[modalIndex] ? (
+                  <img src={modalImages[modalIndex]} alt={`modal-${modalIndex}`} className="w-full max-h-[70vh] object-contain mx-auto" />
+                ) : null}
+              </div>
+
+              <button
+                onClick={() => setModalIndex((i) => (modalImages.length ? (i + 1) % modalImages.length : 0))}
+                className="px-3 py-2 rounded-sm bg-zinc-100"
+                aria-label="next"
+              >
+                <ChevronRight />
+              </button>
+            </div>
           </div>
         </div>
       )}
