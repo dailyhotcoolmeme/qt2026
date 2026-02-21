@@ -23,6 +23,7 @@ import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage"; 
 import NotFound from "./pages/not-found";
 import PrayerPage from "./pages/PrayerPage";
+import RecordDetailPage from "./pages/RecordDetailPage";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
@@ -73,6 +74,7 @@ function AppContent() {
                   <Route path="/leadership" component={LeadershipPage} />
                   <Route path="/archive" component={ArchivePage} />
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
+                  <Route path="/record/:id" component={RecordDetailPage} />
                   <Route path="/search" component={SearchPage} />
                   <Route component={NotFound} />
                 </Switch>

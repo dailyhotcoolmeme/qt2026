@@ -6,7 +6,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
-import { useLocation } from "wouter";
+
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
@@ -19,9 +19,23 @@ import confetti from "canvas-confetti";
 import { uploadFileToR2 } from "../utils/upload";
 import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
 
+
+
 export default function QTPage() {
   const [location, setLocation] = useLocation(); 
   const [currentDate, setCurrentDate] = useState(new Date());
+    // 쿼리스트링에 date가 있으면 해당 날짜로 이동
+    useEffect(() => {
+      if (!location) return;
+      const query = location.split("?")[1];
+      if (!query) return;
+      const params = new URLSearchParams(query);
+      const dateStr = params.get("date");
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) setCurrentDate(d);
+      }
+    }, [location]);
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();

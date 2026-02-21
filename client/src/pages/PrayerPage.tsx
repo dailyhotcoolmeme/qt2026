@@ -16,9 +16,25 @@ import {
   AlertDialogTitle,
 } from "../components/ui/alert-dialog";
 
+import { useLocation } from "wouter";
+
 export default function PrayerPage() {
+  const [location] = useLocation();
   const { user } = useAuth();
   const { fontSize = 16 } = useDisplaySettings();
+  const [currentDate, setCurrentDate] = useState(new Date());
+    // 쿼리스트링에 date가 있으면 해당 날짜로 이동
+    useEffect(() => {
+      if (!location) return;
+      const query = location.split("?")[1];
+      if (!query) return;
+      const params = new URLSearchParams(query);
+      const dateStr = params.get("date");
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) setCurrentDate(d);
+      }
+    }, [location]);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);

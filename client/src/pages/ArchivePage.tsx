@@ -54,7 +54,7 @@ const EXPIRING_SOON_DAYS = 7;
 const VERSE_CARD_DB = "myamen_verse_cards";
 const VERSE_CARD_STORE = "cards";
 
-function formatDateTime(iso: string) {
+export function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR", {
     month: "2-digit",
     day: "2-digit",
@@ -250,6 +250,18 @@ async function shareDataUrl(dataUrl: string, title: string) {
     return true;
   }
   return false;
+}
+
+// 기록 종류별로 이동할 경로 생성 (payload.date 우선)
+function getMenuDateUrl(log: any) {
+  const payload = log.payload || {};
+  let date = payload.date;
+  if (!date) date = log.occurred_at?.slice(0, 10); // YYYY-MM-DD
+  if (log.activity_type === "qt") return `/qt?date=${date}`;
+  if (log.activity_type === "prayer") return `/prayer?date=${date}`;
+  if (log.activity_type === "reading") return `/reading?date=${date}`;
+  // bookmark 등 기타는 기본 아카이브로
+  return "/archive";
 }
 
 export default function ArchivePage() {
@@ -508,11 +520,11 @@ export default function ArchivePage() {
   }, [statsLogs]);
 
   const menuConfig: Array<{ key: MenuType; label: string; icon: React.ReactNode }> = [
-    { key: "all", label: "전체", icon: <Search size={18} /> },
-    { key: "qt", label: "QT일기", icon: <BookOpenCheck size={18} /> },
-    { key: "prayer", label: "기도(myAmen)", icon: <HandHeart size={18} /> },
-    { key: "reading", label: "성경읽기", icon: <LibraryBig size={18} /> },
-    { key: "bookmark", label: "즐겨찾기 말씀", icon: <Bookmark size={18} /> },
+    { key: "all", label: "전체", icon: <Search size={24} /> },
+    { key: "qt", label: "QT일기", icon: <BookOpenCheck size={24} /> },
+    { key: "prayer", label: "기도(myAmen)", icon: <HandHeart size={24} /> },
+    { key: "reading", label: "성경읽기", icon: <LibraryBig size={24} /> },
+    { key: "bookmark", label: "즐겨찾기 말씀", icon: <Bookmark size={24} /> },
   ];
 
   const routeByActivity = (log: ActivityLogRow) => {
@@ -721,8 +733,8 @@ export default function ArchivePage() {
                   </div>
                   <button
                     className="ml-4 flex-shrink-0 w-8 h-8 rounded-full bg-white hover:bg-zinc-100 flex items-center justify-center"
-                    onClick={() => setLocation(`/record/${log.id}`)}
-                    aria-label="기록 상세로 이동"
+                    onClick={() => setLocation(getMenuDateUrl(log))}
+                    aria-label="해당 기록 화면으로 이동"
                   >
                     <ChevronRight size={18} />
                   </button>
