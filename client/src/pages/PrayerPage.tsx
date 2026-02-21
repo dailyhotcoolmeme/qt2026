@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -646,12 +646,31 @@ export default function PrayerPage() {
         )}
       </div>
 
-      {/* 중앙: 기도하기 버튼 */}
-      <div className="flex items-center justify-center py-36">
+      {/* 중앙: Amen + 기도하기 버튼 */}
+      <div className="flex items-center justify-center gap-10 py-36">
+        <motion.button
+          // Amen 버튼 (기능 없음)
+          whileTap={{ scale: 0.95 }}
+          className="w-28 h-28 rounded-full bg-white opacity-80 text-[#4A6741] border border-[#4A6741]/50 shadow-2xl flex flex-col items-center justify-center gap-2"
+          animate={{
+            scale: [1, 1.05, 1],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            repeatDelay: 3,
+            ease: "easeInOut"
+          }}
+        >
+          <Heart size={32} strokeWidth={1.0} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            Amen
+          </span>
+        </motion.button>
         <motion.button
           onClick={handleStartPrayerMode}
           whileTap={{ scale: 0.95 }}
-          className="w-28 h-28 rounded-full bg-[#4A6741] text-white shadow-2xl flex flex-col items-center justify-center gap-2"
+          className="w-28 h-28 rounded-full bg-[#4A6741] opacity-80 text-white border border-[#4A6741]/50 shadow-2xl flex flex-col items-center justify-center gap-2"
           animate={{
             scale: [1, 1.05, 1],
           }}
@@ -664,7 +683,7 @@ export default function PrayerPage() {
         >
           <HandHeart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            지금 기도
+            음성기도
           </span>
         </motion.button>
       </div>
