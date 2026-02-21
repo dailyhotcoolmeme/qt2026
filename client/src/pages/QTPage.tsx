@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { 
   Headphones, BookHeadphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square
+  Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square, Trash2, SquarePen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -18,7 +18,7 @@ import {
 } from "../lib/bibleAudio";
 import confetti from "canvas-confetti";
 import { uploadFileToR2 } from "../utils/upload";
-import { fetchMyGroups, linkPersonalActivityToGroup } from "../lib/group-activity";
+
 
 
 
@@ -71,11 +71,7 @@ export default function QTPage() {
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
-  const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
-  const [showGroupLinkPrompt, setShowGroupLinkPrompt] = useState(false);
-  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
-  const [pendingGroupLinkSourceRowId, setPendingGroupLinkSourceRowId] = useState<string | null>(null);
-  const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
+
 
   // Refs
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -267,7 +263,7 @@ export default function QTPage() {
 
       setIsMeditationCompleted(true);
       setShowConfirmModal(false);
-      await prepareQtGroupLink(String(inserted.id));
+
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -276,47 +272,7 @@ export default function QTPage() {
     }
   };
 
-  const prepareQtGroupLink = async (sourceRowId: string) => {
-    if (!user?.id) return;
 
-    const groups = await fetchMyGroups(user.id);
-    if (groups.length === 0) return;
-
-    setMyGroups(groups);
-    setPendingGroupLinkSourceRowId(sourceRowId);
-    setShowGroupLinkPrompt(true);
-  };
-
-  const closeQtGroupLinkFlow = () => {
-    setShowGroupLinkPrompt(false);
-    setShowGroupLinkModal(false);
-    setPendingGroupLinkSourceRowId(null);
-    setLinkingGroupId(null);
-  };
-
-  const handleQtGroupLink = async (groupId: string) => {
-    if (!user?.id || !pendingGroupLinkSourceRowId) return;
-    setLinkingGroupId(groupId);
-
-    try {
-      const { error } = await linkPersonalActivityToGroup({
-        userId: user.id,
-        activityType: "qt",
-        sourceTable: "user_meditation_records",
-        sourceRowId: pendingGroupLinkSourceRowId,
-        groupId,
-      });
-
-      if (error) throw error;
-      closeQtGroupLinkFlow();
-      alert("모임 신앙생활에 연결되었습니다.");
-    } catch (error) {
-      console.error("qt group link failed:", error);
-      alert("모임 연결에 실패했습니다.");
-    } finally {
-      setLinkingGroupId(null);
-    }
-  };
 
   // 음성 녹음 시작
   const startRecording = async () => {
@@ -1324,18 +1280,20 @@ if (verseMatch) {
                       hour12: true
                     }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1">
                     <button
                       onClick={() => startEditRecord(record)}
-                      className="text-sm text-[#4A6741] font-medium"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
+                      title="수정"
                     >
-                      수정
+                      <SquarePen size={18} />
                     </button>
                     <button
                       onClick={() => confirmDeleteRecord(record.id)}
-                      className="text-sm text-red-500 font-medium"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                      title="삭제"
                     >
-                      삭제
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -1687,98 +1645,7 @@ if (verseMatch) {
   returnTo={`${window.location.origin}/#/qt`}
 /> 
 
-<AnimatePresence>
-  {showGroupLinkPrompt && (
-    <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={closeQtGroupLinkFlow}
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-      />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
-      >
-        <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
-          모임에 완료 연결할까요?
-        </h4>
-        <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-          지금 저장한 QT 기록을 모임 신앙생활에 연결할 수 있습니다.
-        </p>
-        <div className="flex gap-3">
-          <button
-            onClick={closeQtGroupLinkFlow}
-            className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
-          >
-            나중에
-          </button>
-          <button
-            onClick={() => {
-              setShowGroupLinkPrompt(false);
-              setShowGroupLinkModal(true);
-            }}
-            className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
-          >
-            연결하기
-          </button>
-        </div>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
 
-<AnimatePresence>
-  {showGroupLinkModal && pendingGroupLinkSourceRowId && (
-    <div className="fixed inset-0 z-[330] flex items-center justify-center p-6">
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={closeQtGroupLinkFlow}
-        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-      />
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
-      >
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
-            연결할 모임 선택
-          </h4>
-          <button
-            onClick={closeQtGroupLinkFlow}
-            className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
-          >
-            <X size={14} />
-          </button>
-        </div>
-        <div className="space-y-2 max-h-[320px] overflow-y-auto">
-          {myGroups.map((group) => (
-            <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
-              <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
-              <button
-                onClick={() => handleQtGroupLink(group.id)}
-                disabled={linkingGroupId === group.id}
-                className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
-              >
-                {linkingGroupId === group.id ? "연결 중..." : "연결"}
-              </button>
-            </div>
-          ))}
-          {myGroups.length === 0 && (
-            <div className="text-sm text-zinc-500 text-center py-6">연결 가능한 모임이 없습니다.</div>
-          )}
-        </div>
-      </motion.div>
-    </div>
-  )}
-</AnimatePresence>
     </div>
   );
 }

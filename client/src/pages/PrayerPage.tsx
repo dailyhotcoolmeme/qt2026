@@ -1,47 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Link, Link2 } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
+
 export default function PrayerPage() {
-  // 상태 변수 선언 바로 아래에 함수 선언
-  const loadMyTopics = async () => {
-    if (!user) return;
-    const { data } = await supabase.from('prayer_topics').select('*').eq('user_id', user.id);
-    setMyTopics(data || []);
-  };
-
-  const loadPublicTopics = async () => {
-    const { data } = await supabase.from('prayer_topics').select('*').eq('is_public', true);
-    setPublicTopics(data || []);
-  };
-
-  const loadPrayerRecords = async () => {
-    if (!user) return;
-    const { data } = await supabase.from('prayer_records').select('*').eq('user_id', user.id);
-    setPrayerRecords(data || []);
-  };
-
-  const handleAddTopic = async () => {
-    if (!user) return;
-    if (!newTopic.trim()) return;
-    const { error } = await supabase.from('prayer_topics').insert({
-      user_id: user!.id,
-      topic_text: newTopic.trim(),
-      is_public: isPublic
-    });
-    if (!error) {
-      setNewTopic("");
-      setIsPublic(false);
-      setShowAddInput(false);
-      await loadMyTopics();
-      if (isPublic) await loadPublicTopics();
-    }
-  };
-
   // 최상단에 상태 변수, ref, useEffect 선언
   const { user } = useAuth();
   const { fontSize } = useDisplaySettings();
@@ -75,11 +41,7 @@ export default function PrayerPage() {
   const [showKeywords, setShowKeywords] = useState<number|null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [myGroups, setMyGroups] = useState<any[]>([]);
-  const [targetRecordForLink, setTargetRecordForLink] = useState<any|null>(null);
-  const [showPostSaveLinkPrompt, setShowPostSaveLinkPrompt] = useState(false);
-  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
-  const [linkingGroupId, setLinkingGroupId] = useState<string|null>(null);
+  // 모임 연결 관련 상태 제거
   // ref
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
@@ -87,6 +49,48 @@ export default function PrayerPage() {
   const recordedAudioRef = useRef<any>(null);
   const audioProgressRef = useRef<any>(null);
   const audioRef = useRef<any>(null);
+
+  // 모임 연결 관련 useEffect 제거
+
+  // 상태 변수 선언 바로 아래에 함수 선언
+  const loadMyTopics = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('prayer_topics').select('*').eq('user_id', user.id);
+    setMyTopics(data || []);
+  };
+
+  const loadPublicTopics = async () => {
+    const { data } = await supabase.from('prayer_topics').select('*').eq('is_public', true);
+    setPublicTopics(data || []);
+  };
+
+  const loadPrayerRecords = async () => {
+    if (!user) return;
+    const { data } = await supabase.from('prayer_records').select('*').eq('user_id', user.id);
+    if (data) {
+      // 최신(created_at 내림차순) 정렬
+      setPrayerRecords([...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+    } else {
+      setPrayerRecords([]);
+    }
+  };
+
+  const handleAddTopic = async () => {
+    if (!user) return;
+    if (!newTopic.trim()) return;
+    const { error } = await supabase.from('prayer_topics').insert({
+      user_id: user!.id,
+      topic_text: newTopic.trim(),
+      is_public: isPublic
+    });
+    if (!error) {
+      setNewTopic("");
+      setIsPublic(false);
+      setShowAddInput(false);
+      await loadMyTopics();
+      if (isPublic) await loadPublicTopics();
+    }
+  };
 
   // useEffect 예시 (공개 기도제목 자동 로딩)
   useEffect(() => {
@@ -98,6 +102,7 @@ export default function PrayerPage() {
     // 하단 기도제목 리스트 초기 로딩
     if (user) {
       loadMyTopics();
+      loadPrayerRecords();
     }
   }, [user]);
 
@@ -422,7 +427,7 @@ export default function PrayerPage() {
           audio_url: publicUrl,
           audio_duration: recordingTime,
           date: kstDate,
-          title: saveTitle.trim() || '제목 없는 기도',
+          title: saveTitle.trim() || '음성 기도',
           hashtags,
           transcription,
           keywords
@@ -445,10 +450,7 @@ export default function PrayerPage() {
         setSavingProgress(0);
       }, 500);
 
-      if (insertedRecord && myGroups.length > 0) {
-        setTargetRecordForLink(insertedRecord);
-        setShowPostSaveLinkPrompt(true);
-      }
+      // 모임 연결 팝업 비활성화: 아무 동작도 하지 않음
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -605,48 +607,7 @@ export default function PrayerPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const openGroupLinkModal = (record: any) => {
-    if (!user) {
-      setShowLoginModal(true);
-      return;
-    }
-    setTargetRecordForLink(record);
-    setShowGroupLinkModal(true);
-  };
-
-  const linkRecordToGroup = async (groupId: string) => {
-    if (!user || !targetRecordForLink) return;
-    setLinkingGroupId(groupId);
-
-    try {
-      const { error } = await supabase.from("group_prayer_records").insert({
-        group_id: groupId,
-        user_id: user.id,
-        source_type: "linked",
-        source_prayer_record_id: targetRecordForLink.id,
-        title: targetRecordForLink.title || null,
-        audio_url: targetRecordForLink.audio_url,
-        audio_duration: targetRecordForLink.audio_duration || 0,
-      });
-
-      if (error) {
-        if (error.code === "23505") {
-          alert("이미 해당 모임에 연결된 기도 기록입니다.");
-          return;
-        }
-        throw error;
-      }
-
-      setShowGroupLinkModal(false);
-      setTargetRecordForLink(null);
-      alert("모임 기도 탭으로 연결되었습니다.");
-    } catch (error) {
-      console.error("group link error:", error);
-      alert("모임 연결에 실패했습니다.");
-    } finally {
-      setLinkingGroupId(null);
-    }
-  };
+  // 모임 연결 관련 함수 제거
 
   // 총 카운트 가져오기 (비로그인 사용자도 볼 수 있게)
   const getPrayerCount = (topic: any) => {
@@ -657,7 +618,7 @@ export default function PrayerPage() {
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-6">
       <div className="flex items-center px-6 gap-2">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-80" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
               함께 기도해요
             </h3>
       </div>
@@ -720,7 +681,7 @@ export default function PrayerPage() {
         >
           <HandHeart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            음성기도
+            지금 기도
           </span>
         </motion.button>
       </div>
@@ -731,7 +692,7 @@ export default function PrayerPage() {
         <div className="mb-16">
           <div className="flex items-center mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-80 ml-2" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            <h3 className="font-bold text-[#4A6741] opacity-70 ml-2" style={{ fontSize: `${fontSize * 1.0}px` }}>
               기도 제목
             </h3>
             <div className="flex-1" />
@@ -835,7 +796,7 @@ export default function PrayerPage() {
           <div>
             <div className="flex items-center gap-2 mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-80" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
               기도 일기
             </h3>
           </div>
@@ -867,15 +828,9 @@ export default function PrayerPage() {
                     </div>
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => openGroupLinkModal(record)}
-                        className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-500 hover:text-[#4A6741] flex items-center justify-center"
-                        title="모임 연결"
-                      >
-                        <Link size={13} />
-                      </button>
-                      <button
                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                        className="text-zinc-300 hover:text-red-500"
+                        className="text-zinc-300 hover:text-red-500 transition-colors"
+                        title="삭제"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1339,117 +1294,9 @@ export default function PrayerPage() {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showPostSaveLinkPrompt && targetRecordForLink && (
-          <div className="fixed inset-0 z-[315] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowPostSaveLinkPrompt(false);
-                setTargetRecordForLink(null);
-              }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
-            >
-              <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize}px` }}>
-                모임에 완료 연결할까요?
-              </h4>
-              <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                방금 저장한 기도 기록을 모임 기도 탭과 연결할 수 있습니다.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowPostSaveLinkPrompt(false);
-                    setTargetRecordForLink(null);
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
-                >
-                  나중에
-                </button>
-                <button
-                  onClick={() => {
-                    setShowPostSaveLinkPrompt(false);
-                    setShowGroupLinkModal(true);
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
-                >
-                  연결하기
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* 모임 연결 관련 모달 제거 */}
 
-      <AnimatePresence>
-        {showGroupLinkModal && targetRecordForLink && (
-          <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowGroupLinkModal(false);
-                if (!showPostSaveLinkPrompt) setTargetRecordForLink(null);
-              }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            />
-
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
-                  모임에 기도 기록 연결
-                </h4>
-                <button
-                  onClick={() => {
-                    setShowGroupLinkModal(false);
-                    if (!showPostSaveLinkPrompt) setTargetRecordForLink(null);
-                  }}
-                  className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-
-              <div className="text-xs text-zinc-500 mb-3">
-                {targetRecordForLink.title || "제목 없는 기도"}
-              </div>
-
-              <div className="space-y-2 max-h-[320px] overflow-y-auto">
-                {myGroups.map((group) => (
-                  <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
-                    <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
-                    <button
-                      onClick={() => linkRecordToGroup(group.id)}
-                      disabled={linkingGroupId === group.id}
-                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60 inline-flex items-center gap-1"
-                    >
-                      <Link2 size={12} />
-                      {linkingGroupId === group.id ? "연결 중..." : "연결"}
-                    </button>
-                  </div>
-                ))}
-                {myGroups.length === 0 && (
-                  <div className="text-sm text-zinc-500 text-center py-6">연결할 수 있는 모임이 없습니다.</div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* 모임 연결 관련 모달 제거 */}
 
       {/* 복사 완료 토스트 */}
       <AnimatePresence>
