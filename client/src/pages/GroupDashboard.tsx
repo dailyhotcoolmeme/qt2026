@@ -1749,7 +1749,7 @@ export default function GroupDashboard() {
     const nextImageUrl = ensureHttpsUrl(group?.group_image || null);
 
     if (!name || !slug) {
-      alert("모임 이름과 모임 코드를 입력해주세요.");
+      alert("모임 이름과 모임 아이디를 입력해주세요.");
       return;
     }
 
@@ -1787,7 +1787,7 @@ export default function GroupDashboard() {
     } catch (error) {
       console.error(error);
       if (String((error as any)?.message || "").toLowerCase().includes("slug")) {
-        alert("이미 사용 중인 모임 코드입니다.");
+        alert("이미 사용 중인 모임 아이디입니다.");
       } else {
         alert("모임 설정 저장에 실패했습니다.");
       }
@@ -1870,7 +1870,7 @@ export default function GroupDashboard() {
         .maybeSingle();
 
       if (childErr || !child?.id) {
-        alert("해당 코드의 모임을 찾지 못했습니다.");
+        alert("해당 아이디의 모임을 찾지 못했습니다.");
         return;
       }
 
@@ -2027,13 +2027,13 @@ export default function GroupDashboard() {
           <div className="max-w-2xl mx-auto px-4">
             <button
               onClick={() => setLocation("/community?list=1")}
-              className="w-7 h-7 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur pb-6"
+              className="w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur pb-6"
             >
               <ChevronLeft size={16} />
             </button>
-            <div className="mt-6 text-white">
-              <div className="text-lg font-bold">{group.name}</div>
-              <div className="text-base text-white/90 mt-1.5">{group.group_slug ? `모임 아이디: ${group.group_slug}` : ""}</div>
+            <div className="mt-8 text-white">
+              <div className="text-base font-bold">{group.name}</div>
+              <div className="text-sm text-white/80 mt-1.5">{group.group_slug ? `모임 아이디: ${group.group_slug}` : ""}</div>
             </div>
           </div>
         </div>
@@ -2118,7 +2118,7 @@ export default function GroupDashboard() {
           <div className="text-white">
             <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
             <div className="text-base text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
-              <span>{group.group_slug ? `코드: ${group.group_slug}` : ""}</span>
+              <span>{group.group_slug ? `아이디: ${group.group_slug}` : ""}</span>
               <span className="px-2 py-0.5 rounded-sm bg-white/20 font-bold">{toLabel(role)}</span>
               <button
                 onClick={() => setActiveTab("members")}
@@ -2768,7 +2768,7 @@ export default function GroupDashboard() {
                 value={childGroupCode}
                 onChange={(e) => setChildGroupCode(e.target.value)}
                 className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="하위 모임 코드 입력"
+                placeholder="하위 모임 아이디 입력"
               />
               <button
                 onClick={linkChildGroup}
@@ -3093,7 +3093,7 @@ export default function GroupDashboard() {
                 <div className="font-bold text-zinc-900">{group.name}</div>
               </div>
               <div>
-                <div className="text-base text-zinc-500">모임 코드</div>
+                <div className="text-base text-zinc-500">모임 아이디</div>
                 <div className="font-bold text-zinc-900">{group.group_slug || "-"}</div>
               </div>
               <div>

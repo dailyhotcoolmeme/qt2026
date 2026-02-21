@@ -1212,19 +1212,19 @@ if (verseMatch) {
       {meditationRecords.length > 0 && (
         <div className="w-full max-w-md pt-10 px-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
-    <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-    <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-      묵상 기록
-    </h3>
-    <div className="flex-1" />
-    <button
-      onClick={() => setShowWriteSheet(true)}
-      className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
-      title="묵상 기록 추가"
-    >
-      <NotebookPen size={18} />
-    </button>
-  </div>
+            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            묵상 기록
+            </h3>
+             <div className="flex-1" />
+              <button
+              onClick={() => setShowWriteSheet(true)}
+              className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
+              title="묵상 기록 추가"
+               >
+              <NotebookPen size={18} />
+              </button>
+          </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
               <div key={record.id} className="bg-white rounded-none p-4 shadow-sm border border-zinc-100">

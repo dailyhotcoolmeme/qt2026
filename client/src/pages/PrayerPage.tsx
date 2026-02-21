@@ -691,7 +691,7 @@ export default function PrayerPage() {
       {/* 하단: 나의 기도제목 + 녹음 기록 */}
       <div className="px-6 pb-6">
         {/* 나의 기도제목 */}
-        <div className="mb-16">
+        <div className="mb-20">
           <div className="flex items-center mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
             <h3 className="font-bold text-[#4A6741] opacity-70 ml-2" style={{ fontSize: `${fontSize * 1.0}px` }}>
@@ -732,7 +732,7 @@ export default function PrayerPage() {
                   )}
                   <button
                     onClick={() => setDeleteTopicId(topic.id)}
-                    className="text-zinc-300 hover:text-red-400 transition-colors"
+                    className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
                     title="삭제"
                   >
                     <Trash2 size={16} />
@@ -799,7 +799,7 @@ export default function PrayerPage() {
             <div className="flex items-center gap-2 mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
             <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-              기도 일기
+              기도 기록
             </h3>
           </div>
             <div className="space-y-3">
