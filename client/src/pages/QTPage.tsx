@@ -1092,8 +1092,8 @@ const onDragEnd = (event: any, info: any) => {
     <div className="flex items-center gap-2 mb-6">
       <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
       <h4
-        className="font-bold text-[#4A6741] opacity-80"
-        style={{ fontSize: `${fontSize * 0.95}px` }}
+        className="font-bold text-[#4A6741] opacity-70"
+        style={{ fontSize: `${fontSize * 1.0}px` }}
       >
         묵상 질문
       </h4>
@@ -1210,13 +1210,16 @@ if (verseMatch) {
 
       {/* 묵상 기록 목록 */}
       {meditationRecords.length > 0 && (
-        <div className="w-full max-w-md px-4 mb-6">
-          <h3 className="font-bold text-[#4A6741] mb-3" style={{ fontSize: `${fontSize * 0.95}px` }}>
-            묵상 기록
-          </h3>
+        <div className="w-full max-w-md pt-10 px-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+    <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+    <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+      묵상 기록
+    </h3>
+  </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
-              <div key={record.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
+              <div key={record.id} className="bg-white rounded-none p-4 shadow-sm border border-zinc-100">
                 {/* 텍스트 내용 */}
                 {record.meditation_text && (
                   <p className="text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap" style={{ fontSize: `${fontSize * 0.9}px` }}>
@@ -1226,7 +1229,7 @@ if (verseMatch) {
                 
                 {/* 음성 재생 */}
                 {record.audio_url && (
-                  <div className="bg-[#4A6741]/5 rounded-xl p-3 mb-3">
+                  <div className="bg-[#4A6741]/5 rounded-none p-3 mb-2">
                     <div className="flex items-center gap-3 mb-2">
                       <button
                         onClick={() => playRecordAudio(record.audio_url, record.id)}

@@ -397,21 +397,6 @@ export default function PrayerPage() {
 
       setSavingProgress(30);
 
-      // 2단계: STT 처리 (30% → 70%)
-      const sttResponse = await fetch('/api/prayer/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ audioUrl: publicUrl })
-      });
-
-      let transcription = null;
-      let keywords = null;
-      
-      if (sttResponse.ok) {
-        const sttData = await sttResponse.json();
-        transcription = sttData.transcription || null;
-        keywords = sttData.keywords || null;
-      }
 
       setSavingProgress(70);
 
@@ -428,9 +413,7 @@ export default function PrayerPage() {
           audio_duration: recordingTime,
           date: kstDate,
           title: saveTitle.trim() || '음성 기도',
-          hashtags,
-          transcription,
-          keywords
+          hashtags
         })
         .select('id, title, audio_url, audio_duration, created_at')
         .single();
@@ -714,7 +697,7 @@ export default function PrayerPage() {
 
           <div className="space-y-1">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex flex-row flex-wrap items-start gap-2 py-1.5">
+              <div key={topic.id} className="flex flex-row flex-wrap items-start gap-2 px-3 py-1.5">
                 <div className="flex-shrink-0 flex items-start justify-center h-full" style={{ marginTop: '4px' }}>
                   <Check size={16} className="align-top" />
                 </div>
@@ -746,17 +729,17 @@ export default function PrayerPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-white rounded-lg p-4 space-y-1"
+                  className="bg-white rounded-none p-4 space-y-1"
                 >
                   <textarea
                     value={newTopic}
                     onChange={(e) => setNewTopic(e.target.value)}
-                    placeholder="기도제목을 입력하세요"
-                    className="w-full h-15 bg-zinc-50 rounded-lg p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
+                    placeholder="기도제목을 입력해주세요"
+                    className="w-full h-15 bg-zinc-50 rounded-none p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
                     style={{ fontSize: `${fontSize * 0.85}px` }}
                     autoFocus
                   />
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-2">
                     <label className="flex items-center gap-2 text-sm text-zinc-600">
                       <input
                         type="checkbox"
@@ -773,13 +756,13 @@ export default function PrayerPage() {
                           setNewTopic("");
                           setIsPublic(false);
                         }}
-                        className="px-4 py-2 rounded-lg text-sm text-zinc-600 hover:bg-zinc-100"
+                        className="px-4 py-2 rounded-none text-sm text-zinc-600 hover:bg-zinc-100"
                       >
                         취소
                       </button>
                       <button
                         onClick={handleAddTopic}
-                        className="px-4 py-2 rounded-full text-sm bg-[#4A6741] text-white font-medium"
+                        className="px-4 py-2 rounded-none text-sm bg-[#4A6741] text-white font-medium"
                       >
                         추가
                       </button>
@@ -802,43 +785,27 @@ export default function PrayerPage() {
           </div>
             <div className="space-y-3">
               {prayerRecords.map((record) => (
-                <div key={record.id} className="bg-white rounded-xl p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <h4 className="text-[#4A6741] text-zinc-800 font-bold mb-1" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                        {record.title || '제목없음'}
-                      </h4>
-                      {record.hashtags && record.hashtags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {record.hashtags.map((tag: string, idx: number) => (
-                            <span key={idx} className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-0.5 rounded">
-                              #{tag}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                      <p className="text-xs text-zinc-500">
-                        {new Date(record.created_at).toLocaleDateString('ko-KR', {
-                          month: 'long',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                        className="text-zinc-300 hover:text-red-500 transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                <div key={record.id} className="bg-white rounded-none p-4 shadow-sm border border-zinc-100">
+                  {/* 제목/해시태그 한 줄 배치 */}
+                  <div className="flex items-center justify-between mb-1">
+                    <h4 className="text-[#4A6741] text-zinc-800 font-bold" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                      {record.title || '제목없음'}
+                    </h4>
+                    {record.hashtags && record.hashtags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 ml-2">
+                        {record.hashtags.map((tag: string, idx: number) => (
+                          <span key={idx} className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-0.5 rounded">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* 재생 버튼 및 재생바 */}
-                  <div className="flex items-center gap-2 mb-2">
+                  {/* 제목/해시태그 아래 여백 (더 넓게) */}
+                  <div className="h-6" />
+                  {/* 재생 버튼 및 재생바 (간격 더 넓게) */}
+                  <div className="flex items-center gap-3 mb-4">
                     <button
                       onClick={() => playRecording(record.audio_url, record.id)}
                       className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
@@ -870,82 +837,26 @@ export default function PrayerPage() {
                     </div>
                   </div>
 
-                  {/* 텍스트 보기 */}
-                  <div className="mt-2">
+                  {/* 재생 버튼 아래 구분선과 간격 더 넓게 */}
+                  <div className="h-2" />
+                  {/* 날짜/시간 + 삭제 버튼 라인 */}
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-2">
+                    <span className="text-xs text-zinc-400">
+                      {new Date(record.created_at).toLocaleString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                    </span>
                     <button
-                      onClick={() => record.transcription && setExpandedRecordId(expandedRecordId === record.id ? null : record.id)}
-                      disabled={!record.transcription}
-                      className={`w-full text-sm flex items-center justify-center gap-1 py-1 ${
-                        record.transcription 
-                          ? 'text-[#4A6741] cursor-pointer' 
-                          : 'text-zinc-400 cursor-not-allowed'
-                      }`}
+                      onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                      title="삭제"
                     >
-                      {record.transcription ? '텍스트 보기' : '텍스트 분석 중...'}
-                      {record.transcription && (expandedRecordId === record.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+                      <Trash2 size={18} />
                     </button>
-                    
-                    <AnimatePresence>
-                      {expandedRecordId === record.id && record.transcription && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="mt-2 p-3 bg-zinc-50 rounded-lg text-sm text-zinc-700 overflow-hidden"
-                        >
-                          <p className="whitespace-pre-wrap">{record.transcription}</p>
-                          <button
-                            onClick={() => handleCopyText(record.transcription)}
-                            className="mt-4 text-xs text-[#4A6741] text-zinc-400 text-sm flex items-center gap-1"
-                          >
-                            <Copy size={12} />
-                            복사
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-
-                  {/* 키워드 시각화 */}
-                  <div className="mt-2">
-                    <button
-                      onClick={() => (record.keywords && record.keywords.length > 0) && setShowKeywords(showKeywords === record.id ? null : record.id)}
-                      disabled={!(record.keywords && record.keywords.length > 0)}
-                      className={`w-full text-sm flex items-center justify-center gap-1 py-1 ${
-                        (record.keywords && record.keywords.length > 0)
-                          ? 'text-[#4A6741] cursor-pointer' 
-                          : 'text-zinc-400 cursor-not-allowed'
-                      }`}
-                    >
-                      <BarChart3 size={16} />
-                      {(record.keywords && record.keywords.length > 0) ? '기도 키워드' : '키워드 분석 중...'}
-                    </button>
-                    
-                    <AnimatePresence>
-                      {showKeywords === record.id && record.keywords && record.keywords.length > 0 && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="mt-2 p-3 bg-zinc-50 rounded-lg overflow-hidden"
-                        >
-                          <div className="space-y-2">
-                            {record.keywords.slice(0, 10).map((kw: any, idx: number) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="text-sm text-zinc-700 w-20">{kw.word}</span>
-                                <div className="flex-1 h-4 bg-zinc-200 rounded-full overflow-hidden">
-                                  <div
-                                    className="h-full bg-[#4A6741]"
-                                    style={{ width: `${(kw.count / record.keywords[0].count) * 100}%` }}
-                                  />
-                                </div>
-                                <span className="text-xs text-zinc-500">{kw.count}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
                   </div>
                 </div>
               ))}
