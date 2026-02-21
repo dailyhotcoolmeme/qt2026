@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { 
   Headphones, BookHeadphones, Share2, Copy, Bookmark, 
-  Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square, Trash2, SquarePen
+  Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square, Trash2, NotebookPen, SquarePen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase"; 
@@ -1216,6 +1216,14 @@ if (verseMatch) {
     <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
       묵상 기록
     </h3>
+    <div className="flex-1" />
+    <button
+      onClick={() => setShowWriteSheet(true)}
+      className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
+      title="묵상 기록 추가"
+    >
+      <NotebookPen size={18} />
+    </button>
   </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
@@ -1286,14 +1294,14 @@ if (verseMatch) {
                   <div className="flex gap-1">
                     <button
                       onClick={() => startEditRecord(record)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741]/50 hover:bg-[#4A6741]/10 transition-colors"
                       title="수정"
                     >
                       <SquarePen size={18} />
                     </button>
                     <button
                       onClick={() => confirmDeleteRecord(record.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
                       title="삭제"
                     >
                       <Trash2 size={18} />
@@ -1306,24 +1314,7 @@ if (verseMatch) {
         </div>
       )}
 
-      {/* 묵상 기록 추가하기 버튼 */}
-      {isMeditationCompleted && (
-        <div className="w-full max-w-md px-4 mb-6">
-          <button
-            onClick={() => {
-              setEditingRecord(null);
-              setMeditationText('');
-              setAudioBlob(null);
-              setRecordingTime(0);
-              setShowWriteSheet(true);
-            }}
-            className="w-full py-3 bg-white border border-dashed border-[#4A6741]/30 text-[#4A6741] rounded-xl font-bold hover:bg-[#4A6741]/5 transition-colors"
-            style={{ fontSize: `${fontSize * 0.9}px` }}
-          >
-            + 묵상 기록 추가하기
-          </button>
-        </div>
-      )}
+    
 
       {/* 묵상 기록 확인 모달 */}
       <AnimatePresence>

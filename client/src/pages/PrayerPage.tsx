@@ -732,7 +732,7 @@ export default function PrayerPage() {
                   )}
                   <button
                     onClick={() => setDeleteTopicId(topic.id)}
-                    className="text-zinc-300 hover:text-red-500 transition-colors"
+                    className="text-zinc-300 hover:text-red-400 transition-colors"
                     title="삭제"
                   >
                     <Trash2 size={16} />
@@ -871,7 +871,7 @@ export default function PrayerPage() {
                     </span>
                     <button
                       onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
                       title="삭제"
                     >
                       <Trash2 size={18} />
