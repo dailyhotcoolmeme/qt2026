@@ -89,10 +89,12 @@ async function resizeImageFile(file: File, maxSize = 900, quality = 0.82): Promi
   return new File([blob], file.name.replace(/\.(png|webp|jpeg|jpg)$/i, ".jpg"), { type: "image/jpeg" });
 }
 
+
 export default function CommunityPage() {
   const [location, setLocation] = useLocation();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true); // 최초 로딩 상태
   const [saving, setSaving] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [hasLeadershipScope, setHasLeadershipScope] = useState(false);
@@ -127,7 +129,10 @@ export default function CommunityPage() {
   }, [location]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      setIsInitialLoading(false); // 최초 로딩 끝
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -143,6 +148,7 @@ export default function CommunityPage() {
       setPendingRequests([]);
       return;
     }
+    setLoading(true); // 로그인 후 안내 메시지 노출 방지
     void initialize(user.id);
   }, [user?.id]);
 
@@ -570,74 +576,77 @@ export default function CommunityPage() {
           </div>
         )}
 
-        {!user && (
-          <div className="min-h-screen bg-[#F6F7F8] flex items-center justify-center px-4">
-            <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none border border-zinc-100 p-6 text-center">
-            <p className="text-sm text-zinc-600 font-bold">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="mt-4 px-4 py-2 bg-[#4A6741] text-white text-sm font-bold"
-            >
-              로그인
-            </button>
+        {/* 최초 로딩 중에는 아무것도 렌더링하지 않음 */}
+        {isInitialLoading ? null :
+          (!user && !loading ? (
+            <div className="min-h-[80vh] flex items-center justify-center text-center">
+              <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none p-6 flex flex-col items-center justify-center">
+                <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="px-4 py-2 bg-[#4A6741] text-white text-sm font-bold"
+                >
+                  로그인
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-
-        {user && loading && <div className="text-center text-base text-zinc-500 py-8">불러오는 중...</div>}
-
-        {user && !loading && (
-          <section className="space-y-3">
-            {pendingRequests.length > 0 && (
-              <div className="space-y-2">
-                <h2 className="px-1 text-sm font-bold text-amber-700">가입 승인 대기중</h2>
-                {pendingRequests.map((item) => {
-                  const row = item.group;
-                  if (!row) return null;
-                  const count = memberCounts[row.id] ?? 1;
-                  const isFocused = pendingGroupId === row.id;
-                  return (
-                    <div
-                      key={`pending-${item.id}`}
-                      className={`w-full bg-white border p-4 flex items-center gap-3 ${isFocused ? "border-amber-300 bg-amber-50/40" : "border-[#F5F6F7]"}`}
-                    >
-                      <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
-                        {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-semibold rounded-sm">승인 대기</span>
-                        </div>
-                        <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
-                        <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
-                      </div>
-                      <button
-                        onClick={() => openGroup(row.id)}
-                        className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
-                        aria-label="입장"
+          ) : loading ? (
+            <div className="min-h-[80vh] flex items-center justify-center text-center">
+              <div className="text-base text-zinc-500">모임 리스트 불러오는 중...</div>
+            </div>
+          ) : (
+            <section className="space-y-3">
+              {pendingRequests.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="px-1 text-sm font-bold text-amber-700">가입 승인 대기중</h2>
+                  {pendingRequests.map((item) => {
+                    const row = item.group;
+                    if (!row) return null;
+                    const count = memberCounts[row.id] ?? 1;
+                    const isFocused = pendingGroupId === row.id;
+                    return (
+                      <div
+                        key={`pending-${item.id}`}
+                        className={`w-full bg-white border p-4 flex items-center gap-3 ${isFocused ? "border-amber-300 bg-amber-50/40" : "border-[#F5F6F7]"}`}
                       >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
+                          {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-zinc-900 truncate">{row.name}</span>
+                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-semibold rounded-sm">승인 대기</span>
+                          </div>
+                          <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
+                          <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
+                        </div>
+                        <button
+                          onClick={() => openGroup(row.id)}
+                          className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
+                          aria-label="입장"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-            {joinedGroups.length === 0 && pendingRequests.length === 0 ? (
-              <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
-                <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
-              </div>
-            ) : joinedGroups.length > 0 ? (
-              <div className="space-y-4">
-                {joinedGroups.map((item) => (
-                  <GroupCard key={item.group.id} row={item.group} />
-                ))}
-              </div>
-            ) : null}
-          </section>
-        )}
+              {joinedGroups.length === 0 && pendingRequests.length === 0 ? (
+                <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
+                  <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
+                </div>
+              ) : joinedGroups.length > 0 ? (
+                <div className="space-y-4">
+                  {joinedGroups.map((item) => (
+                    <GroupCard key={item.group.id} row={item.group} />
+                  ))}
+                </div>
+              ) : null}
+            </section>
+          ))
+        }
       </div>
 
       {user && (

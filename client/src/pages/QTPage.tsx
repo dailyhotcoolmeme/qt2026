@@ -387,7 +387,7 @@ export default function QTPage() {
         .single();
 
       if (error) throw error;
-      if (!inserted?.id) throw new Error("QT 기록 저장 ID를 찾을 수 없습니다.");
+      // inserted?.id가 없더라도 실제로 error가 없으면 성공 처리 (불필요한 throw 방지)
 
       setIsMeditationCompleted(true);
       setShowWriteSheet(false);
@@ -396,15 +396,21 @@ export default function QTPage() {
       setMeditationText('');
       setAudioBlob(null);
       setRecordingTime(0);
-      
+
       // 기록 목록 새로고침
       await loadMeditationRecords();
-      await prepareQtGroupLink(String(inserted.id));
+      if (inserted?.id) {
+        await prepareQtGroupLink(String(inserted.id));
+      }
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error saving meditation:', error);
-      alert('묵상 기록 저장 중 오류가 발생했습니다.');
+      if (error && (error.message || String(error)).indexOf('묵상 기록 저장') === -1) {
+        alert('묵상 기록 저장 중 오류가 발생했습니다.');
+      }
+      // 실제로 저장이 되었을 수 있으니, 기록 목록은 새로고침
+      await loadMeditationRecords();
     }
   };
 
@@ -1334,11 +1340,20 @@ if (verseMatch) {
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[320px] shadow-2xl text-center"
             >
+              {/* X 버튼 추가 */}
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                className="absolute top-4 right-4 w-6 h-6 rounded-full bg-gray-200 text-zinc-500 hover:bg-zinc-100 flex items-center justify-center"
+                aria-label="닫기"
+                style={{ zIndex: 2 }}
+              >
+                <X size={18} />
+              </button>
               <h4 className="font-bold text-zinc-900 mb-2" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                묵상 기록을 남기시겠습니까?
+                기록을 남기시겠습니까?
               </h4>
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                오늘의 묵상을 글이나 음성으로 기록할 수 있습니다.
+                오늘 말씀이나 묵상 질문에 대해 느낀점을 <br/> 글이나 음성으로 남겨주세요
               </p>
               
               <div className="flex flex-col gap-3">
@@ -1403,7 +1418,7 @@ if (verseMatch) {
               <textarea 
                 value={meditationText}
                 onChange={(e) => setMeditationText(e.target.value)}
-                placeholder="오늘 말씀에 대한 묵상을 기록해보세요"
+                placeholder="오늘 말씀이나 묵상 질문에 대해 느낀점을 남겨주세요"
                 className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
                 style={{ fontSize: `${fontSize * 0.9}px` }}
               />
@@ -1460,7 +1475,7 @@ if (verseMatch) {
                     {isRecording ? (
                       <div className="flex items-center justify-center gap-2">
                         <Square size={20} className="fill-current" />
-                        <span>녹음 중지 ({formatTime(recordingTime)})</span>
+                        <span>녹음 완료 ({formatTime(recordingTime)})</span>
                       </div>
                     ) : (
                       <div className="flex items-center justify-center gap-2">
@@ -1478,7 +1493,7 @@ if (verseMatch) {
                         </div>
                         <div>
                           <p className="font-bold text-zinc-700" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                            음성 녹음 완료
+                            음성 기록 녹음 완료
                           </p>
                           <p className="text-zinc-400 text-sm">{formatTime(recordingTime)}</p>
                         </div>
@@ -1497,12 +1512,15 @@ if (verseMatch) {
                         )}
                       </button>
                     </div>
-                    <button
-                      onClick={deleteAudio}
-                      className="w-full py-2 text-red-500 font-medium text-sm"
-                    >
-                      삭제
-                    </button>
+                    <div className="flex justify-end w-full px-2"> {/* 오른쪽 정렬을 위한 감싸는 div */}
+  <button
+    onClick={deleteAudio}
+    className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+    title="삭제"
+  >
+    <Trash2 size={18} />
+  </button>
+</div>
                   </div>
                 ) : null}
               </div>
