@@ -716,30 +716,37 @@ export default function PrayerPage() {
 
           <div className="space-y-1">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex flex-row flex-wrap items-start gap-2 px-3 py-1.5">
-                <div className="flex-shrink-0 flex items-start justify-center h-full" style={{ marginTop: '4px' }}>
-                  <Check size={16} className="align-top" />
-                </div>
-                <p
-                  className="text-zinc-600 font-bold flex-1 break-words whitespace-normal"
-                  style={{ fontSize: `${fontSize * 0.90}px`, lineHeight: '1.5', wordBreak: 'break-word' }}
-                >
-                  {topic.topic_text}
-                </p>
-                <div className="flex items-center gap-2">
-                  {topic.is_public && (
-                    <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-0.5 rounded">공개</span>
-                  )}
-                  <button
-                    onClick={() => setDeleteTopicId(topic.id)}
-                    className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
-                    title="삭제"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+  <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2 border-b border-zinc-50 last:border-none">
+    {/* 1. 체크 아이콘: mt를 조절해서 텍스트 첫 줄 중앙에 맞춤 */}
+    <div className="flex-shrink-0 flex items-center h-6"> 
+      <Check size={16} className="text-[#4A6741]" />
+    </div>
+
+    {/* 2. 텍스트: flex-1로 공간을 다 차지하게 함 */}
+    <p
+      className="text-zinc-600 font-bold flex-1 break-words whitespace-normal py-0.5"
+      style={{ fontSize: `${fontSize * 0.90}px`, lineHeight: '1.5', wordBreak: 'break-word' }}
+    >
+      {topic.topic_text}
+    </p>
+
+    {/* 3. 오른쪽 버튼들: 텍스트 첫 줄 높이에 맞추기 위해 h-6(글자높이와 유사) 설정 */}
+    <div className="flex items-center gap-1 flex-shrink-0 h-6">
+      {topic.is_public && (
+        <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-1.5 py-0.5 rounded leading-none">
+          공개
+        </span>
+      )}
+      <button
+        onClick={() => setDeleteTopicId(topic.id)}
+        className="w-7 h-7 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
+        title="삭제"
+      >
+        <Trash2 size={16} />
+      </button>
+    </div>
+  </div>
+))}
 
             {/* 추가 입력 폼 */}
             <AnimatePresence>
