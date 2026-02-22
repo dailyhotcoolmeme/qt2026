@@ -68,12 +68,13 @@ export default function DailyWordPage() {
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
-    if (Number.isNaN(selectedDate.getTime())) return;
-    if (selectedDate > today) {
-      alert("오늘 이후 날짜는 선택할 수 없습니다.");
-      return;
+    if (!isNaN(selectedDate.getTime())) {
+      if (selectedDate > today) {
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
+        return;
+      }
+      setCurrentDate(selectedDate);
     }
-    setCurrentDate(selectedDate);
   };
 
   const onDragEnd = (_event: unknown, info: { offset: { x: number } }) => {
@@ -208,7 +209,7 @@ export default function DailyWordPage() {
 
       <div className="relative flex w-full flex-1 items-center justify-center overflow-visible py-4">
         <div className="absolute left-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
-
+      <AnimatePresence mode="wait">
         <motion.div
           key={currentDate.toISOString()}
           drag="x"
@@ -218,8 +219,8 @@ export default function DailyWordPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
-          className="z-10 flex aspect-[4/5] w-[82%] max-w-sm flex-col items-start justify-center rounded-[32px] border border-white bg-white p-10 pb-8 text-left shadow-[0_15px_45px_rgba(0,0,0,0.06)] touch-none cursor-grab active:cursor-grabbing"
-        >
+          className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+  >
           {bibleData ? (
             <>
               <div
@@ -247,7 +248,7 @@ export default function DailyWordPage() {
             <div className="w-full animate-pulse text-center text-zinc-300">말씀을 불러오는 중...</div>
           )}
         </motion.div>
-
+      </AnimatePresence>   
         <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
       </div>
 
@@ -272,6 +273,7 @@ export default function DailyWordPage() {
 
       <div className="flex flex-col items-center gap-3 pb-6">
         <div className="relative flex h-24 w-24 items-center justify-center">
+          
           <AnimatePresence>
             {hasAmened && (
               <>
