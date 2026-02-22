@@ -1114,10 +1114,10 @@ export default function PrayerPage() {
                     <h3 className="text-xl font-bold text-zinc-800 mb-6">음성 기도 파일을 저장하는 중...</h3>
                     {/* 네모박스 에너지바 */}
                     <div className="flex justify-center gap-1 mb-4">
-                      {Array.from({ length: 8 }).map((_, i) => (
+                      {Array.from({ length: 20 }).map((_, i) => (
                         <div
                           key={i}
-                          className={`w-6 h-6 rounded-sm border border-zinc-300 ${savingProgress >= ((i + 1) * 12.5) ? 'bg-[#4A6741]' : 'bg-white'}`}
+                          className={`w-6 h-6 rounded-none border border-zinc-300 ${savingProgress >= ((i + 1) * 5) ? 'bg-[#4A6741]' : 'bg-white'}`}
                         />
                       ))}
                     </div>
