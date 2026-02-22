@@ -689,7 +689,7 @@ export default function PrayerPage() {
       </div>
 
       {/* 하단: 나의 기도제목 + 녹음 기록 */}
-      <div className="px-6 pb-6">
+      <div className="px-6 pb-3">
         {/* 나의 기도제목 */}
         <div className="mb-20">
           <div className="flex items-center mb-3">
