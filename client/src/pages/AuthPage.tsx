@@ -84,20 +84,18 @@ export default function AuthPage() {
       `}} />
       
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
-        <span className="text-[#4A6741] font-bold tracking-[0.2em] mb-4 block" style={{ fontSize: `${fontSize * 0.70}px` }}>
-          QuietTime Diary
-        </span>
+      
         <h1 className="font-black text-zinc-900 leading-[1.3] tracking-tighter" style={{ fontSize: `${fontSize * 1.8}px` }}>
-          우리의 기도가<br />
-          <span className="text-[#4A6741]">기억되는 공간</span>
+          나의 신앙 기록을<br />
+          <span className="text-[#4A6741]">기억하고 나누는 공간</span>
         </h1>
         <p className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep" style={{ fontSize: `${fontSize}px` }}>
-          매일의 묵상(QT)과 중보를<br />
-          음성으로 기록하고 보관하세요.
+          매일의 말씀과 묵상(QT),<br />
+          그리고 기도를 기록하고 보관하세요
         </p>
       </motion.div>
 
-      <div className="w-full max-w-sm mt-28 mb-auto flex flex-col items-center gap-6">
+      <div className="w-full max-w-sm mt-20 mb-auto flex flex-col items-center gap-6">
         <button 
           onClick={handleKakaoLogin} 
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"

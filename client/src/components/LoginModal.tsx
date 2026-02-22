@@ -108,7 +108,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 onClick={handleEmailLogin}
                 className="h-[64px] w-full rounded-[22px] border-2 border-zinc-300 bg-white font-bold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95"
               >
-                이메일로 로그인
+                아이디로 로그인
               </button>
 
               <button
@@ -118,7 +118,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 }}
                 className="w-full py-3 text-sm font-medium text-zinc-500 hover:text-zinc-700"
               >
-                회원가입 하기
+                회원가입
               </button>
             </div>
           </motion.div>
