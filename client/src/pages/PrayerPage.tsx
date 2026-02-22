@@ -606,7 +606,7 @@ export default function PrayerPage() {
             </h3>
       </div>
       {/* 상단: 공개된 기도제목 fade in/out */}
-      <div className="relative min-h-[70px] flex flex-col justify-start pt-4 px-10">
+      <div className="relative min-h-[110px] flex flex-col justify-start pt-4 px-10">
         {publicTopics.length > 0 && (
           <AnimatePresence mode="wait">
             <motion.div
