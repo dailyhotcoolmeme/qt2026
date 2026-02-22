@@ -1111,26 +1111,17 @@ export default function PrayerPage() {
                   </>
                 ) : (
                   <div className="py-8 text-center">
-                    <h3 className="text-xl font-bold text-zinc-800 mb-6">기도를 저장하는 중...</h3>
-                    
-                    {/* 에너지바 */}
-                    <div className="relative w-full h-8 bg-zinc-200 rounded-full overflow-hidden mb-4">
-                      <motion.div
-                        className="absolute inset-y-0 left-0 bg-gradient-to-r from-[#4A6741] to-[#6B9A5E] rounded-full"
-                        initial={{ width: '0%' }}
-                        animate={{ width: `${savingProgress}%` }}
-                        transition={{ duration: 0.3 }}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-sm font-bold text-zinc-700">{savingProgress}%</span>
-                      </div>
+                    <h3 className="text-xl font-bold text-zinc-800 mb-6">음성 기도 파일을 저장하는 중...</h3>
+                    {/* 네모박스 에너지바 */}
+                    <div className="flex justify-center gap-1 mb-4">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-6 h-6 rounded-sm border border-zinc-300 ${savingProgress >= ((i + 1) * 12.5) ? 'bg-[#4A6741]' : 'bg-white'}`}
+                        />
+                      ))}
                     </div>
-                    
-                    <p className="text-sm text-zinc-500">
-                      {savingProgress < 30 ? '파일을 이동하는 중...' : 
-                       savingProgress < 70 ? '텍스트를 분석하는 중...' :
-                       savingProgress < 90 ? '기도를 저장하는 중...' : '완료!'}
-                    </p>
+                    <span className="text-sm font-bold text-zinc-700">{savingProgress}%</span>
                   </div>
                 )}
               </motion.div>
