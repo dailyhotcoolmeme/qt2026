@@ -406,11 +406,8 @@ export default function QTPage() {
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error saving meditation:', error);
-      if (error && (error.message || String(error)).indexOf('묵상 기록 저장') === -1) {
-        alert('묵상 기록 저장 중 오류가 발생했습니다.');
-      }
-      // 실제로 저장이 되었을 수 있으니, 기록 목록은 새로고침
-      await loadMeditationRecords();
+      // error가 있을 때만 alert, inserted?.id 체크로 불필요하게 throw하지 않음
+      alert('묵상 기록 저장 중 오류가 발생했습니다.');
     }
   };
 
