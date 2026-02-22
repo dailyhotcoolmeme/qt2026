@@ -1,30 +1,44 @@
-import React, { useState } from "react";
-import { supabase } from "../lib/supabase";
-import { Link } from "wouter"; // useLocation은 여기서 빼세요
-import { useHashLocation } from "wouter/use-hash-location"; // 이걸로 가져옵니다.
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Eye, EyeOff, X, AlertCircle, Loader2, Check } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { supabase } from "../lib/supabase";
+import { useHashLocation } from "wouter/use-hash-location";
+import { Link } from "wouter";
+import { Eye, EyeOff, X, Check, Loader2 } from "lucide-react";
 
-export default function AuthPage() {
-  const [location, setLocation] = useHashLocation(); // useLocation 대신 useHashLocation 사용
+function AuthPage() {
+  const [location, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
-  
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [autoLogin, setAutoLogin] = useState(true);
+  const [user, setUser] = useState<any>(null);
 
   const { register, getValues } = useForm();
 
   // 페이지 로드 시 loginModal 쿼리 파라미터 확인
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('loginModal') === 'true') {
       setIsLoginOpen(true);
     }
+  }, []);
+
+  // 인증 후 user 상태 갱신
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user ?? null);
+      if (data.user) setIsLoginOpen(false); // 로그인 성공 시 팝업 닫기
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) setIsLoginOpen(false);
+    });
+    return () => listener.subscription.unsubscribe();
   }, []);
 
   // 카카오 로그인 로직
@@ -101,11 +115,11 @@ export default function AuthPage() {
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
         >
           <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
-          카카오로 시작하기
+          카카오로 로그인하기
         </button>
 
         <div className="flex items-center justify-center gap-5">
-          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디 로그인</button>
+          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디로 로그인</button>
           <span className="w-[1px] h-3 bg-zinc-300"></span>
           <Link href="/register" className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</Link>
         </div>
@@ -173,3 +187,5 @@ export default function AuthPage() {
     </div>
   );
 }
+
+export default AuthPage;
