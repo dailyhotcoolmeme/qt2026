@@ -25,6 +25,7 @@ import {
   UserMinus,
   Users,
   X,
+  Loader2,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 
@@ -2000,18 +2001,26 @@ export default function GroupDashboard() {
     }
   };
 
+
+  // 1. groupId 없으면 아무것도 렌더링하지 않음
   if (!groupId) return null;
 
+  // 2. authReady 또는 loading이 끝나기 전에는 무조건 스피너만 렌더링
   if (!authReady || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
-        <div className="w-8 h-8 rounded-full border-4 border-[#4A6741] border-t-transparent animate-spin" />
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
+        <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
+        <p className="text-zinc-400 text-sm font-medium text-center">
+          모임 화면 불러오는 중...
+        </p>
       </div>
     );
   }
 
+  // 3. group 데이터가 없으면 아무것도 렌더링하지 않음
   if (!group) return null;
 
+  // 4. role이 guest일 때 가입 폼 렌더링 (단, loading/authReady 끝난 뒤에만)
   if (role === "guest") {
     return (
       <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
@@ -2058,14 +2067,14 @@ export default function GroupDashboard() {
               onChange={(e) => setJoinPassword(e.target.value)}
               className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="모임 가입 비밀번호"
-              disabled={!user || guestJoinPending || group.is_closed}
+              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
             />
             <textarea
               value={joinMessage}
               onChange={(e) => setJoinMessage(e.target.value)}
               className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
               placeholder="가입 메시지 (선택)"
-              disabled={!user || guestJoinPending || group.is_closed}
+              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
             />
             {!user ? (
               <button
@@ -2074,12 +2083,12 @@ export default function GroupDashboard() {
               >
                 로그인 후 가입 신청
               </button>
-            ) : guestJoinPending ? (
+            ) : !!guestJoinPending ? (
               <div className="text-base text-emerald-700 font-bold">가입 신청이 접수되어 승인 대기 중입니다.</div>
             ) : (
               <button
                 onClick={submitJoinRequest}
-                disabled={joinSubmitting || group.is_closed}
+                disabled={!!joinSubmitting || !!group?.is_closed}
                 className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
               >
                 <SendHorizontal size={15} />
@@ -2092,6 +2101,7 @@ export default function GroupDashboard() {
     );
   }
 
+  // 5. user 없으면 아무것도 렌더링하지 않음
   if (!user) return null;
 
   return (
@@ -2564,7 +2574,7 @@ export default function GroupDashboard() {
               </div>
             </div>
 
-            {role !== "guest" && (
+            {(
               <button
                 onClick={() => setShowInviteModal(true)}
                 className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"

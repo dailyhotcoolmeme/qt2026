@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Plus, Search, Shield, Users, X } from "lucide-react";
+import { ChevronRight, Plus, Search, Shield, Loader2, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { LoginModal } from "../components/LoginModal";
 
@@ -520,6 +520,7 @@ export default function CommunityPage() {
   };
 
   const openGroup = (groupId: string) => {
+    if (loading) return;
     localStorage.setItem(LAST_GROUP_KEY, groupId);
     setLocation(`/group/${groupId}`);
   };
@@ -579,7 +580,7 @@ export default function CommunityPage() {
         {/* 최초 로딩 중에는 아무것도 렌더링하지 않음 */}
         {isInitialLoading ? null :
           (!user && !loading ? (
-            <div className="min-h-[80vh] flex items-center justify-center text-center">
+            <div className="min-h-[60vh] flex items-center justify-center text-center">
               <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none p-6 flex flex-col items-center justify-center">
                 <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
                 <button
@@ -591,8 +592,11 @@ export default function CommunityPage() {
               </div>
             </div>
           ) : loading ? (
-            <div className="min-h-[80vh] flex items-center justify-center text-center">
-              <div className="text-base text-zinc-500">모임 리스트 불러오는 중...</div>
+            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
+              <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
+              <p className="text-zinc-400 text-sm font-medium text-center">
+                  모임 리스트 불러오는 중...
+                </p>
             </div>
           ) : (
             <section className="space-y-3">
