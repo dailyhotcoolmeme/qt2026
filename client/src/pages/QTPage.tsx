@@ -1302,7 +1302,7 @@ if (verseMatch) {
                     </button>
                     <button
                       onClick={() => confirmDeleteRecord(record.id)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-400 hover:bg-red-50 transition-colors"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
                       title="삭제"
                     >
                       <Trash2 size={18} />
@@ -1510,7 +1510,7 @@ if (verseMatch) {
                     <div className="flex justify-end w-full px-2"> {/* 오른쪽 정렬을 위한 감싸는 div */}
   <button
     onClick={deleteAudio}
-    className="p-2 text-red-500 hover:bg-red-50 rounded-full transition-colors"
+    className="p-2 text-red-300 hover:bg-red-50 rounded-full transition-colors"
     title="삭제"
   >
     <Trash2 size={18} />
