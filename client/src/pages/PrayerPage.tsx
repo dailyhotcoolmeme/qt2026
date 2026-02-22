@@ -731,9 +731,9 @@ export default function PrayerPage() {
     </p>
 
     {/* 3. 오른쪽 버튼들: 텍스트 첫 줄 높이에 맞추기 위해 h-6(글자높이와 유사) 설정 */}
-    <div className="flex items-center gap-1 flex-shrink-0 h-6">
+    <div className="flex items-center gap-1 flex-shrink-0 h-6 mt-[2px]">
       {topic.is_public && (
-        <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-1.5 py-0.5 rounded leading-none">
+        <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-1.5 py-1 rounded leading-none">
           공개
         </span>
       )}
