@@ -400,7 +400,11 @@ export default function QTPage() {
       // 기록 목록 새로고침
       await loadMeditationRecords();
       if (inserted?.id) {
-        await prepareQtGroupLink(String(inserted.id));
+        try {
+          await prepareQtGroupLink(String(inserted.id));
+        } catch (err) {
+          console.warn('prepareQtGroupLink 실패:', err);
+        }
       }
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
