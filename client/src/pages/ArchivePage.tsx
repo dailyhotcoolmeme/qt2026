@@ -766,9 +766,9 @@ export default function ArchivePage() {
         {/* X 버튼: 카드 내부 우측 상단으로 이동 */}
         <button
           onClick={() => setActiveVerseCard(null)}
-          className="absolute -right-2 -top-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
+          className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
         >
-          <X size={20} />
+          <X size={18} />
         </button>
 
         <img

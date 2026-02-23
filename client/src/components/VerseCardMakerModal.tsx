@@ -663,7 +663,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         {/* X 버튼 - 이제 카드(부모)의 오른쪽 위를 기준으로 움직입니다 */}
         <button 
           onClick={() => setActiveRecord(null)} 
-          className="absolute -right-2 -top-10 rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100"
+          className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
         >
           <X size={18} />
         </button>
