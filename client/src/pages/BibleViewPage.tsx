@@ -99,7 +99,7 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-15 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
         <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
