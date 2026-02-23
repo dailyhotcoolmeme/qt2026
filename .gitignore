@@ -1,3 +1,5 @@
+# 서버 환경변수 파일
+server/.env
 # 보안 관련 (환경 변수 파일)
 client/.env
 client/.env.local

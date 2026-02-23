@@ -219,34 +219,36 @@ export default function DailyWordPage() {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
-          className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+          className="w-[82%] max-w-sm aspect-[4/5] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-center justify-center px-8 py-6 text-center z-10 touch-none cursor-grab active:cursor-grabbing"
   >
           {bibleData ? (
-            <>
-              <div
-                className="mb-6 w-full space-y-4 break-keep font-medium leading-[1.7] text-zinc-800"
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                {String(bibleData.content || "")
-                  .split("\n")
-                  .map((line: string, i: number) => {
-                    const m = line.match(/^(\d+)\.?\s*(.*)$/);
-                    if (!m) return <p key={i}>{line}</p>;
-                    return (
-                      <p key={i} className="flex items-start gap-2">
-                        <span className="mt-[2px] flex-shrink-0 text-[0.8em] font-bold text-[#4A6741] opacity-40">{m[1]}</span>
-                        <span className="flex-1">{m[2]}</span>
-                      </p>
-                    );
-                  })}
-              </div>
-              <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                {verseTitle}
-              </span>
-            </>
-          ) : (
-            <div className="w-full animate-pulse text-center text-zinc-300">말씀을 불러오는 중...</div>
-          )}
+  <>
+    <div
+      className="mb-6 w-full space-y-4 break-keep font-medium leading-[1.7] text-zinc-800"
+      style={{ fontSize: `${fontSize}px` }}
+    >
+      {String(bibleData.content || "")
+        .split("\n")
+        .map((line: string, i: number) => {
+          // 정규식을 사용해 앞부분의 숫자와 마침표, 공백을 제거합니다.
+          const cleanText = line.replace(/^\d+\.?\s*/, ""); 
+          
+          if (!cleanText) return null; // 빈 줄 방지
+
+          return (
+            <p key={i} className="flex items-start">
+              <span className="flex-1">{cleanText}</span>
+            </p>
+          );
+        })}
+    </div>
+    <span className="self-center text-center font-bold text-[#4A6741] opacity-60" style={{ fontSize: `${fontSize * 0.9}px` }}>
+      {verseTitle}
+    </span>
+  </>
+) : (
+  <div className="w-full animate-pulse text-center text-zinc-300">말씀을 불러오는 중...</div>
+)}
         </motion.div>
       </AnimatePresence>   
         <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
