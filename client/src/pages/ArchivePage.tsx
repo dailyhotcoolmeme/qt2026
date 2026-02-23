@@ -751,47 +751,52 @@ export default function ArchivePage() {
       </div>
 
       <AnimatePresence>
-        {activeVerseCard && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[230] bg-black/75 p-4 flex items-center justify-center"
-          >
-            <button
-              onClick={() => setActiveVerseCard(null)}
-              className="absolute right-4 top-4 rounded-full bg-black/40 p-2 text-white"
-            >
-              <X size={18} />
-            </button>
+  {activeVerseCard && (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[230] bg-black/75 p-4 flex items-center justify-center"
+    >
+      {/* 배경 클릭 시 닫히게 하고 싶다면 여기에 투명 div를 추가하거나 motion.div 자체에 onClick을 줄 수 있습니다 */}
+      
+      {/* 카드 컨테이너: 여기에 relative 추가 */}
+      <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
+        
+        {/* X 버튼: 카드 내부 우측 상단으로 이동 */}
+        <button
+          onClick={() => setActiveVerseCard(null)}
+          className="absolute -right-2 -top-10 flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white backdrop-blur-sm transition-colors hover:bg-white/40"
+        >
+          <X size={20} />
+        </button>
 
-            <div className="w-full max-w-sm rounded-2xl bg-white p-3 shadow-2xl">
-              <img
-                src={activeVerseCard.imageDataUrl}
-                alt={activeVerseCard.title || "말씀카드"}
-                className="mx-auto aspect-[4/5] w-full rounded-xl object-cover"
-              />
-              <p className="mt-2 text-center text-sm font-bold text-zinc-800">{activeVerseCard.title || "말씀카드"}</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => void saveVerseCardToPhone(activeVerseCard)}
-                  className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
-                >
-                  <Download size={14} />
-                  핸드폰 저장
-                </button>
-                <button
-                  onClick={() => void shareVerseCard(activeVerseCard)}
-                  className="rounded-xl bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
-                >
-                  <Share2 size={14} />
-                  공유
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+        <img
+          src={activeVerseCard.imageDataUrl}
+          alt={activeVerseCard.title || "말씀카드"}
+          className="mx-auto aspect-[4/5] w-full rounded-none object-cover"
+        />
+        
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => void saveVerseCardToPhone(activeVerseCard)}
+            className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+          >
+            <Download size={14} />
+            핸드폰 저장
+          </button>
+          <button
+            onClick={() => void shareVerseCard(activeVerseCard)}
+            className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+          >
+            <Share2 size={14} />
+            공유
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  )}
+</AnimatePresence>
 
       <AnimatePresence>
         {pendingDeleteVerseCard && (
