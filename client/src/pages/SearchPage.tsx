@@ -310,7 +310,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
-      <div className="fixed top-15 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           <div className="flex gap-2 h-11">
             <div className="relative group flex-1">
