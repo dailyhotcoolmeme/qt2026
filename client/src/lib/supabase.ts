@@ -14,6 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: window.localStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+    flowType: 'implicit',  // PKCE code_verifier 손실 문제 방지
   }
 });
 
