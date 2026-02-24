@@ -11,16 +11,16 @@ import DailyWordPage from "./pages/DailyWordPage";
 import QTPage from "./pages/QTPage";
 import ReadingPage from "./pages/ReadingPage";
 import CommunityPage from "./pages/CommunityPage";
-import GroupDashboard from "./pages/GroupDashboard"; 
+import GroupDashboard from "./pages/GroupDashboard";
 import LeadershipPage from "./pages/LeadershipPage";
 import ArchivePage from "./pages/ArchivePage";
 import BibleViewPage from "./pages/BibleViewPage";
-import AuthPage from "./pages/AuthPage"; 
+import AuthPage from "./pages/AuthPage";
 import FindAccountPage from "./pages/FindAccountPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import TermsPage from "./pages/TermsPage"; 
+import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/not-found";
 import PrayerPage from "./pages/PrayerPage";
 import RecordDetailPage from "./pages/RecordDetailPage";
@@ -170,21 +170,28 @@ export default function App() {
     // Handle Supabase OAuth responses that return tokens in the URL hash
     const handleSupabaseHash = async () => {
       const hash = window.location.hash || "";
-      if (hash.includes("access_token") || hash.includes("error") || hash.includes("provider_token")) {
+      const search = window.location.search || "";
+
+      // 에러 케이스: Supabase가 에러와 함께 리다이렉트한 경우
+      if (hash.includes("error") || search.includes("error=")) {
+        const errorDesc = new URLSearchParams(search).get('error_description')
+          || new URLSearchParams(hash.replace(/^#/, '')).get('error_description')
+          || '알 수 없는 오류가 발생했습니다.';
+        console.error('[OAuth Error]', decodeURIComponent(errorDesc));
+        // URL 정리 후 auth 페이지로 이동
+        window.history.replaceState(null, "", window.location.origin + '/');
+        return;
+      }
+
+      // 성공 케이스: access_token 또는 provider_token이 있는 경우
+      if (hash.includes("access_token") || hash.includes("provider_token")) {
         try {
           // Prefer SDK helpers if available
-          // supabase-js v2 exposes getSessionFromUrl or exchangeCodeForSession in some installs
           const authAny: any = supabase.auth as any;
           if (typeof authAny.getSessionFromUrl === "function") {
             await authAny.getSessionFromUrl();
-          } else if (typeof authAny.exchangeCodeForSession === "function") {
-            await authAny.exchangeCodeForSession();
-          } else {
-            // Last resort: call onAuthStateChange listener will pick up session if SDK already parsed it.
           }
         } catch (e) {
-          // swallow; we'll still try to clean URL
-          // eslint-disable-next-line no-console
           console.error("Error handling Supabase auth hash:", e);
         }
 
@@ -195,18 +202,15 @@ export default function App() {
         const params = new URLSearchParams(window.location.search);
         const returnTo = params.get("returnTo");
         if (returnTo) {
-          // Decode and navigate to the original page
           try {
             const decoded = decodeURIComponent(returnTo);
             window.location.href = decoded;
           } catch (e) {
-            // eslint-disable-next-line no-console
             console.error("Failed to decode returnTo:", e);
             const clean = window.location.origin + window.location.pathname;
             window.history.replaceState(null, "", clean);
           }
         } else {
-          // fallback: check localStorage for desired return
           try {
             const stored = localStorage.getItem('qt_return');
             if (stored) {
