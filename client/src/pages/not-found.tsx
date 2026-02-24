@@ -7,11 +7,17 @@ export default function NotFound() {
   const [isAuthRedirect, setIsAuthRedirect] = useState(true);
 
   useEffect(() => {
-    // 주소창을 확인해서 로그인 토큰이 없다면 1초 뒤에 진짜 404 화면으로 전환합니다.
+    // OAuth 콜백: ?code= 가 URL에 있으면 hash 추가해서 홈으로 (리로드 없음)
+    if (window.location.search.includes('code=') && !window.location.hash) {
+      window.location.hash = '/';
+      return;
+    }
+
+    // 주소창을 확인해서 로그인 토큰이 없다면 500ms 뒤에 진짜 404 화면으로 전환합니다.
     if (!window.location.hash.includes("access_token")) {
       const timer = setTimeout(() => {
         setIsAuthRedirect(false);
-      }, 500); // 아주 짧은 대기 시간 후 404 노출
+      }, 500);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -41,7 +47,7 @@ export default function NotFound() {
           <p className="mt-4 text-sm text-gray-600">
             주소가 잘못되었거나 존재하지 않는 페이지입니다.
           </p>
-          <button 
+          <button
             onClick={() => window.location.href = "/#/"}
             className="mt-6 w-full py-3 bg-gray-900 text-white rounded-xl font-bold"
           >
