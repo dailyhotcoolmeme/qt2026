@@ -7,22 +7,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-// PKCE 디버그: 카카오 콜백으로 돌아왔을 때 localStorage 상태 확인
-if (typeof window !== 'undefined') {
-  const urlCode = new URLSearchParams(window.location.search).get('code');
-  if (urlCode) {
-    const keys = Object.keys(localStorage).filter(k => k.includes('auth') || k.includes('pkce') || k.includes('verifier') || k.includes('code'));
-    console.log('[PKCE-DEBUG] 콜백 URL 감지, code:', urlCode.substring(0, 10) + '...');
-    console.log('[PKCE-DEBUG] localStorage auth 관련 키들:', keys);
-    keys.forEach(k => console.log(`[PKCE-DEBUG] ${k}:`, localStorage.getItem(k)?.substring(0, 50)));
-  }
-}
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
-    storageKey: 'myamen-auth',
-    storage: window.localStorage,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   }
