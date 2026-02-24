@@ -266,6 +266,18 @@ export default function App() {
     };
 
     persistPendingInviteFromUrl();
+
+    // OAuth 콜백 즉각 처리: ?code= URL에서 빈 해시로 인한 not-found 방지
+    // 리로드 없이 URL에 #/ 추가 → 라우터가 즉시 홈 화면 표시
+    if (!window.location.hash && window.location.search.includes('code=')) {
+      window.history.replaceState(
+        null,
+        '',
+        `${window.location.pathname}${window.location.search}#/`
+      );
+      window.dispatchEvent(new Event('hashchange'));
+    }
+
     // Process OAuth hash and returnTo FIRST, before any other async operations
     handleSupabaseHash();
     // Then check and sync agreements after hash is cleared
@@ -275,12 +287,9 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
-        // OAuth 콜백 처리: ?code= 가 URL에 있고 해시가 없으면 홈으로 이동
-        const search = window.location.search;
-        const hash = window.location.hash;
-        if (search.includes('code=') && (!hash || hash === '#' || hash === '#/')) {
-          window.location.replace(window.location.origin + '/#/');
-          return;
+        // OAuth 콜백 URL 정리: ?code= 제거하고 깔끔하게 /#/ 로 변경 (리로드 없음)
+        if (window.location.search.includes('code=')) {
+          window.history.replaceState(null, '', window.location.origin + '/#/');
         }
         syncAgreements();
         void joinPendingInviteGroup(session?.user?.id ?? null);
