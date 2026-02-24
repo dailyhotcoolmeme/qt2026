@@ -310,7 +310,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
-      <div className="fixed top-14 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           <div className="flex gap-2 h-11">
             <div className="relative group flex-1">
@@ -318,14 +318,14 @@ export default function SearchPage() {
                 type="text" value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && performSearch(true)}
-                placeholder="예: 시편 1, 요 3:16, 사랑, 은혜..."
-                className="w-full h-full pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-2xl text-[15px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
+                placeholder="예: 시편 1, 요 3:16, 사랑, 믿음..."
+                className="w-full h-full pl-12 pr-4 bg-zinc-50 border border-zinc-200 rounded-none text-[14px] outline-none focus:border-[#4A6741] focus:ring-4 focus:ring-[#4A6741]/5 transition-all"
               />
               <Search className="absolute left-4 top-3 w-5 h-5 text-zinc-400 group-focus-within:text-[#4A6741]" />
             </div>
             <div className="flex gap-1.5 shrink-0 h-full">
-              <button onClick={() => performSearch(true)} className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-xl active:scale-95 shadow-sm">검색</button>
-              <button onClick={resetAll} className="w-11 h-11 flex items-center justify-center bg-zinc-100 text-zinc-500 rounded-xl active:rotate-180 transition-all"><RotateCcw className="w-5 h-5" /></button>
+              <button onClick={() => performSearch(true)} className="h-full px-6 bg-[#4A6741] text-white text-sm font-bold rounded-none active:scale-95 shadow-sm">검색</button>
+              <button onClick={resetAll} className="w-11 h-11 flex items-center justify-center bg-zinc-100 text-zinc-500 rounded-none active:rotate-180 transition-all"><RotateCcw className="w-5 h-5" /></button>
             </div>
           </div>
           <div className="flex gap-2 items-center justify-between h-11">
@@ -334,7 +334,7 @@ export default function SearchPage() {
                 <button
                   key={f}
                   onClick={() => handleTestamentChange(f)}
-                  className={`px-5 h-full rounded-xl text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741]' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
+                  className={`px-5 h-full rounded-none text-xs font-bold transition-all border ${testamentFilter === f ? 'bg-[#4A6741] text-white border-[#4A6741]' : 'bg-white text-zinc-500 border-zinc-200'} ${identifiedBook ? 'opacity-40 cursor-not-allowed' : ''}`}
                   disabled={!!identifiedBook}
                 >
                   {f === 'ALL' ? '전체' : f === 'OT' ? '구약' : '신약'}
@@ -346,7 +346,7 @@ export default function SearchPage() {
               <div className="relative h-full">
                 <select
                   disabled={!!identifiedBook}
-                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
+                  className={`h-full pl-4 pr-10 bg-white border border-zinc-200 rounded-none text-xs font-bold text-zinc-700 outline-none appearance-none w-[130px] ${!!identifiedBook ? 'opacity-40' : ''}`}
                   value={selectedBook}
                   onChange={(e) => handleBookChange(e.target.value)}
                 >

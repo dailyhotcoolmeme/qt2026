@@ -99,15 +99,15 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
+      <div className="fixed top-16 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
         <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
       </div>
 
-      <div className="pt-[108px] pb-24 px-5 space-y-6 max-w-2xl mx-auto">
-        <h2 className="font-extrabold text-zinc-900 mb-8 border-b pb-4" style={{ fontSize: `${fontSize * 1.25}px` }}>
+      <div className="pt-[160px] pb-4 px-5 space-y-2 max-w-2xl mx-auto">
+        <h2 className="font-bold text-zinc-800 mb-4 pb-4" style={{ fontSize: `${fontSize * 1.1}px` }}>
           {displayBookName} {displayBookName === '시편' ? `${displayChapter}편` : `${displayChapter}장`}
         </h2>
 
@@ -135,8 +135,8 @@ export default function BibleViewPage() {
               style={{ fontSize: `${fontSize}px`, fontFamily: fontFamily }}
             >
               <sup
-                className={`mr-2 font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-blue-500'}`}
-                style={{ fontSize: `${fontSize * 0.7}px` }}
+                className={`mr-2 font-bold ${isHighlighted ? 'text-[#4A6741]' : 'text-gray-500'}`}
+                style={{ fontSize: `${fontSize * 0.9}px` }}
               >
                 {v.verse}
               </sup>
