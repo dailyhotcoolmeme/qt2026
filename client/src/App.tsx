@@ -275,6 +275,13 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
+        // OAuth 콜백 처리: ?code= 가 URL에 있고 해시가 없으면 홈으로 이동
+        const search = window.location.search;
+        const hash = window.location.hash;
+        if (search.includes('code=') && (!hash || hash === '#' || hash === '#/')) {
+          window.location.replace(window.location.origin + '/#/');
+          return;
+        }
         syncAgreements();
         void joinPendingInviteGroup(session?.user?.id ?? null);
       }
