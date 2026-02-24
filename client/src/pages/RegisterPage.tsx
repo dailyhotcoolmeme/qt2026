@@ -1,15 +1,15 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
-import { supabase } from "../lib/supabase"; 
+import { supabase } from "../lib/supabase";
 import { useLocation, Link } from "wouter";
-import { 
-  RefreshCw, 
-  ArrowLeft, 
-  Check, 
-  Eye, 
-  EyeOff, 
-  Loader2, 
-  X, 
+import {
+  RefreshCw,
+  ArrowLeft,
+  Check,
+  Eye,
+  EyeOff,
+  Loader2,
+  X,
   ChevronRight,
   User,
   Mail,
@@ -31,7 +31,7 @@ const emailDomains = ["naver.com", "gmail.com", "daum.net", "hanmail.net", "kaka
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
-  
+
   // React Hook Form 초기화 (모든 필드 명시)
   const { register, handleSubmit, setValue, watch, getValues, formState: { errors } } = useForm({
     mode: "onChange",
@@ -50,26 +50,26 @@ export default function RegisterPage() {
       customRank: ""
     }
   });
-  
+
   // 상태 관리
   const [step, setStep] = useState(1);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isRankModalOpen, setIsRankModalOpen] = useState(false);
   const [showCustomRankInput, setShowCustomRankInput] = useState(false);
-  
+
   // 중복 확인 상태 (none: 미확인, success: 확인 완료, error: 사용 불가)
   const [usernameStatus, setUsernameStatus] = useState<'none' | 'success' | 'error'>('none');
   const [emailStatus, setEmailStatus] = useState<'none' | 'success' | 'error'>('none');
-  const [nicknameStatus, setNicknameStatus] = useState<'none' | 'success' | 'error'>('success'); 
-  
+  const [nicknameStatus, setNicknameStatus] = useState<'none' | 'success' | 'error'>('success');
+
   // 공통 모달 상태
-  const [modal, setModal] = useState({ 
-    show: false, 
-    title: "", 
-    msg: "", 
-    type: "error" as "error" | "success" 
+  const [modal, setModal] = useState({
+    show: false,
+    title: "",
+    msg: "",
+    type: "error" as "error" | "success"
   });
-  
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCustomDomain, setShowCustomDomain] = useState(false);
   const [showPw, setShowPw] = useState(false);
@@ -120,20 +120,20 @@ export default function RegisterPage() {
   const checkDuplicate = async (field: "username" | "nickname" | "email") => {
     const values = getValues();
     let value = "";
-    
+
     if (field === "username") value = values.username?.trim();
     if (field === "nickname") value = values.nickname?.trim();
     if (field === "email") {
       const domain = showCustomDomain ? values.customDomain : values.emailDomain;
       value = `${values.emailId}@${domain}`;
     }
-    
+
     if (!value || (field === "email" && !values.emailId)) {
-      setModal({ 
-        show: true, 
-        title: "입력 알림", 
-        msg: "확인할 정보를 먼저 입력해주세요.", 
-        type: "error" 
+      setModal({
+        show: true,
+        title: "입력 알림",
+        msg: "확인할 정보를 먼저 입력해주세요.",
+        type: "error"
       });
       return;
     }
@@ -148,32 +148,32 @@ export default function RegisterPage() {
       if (error) throw error;
 
       if (data) {
-        setModal({ 
-          show: true, 
-          title: "중복 확인", 
-          msg: `이미 등록된 정보입니다. (사용 불가)`, 
-          type: "error" 
+        setModal({
+          show: true,
+          title: "중복 확인",
+          msg: `이미 등록된 정보입니다. (사용 불가)`,
+          type: "error"
         });
         if (field === "username") setUsernameStatus('error');
         if (field === "nickname") setNicknameStatus('error');
         if (field === "email") setEmailStatus('error');
       } else {
-        setModal({ 
-          show: true, 
-          title: "중복 확인", 
-          msg: "사용 가능한 정보입니다.", 
-          type: "success" 
+        setModal({
+          show: true,
+          title: "중복 확인",
+          msg: "사용 가능한 정보입니다.",
+          type: "success"
         });
         if (field === "username") setUsernameStatus('success');
         if (field === "nickname") setNicknameStatus('success');
         if (field === "email") setEmailStatus('success');
       }
     } catch (e) {
-      setModal({ 
-        show: true, 
-        title: "오류 발생", 
-        msg: "서버와 통신 중 문제가 발생했습니다.", 
-        type: "error" 
+      setModal({
+        show: true,
+        title: "오류 발생",
+        msg: "서버와 통신 중 문제가 발생했습니다.",
+        type: "error"
       });
     }
   };
@@ -183,17 +183,20 @@ export default function RegisterPage() {
    */
   const handleKakaoLogin = async () => {
     if (!isAgreedAll) {
-      setModal({ 
-        show: true, 
-        title: "약관 동의", 
-        msg: "필수 이용약관에 동의하셔야 시작할 수 있습니다.", 
-        type: "error" 
+      setModal({
+        show: true,
+        title: "약관 동의",
+        msg: "필수 이용약관에 동의하셔야 시작할 수 있습니다.",
+        type: "error"
       });
       return;
     }
-    await supabase.auth.signInWithOAuth({ 
+    await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo: window.location.origin }
+      options: {
+        redirectTo: `${window.location.origin}/`,
+        skipBrowserRedirect: false,
+      }
     });
   };
 
@@ -236,7 +239,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
       {/* 전역 스타일 주입 */}
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         input:-webkit-autofill { -webkit-box-shadow: 0 0 0px 1000px white inset !important; -webkit-text-fill-color: #4A6741 !important; }
         input { background-color: transparent !important; color: #4A6741 !important; outline: none; border: none; font-weight: 700; width: 100%; font-size: 16px; }
         select { appearance: none; background: transparent; border: none; outline: none; font-weight: 700; color: #4A6741; cursor: pointer; width: 100%; }
@@ -249,8 +253,8 @@ export default function RegisterPage() {
 
       {/* 헤더 바 */}
       <header className="px-6 pt-16 pb-6 relative z-30">
-        <button 
-          onClick={() => setLocation("/auth")} 
+        <button
+          onClick={() => setLocation("/auth")}
           className="p-2 -ml-2 text-zinc-400 hover:text-zinc-600 transition-all active:scale-90"
         >
           <ArrowLeft size={28} />
@@ -261,7 +265,7 @@ export default function RegisterPage() {
       <div className="flex-1 px-8 relative">
         {/* '스르륵' 효과를 위한 마스킹 배경 레이어 */}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#F8F8F8] via-[#F8F8F8]/90 to-transparent z-10 pointer-events-none" />
-        
+
         <div className="mt-8 mb-14 text-center relative z-20">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -279,20 +283,20 @@ export default function RegisterPage() {
 
         {/* 소셜 가입 및 약관 동의 */}
         <div className="space-y-6 mb-12 flex flex-col items-center relative z-20">
-          <button 
+          <button
             onClick={handleKakaoLogin}
             className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
           >
-            <img 
-              src="/kakao-login.png" 
-              className="w-6 h-6" 
-              alt="카카오" 
+            <img
+              src="/kakao-login.png"
+              className="w-6 h-6"
+              alt="카카오"
             />
             카카오로 3초만에 가입하기
           </button>
-          
-          <button 
-            type="button" 
+
+          <button
+            type="button"
             onClick={() => setIsAgreedAll(!isAgreedAll)}
             className="flex items-center justify-center gap-2 group"
           >
@@ -313,7 +317,7 @@ export default function RegisterPage() {
         </div>
 
         {/* 일반 가입 버튼 */}
-        <button 
+        <button
           onClick={() => setIsPopupOpen(true)}
           className="w-full h-[80px] bg-white border-2 border-zinc-100 text-zinc-900 font-bold rounded-[26px] shadow-sm flex flex-col items-center justify-center active:scale-[0.97] transition-all relative z-20"
         >
@@ -326,16 +330,16 @@ export default function RegisterPage() {
       <AnimatePresence>
         {isPopupOpen && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsPopupOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-[4px]" 
+              className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-[4px]"
             />
-            <motion.div 
-              initial={{ y: "100%" }} 
-              animate={{ y: 0 }} 
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[45px] z-[110] flex flex-col h-[92vh] shadow-2xl overflow-hidden"
@@ -351,11 +355,11 @@ export default function RegisterPage() {
                     <div className={`h-1.5 rounded-full transition-all duration-500 ${step === 2 ? 'w-12 bg-[#4A6741]' : 'w-3 bg-zinc-100'}`} />
                   </div>
                 </div>
-                <button 
-                  onClick={() => setIsPopupOpen(false)} 
+                <button
+                  onClick={() => setIsPopupOpen(false)}
                   className="bg-zinc-50 p-3 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
                 >
-                  <X size={28}/>
+                  <X size={28} />
                 </button>
               </div>
 
@@ -371,12 +375,11 @@ export default function RegisterPage() {
                       </div>
                       <div className="flex-1 flex items-center gap-2">
                         <input {...register("username")} placeholder="아이디 입력" />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => checkDuplicate("username")}
-                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${
-                            usernameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
-                          }`}
+                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${usernameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
+                            }`}
                         >
                           {usernameStatus === 'success' ? '확인 완료' : usernameStatus === 'error' ? '사용 불가' : '중복확인'}
                         </button>
@@ -397,8 +400,8 @@ export default function RegisterPage() {
                             {showCustomDomain ? (
                               <input {...register("customDomain")} autoFocus placeholder="직접 입력" />
                             ) : (
-                              <select 
-                                {...register("emailDomain")} 
+                              <select
+                                {...register("emailDomain")}
                                 className="truncate"
                                 onChange={(e) => { if (e.target.value === "직접 입력") setShowCustomDomain(true); }}
                               >
@@ -409,12 +412,11 @@ export default function RegisterPage() {
                         </div>
                       </div>
                       <div className="flex justify-end mt-4">
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => checkDuplicate("email")}
-                          className={`px-7 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${
-                            emailStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
-                          }`}
+                          className={`px-7 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${emailStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
+                            }`}
                         >
                           {emailStatus === 'success' ? '확인 완료' : emailStatus === 'error' ? '사용 불가' : '중복확인'}
                         </button>
@@ -429,26 +431,26 @@ export default function RegisterPage() {
                           <span className="font-bold text-zinc-400">비밀번호</span>
                         </div>
                         <div className="flex-1 flex items-center gap-2">
-                          <input 
-                            {...register("password")} 
-                            type={showPw ? "text" : "password"} 
-                            placeholder="8자리 이상 입력" 
+                          <input
+                            {...register("password")}
+                            type={showPw ? "text" : "password"}
+                            placeholder="8자리 이상 입력"
                           />
-                          <button 
-                            type="button" 
-                            onClick={() => setShowPw(!showPw)} 
+                          <button
+                            type="button"
+                            onClick={() => setShowPw(!showPw)}
                             className="text-zinc-300 p-1 active:scale-90"
                           >
-                            {showPw ? <EyeOff size={20}/> : <Eye size={20}/>}
+                            {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                           </button>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-zinc-400 shrink-0 w-32 pl-[30px]">확인</span>
-                        <input 
-                          {...register("passwordConfirm")} 
-                          type={showPw ? "text" : "password"} 
-                          placeholder="비밀번호 재입력" 
+                        <input
+                          {...register("passwordConfirm")}
+                          type={showPw ? "text" : "password"}
+                          placeholder="비밀번호 재입력"
                         />
                       </div>
                       <div className="pl-32 mt-3">
@@ -465,22 +467,21 @@ export default function RegisterPage() {
                       <div className="flex items-center gap-3 w-32 shrink-0">
                         <RefreshCw size={18} className="text-zinc-300" />
                         <span className="font-bold text-zinc-400">닉네임</span>
-                        <button 
-                          type="button" 
-                          onClick={generateNickname} 
+                        <button
+                          type="button"
+                          onClick={generateNickname}
                           className="text-[#4A6741] p-1.5 bg-zinc-50 rounded-full active:rotate-180 transition-transform duration-500"
                         >
-                          <RefreshCw size={12}/>
+                          <RefreshCw size={12} />
                         </button>
                       </div>
                       <div className="flex-1 flex items-center gap-2">
                         <input {...register("nickname")} />
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => checkDuplicate("nickname")}
-                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${
-                            nicknameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white'
-                          }`}
+                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${nicknameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white'
+                            }`}
                         >
                           {nicknameStatus === 'success' ? '확인 완료' : nicknameStatus === 'error' ? '사용 불가' : '중복확인'}
                         </button>
@@ -497,7 +498,7 @@ export default function RegisterPage() {
                       </div>
                       <input {...register("fullName")} placeholder="성함을 입력해주세요 (선택)" />
                     </div>
-                    
+
                     <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center gap-3 w-32 shrink-0">
                         <Smartphone size={18} className="text-zinc-200" />
@@ -521,21 +522,21 @@ export default function RegisterPage() {
                           <Award size={18} className="text-zinc-200" />
                           <span className="font-bold text-zinc-400">직분</span>
                         </div>
-                        <button 
-                          type="button" 
+                        <button
+                          type="button"
                           onClick={() => setIsRankModalOpen(true)}
                           className="flex-1 text-left font-bold text-[#4A6741] flex items-center justify-between"
                         >
                           {watch("rank") || "직분을 선택해 주세요"}
-                          <ChevronRight size={22} className="text-zinc-200"/>
+                          <ChevronRight size={22} className="text-zinc-200" />
                         </button>
                       </div>
                       {showCustomRankInput && (
                         <div className="mt-6 pl-32 animate-in fade-in slide-in-from-top-2">
-                          <input 
-                            {...register("customRank")} 
-                            placeholder="직접 입력" 
-                            className="border-b border-zinc-200 py-2" 
+                          <input
+                            {...register("customRank")}
+                            placeholder="직접 입력"
+                            className="border-b border-zinc-200 py-2"
                           />
                         </div>
                       )}
@@ -543,8 +544,8 @@ export default function RegisterPage() {
 
                     {/* 하단 약관 동의 영역 (바텀시트 내부 버전) */}
                     <div className="pt-14 pb-4">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => setIsAgreedAll(!isAgreedAll)}
                         className="flex items-center justify-center gap-4 w-full py-6 bg-zinc-50 rounded-[28px] group transition-all active:bg-zinc-100"
                       >
@@ -563,7 +564,7 @@ export default function RegisterPage() {
               {/* 하단 고정 액션 버튼 (짤림 방지: pb-24 적용 및 shadow 상단으로) */}
               <div className="absolute bottom-0 left-0 right-0 px-10 pt-8 pb-24 bg-white border-t border-zinc-50 z-[120] shadow-[0_-15px_30px_rgba(0,0,0,0.04)]">
                 {step === 1 ? (
-                  <button 
+                  <button
                     onClick={() => {
                       if (usernameStatus === 'success' && emailStatus === 'success' && nicknameStatus === 'success' && isPasswordMatch) {
                         setStep(2);
@@ -573,18 +574,18 @@ export default function RegisterPage() {
                     }}
                     className="w-full h-[72px] bg-zinc-900 text-white rounded-[28px] font-black text-[19px] shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
                   >
-                    다음 단계로 넘어가기 <ChevronRight size={22}/>
+                    다음 단계로 넘어가기 <ChevronRight size={22} />
                   </button>
                 ) : (
                   <div className="flex gap-4">
-                    <button 
-                      onClick={() => setStep(1)} 
+                    <button
+                      onClick={() => setStep(1)}
                       className="w-32 h-[72px] bg-zinc-100 text-zinc-400 rounded-[28px] font-bold text-[18px] active:scale-[0.98] transition-all"
                     >
                       이전
                     </button>
-                    <button 
-                      onClick={handleSubmit(onSubmit)} 
+                    <button
+                      onClick={handleSubmit(onSubmit)}
                       disabled={isSubmitting}
                       className="flex-1 h-[72px] bg-[#4A6741] text-white rounded-[28px] font-black text-[19px] shadow-xl flex items-center justify-center active:scale-[0.98] transition-all disabled:bg-zinc-200"
                     >
@@ -602,26 +603,25 @@ export default function RegisterPage() {
       <AnimatePresence>
         {modal.show && (
           <div className="fixed inset-0 z-[400] flex items-center justify-center px-10 bg-black/60 backdrop-blur-[6px]">
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white rounded-[40px] w-full max-w-sm p-12 text-center shadow-2xl relative overflow-hidden"
             >
               {modal.type === 'success' && <div className="absolute top-0 left-0 right-0 h-2.5 bg-[#4A6741]" />}
-              <div className={`w-24 h-24 rounded-full mx-auto mb-10 flex items-center justify-center ${
-                modal.type === 'success' ? 'bg-[#4A6741]/10 text-[#4A6741]' : 'bg-red-50 text-red-500'
-              }`}>
+              <div className={`w-24 h-24 rounded-full mx-auto mb-10 flex items-center justify-center ${modal.type === 'success' ? 'bg-[#4A6741]/10 text-[#4A6741]' : 'bg-red-50 text-red-500'
+                }`}>
                 {modal.type === 'success' ? <Check size={48} strokeWidth={3} /> : <X size={48} strokeWidth={3} />}
               </div>
               <h3 className="font-black text-[24px] mb-5 text-zinc-900">{modal.title}</h3>
               <p className="text-zinc-500 mb-12 font-bold text-[17px] leading-relaxed break-keep">
                 {modal.msg}
               </p>
-              <button 
+              <button
                 onClick={() => {
                   setModal({ ...modal, show: false });
-                  if(modal.type === 'success' && modal.title === '가입 완료') setLocation("/auth");
+                  if (modal.type === 'success' && modal.title === '가입 완료') setLocation("/auth");
                 }}
                 className="w-full py-6 bg-zinc-900 text-white rounded-[24px] font-black text-[18px] shadow-lg active:scale-[0.96] transition-all"
               >
@@ -636,12 +636,12 @@ export default function RegisterPage() {
       <AnimatePresence>
         {isRankModalOpen && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 
-              onClick={() => setIsRankModalOpen(false)} 
-              className="fixed inset-0 bg-black/50 z-[300]" 
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsRankModalOpen(false)}
+              className="fixed inset-0 bg-black/50 z-[300]"
             />
-            <motion.div 
+            <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 35, stiffness: 300 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[50px] z-[310] px-10 pt-14 pb-24 shadow-2xl"
@@ -649,23 +649,22 @@ export default function RegisterPage() {
               <div className="flex justify-between items-center mb-12 px-2">
                 <h3 className="font-black text-zinc-900 text-[24px]">직분을 선택해 주세요</h3>
                 <button onClick={() => setIsRankModalOpen(false)} className="bg-zinc-100 p-2.5 rounded-full text-zinc-400">
-                  <X size={28}/>
+                  <X size={28} />
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-4">
                 {ranks.map(r => (
-                  <button 
-                    key={r} 
+                  <button
+                    key={r}
                     onClick={() => {
                       setValue("rank", r);
                       setShowCustomRankInput(r === "기타");
                       setIsRankModalOpen(false);
                     }}
-                    className={`py-6 rounded-[24px] border-2 font-black text-[16px] transition-all duration-300 ${
-                      watch("rank") === r 
-                        ? 'border-[#4A6741] bg-[#4A6741] text-white shadow-lg' 
+                    className={`py-6 rounded-[24px] border-2 font-black text-[16px] transition-all duration-300 ${watch("rank") === r
+                        ? 'border-[#4A6741] bg-[#4A6741] text-white shadow-lg'
                         : 'border-zinc-50 bg-zinc-50 text-zinc-400 active:border-zinc-200'
-                    }`}
+                      }`}
                   >
                     {r}
                   </button>
