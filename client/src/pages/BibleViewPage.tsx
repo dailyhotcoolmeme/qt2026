@@ -106,8 +106,8 @@ export default function BibleViewPage() {
         </button>
       </div>
 
-      <div className="pt-[150px] pb-5 px-5 space-y-2 max-w-2xl mx-auto">
-        <h2 className="font-bold text-zinc-800 mb-6 pb-4" style={{ fontSize: `${fontSize * 1.1}px` }}>
+      <div className="pt-[160px] pb-4 px-5 space-y-2 max-w-2xl mx-auto">
+        <h2 className="font-bold text-zinc-800 mb-4 pb-4" style={{ fontSize: `${fontSize * 1.1}px` }}>
           {displayBookName} {displayBookName === '시편' ? `${displayChapter}편` : `${displayChapter}장`}
         </h2>
 
