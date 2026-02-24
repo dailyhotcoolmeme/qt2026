@@ -7,6 +7,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
+// ===== PKCE 디버그 (항상 실행) =====
+if (typeof window !== 'undefined') {
+  const href = window.location.href;
+  const search = window.location.search;
+  const hash = window.location.hash;
+  const allKeys = Object.keys(localStorage);
+  const authKeys = allKeys.filter(k => k.includes('auth') || k.includes('code') || k.includes('sb-') || k.includes('pkce'));
+  console.log('[PKCE-DEBUG] === supabase.ts 초기화 ===');
+  console.log('[PKCE-DEBUG] href:', href);
+  console.log('[PKCE-DEBUG] search:', search);
+  console.log('[PKCE-DEBUG] hash:', hash);
+  console.log('[PKCE-DEBUG] 전체 localStorage 키 수:', allKeys.length);
+  console.log('[PKCE-DEBUG] auth 관련 키들:', authKeys);
+  authKeys.forEach(k => console.log(`[PKCE-DEBUG] ${k} =`, localStorage.getItem(k)?.substring(0, 80)));
+}
+// ===================================
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
