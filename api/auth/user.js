@@ -40,7 +40,37 @@ export default async function handler(req, res) {
 
       const userId = data.user.id;
 
-      // 2. Admin REST API로 유저 삭제 (service role key 사용)
+      // 2. Kakao 연동 해제 (탈퇴 후 자동 재가입 방지)
+      // - Kakao Admin Key로 unlink API 호출 → 다음 로그인 시 동의 화면 다시 표시
+      const kakaoAdminKey = process.env.KAKAO_ADMIN_KEY;
+      const kakaoIdentity = data.user.identities?.find((i) => i.provider === "kakao");
+      const kakaoUserId = kakaoIdentity?.id; // Kakao 숫자 user ID
+
+      if (kakaoUserId && kakaoAdminKey) {
+        try {
+          const unlinkRes = await fetch("https://kapi.kakao.com/v1/user/unlink", {
+            method: "POST",
+            headers: {
+              Authorization: `KakaoAK ${kakaoAdminKey}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: `target_id_type=user_id&target_id=${kakaoUserId}`,
+          });
+          if (unlinkRes.ok) {
+            console.log("[API] Kakao 연동 해제 성공, kakaoUserId:", kakaoUserId);
+          } else {
+            const errText = await unlinkRes.text();
+            // 비치명적: 실패해도 Supabase 삭제는 계속 진행
+            console.warn("[API] Kakao unlink 실패 (비치명적):", unlinkRes.status, errText);
+          }
+        } catch (unlinkErr) {
+          console.warn("[API] Kakao unlink 오류 (비치명적):", unlinkErr.message);
+        }
+      } else if (!kakaoAdminKey) {
+        console.warn("[API] KAKAO_ADMIN_KEY 환경변수 없음 - Kakao 연동 해제 생략");
+      }
+
+      // 3. Supabase Admin REST API로 유저 삭제
       const deleteRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
         method: "DELETE",
         headers: {

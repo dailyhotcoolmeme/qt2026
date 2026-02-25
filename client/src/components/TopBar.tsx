@@ -115,11 +115,14 @@ export function TopBar() {
       setShowDeleteConfirm(false);
       setIsMenuOpen(false);
 
-      // 탈퇴 토스트 표시 후 홈으로 이동
+      // 탈퇴 토스트 표시 → 1.4초 후 exit 애니메이션 → 홈 이동
       setShowDeleteToast(true);
       setTimeout(() => {
-        window.location.replace(window.location.origin + "/#/");
-      }, 2000);
+        setShowDeleteToast(false); // exit 애니메이션 트리거
+        setTimeout(() => {
+          window.location.replace(window.location.origin + "/#/");
+        }, 500);
+      }, 1400);
     } catch (error) {
       console.error("회원탈퇴 오류:", error);
       alert(error instanceof Error ? error.message : "회원탈퇴에 실패했습니다");
@@ -565,18 +568,20 @@ export function TopBar() {
 
       <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
 
-      {/* 회원탈퇴 완료 토스트 */}
+      {/* 회원탈퇴 완료 토스트 - 화면 정중앙, 빨간색, 스르르 fade out */}
       <AnimatePresence>
         {showDeleteToast && (
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={{ duration: 0.35 }}
-            className="fixed left-1/2 top-24 z-[500] -translate-x-1/2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-bold text-white shadow-2xl"
-          >
-            탈퇴처리되었습니다
-          </motion.div>
+          <div className="fixed inset-0 z-[500] flex items-center justify-center pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: 0.35 }}
+              className="rounded-full bg-red-500 px-10 py-4 text-base font-bold text-white shadow-2xl"
+            >
+              탈퇴처리되었습니다
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
