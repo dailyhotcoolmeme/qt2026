@@ -552,7 +552,7 @@ export function TopBar() {
                 <span>회원탈퇴</span>
               </button>
             )}
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[9px] tracking-tight text-zinc-300">© 2026 어웨이마인. ALL RIGHTS RESERVED.</p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[9px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED.</p>
           </div>
         </div>
       </div>
