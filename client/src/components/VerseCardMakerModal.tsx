@@ -181,8 +181,8 @@ async function shareDataUrl(dataUrl: string, title: string) {
 type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
-  const [mode, setMode] = useState<ThemeMode>("color");
-  const [selectedId, setSelectedId] = useState<string>(COLOR_PRESETS[0].id);
+  const [mode, setMode] = useState<ThemeMode>("image");
+  const [selectedId, setSelectedId] = useState<string>("i1");
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
   const [userBgTab, setUserBgTab] = useState(false);
