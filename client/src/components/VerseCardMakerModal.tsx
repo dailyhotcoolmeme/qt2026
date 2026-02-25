@@ -178,7 +178,7 @@ async function shareDataUrl(dataUrl: string, title: string) {
   return false;
 }
 
-type UserBg = { url: string; name: string; uploader: string; createdAt: string };
+type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const [mode, setMode] = useState<ThemeMode>("color");
@@ -189,6 +189,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [userBgs, setUserBgs] = useState<UserBg[]>([]);
   const [bgPage, setBgPage] = useState(1);
   const [bgHasMore, setBgHasMore] = useState(true);
+  const [bgSort, setBgSort] = useState<"latest" | "popular">("latest");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const CANVAS_WIDTH = 900;
@@ -221,12 +222,18 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   useEffect(() => {
     if (!open) return;
     const fetchBgs = async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from("verse_card_backgrounds")
-        .select("url, name, uploader, created_at")
-        .order("created_at", { ascending: false })
+        .select("url, name, uploader, created_at, use_count")
         .limit(12)
         .range((bgPage - 1) * 12, bgPage * 12 - 1);
+
+      const { data, error } = await (
+        bgSort === "popular"
+          ? query.order("use_count", { ascending: false }).order("created_at", { ascending: false })
+          : query.order("created_at", { ascending: false })
+      );
+
       if (error) {
         setUserBgs([]);
         setBgHasMore(false);
@@ -236,7 +243,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       setBgHasMore((data?.length ?? 0) === 12);
     };
     fetchBgs();
-  }, [open, bgPage]);
+  }, [open, bgPage, bgSort]);
+
+  const handleSortChange = (sort: "latest" | "popular") => {
+    if (sort === bgSort) return;
+    setBgSort(sort);
+    setBgPage(1);
+    setUserBgs([]);
+  };
 
   // Handle image upload (no per-user limit, always compress, store in Supabase)
   const handleUserBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -290,6 +304,16 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const effectiveTextColor = currentPreset?.mode === "image" ? "#ffffff" : currentPreset?.textColor || "#3f3f46";
   const effectiveSubColor = currentPreset?.mode === "image" ? "#f8fafc" : currentPreset?.subColor || "#52525b";
+
+  // 사용자 등록 배경이미지 사용 횟수 원자적 증가 (파이어 앤 포갔)
+  const trackBgUsage = async () => {
+    if (!userBgTab || !currentPreset?.bg) return;
+    try {
+      await supabase.rpc("increment_verse_card_bg_use_count", { bg_url: currentPreset.bg });
+    } catch {
+      // fire-and-forget, 에러 무시
+    }
+  };
   const previewBodyFontPx = Math.max(12, Math.round((BODY_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH) + 2);
   const previewRefFontPx = Math.max(10, Math.round((REFERENCE_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
 
@@ -404,14 +428,16 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
           text: title,
           files: [new File([blob], "verse-card.png", { type: "image/png" })],
         });
-        return;
+      } else {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "verse-card.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
       }
 
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "verse-card.png";
-      a.click();
-      URL.revokeObjectURL(a.href);
+      // 커다란 사용 추적 (fire-and-forget)
+      void trackBgUsage();
     } catch (error) {
       console.error("card export failed:", error);
       alert("이미지 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");
@@ -432,6 +458,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       const next = [entry, ...savedCards].slice(0, 30);
       setSavedCards(next);
       await saveCardsToStore(storageKey(userId), next);
+
+      // 커다란 사용 추적 (fire-and-forget)
+      void trackBgUsage();
+
       alert("기록함에 보관되었습니다.");
     } catch (error) {
       console.error("save card failed:", error);
@@ -573,12 +603,30 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                       <button
                         onClick={() => fileInputRef.current?.click()}
-                        className="rounded-none bg-gray-300 text-gray-700 px-2 py-2 text-xs font-base disabled:opacity-60"
+                        className="shrink-0 rounded-none bg-gray-300 text-gray-700 px-2 py-1.5 text-xs font-base disabled:opacity-60"
                         disabled={uploading}
                       >
                         {uploading ? "업로드 중..." : "이미지 업로드"}
                       </button>
-                      <span className="text-xs text-gray-500"> 회원 등록 배경 이미지 인기순 정렬 </span>
+                      <span className="text-xs text-gray-500 flex-1 truncate">회원 등록 배경 이미지</span>
+                      {/* 정렬 토글 */}
+                      <div className="flex shrink-0 overflow-hidden rounded border border-zinc-200">
+                        <button
+                          onClick={() => handleSortChange("latest")}
+                          className={`px-2 py-1 text-xs transition-colors ${bgSort === "latest" ? "bg-zinc-700 text-white font-bold" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            }`}
+                        >
+                          최신순
+                        </button>
+                        <div className="w-px bg-zinc-200" />
+                        <button
+                          onClick={() => handleSortChange("popular")}
+                          className={`px-2 py-1 text-xs transition-colors ${bgSort === "popular" ? "bg-zinc-700 text-white font-bold" : "bg-white text-zinc-500 hover:bg-zinc-50"
+                            }`}
+                        >
+                          인기순
+                        </button>
+                      </div>
                     </div>
                     <div className="grid grid-cols-4 gap-2">
                       {userBgs.length === 0 ? (
