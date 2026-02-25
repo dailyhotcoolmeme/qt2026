@@ -222,9 +222,16 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   useEffect(() => {
     if (!open) return;
     const fetchBgs = async () => {
+      // 최신순: use_count 컴럼 불필요 (마이그레이션 전에도 동작)
+      // 인기순: use_count 컴럼 필요 → SQL 마이그레이션 실행 필수
+      const selectFields =
+        bgSort === "popular"
+          ? "url, name, uploader, created_at, use_count"
+          : "url, name, uploader, created_at";
+
       const query = supabase
         .from("verse_card_backgrounds")
-        .select("url, name, uploader, created_at, use_count")
+        .select(selectFields)
         .limit(12)
         .range((bgPage - 1) * 12, bgPage * 12 - 1);
 
@@ -261,7 +268,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       // Compress image (no size limit, just max dimension)
       const compressed = await imageCompression(file, {
         maxWidthOrHeight: 1200,
-        useWebWorker: false, // iOS Safari WebWorker 호환성 문제 방지
+        maxSizeMB: 1.5,          // 1.5MB 이하로 자동 압축
+        useWebWorker: false,     // iOS Safari WebWorker 호환성 문제 방지
+        initialQuality: 0.8,
       });
       // Upload to R2
       const url = await uploadFileToR2(
@@ -280,12 +289,15 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       // Immediately reload the first page of backgrounds so the UI reflects
       // the newly uploaded image instead of waiting for a page-change.
       try {
-        const { data: fresh, error: fetchErr } = await supabase
+        const freshQuery = supabase
           .from("verse_card_backgrounds")
-          .select("url, name, uploader, created_at")
-          .order("created_at", { ascending: false })
+          .select(bgSort === "popular" ? "url, name, uploader, created_at, use_count" : "url, name, uploader, created_at")
           .limit(12)
           .range(0, 11);
+        const { data: fresh, error: fetchErr } =
+          bgSort === "popular"
+            ? await freshQuery.order("use_count", { ascending: false }).order("created_at", { ascending: false })
+            : await freshQuery.order("created_at", { ascending: false });
         if (!fetchErr && Array.isArray(fresh)) {
           setUserBgs(fresh as UserBg[]);
           setBgHasMore((fresh?.length ?? 0) === 12);

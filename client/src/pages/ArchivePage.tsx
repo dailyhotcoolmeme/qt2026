@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Share2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
+import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Share2, Trash2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 
@@ -593,9 +593,8 @@ export default function ArchivePage() {
                     <button
                       key={item.key}
                       onClick={() => setMenuType(item.key as MenuType)}
-                      className={`px-4 py-1.5 bg-[#F8F8F8] rounded-none text-base font-bold inline-flex items-center justify-center gap-2 relative ${
-                        isSelected ? "text-[#4A6741]" : "text-zinc-700"
-                      }`}
+                      className={`px-4 py-1.5 bg-[#F8F8F8] rounded-none text-base font-bold inline-flex items-center justify-center gap-2 relative ${isSelected ? "text-[#4A6741]" : "text-zinc-700"
+                        }`}
                       style={{ minWidth: 110 }}
                     >
                       {Icon}
@@ -636,24 +635,24 @@ export default function ArchivePage() {
                 />
               </div>
               <button
-  onClick={() => void loadData(user.id)}
-  /* w-7 h-7 대신 px(가로여백)를 주고, rounded-full 대신 rounded-lg 정도로 수정 */
-  className="px-2 py-1 rounded-none bg-[#4A6741] opacity-80 text-sm font-bold text-white border border-zinc-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
-  aria-label="조회"
->
-  조회
-</button>
+                onClick={() => void loadData(user.id)}
+                /* w-7 h-7 대신 px(가로여백)를 주고, rounded-full 대신 rounded-lg 정도로 수정 */
+                className="px-2 py-1 rounded-none bg-[#4A6741] opacity-80 text-sm font-bold text-white border border-zinc-200 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                aria-label="조회"
+              >
+                조회
+              </button>
             </div>
           </div>
         </section>
-        <br/>
+        <br />
         <div className="flex items-center gap-2 mb-6">
-      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-      <h4
-        className="font-bold text-[#4A6741] opacity-80 text-sm">
-        조회 결과
-      </h4>
-    </div>
+          <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+          <h4
+            className="font-bold text-[#4A6741] opacity-80 text-sm">
+            조회 결과
+          </h4>
+        </div>
 
         {/* 리스트: 각 탭별 사각형(rounded-none) div, 말씀카드는 기존 유지, 나머지는 일자/시간/기록/음성 등 */}
         <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-2">
@@ -677,10 +676,10 @@ export default function ArchivePage() {
                       e.stopPropagation();
                       setPendingDeleteVerseCard(card);
                     }}
-                    className="absolute right-1.5 top-1.5 h-6 w-6 rounded-none bg-black/60 text-white flex items-center justify-center"
+                    className="absolute right-1.5 top-1.5 h-7 w-7 rounded-none bg-white/80 text-zinc-600 flex items-center justify-center shadow-sm hover:bg-red-50 hover:text-red-500 transition-colors"
                     aria-label="카드 삭제"
                   >
-                    <X size={14} />
+                    <Trash2 size={14} />
                   </button>
                 </div>
               ))}
@@ -751,52 +750,52 @@ export default function ArchivePage() {
       </div>
 
       <AnimatePresence>
-  {activeVerseCard && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[230] bg-black/75 p-4 flex items-center justify-center"
-    >
-      {/* 배경 클릭 시 닫히게 하고 싶다면 여기에 투명 div를 추가하거나 motion.div 자체에 onClick을 줄 수 있습니다 */}
-      
-      {/* 카드 컨테이너: 여기에 relative 추가 */}
-      <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
-        
-        {/* X 버튼: 카드 내부 우측 상단으로 이동 */}
-        <button
-          onClick={() => setActiveVerseCard(null)}
-          className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
-        >
-          <X size={18} />
-        </button>
+        {activeVerseCard && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[230] bg-black/75 p-4 flex items-center justify-center"
+          >
+            {/* 배경 클릭 시 닫히게 하고 싶다면 여기에 투명 div를 추가하거나 motion.div 자체에 onClick을 줄 수 있습니다 */}
 
-        <img
-          src={activeVerseCard.imageDataUrl}
-          alt={activeVerseCard.title || "말씀카드"}
-          className="mx-auto aspect-[4/5] w-full rounded-none object-cover"
-        />
-        
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => void saveVerseCardToPhone(activeVerseCard)}
-            className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
-          >
-            <Download size={14} />
-            핸드폰 저장
-          </button>
-          <button
-            onClick={() => void shareVerseCard(activeVerseCard)}
-            className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
-          >
-            <Share2 size={14} />
-            공유
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+            {/* 카드 컨테이너: 여기에 relative 추가 */}
+            <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
+
+              {/* X 버튼: 카드 내부 우측 상단으로 이동 */}
+              <button
+                onClick={() => setActiveVerseCard(null)}
+                className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
+              >
+                <X size={18} />
+              </button>
+
+              <img
+                src={activeVerseCard.imageDataUrl}
+                alt={activeVerseCard.title || "말씀카드"}
+                className="mx-auto aspect-[4/5] w-full rounded-none object-cover"
+              />
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => void saveVerseCardToPhone(activeVerseCard)}
+                  className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+                >
+                  <Download size={14} />
+                  핸드폰 저장
+                </button>
+                <button
+                  onClick={() => void shareVerseCard(activeVerseCard)}
+                  className="rounded-none bg-[#4A6741] px-3 py-2 text-sm font-bold text-white inline-flex items-center justify-center gap-1.5"
+                >
+                  <Share2 size={14} />
+                  공유
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {pendingDeleteVerseCard && (
