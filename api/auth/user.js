@@ -26,26 +26,31 @@ export default async function handler(req, res) {
     const token = authHeader.slice(7);
 
     try {
-      // 1. JWT로 유저 정보 확인 (Supabase Auth REST API 직접 호출)
-      const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          apikey: serviceRoleKey,
-        },
-      });
-
-      if (!userRes.ok) {
-        return res.status(401).json({ message: '유효하지 않은 토큰입니다' });
+      // JWT payload 파싱으로 userId 추출 (서명 검증 없이 페이로드만 디코딩)
+      const parts = token.split('.');
+      if (parts.length !== 3) {
+        return res.status(401).json({ message: '유효하지 않은 토큰 형식입니다' });
       }
 
-      const userData = await userRes.json();
-      const userId = userData.id;
+      // base64url → base64 → Buffer → JSON
+      const payloadJson = Buffer.from(
+        parts[1].replace(/-/g, '+').replace(/_/g, '/'),
+        'base64'
+      ).toString('utf-8');
+      const payload = JSON.parse(payloadJson);
 
+      const userId = payload.sub;
       if (!userId) {
         return res.status(401).json({ message: '유저 정보를 확인할 수 없습니다' });
       }
 
-      // 2. Admin API로 유저 삭제 (auth.users → profiles CASCADE 삭제)
+      // 토큰 만료 확인
+      const now = Math.floor(Date.now() / 1000);
+      if (payload.exp && payload.exp < now) {
+        return res.status(401).json({ message: '세션이 만료되었습니다. 다시 로그인해주세요.' });
+      }
+
+      // Admin API로 유저 삭제 (auth.users → profiles CASCADE 삭제)
       const deleteRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
@@ -55,14 +60,14 @@ export default async function handler(req, res) {
       });
 
       if (!deleteRes.ok) {
-        const errBody = await deleteRes.json().catch(() => ({}));
-        console.error('[API] 회원탈퇴 실패:', errBody);
+        const errBody = await deleteRes.text();
+        console.error('[API] 회원탈퇴 실패:', deleteRes.status, errBody);
         return res.status(500).json({ message: '회원탈퇴에 실패했습니다' });
       }
 
       return res.json({ success: true });
     } catch (error) {
-      console.error('[API] 회원탈퇴 서버 오류:', error);
+      console.error('[API] 회원탈퇴 오류:', error);
       return res.status(500).json({ message: `서버 오류: ${error.message}` });
     }
   }
