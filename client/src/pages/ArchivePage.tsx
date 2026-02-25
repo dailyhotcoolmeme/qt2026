@@ -487,6 +487,10 @@ export default function ArchivePage() {
     return logs.filter((log) => {
       if (!includeBySource(log)) return false;
       if (menuType === "all") return true;
+      // 중보모임 탭: activity_type이 "group"이 아니라 source_kind로 판단
+      if (menuType === "group") return log.source_kind === "group_direct";
+      // 말씀카드 탭: activity_log 기반이 아니므로 여기서는 필터 제외
+      if (menuType === "bookmark") return false;
       return log.activity_type === menuType;
     });
   }, [logs, menuType, sourceFilter, linkMap]);
@@ -744,11 +748,29 @@ export default function ArchivePage() {
               );
             })
           )}
-          {menuLogs.length === 0 && (
-            <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
-              조건에 맞는 기록이 없습니다.
-            </div>
-          )}
+          {/* 탭별 빈 상태 메시지 */}
+          {(() => {
+            if (menuType === "bookmark") {
+              // 말씀카드: IndexedDB 기반, 날짜 필터 미적용
+              if (verseCards.length === 0) {
+                return (
+                  <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
+                    보관한 말씀카드가 없습니다.
+                  </div>
+                );
+              }
+              return null;
+            }
+            // 그 외 탭: menuLogs 기반
+            if (menuLogs.length === 0) {
+              return (
+                <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
+                  조건에 맞는 기록이 없습니다.
+                </div>
+              );
+            }
+            return null;
+          })()}
         </motion.section>
       </div>
 
