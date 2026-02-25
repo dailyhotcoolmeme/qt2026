@@ -247,7 +247,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       // Compress image (no size limit, just max dimension)
       const compressed = await imageCompression(file, {
         maxWidthOrHeight: 1200,
-        useWebWorker: true,
+        useWebWorker: false, // iOS Safari WebWorker 호환성 문제 방지
       });
       // Upload to R2
       const url = await uploadFileToR2(
@@ -544,13 +544,20 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       <button
                         key={preset.id}
                         onClick={() => setSelectedId(preset.id)}
-                        className={`h-12 rounded-none border border-zinc-200 bg-zinc-50/60 ${selectedId === preset.id ? "border-zinc-500" : "border-zinc-200"}`}
-                        style={
-                          preset.mode === "image"
-                            ? { backgroundImage: `url(${preset.bg})`, backgroundSize: "cover", backgroundPosition: "center" }
-                            : { background: preset.bg }
-                        }
-                      />
+                        className={`h-12 rounded-none border overflow-hidden bg-zinc-50 ${selectedId === preset.id ? "border-zinc-500 border-2" : "border-zinc-200"}`}
+                      >
+                        {preset.mode === "image" ? (
+                          <img
+                            src={preset.bg}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full" style={{ background: preset.bg }} />
+                        )}
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -581,10 +588,18 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                           <button
                             key={bg.url}
                             onClick={() => setSelectedId(`user-${idx}`)}
-                            className={`h-12 rounded-none border border-zinc-200 bg-zinc-50/60 ${selectedId === `user-${idx}` ? "border-zinc-900" : "border-zinc-200"}`}
-                            style={{ backgroundImage: `url(${bg.url})`, backgroundSize: "cover", backgroundPosition: "center" }}
+                            className={`h-12 rounded-none border overflow-hidden bg-zinc-50 ${selectedId === `user-${idx}` ? "border-zinc-900 border-2" : "border-zinc-200"}`}
                             title={`${bg.name} (by ${bg.uploader})`}
-                          />
+                          >
+                            <img
+                              src={bg.url}
+                              alt={bg.name}
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover"
+                            />
+                          </button>
+
                         ))
                       )}
                     </div>
@@ -602,7 +617,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <button onClick={() => exportImage(false)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Download size={15} />
-                    핸드폰 저장
+                    저장
                   </button>
                   <button onClick={() => exportImage(true)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Share2 size={15} />
@@ -610,7 +625,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   </button>
                   <button onClick={saveToRecords} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Save size={15} />
-                    기록함 보관
+                    기록함
                   </button>
                 </div>
 
@@ -649,102 +664,102 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
           </motion.div>
 
           <AnimatePresence>
-  {activeRecord && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      // 전체 배경
-      className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
-    >
-      {/* 하얀색 카드 - 여기에 relative 추가 */}
-      <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
-        
-        {/* X 버튼 - 이제 카드(부모)의 오른쪽 위를 기준으로 움직입니다 */}
-        <button 
-          onClick={() => setActiveRecord(null)} 
-          className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
-        >
-          <X size={18} />
-        </button>
+            {activeRecord && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                // 전체 배경
+                className="fixed inset-0 z-[230] flex items-center justify-center bg-black/75 p-4"
+              >
+                {/* 하얀색 카드 - 여기에 relative 추가 */}
+                <div className="relative w-full max-w-sm rounded-none bg-white p-3 shadow-2xl">
 
-        {/* 이미지 영역 */}
-        <img 
-          src={activeRecord.imageDataUrl} 
-          alt={activeRecord.title} 
-          className="mx-auto aspect-[4/5] w-full rounded-none object-cover" 
-        />
+                  {/* X 버튼 - 이제 카드(부모)의 오른쪽 위를 기준으로 움직입니다 */}
+                  <button
+                    onClick={() => setActiveRecord(null)}
+                    className="absolute right-2 top-2 z-[240] flex h-7 w-7 items-center justify-center rounded-none bg-zinc-500/40 text-white backdrop-blur-md transition-all hover:bg-zinc-600/60 active:scale-95"
+                  >
+                    <X size={18} />
+                  </button>
 
-        {/* 하단 버튼들 */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
-          <button
-            onClick={() => void saveRecordToPhone(activeRecord)}
-            className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
-          >
-            <Download size={15} />
-            <span>핸드폰 저장</span>
-          </button>
+                  {/* 이미지 영역 */}
+                  <img
+                    src={activeRecord.imageDataUrl}
+                    alt={activeRecord.title}
+                    className="mx-auto aspect-[4/5] w-full rounded-none object-cover"
+                  />
 
-          <button
-            onClick={() => void shareRecord(activeRecord)}
-            className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
-          >
-            <Share2 size={15} />
-            <span>카톡 공유</span>
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  )}
-</AnimatePresence>
+                  {/* 하단 버튼들 */}
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => void saveRecordToPhone(activeRecord)}
+                      className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+                    >
+                      <Download size={15} />
+                      <span>핸드폰 저장</span>
+                    </button>
+
+                    <button
+                      onClick={() => void shareRecord(activeRecord)}
+                      className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
+                    >
+                      <Share2 size={15} />
+                      <span>카톡 공유</span>
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
-    {/* 카드 삭제 확인 모달 */}
-    <AnimatePresence>
-      {pendingDeleteRecordId && (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setPendingDeleteRecordId(null)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-          />
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
-          >
-            <h4 className="mb-2 text-base font-bold text-zinc-900">
-              카드를 삭제할까요?
-            </h4>
-            <p className="mb-6 text-sm text-zinc-500">
-              삭제한 이미지는 복구할 수 없습니다.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setPendingDeleteRecordId(null)}
-                className="flex-1 rounded-xl bg-zinc-100 py-3 text-sm font-bold text-zinc-600 transition-active active:scale-95"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  if (pendingDeleteRecordId) {
-                    removeRecord(pendingDeleteRecordId);
-                    setPendingDeleteRecordId(null);
-                  }
-                }}
-                className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition-active active:scale-95"
-              >
-                삭제
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {/* 카드 삭제 확인 모달 */}
+      <AnimatePresence>
+        {pendingDeleteRecordId && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setPendingDeleteRecordId(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+            >
+              <h4 className="mb-2 text-base font-bold text-zinc-900">
+                카드를 삭제할까요?
+              </h4>
+              <p className="mb-6 text-sm text-zinc-500">
+                삭제한 이미지는 복구할 수 없습니다.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPendingDeleteRecordId(null)}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 text-sm font-bold text-zinc-600 transition-active active:scale-95"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    if (pendingDeleteRecordId) {
+                      removeRecord(pendingDeleteRecordId);
+                      setPendingDeleteRecordId(null);
+                    }
+                  }}
+                  className="flex-1 rounded-xl bg-red-500 py-3 text-sm font-bold text-white shadow-lg shadow-red-200 transition-active active:scale-95"
+                >
+                  삭제
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </AnimatePresence>
-  </AnimatePresence>
   );
 }
