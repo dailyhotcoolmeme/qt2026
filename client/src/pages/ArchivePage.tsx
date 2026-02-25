@@ -676,8 +676,10 @@ export default function ArchivePage() {
                       e.stopPropagation();
                       setPendingDeleteVerseCard(card);
                     }}
-                    // bg-white/80와 shadow-sm을 제거하고, text-red-300을 추가했습니다.
-                    className="absolute right-1.5 top-1.5 h-7 w-7 flex items-center justify-center bg-transparent text-red-300 hover:text-red-500 transition-colors"
+                    // bg-red-50: 아주 연한 빨간 배경
+                    // text-red-400: 적당히 눈에 띄는 빨간 아이콘
+                    // hover:bg-red-100: 마우스 올리면 배경이 살짝 더 진해짐
+                    className="absolute right-1.5 top-1.5 h-7 w-7 rounded-full bg-red-50 text-red-400 flex items-center justify-center transition-colors hover:bg-red-100 hover:text-red-600"
                     aria-label="카드 삭제"
                   >
                     <Trash2 size={14} />
