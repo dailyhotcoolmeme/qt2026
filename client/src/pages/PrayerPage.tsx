@@ -18,13 +18,13 @@ export default function PrayerPage() {
   const [showAddInput, setShowAddInput] = useState(false);
   const [newTopic, setNewTopic] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [deleteTopicId, setDeleteTopicId] = useState<number|null>(null);
+  const [deleteTopicId, setDeleteTopicId] = useState<number | null>(null);
   const [isPrayingMode, setIsPrayingMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
-  const [audioBlob, setAudioBlob] = useState<Blob|null>(null);
-  const [tempAudioUrl, setTempAudioUrl] = useState<string|null>(null);
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+  const [tempAudioUrl, setTempAudioUrl] = useState<string | null>(null);
   const [showPlayback, setShowPlayback] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveTitle, setSaveTitle] = useState("");
@@ -32,13 +32,13 @@ export default function PrayerPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savingProgress, setSavingProgress] = useState(0);
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
-  const [deleteRecordId, setDeleteRecordId] = useState<number|null>(null);
-  const [deleteRecordUrl, setDeleteRecordUrl] = useState<string|null>(null);
-  const [playingRecordId, setPlayingRecordId] = useState<number|null>(null);
-  const [recordDuration, setRecordDuration] = useState<{[key:number]:number}>({});
-  const [recordCurrentTime, setRecordCurrentTime] = useState<{[key:number]:number}>({});
-  const [expandedRecordId, setExpandedRecordId] = useState<number|null>(null);
-  const [showKeywords, setShowKeywords] = useState<number|null>(null);
+  const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
+  const [deleteRecordUrl, setDeleteRecordUrl] = useState<string | null>(null);
+  const [playingRecordId, setPlayingRecordId] = useState<number | null>(null);
+  const [recordDuration, setRecordDuration] = useState<{ [key: number]: number }>({});
+  const [recordCurrentTime, setRecordCurrentTime] = useState<{ [key: number]: number }>({});
+  const [expandedRecordId, setExpandedRecordId] = useState<number | null>(null);
+  const [showKeywords, setShowKeywords] = useState<number | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   // 모임 연결 관련 상태 제거
@@ -126,7 +126,7 @@ export default function PrayerPage() {
   // 기도제목 삭제
   const handleDeleteTopic = async () => {
     if (!deleteTopicId) return;
-    
+
     const { error } = await supabase
       .from('prayer_topics')
       .delete()
@@ -212,7 +212,7 @@ export default function PrayerPage() {
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
         }
-        
+
         // temp 폴더로 업로드 (백그라운드)
         if (user) {
           uploadToTemp(blob);
@@ -272,17 +272,17 @@ export default function PrayerPage() {
     try {
       const timestamp = Date.now();
       const fileName = `audio/temp/${user!.id}/prayer_${timestamp}.webm`;
-      
+
       const reader = new FileReader();
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
-        
+
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName, audioBase64: base64 })
         });
-        
+
         if (response.ok) {
           const { publicUrl } = await response.json();
           setTempAudioUrl(publicUrl);
@@ -355,7 +355,7 @@ export default function PrayerPage() {
 
       // 1단계: 파일 이동 (20%)
       setSavingProgress(10);
-      
+
       if (tempAudioUrl) {
         // R2 내부에서 이동 (빠름)
         const moveResponse = await fetch('/api/audio/move', {
@@ -401,7 +401,7 @@ export default function PrayerPage() {
       setSavingProgress(70);
 
       // 3단계: DB 저장 (70% → 90%)
-      const hashtags = saveHashtags.trim() 
+      const hashtags = saveHashtags.trim()
         ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
         : [];
 
@@ -425,9 +425,9 @@ export default function PrayerPage() {
       // 4단계: 완료 (90% → 100%)
       resetPrayerState();
       await loadPrayerRecords();
-      
+
       setSavingProgress(100);
-      
+
       setTimeout(() => {
         setIsSaving(false);
         setSavingProgress(0);
@@ -450,7 +450,7 @@ export default function PrayerPage() {
 
     try {
       const file = new File([audioBlob], 'prayer.webm', { type: 'audio/webm' });
-      
+
       if (navigator.share && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: '기도 녹음',
@@ -537,6 +537,31 @@ export default function PrayerPage() {
     setDeleteRecordUrl(url);
   };
 
+  // Amen 버튼 클릭 → prayer_records에 저장 (audio_url='amen' 마커)
+  const handleAmenClick = async () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    try {
+      const kstDate = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const { error } = await supabase.from('prayer_records').insert({
+        user_id: user.id,
+        audio_url: 'amen',   // Amen 레코드 마커
+        audio_duration: 0,
+        date: kstDate,
+        title: 'Amen',
+        hashtags: [],
+      });
+      if (!error) {
+        await loadPrayerRecords();
+        if (window.navigator?.vibrate) window.navigator.vibrate([20, 40, 20]);
+      }
+    } catch (err) {
+      console.error('Amen 저장 실패:', err);
+    }
+  };
+
   // 기도 기록 삭제 실행
   const confirmDeleteRecord = async () => {
     if (!deleteRecordId || !deleteRecordUrl) return;
@@ -550,12 +575,14 @@ export default function PrayerPage() {
 
       if (error) throw error;
 
-      // R2에서 파일 삭제
-      await fetch('/api/audio/delete', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: deleteRecordUrl })
-      });
+      // R2에서 파일 삭제 (실제 URL일 때만)
+      if (deleteRecordUrl.startsWith('http')) {
+        await fetch('/api/audio/delete', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileUrl: deleteRecordUrl })
+        });
+      }
 
       await loadPrayerRecords();
       setDeleteRecordId(null);
@@ -600,10 +627,10 @@ export default function PrayerPage() {
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-6">
       <div className="flex items-center px-6 gap-2">
-            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-              함께 기도해요
-            </h3>
+        <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+        <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+          함께 기도해요
+        </h3>
       </div>
       {/* 상단: 공개된 기도제목 fade in/out */}
       <div className="relative min-h-[110px] flex flex-col justify-start pt-4 px-10">
@@ -649,18 +676,11 @@ export default function PrayerPage() {
       {/* 중앙: Amen + 기도하기 버튼 */}
       <div className="flex items-center justify-center gap-10 py-36">
         <motion.button
-          // Amen 버튼 (기능 없음)
+          onClick={handleAmenClick}
           whileTap={{ scale: 0.95 }}
           className="w-28 h-28 rounded-full bg-white opacity-80 text-[#4A6741] border border-[#4A6741]/50 shadow-2xl flex flex-col items-center justify-center gap-2"
-          animate={{
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatDelay: 3,
-            ease: "easeInOut"
-          }}
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 20, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
         >
           <Heart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
@@ -671,15 +691,8 @@ export default function PrayerPage() {
           onClick={handleStartPrayerMode}
           whileTap={{ scale: 0.95 }}
           className="w-28 h-28 rounded-full bg-[#4A6741] opacity-80 text-white border border-[#4A6741]/50 shadow-2xl flex flex-col items-center justify-center gap-2"
-          animate={{
-            scale: [1, 1.05, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            repeatDelay: 3,
-            ease: "easeInOut"
-          }}
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 20, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
         >
           <HandHeart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
@@ -716,37 +729,37 @@ export default function PrayerPage() {
 
           <div className="space-y-1">
             {myTopics.map((topic) => (
-  <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2 border-b border-zinc-50 last:border-none">
-    {/* 1. 체크 아이콘: mt를 조절해서 텍스트 첫 줄 중앙에 맞춤 */}
-    <div className="flex-shrink-0 flex items-center h-6"> 
-      <Check size={16} className="text-[#4A6741]" />
-    </div>
+              <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2 border-b border-zinc-50 last:border-none">
+                {/* 1. 체크 아이콘: mt를 조절해서 텍스트 첫 줄 중앙에 맞춤 */}
+                <div className="flex-shrink-0 flex items-center h-6">
+                  <Check size={16} className="text-[#4A6741]" />
+                </div>
 
-    {/* 2. 텍스트: flex-1로 공간을 다 차지하게 함 */}
-    <p
-      className="text-zinc-600 font-bold flex-1 break-words whitespace-normal py-0.5"
-      style={{ fontSize: `${fontSize * 0.90}px`, lineHeight: '1.5', wordBreak: 'break-word' }}
-    >
-      {topic.topic_text}
-    </p>
+                {/* 2. 텍스트: flex-1로 공간을 다 차지하게 함 */}
+                <p
+                  className="text-zinc-600 font-bold flex-1 break-words whitespace-normal py-0.5"
+                  style={{ fontSize: `${fontSize * 0.90}px`, lineHeight: '1.5', wordBreak: 'break-word' }}
+                >
+                  {topic.topic_text}
+                </p>
 
-    {/* 3. 오른쪽 버튼들: 텍스트 첫 줄 높이에 맞추기 위해 h-6(글자높이와 유사) 설정 */}
-    <div className="flex items-center gap-1 flex-shrink-0 h-6 mt-[2px]">
-      {topic.is_public && (
-        <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-1.5 py-1 rounded leading-none">
-          공개
-        </span>
-      )}
-      <button
-        onClick={() => setDeleteTopicId(topic.id)}
-        className="w-7 h-7 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
-        title="삭제"
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
-  </div>
-))}
+                {/* 3. 오른쪽 버튼들: 텍스트 첫 줄 높이에 맞추기 위해 h-6(글자높이와 유사) 설정 */}
+                <div className="flex items-center gap-1 flex-shrink-0 h-6 mt-[2px]">
+                  {topic.is_public && (
+                    <span className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-1.5 py-1 rounded leading-none">
+                      공개
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setDeleteTopicId(topic.id)}
+                    className="w-7 h-7 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
+                    title="삭제"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
 
             {/* 추가 입력 폼 */}
             <AnimatePresence>
@@ -800,92 +813,111 @@ export default function PrayerPage() {
           </div>
         </div>
 
-        {/* 기도 녹음 기록 */}
+        {/* 기도 기록 - Amen / 음성기도 구분 */}
         {prayerRecords.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-              기도 기록
-            </h3>
-          </div>
+              <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+              <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+                기도 기록
+              </h3>
+            </div>
             <div className="space-y-3">
-              {prayerRecords.map((record) => (
-                <div key={record.id} className="bg-white rounded-none p-4 shadow-sm border border-zinc-100">
-                  {/* 제목/해시태그 한 줄 배치 */}
-                  <div className="flex items-center justify-between mb-1">
-                    <h4 className="text-[#4A6741] text-zinc-800 font-bold" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                      {record.title || '제목없음'}
-                    </h4>
-                    {record.hashtags && record.hashtags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 ml-2">
-                        {record.hashtags.map((tag: string, idx: number) => (
-                          <span key={idx} className="text-xs text-[#4A6741] bg-[#4A6741]/10 px-2 py-0.5 rounded">
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+              {prayerRecords.map((record) => {
+                const isAmen = !record.audio_url || record.audio_url === 'amen';
+                const formattedDate = new Date(record.created_at).toLocaleString('ko-KR', {
+                  month: 'short', day: 'numeric',
+                  hour: 'numeric', minute: '2-digit', hour12: true,
+                }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
 
-                  {/* 제목/해시태그 아래 여백 (더 넓게) */}
-                  <div className="h-6" />
-                  {/* 재생 버튼 및 재생바 (간격 더 넓게) */}
-                  <div className="flex items-center gap-3 mb-4">
-                    <button
-                      onClick={() => playRecording(record.audio_url, record.id)}
-                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+                if (isAmen) {
+                  // ─── Amen 레코드: 흰 배경, 아이콘 + 텍스트 간결하게 ───
+                  return (
+                    <div
+                      key={record.id}
+                      className="bg-white rounded-none p-4 shadow-sm border border-zinc-100 flex items-center gap-3"
                     >
-                      {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
-                        <Pause size={16} fill="white" />
-                      ) : (
-                        <Play size={16} fill="white" />
+                      <Heart size={22} className="text-[#4A6741] opacity-70 shrink-0" strokeWidth={1.5} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-zinc-800" style={{ fontSize: `${fontSize * 0.95}px` }}>Amen</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteRecord(record.id, record.audio_url || 'amen')}
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
+                        title="삭제"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                }
+
+                // ─── 음성 기도 레코드: 녹색 배경 ───
+                return (
+                  <div key={record.id} className="bg-[#eef5ec] rounded-none p-4 shadow-sm border border-[#4A6741]/10">
+                    {/* 제목/해시태그 */}
+                    <div className="flex items-center justify-between mb-1">
+                      <h4 className="font-bold text-[#3a5331]" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                        {record.title || '음성 기도'}
+                      </h4>
+                      {record.hashtags && record.hashtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 ml-2">
+                          {record.hashtags.map((tag: string, idx: number) => (
+                            <span key={idx} className="text-xs text-[#4A6741] bg-[#4A6741]/15 px-2 py-0.5 rounded">
+                              #{tag}
+                            </span>
+                          ))}
+                        </div>
                       )}
-                    </button>
-                    <div className="flex-1 flex flex-col justify-center pt-0.5 gap-1.5 h-15">
-                      <input
-                        type="range"
-                        min="0"
-                        max={recordDuration[record.id] || 0}
-                        value={recordCurrentTime[record.id] || 0}
-                        onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
-                        className="w-full h-1.5 bg-zinc-200 rounded-full appearance-none cursor-pointer"
-                        style={{
-                          background: recordDuration[record.id] > 0 
-                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #e4e4e7 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #e4e4e7 100%)`
-                            : '#e4e4e7'
-                        }}
-                      />
-                      <div className="flex items-center justify-between text-xs text-zinc-500">
-                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-                        <span>{Math.floor((recordDuration[record.id] || record.audio_duration) / 60)}:{String(Math.floor((recordDuration[record.id] || record.audio_duration) % 60)).padStart(2, '0')}</span>
+                    </div>
+                    <div className="h-4" />
+                    {/* 재생 버튼 + 진행바 */}
+                    <div className="flex items-center gap-3 mb-3">
+                      <button
+                        onClick={() => playRecording(record.audio_url, record.id)}
+                        className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+                      >
+                        {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
+                          <Pause size={16} fill="white" />
+                        ) : (
+                          <Play size={16} fill="white" />
+                        )}
+                      </button>
+                      <div className="flex-1 flex flex-col gap-1.5">
+                        <input
+                          type="range"
+                          min="0"
+                          max={recordDuration[record.id] || 0}
+                          value={recordCurrentTime[record.id] || 0}
+                          onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
+                          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                          style={{
+                            background: recordDuration[record.id] > 0
+                              ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #c8dfc4 100%)`
+                              : '#c8dfc4',
+                          }}
+                        />
+                        <div className="flex justify-between text-xs text-[#4A6741]/70">
+                          <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
+                          <span>{Math.floor((recordDuration[record.id] || record.audio_duration) / 60)}:{String(Math.floor((recordDuration[record.id] || record.audio_duration) % 60)).padStart(2, '0')}</span>
+                        </div>
                       </div>
                     </div>
+                    {/* 날짜 + 삭제 */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#4A6741]/10 mt-1">
+                      <span className="text-xs text-[#4A6741]/60">{formattedDate}</span>
+                      <button
+                        onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+                        className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-
-                  {/* 재생 버튼 아래 구분선과 간격 더 넓게 */}
-                  <div className="h-2" />
-                  {/* 날짜/시간 + 삭제 버튼 라인 */}
-                  <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-2">
-                    <span className="text-xs text-zinc-400">
-                      {new Date(record.created_at).toLocaleString('ko-KR', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                      }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
-                    </span>
-                    <button
-                      onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
-                      title="삭제"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -910,7 +942,7 @@ export default function PrayerPage() {
                 <h2 className="text-gray-100 opacity-50 font-bold mb-24" style={{ fontSize: `${fontSize * 1.3}px` }}>
                   주여, 내 기도를 들으소서
                 </h2>
-                
+
                 <motion.button
                   onClick={handleStartRecording}
                   whileTap={{ scale: 0.95 }}
@@ -950,11 +982,11 @@ export default function PrayerPage() {
               >
                 {/* 녹음 아이콘 */}
                 <motion.div
-                  animate={{ 
+                  animate={{
                     scale: isPaused ? 1 : [1, 1.1, 1]
                   }}
-                  transition={{ 
-                    duration: 20, 
+                  transition={{
+                    duration: 20,
                     repeat: isPaused ? 0 : Infinity,
                     ease: "easeInOut"
                   }}
@@ -1040,7 +1072,7 @@ export default function PrayerPage() {
                     <Download size={16} />
                     저장
                   </button>
-                  
+
                   <button
                     onClick={handleSharePrayer}
                     className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
@@ -1048,7 +1080,7 @@ export default function PrayerPage() {
                     <Share2 size={16} />
                     전달
                   </button>
-                  
+
                   <button
                     onClick={handleClosePrayer}
                     className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
@@ -1069,7 +1101,7 @@ export default function PrayerPage() {
                 {!isSaving ? (
                   <>
                     <h3 className="text-xl font-bold text-zinc-800 mb-4">기도 저장</h3>
-                    
+
                     <div className="space-y-4 mb-6">
                       <div>
                         <label className="block text-sm text-zinc-600 mb-1">제목 (선택)</label>
@@ -1081,7 +1113,7 @@ export default function PrayerPage() {
                           className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
                         />
                       </div>
-                      
+
                       <div>
                         <label className="block text-sm text-zinc-600 mb-1">해그태그 (선택)</label>
                         <input
@@ -1179,18 +1211,18 @@ export default function PrayerPage() {
         {deleteRecordId !== null && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
             {/* 배경 흐리게 */}
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => { setDeleteRecordId(null); setDeleteRecordUrl(null); }}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-            
+
             {/* 모달 본체 */}
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
             >
@@ -1200,16 +1232,16 @@ export default function PrayerPage() {
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 이 작업은 되돌릴 수 없습니다.
               </p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => { setDeleteRecordId(null); setDeleteRecordUrl(null); }}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
                   취소
                 </button>
-                <button 
+                <button
                   onClick={confirmDeleteRecord}
                   className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-active active:scale-95 shadow-lg shadow-red-200"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
@@ -1229,7 +1261,7 @@ export default function PrayerPage() {
       {/* 복사 완료 토스트 */}
       <AnimatePresence>
         {showCopyToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}

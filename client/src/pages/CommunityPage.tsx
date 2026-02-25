@@ -431,10 +431,10 @@ export default function CommunityPage() {
       createForm.groupType === "church"
         ? "church"
         : createForm.groupType === "family"
-        ? "family"
-        : createForm.groupType === "other"
-        ? "etc"
-        : "work_school";
+          ? "family"
+          : createForm.groupType === "other"
+            ? "etc"
+            : "work_school";
 
     const descriptionWithType =
       createForm.groupType === "other" && createForm.customGroupType.trim()
@@ -531,8 +531,8 @@ export default function CommunityPage() {
       ? membership.role === "owner"
         ? "관리자"
         : membership.role === "leader"
-        ? "리더"
-        : "일반멤버"
+          ? "리더"
+          : "일반멤버"
       : "비가입";
 
     const count = memberCounts[row.id] ?? 0;
@@ -595,8 +595,8 @@ export default function CommunityPage() {
             <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
               <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
               <p className="text-zinc-400 text-sm font-medium text-center">
-                  모임 리스트 불러오는 중...
-                </p>
+                모임 리스트 불러오는 중...
+              </p>
             </div>
           ) : (
             <section className="space-y-3">
@@ -639,7 +639,7 @@ export default function CommunityPage() {
 
               {joinedGroups.length === 0 && pendingRequests.length === 0 ? (
                 <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
-                  <p className="text-base font-bold">가입한 모임이 없습니다. 모임 검색 또는 신규 생성을 진행해주세요.</p>
+                  <p className="text-base font-bold">가입한 모임이 없습니다. <br />모임 검색 또는 신규 생성을 진행해주세요.</p>
                 </div>
               ) : joinedGroups.length > 0 ? (
                 <div className="space-y-4">
