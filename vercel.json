@@ -51,7 +51,7 @@
     },
     {
       "source": "/api/user/delete",
-      "destination": "/api/user/delete"
+      "destination": "/api/auth/user"
     }
   ]
 }
