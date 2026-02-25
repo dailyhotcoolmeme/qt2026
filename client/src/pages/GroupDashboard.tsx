@@ -1450,18 +1450,18 @@ export default function GroupDashboard() {
       const noteText =
         activity.activity_type === "reading"
           ? (() => {
-              const payload = activity.payload ?? {};
-              const book = payload.book_name;
-              const chapter = payload.chapter;
-              const endChapter = payload.end_chapter;
-              if (typeof book !== "string" || (typeof chapter !== "number" && typeof chapter !== "string")) {
-                return null;
-              }
-              if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
-                return `${book} ${chapter}~${endChapter}장`;
-              }
-              return `${book} ${chapter}장`;
-            })()
+            const payload = activity.payload ?? {};
+            const book = payload.book_name;
+            const chapter = payload.chapter;
+            const endChapter = payload.end_chapter;
+            if (typeof book !== "string" || (typeof chapter !== "number" && typeof chapter !== "string")) {
+              return null;
+            }
+            if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
+              return `${book} ${chapter}~${endChapter}장`;
+            }
+            return `${book} ${chapter}장`;
+          })()
           : null;
 
       const { error: faithError } = await supabase.from("group_faith_records").upsert(
@@ -1535,10 +1535,10 @@ export default function GroupDashboard() {
       const fallback = await supabase
         .from("group_posts")
         .insert({
-        group_id: group.id,
-        author_id: user.id,
-        post_type: postType,
-        content: merged,
+          group_id: group.id,
+          author_id: user.id,
+          post_type: postType,
+          content: merged,
         })
         .select("id")
         .single();
@@ -1690,11 +1690,11 @@ export default function GroupDashboard() {
     setGroup((prev) =>
       prev
         ? {
-            ...prev,
-            header_image_url: ensureHttpsUrl(row.header_image_url) ?? nextImage,
-            group_image: ensureHttpsUrl(row.group_image) ?? nextImage,
-            header_color: row.header_color || headerColorDraft || "#4A6741",
-          }
+          ...prev,
+          header_image_url: ensureHttpsUrl(row.header_image_url) ?? nextImage,
+          group_image: ensureHttpsUrl(row.group_image) ?? nextImage,
+          header_color: row.header_color || headerColorDraft || "#4A6741",
+        }
         : prev
     );
     setShowHeaderEditModal(false);
@@ -1723,11 +1723,11 @@ export default function GroupDashboard() {
       setGroup((prev) =>
         prev
           ? {
-              ...prev,
-              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
-              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
-              header_color: row.header_color || prev.header_color,
-            }
+            ...prev,
+            group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+            header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+            header_color: row.header_color || prev.header_color,
+          }
           : prev
       );
       setHeaderImageDraft(imageUrl);
@@ -1773,14 +1773,14 @@ export default function GroupDashboard() {
       setGroup((prev) =>
         prev
           ? {
-              ...prev,
-              name: row.name || name,
-              group_slug: row.group_slug || slug,
-              description: row.description ?? (description || null),
-              group_type: row.group_type || groupType,
-              group_image: ensureHttpsUrl(row.group_image) ?? (nextImageUrl || null),
-              password: row.password ?? (groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null),
-            }
+            ...prev,
+            name: row.name || name,
+            group_slug: row.group_slug || slug,
+            description: row.description ?? (description || null),
+            group_type: row.group_type || groupType,
+            group_image: ensureHttpsUrl(row.group_image) ?? (nextImageUrl || null),
+            password: row.password ?? (groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null),
+          }
           : prev
       );
       setGroupEditPassword("");
@@ -1820,11 +1820,11 @@ export default function GroupDashboard() {
       setGroup((prev) =>
         prev
           ? {
-              ...prev,
-              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
-              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
-              header_color: row.header_color || prev.header_color,
-            }
+            ...prev,
+            header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+            group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+            header_color: row.header_color || prev.header_color,
+          }
           : prev
       );
       setHeaderImageFile(null);
@@ -2163,11 +2163,10 @@ export default function GroupDashboard() {
               <button
                 key={id}
                 onClick={() => setActiveTab(id)}
-                className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${
-                  activeTab === id
-                    ? "border-[#4A6741] text-zinc-900 bg-white"
-                    : "border-transparent text-zinc-500 hover:text-zinc-700"
-                }`}
+                className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${activeTab === id
+                  ? "border-[#4A6741] text-zinc-900 bg-white"
+                  : "border-transparent text-zinc-500 hover:text-zinc-700"
+                  }`}
               >
                 {label}
               </button>
@@ -2239,11 +2238,10 @@ export default function GroupDashboard() {
                     </div>
                     <div className="flex items-center gap-1">
                       <span
-                        className={`px-2 py-0.5 rounded-sm text-base font-bold ${
-                          record.source_type === "direct"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : "bg-blue-100 text-blue-700"
-                        }`}
+                        className={`px-2 py-0.5 rounded-sm text-base font-bold ${record.source_type === "direct"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-blue-100 text-blue-700"
+                          }`}
                       >
                         {record.source_type === "direct" ? "모임 직접" : "Prayer 연결"}
                       </span>
@@ -2271,132 +2269,156 @@ export default function GroupDashboard() {
         )}
 
         {activeTab === "faith" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-[#F6F7F8] px-1">
-              <div className="text-center text-[#4A6741] font-bold py-3 border-b border-zinc-200">{getTodayKoreanLabel()}</div>
-              <div className="py-3">
-                <div className="overflow-x-auto -mx-2 px-2">
-                  <div className="min-w-[560px]">
-                    {/* Days header row: Sun-Sat, today centered */}
-                    <div className="flex gap-2 justify-center items-end">
-                      {weekDates.map((date, idx) => {
-                        const dt = new Date(date);
-                        const isToday = date === new Date().toISOString().split("T")[0];
-                        return (
-                          <div
-                            key={date}
-                            className={`flex flex-col items-center justify-center w-14 p-1 ${isToday ? "ring-2 ring-[#4A6741] rounded-lg bg-white z-10" : ""}`}
-                          >
-                            <div className="text-sm font-bold">{dt.toLocaleDateString("ko-KR", { weekday: "short" })}</div>
-                            <div className="text-xs text-zinc-500 mt-1">{dt.getDate()}</div>
-                          </div>
-                        );
-                      })}
-                    </div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
-                    {/* Faith items rows: fixed label, swipeable, today centered */}
-                    <div className="mt-3 space-y-2">
-                      {faithItemSlots.map((slot) => {
-                        const item = slot.item;
-                        return (
-                          <div key={slot.key} className="flex items-center gap-3">
-                            <div className="w-24 font-bold text-zinc-900 flex-shrink-0 text-right pr-2">{slot.label}</div>
-                            <div className="flex-1 overflow-x-auto -mx-2 px-2">
-                              <div className="flex gap-2 min-w-[560px]">
-                                {weekDates.map((date) => {
-                                  const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
-                                  const disabled = !item;
-                                  const isToday = date === new Date().toISOString().split("T")[0];
-                                  return (
-                                    <button
-                                      key={`${slot.key}-${date}`}
-                                      onClick={() => item && void handleFaithToggleForDate(item, date)}
-                                      disabled={disabled}
-                                      className={`h-12 w-14 rounded-lg flex items-center justify-center text-sm font-bold transition-colors border ${
-                                        disabled
-                                          ? "opacity-40 cursor-not-allowed bg-white border-zinc-100 text-zinc-300"
-                                          : val > 0
-                                          ? "bg-[#4A6741] text-white border-[#4A6741]"
-                                          : isToday
-                                          ? "bg-white border-[#4A6741] text-[#4A6741]"
-                                          : "bg-white border-zinc-200 text-[#4A6741]"
-                                      }`}
-                                    >
-                                      {val > 0 ? "완료" : "—"}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
+            {/* ── 주간 수행 현황 카드 ── */}
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+              <div className="px-5 pt-5 pb-3 border-b border-zinc-50">
+                <p className="text-sm font-black text-[#4A6741]">{getTodayKoreanLabel()}</p>
+                <p className="text-xs text-zinc-400 mt-0.5">이번 주 신앙생활 현황 · 가로 스와이프로 이동</p>
+              </div>
+              {/* 스와이프 가능 주간 그리드 (스크롤바 숨김) */}
+              <div
+                className="overflow-x-auto touch-pan-x"
+                style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+              >
+                {/* 단일 min-w-max 컨테이너 - 헤더 + 모든 행이 함께 스크롤 */}
+                <div className="min-w-max px-5 pb-5 select-none">
+
+                  {/* 요일 헤더 */}
+                  <div className="flex items-end pt-4 pb-3">
+                    <div className="shrink-0" style={{ width: 88 }} />
+                    {weekDates.map((date) => {
+                      const dt = new Date(date);
+                      const isToday = date === new Date().toISOString().split("T")[0];
+                      return (
+                        <div key={date} className="flex flex-col items-center" style={{ width: 52 }}>
+                          <span className={`text-[11px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-400"}`}>
+                            {dt.toLocaleDateString("ko-KR", { weekday: "short" })}
+                          </span>
+                          <span className={`mt-1.5 w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold
+                            ${isToday ? "bg-[#4A6741] text-white" : "text-zinc-500"}`}>
+                            {dt.getDate()}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 항목별 행 */}
+                  <div className="space-y-2">
+                    {faithItemSlots.map((slot) => {
+                      const item = slot.item;
+                      return (
+                        <div key={slot.key} className="flex items-center">
+                          <div className="shrink-0 pr-3 text-right" style={{ width: 88 }}>
+                            <span className="text-sm font-bold text-zinc-700">{slot.label}</span>
+                            {!item && <span className="block text-[10px] text-zinc-300">미설정</span>}
                           </div>
-                        );
-                      })}
-                    </div>
+                          {weekDates.map((date) => {
+                            const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
+                            const disabled = !item;
+                            const isToday = date === new Date().toISOString().split("T")[0];
+                            const done = val > 0;
+                            return (
+                              <div key={`${slot.key}-${date}`} className="flex items-center justify-center" style={{ width: 52 }}>
+                                <button
+                                  onClick={() => item && void handleFaithToggleForDate(item, date)}
+                                  disabled={disabled}
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150
+                                    ${disabled
+                                      ? "opacity-25 cursor-not-allowed bg-zinc-100"
+                                      : done
+                                        ? "bg-[#4A6741] shadow-md"
+                                        : isToday
+                                          ? "bg-white border-2 border-[#4A6741]/30"
+                                          : "bg-zinc-100"
+                                    }`}
+                                >
+                                  {done
+                                    ? <Check size={16} className="text-white" strokeWidth={2.5} />
+                                    : <span className="text-zinc-300 text-lg leading-none">·</span>
+                                  }
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
+
               {faithItemSlots.some((slot) => !slot.item) && (
-                <div className="py-3 text-base text-zinc-500">
-                  일부 항목이 아직 설정되지 않았습니다. 관리자/리더가 관리 메뉴에서 항목을 준비해주세요.
+                <div className="px-5 pb-4 text-xs text-zinc-400">
+                  ⚠ 일부 항목이 설정되지 않았습니다. 관리자/리더가 관리 메뉴에서 준비해주세요.
                 </div>
               )}
-            </section>
+            </div>
 
+            {/* ── 관리자: 전체 멤버 현황 ── */}
             {isManager && (
-              <section className="bg-[#F6F7F8] border-t border-zinc-200 pt-4">
-                <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
-                  <h3 className="font-black text-zinc-900 text-base">전체 멤버 오늘 현황</h3>
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-zinc-50">
+                  <div>
+                    <p className="text-sm font-black text-zinc-900">전체 멤버 현황</p>
+                    <p className="text-xs text-zinc-400 mt-0.5">날짜별 수행 여부 조회</p>
+                  </div>
                   <input
                     type="date"
                     value={faithBoardDate}
                     onChange={(e) => setFaithBoardDate(e.target.value)}
-                    className="px-2 py-1 border border-zinc-200 text-base"
+                    className="px-3 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 focus:outline-none focus:border-[#4A6741]"
                   />
                 </div>
                 {faithBoardLoading ? (
-                  <div className="py-6 text-base text-zinc-500 text-center">현황 불러오는 중...</div>
+                  <div className="py-10 text-sm text-zinc-400 text-center">현황 불러오는 중...</div>
                 ) : faithBoardRows.length === 0 ? (
-                  <div className="py-6 text-base text-zinc-500 text-center">조회된 기록이 없습니다.</div>
+                  <div className="py-10 text-sm text-zinc-400 text-center">조회된 기록이 없습니다.</div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="min-w-full text-base">
+                  <div
+                    className="overflow-x-auto"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
+                  >
+                    <table className="w-full text-sm min-w-max">
                       <thead>
-                        <tr className="text-zinc-500 border-b border-zinc-200">
-                          <th className="text-left py-2 pr-3 whitespace-nowrap">멤버</th>
-                          {faithItemSlots
-                            .filter((slot) => slot.item)
-                            .map((slot) => (
-                              <th key={`head-${slot.key}`} className="text-left py-2 pr-3 whitespace-nowrap">
-                                {slot.label}
-                              </th>
-                            ))}
+                        <tr className="border-b border-zinc-100">
+                          <th className="text-left py-3 px-5 text-xs font-bold text-zinc-400 whitespace-nowrap">멤버</th>
+                          {faithItemSlots.filter((slot) => slot.item).map((slot) => (
+                            <th key={slot.key} className="text-center py-3 px-4 text-xs font-bold text-zinc-400 whitespace-nowrap">
+                              {slot.label}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
-                        {faithBoardRows.map((row) => (
-                          <tr key={`board-${row.user_id}`} className="border-b border-zinc-100">
-                            <td className="py-2 pr-3 font-bold text-zinc-900 whitespace-nowrap">{row.name}</td>
-                            {faithItemSlots
-                              .filter((slot) => slot.item)
-                              .map((slot) => {
-                                const itemId = slot.item!.id;
-                                const done = (row.values[itemId] ?? 0) > 0;
-                                return (
-                                  <td key={`cell-${row.user_id}-${itemId}`} className="py-2 pr-3">
-                                    <span className={done ? "text-emerald-600 font-black" : "text-zinc-300 font-bold"}>
-                                      {done ? "✓" : "-"}
+                        {faithBoardRows.map((row, idx) => (
+                          <tr key={row.user_id} className={`border-b border-zinc-50 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/40"}`}>
+                            <td className="py-3 px-5 font-bold text-zinc-800 whitespace-nowrap">{row.name}</td>
+                            {faithItemSlots.filter((slot) => slot.item).map((slot) => {
+                              const done = (row.values[slot.item!.id] ?? 0) > 0;
+                              return (
+                                <td key={slot.key} className="py-3 px-4 text-center">
+                                  {done ? (
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#4A6741]/10">
+                                      <Check size={12} className="text-[#4A6741]" strokeWidth={3} />
                                     </span>
-                                  </td>
-                                );
-                              })}
+                                  ) : (
+                                    <span className="text-zinc-300 font-bold text-base">—</span>
+                                  )}
+                                </td>
+                              );
+                            })}
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
                 )}
-              </section>
+              </div>
             )}
+
           </motion.div>
         )}
 
@@ -3011,18 +3033,16 @@ export default function GroupDashboard() {
             <div className="flex gap-2">
               <button
                 onClick={() => setPostType("post")}
-                className={`px-3 py-2 rounded-sm text-base font-bold ${
-                  postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                }`}
+                className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                  }`}
               >
                 일반글
               </button>
               <button
                 onClick={() => setPostType("notice")}
                 disabled={!isManager}
-                className={`px-3 py-2 rounded-sm text-base font-bold ${
-                  postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                  } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 공지
               </button>
@@ -3150,9 +3170,8 @@ export default function GroupDashboard() {
                   <button
                     key={color}
                     onClick={() => setHeaderColorDraft(color)}
-                    className={`w-8 h-8 rounded-full border-2 ${
-                      headerColorDraft === color ? "border-black scale-110" : "border-white"
-                    }`}
+                    className={`w-8 h-8 rounded-full border-2 ${headerColorDraft === color ? "border-black scale-110" : "border-white"
+                      }`}
                     style={{ backgroundColor: color }}
                     title={color}
                   />
