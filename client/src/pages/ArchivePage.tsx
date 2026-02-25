@@ -729,7 +729,7 @@ export default function ArchivePage() {
                       if (log.activity_type === "qt" && log.payload && (log.payload as any).meditation_excerpt) {
                         return <div className="text-xs text-zinc-700 mt-1">{String((log.payload as any).meditation_excerpt)}</div>;
                       } else if (log.activity_type === "prayer" && log.payload && (log.payload as any).audio_url && (log.payload as any).audio_url !== "amen") {
-                        return <audio controls className="w-full mt-1" src={String((log.payload as any).audio_url)} preload="none" />;
+                        return <audio controls className="w-full mt-1" src={String((log.payload as any).audio_url)} preload="metadata" />;
                       } else if (log.activity_type === "reading" && log.payload && (log.payload as any).book_name) {
                         return <div className="text-xs text-zinc-700 mt-1">{String((log.payload as any).book_name)} {String((log.payload as any).chapter)}장</div>;
                       } else {
