@@ -21,7 +21,7 @@ let initPromise: Promise<void> | null = null;
 // Supabase 초기화 완료 대기
 async function waitForSupabaseInit(): Promise<void> {
   if (isSupabaseInitialized) return;
-  
+
   if (!initPromise) {
     initPromise = new Promise((resolve) => {
       supabase.auth.getSession().then(() => {
@@ -30,25 +30,25 @@ async function waitForSupabaseInit(): Promise<void> {
       });
     });
   }
-  
+
   return initPromise;
 }
 
 async function fetchUser(): Promise<User | null> {
   console.log('[use-auth] fetchUser 시작');
-  
+
   // Supabase 초기화 완료 대기
   await waitForSupabaseInit();
-  
+
   // 세션 확인
   const { data: sessionData } = await supabase.auth.getSession();
   console.log('[use-auth] getSession 결과:', sessionData?.session ? '세션 있음' : '세션 없음');
-  
+
   if (!sessionData?.session) {
     console.log('[use-auth] 세션 없음, null 반환');
     return null;
   }
-  
+
   // 세션이 있으면 getUser로 사용자 정보 가져오기
   const { data } = await supabase.auth.getUser();
   console.log('[use-auth] Supabase getUser 결과:', data?.user ? '사용자 있음' : '사용자 없음');
@@ -62,12 +62,44 @@ async function fetchUser(): Promise<User | null> {
       .select("nickname, username, church, rank, age_group, avatar_url")
       .eq("id", data.user.id)
       .maybeSingle();
-    
+
     if (!error) {
       profile = profileData;
     }
   } catch (e) {
     console.warn("profiles 테이블 조회 실패, user_metadata 사용:", e);
+  }
+
+  // 카카오 로그인 시 username prefix(user_→myamen_) 및 avatar 자동 동기화
+  const isKakao = data.user.app_metadata?.provider === 'kakao';
+  if (isKakao) {
+    const updates: { username?: string; avatar_url?: string } = {};
+
+    // 1. username prefix: user_ → myamen_
+    const rawUsername = profile?.username ?? null;
+    if (rawUsername?.startsWith('user_')) {
+      updates.username = `myamen_${rawUsername.slice(5)}`;
+    }
+
+    // 2. 프로필 사진 동기화 (아직 없을 때만)
+    if (!profile?.avatar_url) {
+      const meta = data.user.user_metadata as Record<string, unknown>;
+      const kakaoAvatar =
+        (typeof meta?.avatar_url === 'string' ? meta.avatar_url : null)
+        ?? (typeof meta?.picture === 'string' ? meta.picture : null)
+        ?? null;
+      if (kakaoAvatar) updates.avatar_url = kakaoAvatar;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      const { data: synced } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', data.user.id)
+        .select('nickname, username, church, rank, age_group, avatar_url')
+        .maybeSingle();
+      if (synced) profile = synced;
+    }
   }
 
   return {

@@ -65,6 +65,7 @@ export function TopBar() {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [showDeleteToast, setShowDeleteToast] = useState(false);
 
   const { fontSize, setFontSize } = useDisplaySettings();
   const { user, logout, isAuthenticated } = useAuth();
@@ -113,7 +114,12 @@ export function TopBar() {
       await supabase.auth.signOut();
       setShowDeleteConfirm(false);
       setIsMenuOpen(false);
-      window.location.replace(window.location.origin + "/#/");
+
+      // 탈퇴 토스트 표시 후 홈으로 이동
+      setShowDeleteToast(true);
+      setTimeout(() => {
+        window.location.replace(window.location.origin + "/#/");
+      }, 2000);
     } catch (error) {
       console.error("회원탈퇴 오류:", error);
       alert(error instanceof Error ? error.message : "회원탈퇴에 실패했습니다");
@@ -558,6 +564,21 @@ export function TopBar() {
       </div>
 
       <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* 회원탈퇴 완료 토스트 */}
+      <AnimatePresence>
+        {showDeleteToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.35 }}
+            className="fixed left-1/2 top-24 z-[500] -translate-x-1/2 rounded-full bg-zinc-900 px-6 py-3 text-sm font-bold text-white shadow-2xl"
+          >
+            탈퇴처리되었습니다
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showLogoutConfirm && (
