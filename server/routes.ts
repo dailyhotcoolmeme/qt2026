@@ -316,26 +316,26 @@ export async function registerRoutes(
   app.post("/api/audio/upload", async (req, res) => {
     try {
       const { fileName, audioBase64 } = req.body;
-      
+
       if (!fileName || !audioBase64) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "fileName과 audioBase64가 필요합니다" 
+        return res.status(400).json({
+          success: false,
+          error: "fileName과 audioBase64가 필요합니다"
         });
       }
 
       // Base64 디코딩
       const audioBuffer = Buffer.from(audioBase64, 'base64');
-      
+
       // R2에 업로드
       const result = await uploadAudioToR2(fileName, audioBuffer, 'audio/mp3');
-      
+
       res.json(result);
     } catch (error) {
       console.error('Audio upload error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "업로드 실패" 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "업로드 실패"
       });
     }
   });
@@ -371,29 +371,29 @@ export async function registerRoutes(
   app.get("/api/audio/:fileName", async (req, res) => {
     try {
       const { fileName } = req.params;
-      
+
       // 파일 존재 확인
       const exists = await checkAudioExistsInR2(fileName);
-      
+
       if (!exists) {
-        return res.status(404).json({ 
-          success: false, 
-          error: "파일이 존재하지 않습니다" 
+        return res.status(404).json({
+          success: false,
+          error: "파일이 존재하지 않습니다"
         });
       }
 
       // Public URL 반환
       const publicUrl = getR2PublicUrl(fileName);
-      
-      res.json({ 
-        success: true, 
-        publicUrl 
+
+      res.json({
+        success: true,
+        publicUrl
       });
     } catch (error) {
       console.error('Audio fetch error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "조회 실패" 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "조회 실패"
       });
     }
   });
@@ -402,11 +402,11 @@ export async function registerRoutes(
   app.delete("/api/audio/delete", async (req, res) => {
     try {
       const { fileUrl } = req.body;
-      
+
       if (!fileUrl) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "fileUrl이 필요합니다" 
+        return res.status(400).json({
+          success: false,
+          error: "fileUrl이 필요합니다"
         });
       }
 
@@ -416,7 +416,7 @@ export async function registerRoutes(
       // 예: https://pub-xxx.r2.dev/audio/meditation/user_id/2026-02-09/qt_123.mp3
       // -> audio/meditation/user_id/2026-02-09/qt_123.mp3
       let fileName = '';
-      
+
       try {
         const url = new URL(fileUrl);
         // pathname은 /audio/meditation/... 형태
@@ -425,20 +425,20 @@ export async function registerRoutes(
         // URL 파싱 실패 시 기존 방식 사용
         fileName = fileUrl.split('/').slice(3).join('/');
       }
-      
+
       console.log('추출된 파일명:', fileName);
-      
+
       // R2에서 삭제
       const result = await deleteAudioFromR2(fileName);
-      
+
       console.log('R2 삭제 결과:', result);
-      
+
       res.json(result);
     } catch (error) {
       console.error('Audio delete error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "삭제 실패" 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "삭제 실패"
       });
     }
   });
@@ -447,18 +447,18 @@ export async function registerRoutes(
   app.post("/api/prayer/transcribe", async (req, res) => {
     try {
       const { audioUrl } = req.body;
-      
+
       if (!audioUrl) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "audioUrl이 필요합니다" 
+        return res.status(400).json({
+          success: false,
+          error: "audioUrl이 필요합니다"
         });
       }
 
       // 로컬 개발 환경에서는 모의 응답 반환
       // 실제 Vercel 배포에서는 api/prayer/transcribe.js가 처리함
       console.log('STT 요청 (로컬 개발 - 모의 응답):', audioUrl);
-      
+
       res.json({
         success: true,
         transcription: "하나님, 오늘도 감사드립니다. 이 기도를 들어주소서.",
@@ -470,9 +470,9 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error('Prayer transcribe error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "STT 처리 실패" 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "STT 처리 실패"
       });
     }
   });
@@ -481,31 +481,61 @@ export async function registerRoutes(
   app.post("/api/audio/move", async (req, res) => {
     try {
       const { sourceUrl, targetPath } = req.body;
-      
+
       if (!sourceUrl || !targetPath) {
-        return res.status(400).json({ 
-          success: false, 
-          error: "sourceUrl과 targetPath가 필요합니다" 
+        return res.status(400).json({
+          success: false,
+          error: "sourceUrl과 targetPath가 필요합니다"
         });
       }
 
       console.log('R2 파일 이동 요청 (로컬 개발 - 모의 응답)');
       console.log('Source:', sourceUrl);
       console.log('Target:', targetPath);
-      
+
       // 모의 Public URL 생성
       const publicUrl = `https://pub-mock.r2.dev/${targetPath}`;
-      
+
       res.json({
         success: true,
         publicUrl
       });
     } catch (error) {
       console.error('Audio move error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error instanceof Error ? error.message : "파일 이동 실패" 
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "파일 이동 실패"
       });
+    }
+  });
+
+  // 회원탈퇴: JWT 검증 후 유저 완전 삭제
+  app.delete("/api/user/delete", async (req, res) => {
+    const authHeader = req.headers['authorization'];
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: "인증이 필요합니다" });
+    }
+
+    const token = authHeader.slice(7);
+
+    try {
+      // JWT로 실제 유저 확인
+      const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+      if (userError || !user) {
+        return res.status(401).json({ message: "유효하지 않은 토큰입니다" });
+      }
+
+      // admin API로 유저 삭제 (auth.users 삭제 → profiles CASCADE 삭제)
+      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      if (deleteError) {
+        console.error('회원탈퇴 오류:', deleteError);
+        return res.status(500).json({ message: "회원탈퇴에 실패했습니다" });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error('회원탈퇴 서버 오류:', error);
+      return res.status(500).json({ message: "서버 오류가 발생했습니다" });
     }
   });
 

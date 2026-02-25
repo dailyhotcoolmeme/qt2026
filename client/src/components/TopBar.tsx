@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, LogOut, Bell, FileSearch, CheckCheck } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -59,6 +59,8 @@ export function TopBar() {
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
@@ -85,6 +87,39 @@ export function TopBar() {
     setLocation("/");
     setIsMenuOpen(false);
     setShowLogoutConfirm(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("세션이 없습니다");
+
+      const response = await fetch("/api/user/delete", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || "회원탈퇴에 실패했습니다");
+      }
+
+      await supabase.auth.signOut();
+      setShowDeleteConfirm(false);
+      setIsMenuOpen(false);
+      window.location.replace(window.location.origin + "/#/");
+    } catch (error) {
+      console.error("회원탈퇴 오류:", error);
+      alert(error instanceof Error ? error.message : "회원탈퇴에 실패했습니다");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,8 +218,8 @@ export function TopBar() {
           targetPathRaw.startsWith("/#/")
             ? targetPathRaw.slice(2)
             : targetPathRaw.startsWith("#/")
-            ? targetPathRaw.slice(1)
-            : targetPathRaw;
+              ? targetPathRaw.slice(1)
+              : targetPathRaw;
         return {
           id: String(row.id),
           type: (row.notification_type || "system") as TopNotificationItem["type"],
@@ -506,8 +541,18 @@ export function TopBar() {
             )}
           </nav>
 
-          <div className="mt-auto border-t pt-4">
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[9px] tracking-tight text-zinc-400">© 2026 어웨이마인. ALL RIGHTS RESERVED.</p>
+          <div className="mt-auto pt-4 border-t border-zinc-100 space-y-1">
+            {isAuthenticated && (
+              <button
+                onClick={() => { setShowDeleteConfirm(true); setIsMenuOpen(false); }}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
+                style={{ fontSize: `${fontSize - 4}px` }}
+              >
+                <UserX className="h-3.5 w-3.5" />
+                <span>회원탈퇴</span>
+              </button>
+            )}
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[9px] tracking-tight text-zinc-300">© 2026 어웨이마인. ALL RIGHTS RESERVED.</p>
           </div>
         </div>
       </div>
@@ -551,6 +596,59 @@ export function TopBar() {
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
                   로그아웃
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 회원탈퇴 확인 모달 */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[300px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+            >
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100">
+                <UserX className="h-7 w-7 text-rose-500" />
+              </div>
+              <h4 className="mb-2 font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+                회원탈퇴
+              </h4>
+              <p className="mb-1 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                탈퇴하면 모든 데이터가
+              </p>
+              <p className="mb-6 font-semibold text-rose-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                영구적으로 삭제됩니다.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 transition-active active:scale-95 disabled:opacity-50"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white shadow-lg shadow-rose-200 transition-active active:scale-95 disabled:opacity-70"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
+                  {isDeleting ? "처리 중..." : "탈퇴하기"}
                 </button>
               </div>
             </motion.div>
