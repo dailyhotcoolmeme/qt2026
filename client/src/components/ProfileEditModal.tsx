@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from "react";
-import { X, Camera, Check, Loader2 } from "lucide-react";
+﻿import React, { useEffect, useRef, useState } from "react";
+import { X, Camera, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
@@ -39,6 +39,9 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const [emailCheck, setEmailCheck] = useState<CheckState>("idle");
   const [nicknameCheck, setNicknameCheck] = useState<CheckState>("idle");
 
+  // 원본 값 추적 (변경 여부 판단용)
+  const originalRef = useRef({ username: "", email: "", nickname: "" });
+
   const passwordMatch =
     !passwords.newPassword || passwords.newPassword === passwords.confirmPassword;
 
@@ -53,6 +56,11 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       rank: user.rank || "",
     }));
     setAvatarPreview(user.avatar_url || null);
+
+    // 원본값 저장
+    originalRef.current.username = user.username || "";
+    originalRef.current.nickname = user.nickname || "";
+
     loadProfileData();
   }, [user]);
 
@@ -71,6 +79,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
         full_name: data.full_name || "",
         phone: data.phone || "",
       }));
+      originalRef.current.email = data.email || "";
     }
   };
 
@@ -106,10 +115,8 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       return;
     }
 
-    if (
-      (field === "username" && normalized === (user?.username || "")) ||
-      (field === "nickname" && normalized === (user?.nickname || ""))
-    ) {
+    // 원본 값과 같으면 바로 통과
+    if (normalized === (originalRef.current[field] || "")) {
       setter("available");
       return;
     }
@@ -137,15 +144,22 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     e.preventDefault();
     if (!user?.id) return;
 
-    if (!formData.username || usernameCheck !== "available") {
+    const orig = originalRef.current;
+
+    // 변경된 필드만 중복확인 필요 (변경 없으면 자동 통과)
+    const usernameChanged = formData.username !== orig.username;
+    const emailChanged = formData.email !== orig.email;
+    const nicknameChanged = formData.nickname !== orig.nickname;
+
+    if (!formData.username || (usernameChanged && usernameCheck !== "available")) {
       alert("아이디 중복확인을 완료해 주세요.");
       return;
     }
-    if (formData.email && emailCheck !== "available") {
+    if (formData.email && emailChanged && emailCheck !== "available") {
       alert("이메일 중복확인을 완료해 주세요.");
       return;
     }
-    if (!formData.nickname || nicknameCheck !== "available") {
+    if (!formData.nickname || (nicknameChanged && nicknameCheck !== "available")) {
       alert("닉네임 중복확인을 완료해 주세요.");
       return;
     }
@@ -199,23 +213,62 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
   if (!isOpen) return null;
 
+  // 중복확인 필드 정의
+  const dupFields = [
+    {
+      label: "아이디",
+      key: "username" as const,
+      check: usernameCheck,
+      setCheck: setUsernameCheck,
+      type: "text",
+    },
+    {
+      label: "이메일",
+      key: "email" as const,
+      check: emailCheck,
+      setCheck: setEmailCheck,
+      type: "email",
+    },
+    {
+      label: "닉네임(앱에서 보여지는 이름)",
+      key: "nickname" as const,
+      check: nicknameCheck,
+      setCheck: setNicknameCheck,
+      type: "text",
+    },
+  ];
+
   return (
     <>
+      {/* 배경 오버레이 */}
       <div className="fixed inset-0 bg-black/40 z-[300] backdrop-blur-[2px]" onClick={onClose} />
-      <div className="fixed inset-0 z-[310] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between">
-            <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>프로필 관리</h2>
+
+      {/* 모달 컨테이너 - 가로 넘침 방지 */}
+      <div className="fixed inset-0 z-[310] flex items-center justify-center px-4 py-4 overflow-hidden">
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto overflow-x-hidden"
+          style={{ maxWidth: "min(100%, 448px)" }}
+        >
+          {/* 헤더 */}
+          <div className="sticky top-0 bg-white border-b px-4 py-4 flex items-center justify-between z-10">
+            <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>
+              프로필 관리
+            </h2>
             <button onClick={onClose} className="p-1 hover:bg-zinc-100 rounded-full transition-colors">
               <X className="w-6 h-6 text-zinc-400" />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          <form onSubmit={handleSubmit} className="px-4 py-5 space-y-5">
+            {/* 아바타 */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 {avatarPreview ? (
-                  <img src={avatarPreview} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100" />
+                  <img
+                    src={avatarPreview}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100"
+                  />
                 ) : (
                   <div className="w-24 h-24 rounded-full bg-zinc-100 flex items-center justify-center border-4 border-zinc-50">
                     <Camera className="w-10 h-10 text-zinc-300" />
@@ -228,14 +281,17 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               </div>
             </div>
 
-            {[
-              { label: "아이디", key: "username" as const, check: usernameCheck, setCheck: setUsernameCheck, type: "text" },
-              { label: "이메일", key: "email" as const, check: emailCheck, setCheck: setEmailCheck, type: "email" },
-              { label: "닉네임", key: "nickname" as const, check: nicknameCheck, setCheck: setNicknameCheck, type: "text" },
-            ].map((f) => (
+            {/* 중복확인 필드들 - 각각 독립적으로 확인 */}
+            {dupFields.map((f) => (
               <div key={f.key}>
-                <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>{f.label}</label>
-                <div className="flex gap-2">
+                <label
+                  className="block text-zinc-600 font-medium mb-2 leading-snug"
+                  style={{ fontSize: `${fontSize - 2}px` }}
+                >
+                  {f.label}
+                </label>
+                {/* 입력+버튼 행: 버튼 고정너비로 넘침 방지 */}
+                <div className="flex gap-2 items-stretch">
                   <input
                     type={f.type}
                     value={formData[f.key]}
@@ -243,91 +299,138 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
                       setFormData({ ...formData, [f.key]: e.target.value });
                       f.setCheck("idle");
                     }}
-                    className="flex-1 px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                    className="min-w-0 flex-1 px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                     style={{ fontSize: `${fontSize}px` }}
                   />
                   <button
                     type="button"
                     onClick={() => checkDuplicate(f.key, formData[f.key], f.setCheck)}
-                    className={`px-3 rounded-xl text-xs font-bold ${statusClass(f.check)}`}
+                    className={`shrink-0 w-[4.5rem] rounded-xl text-xs font-bold text-center leading-tight ${statusClass(f.check)}`}
                   >
-                    {f.check === "checking" ? <Loader2 className="w-4 h-4 animate-spin" /> : statusText(f.check)}
+                    {f.check === "checking" ? (
+                      <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                    ) : (
+                      statusText(f.check)
+                    )}
                   </button>
                 </div>
               </div>
             ))}
 
+            {/* 새 비밀번호 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>새 비밀번호</label>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                새 비밀번호
+              </label>
               <input
                 type="password"
+                placeholder="변경하지 않으려면 비워두세요"
                 value={passwords.newPassword}
                 onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
 
-            {passwords.newPassword && (
-              <div>
-                <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>비밀번호 확인</label>
-                <input
-                  type="password"
-                  value={passwords.confirmPassword}
-                  onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
-                  className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 ${
-                    passwordMatch ? "border-zinc-200 focus:ring-[#4A6741]" : "border-red-300 focus:ring-red-500"
-                  }`}
-                  style={{ fontSize: `${fontSize}px` }}
-                />
-                {!passwordMatch && <p className="text-red-500 mt-1 text-xs">비밀번호가 일치하지 않습니다.</p>}
-              </div>
-            )}
-
+            {/* 비밀번호 확인 - 항상 표시 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>이름</label>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                비밀번호 확인
+              </label>
+              <input
+                type="password"
+                placeholder="새 비밀번호를 다시 입력하세요"
+                value={passwords.confirmPassword}
+                onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+                className={`w-full px-3 py-3 border rounded-xl focus:outline-none focus:ring-2 ${passwordMatch
+                    ? "border-zinc-200 focus:ring-[#4A6741]"
+                    : "border-red-300 focus:ring-red-500"
+                  }`}
+                style={{ fontSize: `${fontSize}px` }}
+              />
+              {!passwordMatch && (
+                <p className="text-red-500 mt-1 text-xs">비밀번호가 일치하지 않습니다.</p>
+              )}
+              {passwords.newPassword && passwordMatch && passwords.confirmPassword && (
+                <p className="text-emerald-600 mt-1 text-xs">비밀번호가 일치합니다.</p>
+              )}
+            </div>
+
+            {/* 본명 */}
+            <div>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                본명
+              </label>
               <input
                 type="text"
                 value={formData.full_name}
                 onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
 
+            {/* 연락처 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>연락처</label>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                연락처
+              </label>
               <input
                 type="tel"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
 
+            {/* 섬기는 교회 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>교회</label>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                섬기는 교회
+              </label>
               <input
                 type="text"
                 value={formData.church}
                 onChange={(e) => setFormData({ ...formData, church: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
 
+            {/* 직분 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>직분</label>
+              <label
+                className="block text-zinc-600 font-medium mb-2"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                직분
+              </label>
               <input
                 type="text"
                 value={formData.rank}
                 onChange={(e) => setFormData({ ...formData, rank: e.target.value })}
-                className="w-full px-4 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
+                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
                 style={{ fontSize: `${fontSize}px` }}
               />
             </div>
 
+            {/* 저장 버튼 */}
             <button
               type="submit"
               disabled={isLoading}
