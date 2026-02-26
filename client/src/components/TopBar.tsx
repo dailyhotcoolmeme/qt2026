@@ -108,7 +108,8 @@ export function TopBar() {
 
       if (!response.ok) {
         const err = await response.json();
-        throw new Error(err.message || "회원탈퇴에 실패했습니다");
+        const detail = err.detail ? `\n상세: ${err.detail}` : "";
+        throw new Error((err.message || "회원탈퇴에 실패했습니다") + detail);
       }
 
       await supabase.auth.signOut();
