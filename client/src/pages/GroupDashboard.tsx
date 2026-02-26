@@ -2275,7 +2275,7 @@ export default function GroupDashboard() {
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="px-5 pt-5 pb-3 border-b border-zinc-50">
                 <p className="text-sm font-black text-[#4A6741]">{getTodayKoreanLabel()}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">이번 주 신앙생활 현황 · 가로 스와이프로 이동</p>
+                <p className="text-xs text-zinc-400 mt-0.5">이번 주 신앙생활</p>
               </div>
               {/* 스와이프 가능 주간 그리드 (스크롤바 숨김) */}
               <div
