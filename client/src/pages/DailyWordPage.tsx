@@ -189,6 +189,7 @@ export default function DailyWordPage() {
             </button>
           </div>
 
+
           <h2 className="shrink-0 font-black tracking-tighter text-zinc-900" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
           </h2>
