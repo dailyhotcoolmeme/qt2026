@@ -1360,10 +1360,10 @@ export default function GroupDashboard() {
   };
 
   const faithItemSlots = [
-    { key: "reading", label: "성경읽기", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
+    { key: "reading", label: "성경", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
     { key: "qt", label: "QT", item: getFaithItemByKeywords(["qt", "묵상"]) },
     { key: "prayer", label: "기도", item: getFaithItemByKeywords(["기도", "prayer"]) },
-    { key: "attendance", label: "예배 참석", item: getFaithItemByKeywords(["예배", "출석", "attendance"]) },
+    { key: "attendance", label: "예배", item: getFaithItemByKeywords(["예배", "출석", "attendance"]) },
   ] as const;
 
   const getLinkedFaithDetailText = (itemId: string) => {
