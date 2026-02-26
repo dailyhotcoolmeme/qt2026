@@ -69,8 +69,63 @@ export default async function handler(req, res) {
       } else if (!kakaoAdminKey) {
         console.warn("[API] KAKAO_ADMIN_KEY 환경변수 없음 - Kakao 연동 해제 생략");
       }
+      // 2-a. 유저가 소유한 그룹 모두 삭제 (FK 제약 해소)
+      // groups.owner_id → auth.users.id FK 때문에 유저 삭제 전 그룹 먼저 삭제해야 함
+      const adminClient = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
 
-      // 3. Supabase Admin REST API로 유저 삭제
+      // 소유한 그룹 목록 조회
+      const { data: ownedGroups } = await adminClient
+        .from("groups")
+        .select("id")
+        .eq("owner_id", userId);
+
+      if (ownedGroups && ownedGroups.length > 0) {
+        const groupIds = ownedGroups.map((g) => g.id);
+
+        // delete_group_hard RPC와 동일한 순서로 자식 테이블 삭제
+        await adminClient.from("activity_group_links").delete().in("group_id", groupIds);
+        await adminClient.from("group_faith_records").delete().in("group_id", groupIds);
+        await adminClient.from("group_faith_items").delete().in("group_id", groupIds);
+        await adminClient.from("group_prayer_records").delete().in("group_id", groupIds);
+        await adminClient.from("group_prayer_topics").delete().in("group_id", groupIds);
+        // group_post_images는 group_posts.id를 참조하므로 posts 먼저 조회
+        const { data: groupPosts } = await adminClient
+          .from("group_posts")
+          .select("id")
+          .in("group_id", groupIds);
+        if (groupPosts && groupPosts.length > 0) {
+          const postIds = groupPosts.map((p) => p.id);
+          await adminClient.from("group_post_images").delete().in("post_id", postIds);
+        }
+        await adminClient.from("group_posts").delete().in("group_id", groupIds);
+        await adminClient.from("group_join_requests").delete().in("group_id", groupIds);
+        await adminClient.from("group_scope_leaders").delete().in("root_group_id", groupIds);
+        for (const gid of groupIds) {
+          await adminClient.from("group_edges").delete().or(`parent_group_id.eq.${gid},child_group_id.eq.${gid}`);
+        }
+        await adminClient.from("group_members").delete().in("group_id", groupIds);
+
+        // 그룹 삭제
+        const { error: groupDeleteError } = await adminClient
+          .from("groups")
+          .delete()
+          .in("id", groupIds);
+        if (groupDeleteError) {
+          console.error("[API] 소유 그룹 삭제 실패:", groupDeleteError.message);
+          return res.status(500).json({
+            message: "그룹 삭제 중 오류가 발생했습니다",
+            detail: groupDeleteError.message,
+          });
+        }
+        console.log(`[API] 소유 그룹 ${groupIds.length}개 삭제 완료`);
+      }
+
+      // 2-b. 다른 그룹의 멤버 레코드 제거 (group_members.user_id → auth.users.id FK 가능성)
+      await adminClient.from("group_members").delete().eq("user_id", userId);
+
+
       const deleteRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
         method: "DELETE",
         headers: {

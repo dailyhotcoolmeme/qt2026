@@ -61,6 +61,7 @@ export function TopBar() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [ownedGroupCount, setOwnedGroupCount] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
@@ -554,7 +555,18 @@ export function TopBar() {
           <div className="mt-auto pt-4 border-t border-zinc-100 space-y-1">
             {isAuthenticated && (
               <button
-                onClick={() => { setShowDeleteConfirm(true); setIsMenuOpen(false); }}
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  // 소유한 그룹 수 조회
+                  if (user?.id) {
+                    const { count } = await supabase
+                      .from("groups")
+                      .select("id", { count: "exact", head: true })
+                      .eq("owner_id", user.id);
+                    setOwnedGroupCount(count ?? 0);
+                  }
+                  setShowDeleteConfirm(true);
+                }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
                 style={{ fontSize: `${fontSize - 4}px` }}
               >
@@ -656,9 +668,15 @@ export function TopBar() {
               <p className="mb-1 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 탈퇴하면 모든 데이터가
               </p>
-              <p className="mb-6 font-semibold text-rose-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+              <p className={`font-semibold text-rose-500 ${ownedGroupCount > 0 ? 'mb-2' : 'mb-6'}`} style={{ fontSize: `${fontSize * 0.85}px` }}>
                 영구적으로 삭제됩니다.
               </p>
+              {ownedGroupCount > 0 && (
+                <div className="mb-6 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-left">
+                  <p className="font-bold text-rose-600 text-[13px]">⚠️ 소유한 모임 {ownedGroupCount}개 포함</p>
+                  <p className="text-rose-500 text-[12px] mt-0.5">탈퇴 시 내가 만든 모임과 모임의 모든 게시물, 기도 제목 등이 함께 삭제됩니다.</p>
+                </div>
+              )}
 
               <div className="flex gap-3">
                 <button
