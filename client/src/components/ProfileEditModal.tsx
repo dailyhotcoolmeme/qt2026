@@ -230,7 +230,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       type: "email",
     },
     {
-      label: "닉네임(앱에서 보여지는 이름)",
+      label: "닉네임 (앱에서 보여지는 이름)",
       key: "nickname" as const,
       check: nicknameCheck,
       setCheck: setNicknameCheck,
