@@ -44,7 +44,8 @@ export default async function handler(req, res) {
       // - Kakao Admin Key로 unlink API 호출 → 다음 로그인 시 동의 화면 다시 표시
       const kakaoAdminKey = process.env.KAKAO_ADMIN_KEY;
       const kakaoIdentity = data.user.identities?.find((i) => i.provider === "kakao");
-      const kakaoUserId = kakaoIdentity?.id; // Kakao 숫자 user ID
+      // identity.id는 Supabase 내부 UUID일 수 있으므로 identity_data.sub 사용 (실제 Kakao 숫자 ID)
+      const kakaoUserId = kakaoIdentity?.identity_data?.sub ?? kakaoIdentity?.id;
 
       if (kakaoUserId && kakaoAdminKey) {
         try {
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
             body: `target_id_type=user_id&target_id=${kakaoUserId}`,
           });
           if (unlinkRes.ok) {
-            console.log("[API] Kakao 연동 해제 성공, kakaoUserId:", kakaoUserId);
+            console.log("[API] Kakao 연동 해제 성공, kakaoUserId:", kakaoUserId, "(from:", kakaoIdentity?.identity_data?.sub ? "identity_data.sub" : "identity.id", ")");
           } else {
             const errText = await unlinkRes.text();
             // 비치명적: 실패해도 Supabase 삭제는 계속 진행
