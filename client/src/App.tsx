@@ -287,8 +287,23 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
-        // OAuth 콜백 URL 정리: ?code= 제거하고 깔끔하게 /#/ 로 변경 (리로드 없음)
+        // OAuth 콜백 URL 정리: ?code= 가 있으면 returnTo 우선 처리
         if (window.location.search.includes('code=')) {
+          const params = new URLSearchParams(window.location.search);
+          const returnTo = params.get('returnTo');
+          if (returnTo) {
+            try {
+              const decoded = decodeURIComponent(returnTo);
+              // syncAgreements 먼저 비동기 실행 후 이동
+              syncAgreements();
+              void joinPendingInviteGroup(session?.user?.id ?? null);
+              window.location.href = decoded;
+              return;
+            } catch (e) {
+              console.error('Failed to decode returnTo in SIGNED_IN:', e);
+            }
+          }
+          // returnTo 없으면 홈으로
           window.history.replaceState(null, '', window.location.origin + '/#/');
         }
         syncAgreements();
