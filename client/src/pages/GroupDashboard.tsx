@@ -982,7 +982,8 @@ export default function GroupDashboard() {
 
   const submitJoinRequest = async () => {
     if (!group || !user) return;
-    if (!joinPassword.trim()) {
+    // group에 비밀번호가 설정되어 있을 때만 비밀번호 검증
+    if (group.password && !joinPassword.trim()) {
       alert("가입 비밀번호를 입력해주세요.");
       return;
     }
@@ -2061,19 +2062,22 @@ export default function GroupDashboard() {
 
           <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
             <h2 className="font-black text-zinc-900">가입 신청</h2>
-            <input
-              type="password"
-              value={joinPassword}
-              onChange={(e) => setJoinPassword(e.target.value)}
-              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-              placeholder="모임 가입 비밀번호"
-              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
-            />
+            {/* group.password 가 null 이거나 빈 문자열이 아니면(즉 비밀번호가 설정되어 있으면) 입력창 표시 */}
+            {group.password ? (
+              <input
+                type="password"
+                value={joinPassword}
+                onChange={(e) => setJoinPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="모임 가입 비밀번호"
+                disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
+              />
+            ) : null}
             <textarea
               value={joinMessage}
               onChange={(e) => setJoinMessage(e.target.value)}
               className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-              placeholder="가입 메시지 (선택)"
+              placeholder="가입 승인에 필요한 정보를 입력해주세요 (선택)"
               disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
             />
             {!user ? (
