@@ -48,6 +48,7 @@ type GroupRow = {
   header_image_url?: string | null;
   header_color?: string | null;
   is_closed?: boolean | null;
+  created_at?: string;
 };
 
 type GroupPrayerRecord = {
@@ -509,6 +510,7 @@ export default function GroupDashboard() {
       header_image_url: ensureHttpsUrl((groupData as any).header_image_url) ?? null,
       header_color: (groupData as any).header_color ?? "#4A6741",
       is_closed: Boolean((groupData as any).is_closed),
+      created_at: (groupData as any).created_at,
     });
 
     let nextRole: GroupRole = "guest";
@@ -2119,7 +2121,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-24 pb-14 min-h-[260px] flex flex-col justify-between">
+        <div className="max-w-2xl mx-auto px-4 pt-24 pb-10 min-h-[260px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -2131,26 +2133,36 @@ export default function GroupDashboard() {
 
           <div className="text-white">
             <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
-            <div className="text-base text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
-              <span>{group.group_slug ? `아이디: ${group.group_slug}` : ""}</span>
-              <span className="px-2 py-0.5 rounded-sm bg-white/20 font-bold">{toLabel(role)}</span>
+
+            <div className="mt-2 text-sm text-white/80 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {group.group_slug && <span>아이디: {group.group_slug}</span>}
+              <span>개설일: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+            </div>
+
+            <div className="text-sm text-white mt-3 flex items-center gap-2 flex-wrap">
+              <span className={`px-2 py-0.5 rounded-sm font-bold shadow-sm ${role === 'owner' || role === 'leader' ? 'bg-[#ffca28] text-amber-900' : 'bg-white/20 text-white'}`}>
+                {toLabel(role)}
+              </span>
+
               <button
                 onClick={() => setActiveTab("members")}
-                className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
+                className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+                title="멤버 조회"
               >
-                <Users size={12} />
-                멤버
+                <Users size={14} />
+                멤버 {members.length}명
               </button>
+
               {isManager && (
                 <button
                   onClick={() => setActiveTab("admin")}
-                  className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
+                  className="px-2 py-0.5 rounded-sm bg-emerald-600 font-bold inline-flex items-center gap-1.5 shadow-sm hover:bg-emerald-500 transition-colors ml-auto"
                 >
-                  <Settings size={12} />
+                  <Settings size={14} />
                   관리
                 </button>
               )}
-              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/70 font-bold">폐쇄됨</span>}
+              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 font-bold shadow-sm">폐쇄됨</span>}
             </div>
           </div>
         </div>
@@ -2276,31 +2288,25 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
             {/* ── 주간 수행 현황 카드 ── */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-5 pt-5 pb-3 border-b border-zinc-50">
+            <div className="bg-white rounded-2xl shadow-sm pb-2 overflow-hidden">
+              <div className="px-4 pt-5 pb-3 border-b border-zinc-50 flex flex-col items-center justify-center text-center">
                 <p className="text-sm font-black text-[#4A6741]">{getTodayKoreanLabel()}</p>
-                <p className="text-xs text-zinc-400 mt-0.5">이번 주 신앙생활</p>
+                <p className="text-xs text-zinc-400 mt-1">이번 주 신앙생활</p>
               </div>
-              {/* 스와이프 가능 주간 그리드 (스크롤바 숨김) */}
-              <div
-                className="overflow-x-auto touch-pan-x"
-                style={{ scrollbarWidth: "none", msOverflowStyle: "none", WebkitOverflowScrolling: "touch" } as React.CSSProperties}
-              >
-                {/* 단일 min-w-max 컨테이너 - 헤더 + 모든 행이 함께 스크롤 */}
-                <div className="min-w-max px-5 pb-5 select-none">
-
+              <div className="w-full px-2">
+                <div className="w-full select-none">
                   {/* 요일 헤더 */}
                   <div className="flex items-end pt-4 pb-3">
-                    <div className="shrink-0" style={{ width: 88 }} />
+                    <div className="shrink-0 w-10 sm:w-14" />
                     {weekDates.map((date) => {
                       const dt = new Date(date);
                       const isToday = date === new Date().toISOString().split("T")[0];
                       return (
-                        <div key={date} className="flex flex-col items-center" style={{ width: 52 }}>
-                          <span className={`text-[11px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-400"}`}>
+                        <div key={date} className="flex-1 flex flex-col items-center">
+                          <span className={`text-[10px] sm:text-[11px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-400"}`}>
                             {dt.toLocaleDateString("ko-KR", { weekday: "short" })}
                           </span>
-                          <span className={`mt-1.5 w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold
+                          <span className={`mt-1 sm:mt-1.5 w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-xs sm:text-sm font-bold
                             ${isToday ? "bg-[#4A6741] text-white" : "text-zinc-500"}`}>
                             {dt.getDate()}
                           </span>
@@ -2310,14 +2316,14 @@ export default function GroupDashboard() {
                   </div>
 
                   {/* 항목별 행 */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 pb-3">
                     {faithItemSlots.map((slot) => {
                       const item = slot.item;
                       return (
                         <div key={slot.key} className="flex items-center">
-                          <div className="shrink-0 pr-3 text-right" style={{ width: 88 }}>
-                            <span className="text-sm font-bold text-zinc-700">{slot.label}</span>
-                            {!item && <span className="block text-[10px] text-zinc-300">미설정</span>}
+                          <div className="shrink-0 w-10 sm:w-14 pl-1 flex flex-col justify-center text-left">
+                            <span className="text-[12px] sm:text-sm font-bold text-zinc-700 leading-tight whitespace-nowrap">{slot.label}</span>
+                            {!item && <span className="text-[9px] sm:text-[10px] text-zinc-300">미설정</span>}
                           </div>
                           {weekDates.map((date) => {
                             const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
@@ -2325,11 +2331,11 @@ export default function GroupDashboard() {
                             const isToday = date === new Date().toISOString().split("T")[0];
                             const done = val > 0;
                             return (
-                              <div key={`${slot.key}-${date}`} className="flex items-center justify-center" style={{ width: 52 }}>
+                              <div key={`${slot.key}-${date}`} className="flex-1 flex items-center justify-center px-0.5">
                                 <button
                                   onClick={() => item && void handleFaithToggleForDate(item, date)}
                                   disabled={disabled}
-                                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-150
+                                  className={`w-7 h-7 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all duration-150 shrink-0
                                     ${disabled
                                       ? "opacity-25 cursor-not-allowed bg-zinc-100"
                                       : done
@@ -2340,8 +2346,8 @@ export default function GroupDashboard() {
                                     }`}
                                 >
                                   {done
-                                    ? <Check size={16} className="text-white" strokeWidth={2.5} />
-                                    : <span className="text-zinc-300 text-lg leading-none">·</span>
+                                    ? <Check size={14} className="text-white sm:w-4 sm:h-4" strokeWidth={2.5} />
+                                    : <span className="text-zinc-300 text-base leading-none">·</span>
                                   }
                                 </button>
                               </div>
