@@ -28,15 +28,20 @@ function AuthPage() {
     }
   }, []);
 
-  // 인증 후 user 상태 갱신
+  // 인증 후 user 상태 갱신 + 로그인 감지 시 홈으로 이동
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user ?? null);
-      if (data.user) setIsLoginOpen(false); // 로그인 성공 시 팝업 닫기
+      if (data.user) {
+        // 이미 로그인된 상태로 auth 페이지에 진입하면 홈으로 이동
+        window.location.replace(window.location.origin + '/#/');
+      }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) setIsLoginOpen(false);
+      if (session?.user) {
+        window.location.replace(window.location.origin + '/#/');
+      }
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -44,13 +49,13 @@ function AuthPage() {
   // 카카오 로그인 로직
   const handleKakaoLogin = async () => {
     try {
-      const returnTo = encodeURIComponent(window.location.href);
-      const redirectTo = `${window.location.origin}/?returnTo=${returnTo}`;
+      // returnTo: auth 페이지가 아닌 홈으로 설정
+      // (auth 페이지로 돌아오면 로그인됐어도 로그인 화면이 보이는 문제 방지)
+      const redirectTo = `${window.location.origin}/`;
       await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
           redirectTo,
-          // prompt can be passed via queryParams if provider supports
           queryParams: { prompt: "login" },
         },
       });
@@ -90,15 +95,16 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative text-left">
-      <style dangerouslySetInnerHTML={{ __html: `
+      <style dangerouslySetInnerHTML={{
+        __html: `
         input:-webkit-autofill {
             -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
             -webkit-text-fill-color: #18181b !important;
         }
       `}} />
-      
+
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
-      
+
         <h1 className="font-black text-zinc-900 leading-[1.3] tracking-tighter" style={{ fontSize: `${fontSize * 1.8}px` }}>
           나의 신앙 기록을<br />
           <span className="text-[#4A6741]">기억하고 나누는 공간</span>
@@ -110,8 +116,8 @@ function AuthPage() {
       </motion.div>
 
       <div className="w-full max-w-sm mt-20 mb-auto flex flex-col items-center gap-6">
-        <button 
-          onClick={handleKakaoLogin} 
+        <button
+          onClick={handleKakaoLogin}
           className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
         >
           <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
@@ -129,14 +135,14 @@ function AuthPage() {
         {isLoginOpen && (
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm" />
-            <motion.div 
+            <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[100] px-8 pt-10 pb-28 shadow-2xl"
             >
               <div className="flex justify-between items-center mb-8 px-2">
                 <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
-                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24}/></button>
+                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24} /></button>
               </div>
 
               <div className="space-y-4 px-2">
@@ -150,7 +156,7 @@ function AuthPage() {
                   <div className="flex items-center">
                     <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold w-full text-zinc-900 pr-10" placeholder="비밀번호 입력" />
                     <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 absolute right-6">
-                      {showPw ? <EyeOff size={22}/> : <Eye size={22}/>}
+                      {showPw ? <EyeOff size={22} /> : <Eye size={22} />}
                     </button>
                   </div>
                 </div>
@@ -162,7 +168,7 @@ function AuthPage() {
                     </div>
                     <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400'}`}>로그인 유지</span>
                   </button>
-                  
+
                   {/* 핵심 수정 부분: 탭 신호를 포함한 링크 */}
                   <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
                     <Link href="/find-account?tab=id">아이디 찾기</Link>
@@ -173,7 +179,7 @@ function AuthPage() {
 
                 {errorMsg && <p className="text-red-500 text-[12px] font-bold px-2">{errorMsg}</p>}
 
-                <button 
+                <button
                   disabled={isLoading} onClick={handleManualLogin}
                   className="w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mt-6"
                 >
