@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { supabaseStorage } from "./supabaseStorage";
-import { supabase } from "./supabase";
+import { supabase, supabaseAdmin } from "./supabase";
+
 import { uploadAudioToR2, uploadFileToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
 
 // Replit 인증 대신 Supabase 사용자를 판별하도록 수정
@@ -516,6 +517,11 @@ export async function registerRoutes(
       return res.status(401).json({ message: "인증이 필요합니다" });
     }
 
+    if (!supabaseAdmin) {
+      console.error('회원탈퇴 오류: SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않았습니다');
+      return res.status(503).json({ message: "서버 설정 오류: 서비스 키가 없습니다" });
+    }
+
     const token = authHeader.slice(7);
 
     try {
@@ -526,7 +532,7 @@ export async function registerRoutes(
       }
 
       // admin API로 유저 삭제 (auth.users 삭제 → profiles CASCADE 삭제)
-      const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id);
+      const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user.id);
       if (deleteError) {
         console.error('회원탈퇴 오류:', deleteError);
         return res.status(500).json({ message: "회원탈퇴에 실패했습니다" });
@@ -538,6 +544,7 @@ export async function registerRoutes(
       return res.status(500).json({ message: "서버 오류가 발생했습니다" });
     }
   });
+
 
   return httpServer;
 }
