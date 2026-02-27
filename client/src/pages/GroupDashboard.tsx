@@ -2526,9 +2526,9 @@ export default function GroupDashboard() {
                 {joinRequests.length === 0 ? (
                   <div className="text-sm ml-7 item-center justify-center text-zinc-500">대기 중인 요청이 없습니다.</div>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-4">
                     {joinRequests.map((request) => (
-                      <div key={request.id} className="bg-white rounded-2xl p-4 flex flex-col">
+                      <div key={request.id} className="bg-white rounded-2xl p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200">
                         <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
@@ -2561,7 +2561,7 @@ export default function GroupDashboard() {
               <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
                 <Users size={16} /> 회원 목록
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {members.map((member) => {
                   const isOwner = member.role === "owner";
                   const canPromoteDemote = role === "owner" && !isOwner;
@@ -2571,7 +2571,7 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-white rounded-2xl p-4 flex flex-col gap-4"
+                      className="bg-white rounded-2xl p-4 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow duration-200"
                     >
                       {/* 상단 라인: 이름 + 역할배지 + 버튼들 */}
                       <div className="flex items-center justify-between gap-2">
