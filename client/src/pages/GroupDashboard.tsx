@@ -2030,9 +2030,9 @@ export default function GroupDashboard() {
   // 4. role이 guest일 때 가입 폼 렌더링 (단, loading/authReady 끝난 뒤에만)
   if (role === "guest") {
     return (
-      <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
+      <div className="min-h-screen bg-[#F6F7F8] pb-10 text-base">
         <div
-          className="pt-12 pb-10 min-h-[260px] flex flex-col justify-between"
+          className="pt-20 pb-10 min-h-[260px] flex flex-col justify-between"
           style={{
             background:
               ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -2044,17 +2044,17 @@ export default function GroupDashboard() {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setLocation("/community?list=1")}
-                className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+                className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur shadow-sm hover:bg-white/30 transition-colors"
               >
-                <ChevronLeft size={18} />
+                <ChevronLeft size={16} />
               </button>
             </div>
-            <div className="text-white mt-8">
+            <div className="text-white mt-8 mb-4">
               <div className="flex items-center gap-3 flex-wrap">
-                <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
+                <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
                 {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
               </div>
-              <div className="mt-3 text-xs sm:text-sm text-white/80 flex flex-col gap-1.5">
+              <div className="mt-3 text-xs sm:text-sm text-white/90 flex flex-col gap-1.5 font-medium">
                 {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
                 <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
                 <span>나의 등급 : 방문자</span>
@@ -2063,57 +2063,80 @@ export default function GroupDashboard() {
           </div>
         </div>
 
-        <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
-          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
-            <div className="text-base text-zinc-600 whitespace-pre-wrap">
+        <main className="max-w-2xl mx-auto px-4 pt-6 pb-4 space-y-6">
+          {/* 모임 소개 섹션 (카드 스타일) */}
+          <div className="bg-white rounded-3xl shadow-xl p-6 border border-zinc-100">
+            <h2 className="text-base font-black text-[#4A6741] mb-6 flex items-center gap-2">
+              <Users size={16} /> 모임 소개
+            </h2>
+            <div className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
             {group.is_closed && (
-              <div className="mt-3 inline-flex items-center gap-2 text-base px-3 py-1.5 rounded-sm bg-rose-50 text-rose-700 font-bold">
-                <Lock size={13} /> 현재 폐쇄된 모임입니다.
+              <div className="mt-4 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold border border-rose-100">
+                <Lock size={14} /> 현재 폐쇄된 모임입니다.
               </div>
             )}
           </div>
 
-          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
-            <h2 className="font-black text-zinc-900">가입 신청</h2>
-            {/* group.password 가 null 이거나 빈 문자열이 아니면(즉 비밀번호가 설정되어 있으면) 입력창 표시 */}
-            {group.password ? (
-              <input
-                type="password"
-                value={joinPassword}
-                onChange={(e) => setJoinPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="모임 가입 비밀번호"
-                disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
-              />
-            ) : null}
-            <textarea
-              value={joinMessage}
-              onChange={(e) => setJoinMessage(e.target.value)}
-              className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-              placeholder="가입 승인에 필요한 정보를 입력해주세요 (선택)"
-              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
-            />
-            {!user ? (
-              <button
-                onClick={() => setLocation("/login")}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold"
-              >
-                로그인 후 가입 신청
-              </button>
-            ) : !!guestJoinPending ? (
-              <div className="text-base text-[#4A6741] font-bold justify-center item-center">가입 신청이 접수되어 승인 대기 중입니다.</div>
-            ) : (
-              <button
-                onClick={submitJoinRequest}
-                disabled={!!joinSubmitting || !!group?.is_closed}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
-              >
-                <SendHorizontal size={15} />
-                {joinSubmitting ? "신청 중..." : "가입 신청 보내기"}
-              </button>
-            )}
+          {/* 가입 신청 섹션 (카드 스타일) */}
+          <div className="bg-white rounded-3xl shadow-xl p-6 border border-white/20">
+            <h2 className="text-base font-black text-[#4A6741] mb-6 flex items-center gap-2">
+              <SendHorizontal size={16} /> 가입 신청서 작성
+            </h2>
+
+            <div className="space-y-4">
+              {/* group.password 가 null 이거나 빈 문자열이 아니면(즉 비밀번호가 설정되어 있으면) 입력창 표시 */}
+              {group.password ? (
+                <div className="space-y-1.5">
+                  <label className="text-sm font-bold text-zinc-700 ml-1">모임 비밀번호</label>
+                  <input
+                    type="password"
+                    value={joinPassword}
+                    onChange={(e) => setJoinPassword(e.target.value)}
+                    className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
+                    placeholder="비밀번호를 입력하세요"
+                    disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
+                  />
+                </div>
+              ) : null}
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-bold text-zinc-700 ml-1">신청 메시지</label>
+                <textarea
+                  value={joinMessage}
+                  onChange={(e) => setJoinMessage(e.target.value)}
+                  className="w-full min-h-[120px] px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all resize-none"
+                  placeholder="가입 승인에 필요한 내용을 입력해주세요 (선택)"
+                  disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {!user ? (
+                <button
+                  onClick={() => setLocation("/login")}
+                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-lg shadow-lg hover:bg-[#3d5535] transition-all"
+                >
+                  로그인 후 신청하기
+                </button>
+              ) : !!guestJoinPending ? (
+                <div className="p-4 bg-[#4A6741]/5 border border-[#4A6741]/10 rounded-2xl text-center">
+                  <div className="text-base text-[#4A6741] font-black">가입 신청 완료!</div>
+                  <div className="text-sm text-[#4A6741]/70 mt-1">리더의 승인을 기다리고 있습니다.</div>
+                </div>
+              ) : (
+                <button
+                  onClick={submitJoinRequest}
+                  disabled={!!joinSubmitting || !!group?.is_closed}
+                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-lg shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                  <SendHorizontal size={18} />
+                  {joinSubmitting ? "신청 중..." : "가입 신청하기"}
+                </button>
+              )}
+            </div>
           </div>
         </main>
       </div>
@@ -2581,8 +2604,8 @@ export default function GroupDashboard() {
 
                           {/* 역할 배지 */}
                           <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' ? 'bg-amber-100 text-amber-700' :
-                              member.role === 'leader' ? 'bg-blue-100 text-blue-700' :
-                                'bg-zinc-200 text-zinc-600'
+                            member.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+                              'bg-zinc-200 text-zinc-600'
                             }`}>
                             {toLabel(member.role)}
                           </span>

@@ -775,7 +775,7 @@ export default function CommunityPage() {
                   />
                   <button
                     onClick={checkSlugDuplicate}
-                    className="px-4 py-2 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition-colors whitespace-nowrap min-w-[80px]"
+                    className="px-4 py-2 bg-zinc-700 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition-colors whitespace-nowrap min-w-[80px]"
                     type="button"
                   >
                     {slugCheckState === "checking" ? "확인중" : "중복확인"}
@@ -834,7 +834,7 @@ export default function CommunityPage() {
                 </div>
 
                 <textarea
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base min-h-[120px] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all resize-none"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-sm min-h-[120px] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all resize-none"
                   placeholder="여기에 모임에 대한 간단한 소개를 남겨주세요."
                   value={createForm.description}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
