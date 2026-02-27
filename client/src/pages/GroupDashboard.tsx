@@ -2198,7 +2198,7 @@ export default function GroupDashboard() {
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 pt-10 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
 
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
@@ -2517,7 +2517,7 @@ export default function GroupDashboard() {
         )}
 
         {activeTab === "members" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="">
             {isManager && (
               <div className="bg-[#F6F7F8] p-2">
                 <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
@@ -2557,7 +2557,7 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-[#F6F7F8] p-2">
+            <div className="bg-[#F6F7F8] p-2 mt-20">
               <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
                 <Users size={16} /> 회원 목록
               </h3>
@@ -2643,7 +2643,7 @@ export default function GroupDashboard() {
             {role !== "owner" && (
               <button
                 onClick={leaveGroup}
-                className="py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base"
+                className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base"
               >
                 모임 탈퇴하기
               </button>
