@@ -2571,7 +2571,7 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-zinc-50 rounded-sm p-3 flex flex-col gap-1.5"
+                      className="bg-white rounded-2xl p-4 flex flex-col gap-2"
                     >
                       {/* 상단 라인: 이름 + 역할배지 + 버튼들 */}
                       <div className="flex items-center justify-between gap-2">
@@ -2645,7 +2645,7 @@ export default function GroupDashboard() {
                 onClick={leaveGroup}
                 className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-base"
               >
-                모임 나가기
+                모임 탈퇴하기
               </button>
             )}
           </motion.div>
