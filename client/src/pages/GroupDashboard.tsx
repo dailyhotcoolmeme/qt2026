@@ -2055,9 +2055,9 @@ export default function GroupDashboard() {
                 {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
               </div>
               <div className="mt-3 text-xs sm:text-sm text-white/80 flex flex-col gap-1.5">
-                {group.group_slug && <span>모임 아이디: {group.group_slug}</span>}
-                <span>개설일자: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-                <span>나의 등급: 방문자</span>
+                {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
+                <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+                <span>나의 등급 : 방문자</span>
               </div>
             </div>
           </div>
@@ -2519,24 +2519,24 @@ export default function GroupDashboard() {
         {activeTab === "members" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
-              <div className="bg-[#F6F7F8] border-b border-zinc-200 p-2">
+              <div className="bg-[#F6F7F8] p-2">
                 <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
                   <Shield size={16} /> 가입 요청
                 </h3>
                 {joinRequests.length === 0 ? (
-                  <div className="text-sm item-center justify-center text-zinc-500">대기 중인 요청이 없습니다.</div>
+                  <div className="text-sm ml-7 item-center justify-center text-zinc-500">대기 중인 요청이 없습니다.</div>
                 ) : (
                   <div className="space-y-2">
                     {joinRequests.map((request) => (
-                      <div key={request.id} className="bg-zinc-50 rounded-sm p-3">
+                      <div key={request.id} className="bg-white rounded-2xl p-4 flex flex-col">
                         <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
-                        <div className="text-sm text-zinc-500 flex flex-col mt-1 gap-1">
+                        <div className="text-sm text-zinc-500 flex flex-col mt-5 gap-y-1">
                           <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 일시 : {formatDateTime(request.created_at)}</div>
                           {request.message && <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 내용 : {request.message}</div>}
                         </div>
-                        <div className="flex gap-2 mt-3">
+                        <div className="flex gap-2 mt-2">
                           <button
                             onClick={() => resolveJoinRequest(request.id, true)}
                             className="px-4 py-1 rounded-full bg-[#4A6741]/90 text-white text-sm font-bold"
@@ -2571,7 +2571,7 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-white rounded-2xl p-4 flex flex-col gap-2"
+                      className="bg-white rounded-2xl p-4 flex flex-col gap-4"
                     >
                       {/* 상단 라인: 이름 + 역할배지 + 버튼들 */}
                       <div className="flex items-center justify-between gap-2">
@@ -2643,7 +2643,7 @@ export default function GroupDashboard() {
             {role !== "owner" && (
               <button
                 onClick={leaveGroup}
-                className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-base"
+                className="py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base"
               >
                 모임 탈퇴하기
               </button>
