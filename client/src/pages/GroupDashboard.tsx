@@ -2029,7 +2029,7 @@ export default function GroupDashboard() {
     return (
       <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
         <div
-          className="pt-28 pb-8"
+          className="pt-12 pb-10 min-h-[260px] flex flex-col justify-between"
           style={{
             background:
               ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -2037,16 +2037,25 @@ export default function GroupDashboard() {
                 : `linear-gradient(135deg, ${group.header_color || "#4A6741"}, #1f2937)`,
           }}
         >
-          <div className="max-w-2xl mx-auto px-4">
-            <button
-              onClick={() => setLocation("/community?list=1")}
-              className="w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur pb-6"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div className="mt-8 text-white">
-              <div className="text-base font-bold">{group.name}</div>
-              <div className="text-sm text-white/80 mt-1.5">{group.group_slug ? `모임 아이디: ${group.group_slug}` : ""}</div>
+          <div className="max-w-2xl mx-auto px-4 w-full h-full flex flex-col justify-between flex-1">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setLocation("/community?list=1")}
+                className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            </div>
+            <div className="text-white mt-8">
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
+                {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
+              </div>
+              <div className="mt-3 text-xs sm:text-sm text-white/80 flex flex-col gap-1.5">
+                {group.group_slug && <span>모임 아이디: {group.group_slug}</span>}
+                <span>개설일자: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+                <span>나의 등급: 방문자</span>
+              </div>
             </div>
           </div>
         </div>
@@ -2122,7 +2131,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-24 pb-10 min-h-[260px] flex flex-col justify-between">
+        <div className="max-w-2xl mx-auto px-4 pt-12 pb-10 min-h-[260px] flex flex-col justify-between h-full">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -2130,40 +2139,35 @@ export default function GroupDashboard() {
             >
               <ChevronLeft size={18} />
             </button>
+            {isManager && (
+              <button
+                onClick={() => setActiveTab("admin")}
+                className="px-3 py-1.5 rounded-full bg-transparent text-white font-bold inline-flex items-center gap-1.5 hover:bg-white/10 transition-colors"
+              >
+                <Settings size={16} />
+                관리
+              </button>
+            )}
           </div>
 
-          <div className="text-white">
-            <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
-
-            <div className="mt-2 text-sm text-white/80 flex flex-wrap items-center gap-x-3 gap-y-1">
-              {group.group_slug && <span>아이디: {group.group_slug}</span>}
-              <span>개설일: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-            </div>
-
-            <div className="text-sm text-white mt-3 flex items-center gap-2 flex-wrap">
-              <span className={`px-2 py-0.5 rounded-sm font-bold shadow-sm ${role === 'owner' || role === 'leader' ? 'bg-[#ffca28] text-amber-900' : 'bg-white/20 text-white'}`}>
-                {toLabel(role)}
-              </span>
-
+          <div className="text-white mt-8">
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
               <button
                 onClick={() => setActiveTab("members")}
-                className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1.5 hover:bg-white/30 transition-colors"
+                className="px-2.5 py-1 rounded-full bg-white/20 text-xs sm:text-sm font-bold flex-shrink-0 inline-flex items-center gap-1 hover:bg-white/30 transition-colors"
                 title="멤버 조회"
               >
                 <Users size={14} />
-                멤버 {members.length}명
+                모임 멤버수 {members.length}명
               </button>
+              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
+            </div>
 
-              {isManager && (
-                <button
-                  onClick={() => setActiveTab("admin")}
-                  className="px-2 py-0.5 rounded-sm bg-emerald-600 font-bold inline-flex items-center gap-1.5 shadow-sm hover:bg-emerald-500 transition-colors ml-auto"
-                >
-                  <Settings size={14} />
-                  관리
-                </button>
-              )}
-              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 font-bold shadow-sm">폐쇄됨</span>}
+            <div className="mt-3 text-xs sm:text-sm text-white/80 flex flex-col gap-1.5">
+              {group.group_slug && <span>모임 아이디: {group.group_slug}</span>}
+              <span>개설일자: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+              <span>나의 등급: {toLabel(role)}</span>
             </div>
           </div>
         </div>
