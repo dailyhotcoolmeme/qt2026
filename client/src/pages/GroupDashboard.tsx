@@ -2054,7 +2054,7 @@ export default function GroupDashboard() {
                 <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
                 {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
               </div>
-              <div className="mt-3 text-xs sm:text-sm text-white/90 flex flex-col gap-1.5 font-medium">
+              <div className="mt-3 text-sm sm:text-sm text-white/90 flex flex-col gap-1.5 font-medium">
                 {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
                 <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
                 <span>나의 등급 : 방문자</span>
@@ -2124,7 +2124,7 @@ export default function GroupDashboard() {
               ) : !!guestJoinPending ? (
                 <div className="p-4 bg-[#4A6741]/5 border border-[#4A6741]/10 rounded-2xl text-center">
                   <div className="text-base text-[#4A6741] font-black">가입 신청 완료!</div>
-                  <div className="text-sm text-[#4A6741]/70 mt-1">리더의 승인을 기다리고 있습니다.</div>
+                  <div className="text-sm text-[#4A6741]/70 mt-1">관리자/리더의 승인을 기다리고 있습니다.</div>
                 </div>
               ) : (
                 <button
@@ -2543,7 +2543,7 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="">
             {isManager && (
               <div className="bg-[#F6F7F8] p-2 mb-20">
-                <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
+                <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
                   <Shield size={16} /> 가입 요청
                 </h3>
                 {joinRequests.length === 0 ? (
@@ -2555,7 +2555,7 @@ export default function GroupDashboard() {
                         <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
-                        <div className="text-xs text-zinc-500 flex flex-col mt-1 gap-y-1">
+                        <div className="text-sm text-zinc-500 flex flex-col mt-1 gap-y-1">
                           <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 일시 : {formatDateTime(request.created_at)}</div>
                           {request.message && <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 내용 : {request.message}</div>}
                         </div>
@@ -2581,7 +2581,7 @@ export default function GroupDashboard() {
             )}
 
             <div className="bg-[#F6F7F8] p-2">
-              <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
+              <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
                 <Users size={16} /> 회원 목록
               </h3>
               <div className="space-y-4">
@@ -2623,7 +2623,7 @@ export default function GroupDashboard() {
                             {canPromoteDemote && member.role === "leader" && (
                               <button
                                 onClick={() => changeMemberRole(member.user_id, "member")}
-                                className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
+                                className="px-2 py-0.5 rounded-full bg-blue-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"
                               >
                                 일반멤버 전환
                               </button>
@@ -2644,7 +2644,7 @@ export default function GroupDashboard() {
                       </div>
 
                       {/* 하단 라인: 나머지 정보 */}
-                      <div className="text-xs text-zinc-500 mt-1 flex flex-col gap-y-1">
+                      <div className="text-sm text-zinc-500 mt-1 flex flex-col gap-y-1">
                         <span className="before:content-['|'] before:mr-2 before:text-zinc-300">회원 아이디 : {member.profile?.username || "-"}</span>
                         <span className="before:content-['|'] before:mr-2 before:text-zinc-300">
                           가입 일시 : {formatJoinedAt(member.joined_at)}
@@ -3179,47 +3179,68 @@ export default function GroupDashboard() {
       {
         showInviteModal && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowInviteModal(false)} />
-            <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-zinc-900">회원 초대</h3>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              onClick={() => setShowInviteModal(false)}
+            />
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white border border-zinc-100 p-6 space-y-4 rounded-3xl shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-black text-zinc-900 text-lg">회원 초대</h3>
                 <button
                   onClick={() => setShowInviteModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+                  className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center hover:bg-zinc-200 transition-colors"
                 >
-                  <X size={14} />
+                  <X size={18} />
                 </button>
               </div>
-              <div className="rounded-sm bg-zinc-50 p-4 space-y-2 text-base">
-                <div>
-                  <div className="text-base text-zinc-500">모임명</div>
-                  <div className="font-bold text-zinc-900">{group.name}</div>
+
+              <div className="rounded-2xl bg-zinc-50 p-5 space-y-4 text-sm border border-zinc-100/50">
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-bold text-zinc-400">모임 정보</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-zinc-900 text-base">{group.name}</span>
+                    <span className="text-zinc-400">|</span>
+                    <span className="text-zinc-600 font-medium">{group.group_slug || "-"}</span>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-base text-zinc-500">모임 아이디</div>
-                  <div className="font-bold text-zinc-900">{group.group_slug || "-"}</div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="text-xs font-bold text-zinc-400">초대 링크</div>
+                  <div className="break-all font-bold text-[#4A6741] bg-white p-3 rounded-xl border border-zinc-100 select-all">
+                    {buildInviteUrl()}
+                  </div>
                 </div>
-                <div>
-                  <div className="text-base text-zinc-500">초대 링크</div>
-                  <div className="break-all font-bold text-zinc-900">{buildInviteUrl()}</div>
-                </div>
-                <div className="text-base text-zinc-500">링크를 받은 사용자는 회원가입 후 즉시 모임에 자동 가입됩니다.</div>
+
+                <p className="text-xs text-zinc-500 leading-relaxed font-medium">
+                  위 링크를 받은 사용자는 회원가입 후 즉시 모임에 자동 가입됩니다. <br />
+                  초대하고 싶은 분들께 공유해 보세요!
+                </p>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+
+              <div className="grid grid-cols-1 gap-2.5 pt-2">
                 <button
                   onClick={() => void shareInviteMessage()}
-                  className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
+                  <SendHorizontal size={18} />
                   카카오톡으로 초대장 보내기
                 </button>
                 <button
                   onClick={() => void copyInviteMessage()}
-                  className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base"
+                  className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-black text-base hover:bg-zinc-800 transition-all active:scale-[0.98]"
                 >
-                  초대장 복사
+                  초대장 복사하기
                 </button>
               </div>
-            </div>
+            </motion.div>
           </div>
         )
       }

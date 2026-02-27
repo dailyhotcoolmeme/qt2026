@@ -624,7 +624,7 @@ export default function CommunityPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[11px] font-bold rounded-md">승인 대기</span>
+                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-bold rounded-md">승인대기</span>
                           </div>
                           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
                           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
