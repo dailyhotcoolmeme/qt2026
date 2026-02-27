@@ -187,7 +187,7 @@ function formatJoinedAt(iso?: string | null) {
 function toLabel(role: string) {
   if (role === "owner") return "관리자";
   if (role === "leader") return "리더";
-  if (role === "member") return "멤버";
+  if (role === "member") return "일반";
   return role;
 }
 
@@ -2131,13 +2131,13 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-12 pb-10 min-h-[260px] flex flex-col justify-between h-full">
+        <div className="max-w-2xl mx-auto px-4 pt-20 pb-10 min-h-[260px] flex flex-col justify-between h-full">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
-              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+              className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
             >
-              <ChevronLeft size={18} />
+              <ChevronLeft size={16} />
             </button>
             {isManager && (
               <button
@@ -2145,29 +2145,28 @@ export default function GroupDashboard() {
                 className="px-3 py-1.5 rounded-full bg-transparent text-white font-bold inline-flex items-center gap-1.5 hover:bg-white/10 transition-colors"
               >
                 <Settings size={16} />
-                관리
               </button>
             )}
           </div>
 
           <div className="text-white mt-8">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
+              <div className="text-2xl sm:text-2xl font-bold truncate leading-none py-1">{group.name}</div>
               <button
                 onClick={() => setActiveTab("members")}
-                className="px-2.5 py-1 rounded-full bg-white/20 text-xs sm:text-sm font-bold flex-shrink-0 inline-flex items-center gap-1 hover:bg-white/30 transition-colors"
+                className="px-2.5 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
                 title="멤버 조회"
               >
                 <Users size={14} />
-                모임 멤버수 {members.length}명
+                회원수 {members.length}명
               </button>
               {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
             </div>
 
-            <div className="mt-3 text-xs sm:text-sm text-white/80 flex flex-col gap-1.5">
-              {group.group_slug && <span>모임 아이디: {group.group_slug}</span>}
-              <span>개설일자: {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-              <span>나의 등급: {toLabel(role)}</span>
+            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-1.5">
+              {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
+              <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+              <span>나의 등급 : {toLabel(role)}</span>
             </div>
           </div>
         </div>
