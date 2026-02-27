@@ -418,6 +418,7 @@ export default function GroupDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!authReady) return;
     if (!groupId) return;
     const queryTab = getTabQueryParam(location);
     const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin"];
@@ -427,7 +428,7 @@ export default function GroupDashboard() {
       setActiveTab("faith");
     }
     void loadAll(groupId, user?.id ?? null);
-  }, [groupId, user?.id, location]);
+  }, [groupId, user?.id, location, authReady]);
 
   useEffect(() => {
     return () => {
