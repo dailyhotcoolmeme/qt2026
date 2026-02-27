@@ -2555,7 +2555,7 @@ export default function GroupDashboard() {
                         <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
-                        <div className="text-sm text-zinc-500 flex flex-col mt-5 gap-y-1">
+                        <div className="text-xs text-zinc-500 flex flex-col mt-1 gap-y-1">
                           <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 일시 : {formatDateTime(request.created_at)}</div>
                           {request.message && <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 내용 : {request.message}</div>}
                         </div>
@@ -2594,7 +2594,7 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-white rounded-2xl p-4 flex flex-col gap-4 shadow-sm hover:shadow-md transition-shadow duration-200"
+                      className="bg-white rounded-2xl p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200"
                     >
                       {/* 상단 라인: 이름 + 역할배지 + 버튼들 */}
                       <div className="flex items-center justify-between gap-2">
@@ -2644,7 +2644,7 @@ export default function GroupDashboard() {
                       </div>
 
                       {/* 하단 라인: 나머지 정보 */}
-                      <div className="text-sm text-zinc-500 mt-1.5 flex flex-col gap-y-1">
+                      <div className="text-xs text-zinc-500 mt-1 flex flex-col gap-y-1">
                         <span className="before:content-['|'] before:mr-2 before:text-zinc-300">회원 아이디 : {member.profile?.username || "-"}</span>
                         <span className="before:content-['|'] before:mr-2 before:text-zinc-300">
                           가입 일시 : {formatJoinedAt(member.joined_at)}
