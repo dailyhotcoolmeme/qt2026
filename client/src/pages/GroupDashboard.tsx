@@ -28,6 +28,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import Cropper from "react-easy-crop";
+import getCroppedImg from "../lib/cropImage";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin";
@@ -399,6 +401,42 @@ export default function GroupDashboard() {
   const [groupEditImageFile, setGroupEditImageFile] = useState<File | null>(null);
   const [groupEditImageUploading, setGroupEditImageUploading] = useState(false);
   const [groupEditSaving, setGroupEditSaving] = useState(false);
+  const [slugCheckState, setSlugCheckState] = useState<"idle" | "checking" | "available" | "taken">("idle");
+
+  const [adminTab, setAdminTab] = useState<"info" | "faith" | "manage">("info");
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
+
+  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  };
+
+  const handleGroupImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const imageUrl = URL.createObjectURL(file);
+      setCropImageSrc(imageUrl);
+      setCropModalOpen(true);
+      // 부모 input 리셋용
+      e.target.value = '';
+    }
+  };
+
+  const processCrop = async () => {
+    try {
+      if (!cropImageSrc || !croppedAreaPixels) return;
+      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels);
+      if (croppedFile) {
+        setGroupEditImageFile(croppedFile);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    setCropModalOpen(false);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -1707,6 +1745,26 @@ export default function GroupDashboard() {
     setShowHeaderEditModal(false);
   };
 
+  const checkSlugDuplicate = async () => {
+    if (!groupEditSlug.trim() || !user || !group) return;
+    if (groupEditSlug === group.group_slug) {
+      setSlugCheckState("available");
+      return;
+    }
+    setSlugCheckState("checking");
+    const { data } = await supabase
+      .from("groups")
+      .select("id")
+      .eq("group_slug", groupEditSlug.trim())
+      .single();
+
+    if (data) {
+      setSlugCheckState("taken");
+    } else {
+      setSlugCheckState("available");
+    }
+  };
+
   const uploadGroupEditImage = async () => {
     if (!group || !user || !groupEditImageFile) return;
     setGroupEditImageUploading(true);
@@ -1740,7 +1798,7 @@ export default function GroupDashboard() {
       setHeaderImageDraft(imageUrl);
       setGroupEditImageFile(null);
       alert("대표 이미지를 업로드했습니다.");
-    } catch (error) {
+    } catch (err) {
       console.error(error);
       alert("대표 이미지 업로드에 실패했습니다.");
     } finally {
@@ -1758,6 +1816,10 @@ export default function GroupDashboard() {
 
     if (!name || !slug) {
       alert("모임 이름과 모임 아이디를 입력해주세요.");
+      return;
+    }
+    if (slug !== group.group_slug && slugCheckState !== "available") {
+      alert("아이디 중복 확인을 먼저 해주세요.");
       return;
     }
 
@@ -2210,7 +2272,7 @@ export default function GroupDashboard() {
                 key={id}
                 onClick={() => setActiveTab(id)}
                 className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${activeTab === id
-                  ? "border-[#4A6741] text-zinc-900 bg-white"
+                  ? "border-[#4A6741] bg-white text-[#4A6741]"
                   : "border-transparent text-zinc-500 hover:text-zinc-700"
                   }`}
               >
@@ -2680,211 +2742,259 @@ export default function GroupDashboard() {
         )}
 
         {activeTab === "admin" && isManager && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-base">모임 기본 정보 수정</h3>
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-zinc-700">모임 이름</div>
-                <input
-                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                  placeholder="모임 이름"
-                  value={groupEditName}
-                  onChange={(e) => setGroupEditName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-zinc-700">모임 아이디</div>
-                <input
-                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                  placeholder="모임 아이디"
-                  value={groupEditSlug}
-                  onChange={(e) => setGroupEditSlug(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-zinc-700">모임 유형</div>
-                <select
-                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                  value={groupEditType}
-                  onChange={(e) => setGroupEditType(e.target.value)}
-                >
-                  <option value="church">교회 모임</option>
-                  <option value="work_school">학교/직장 모임</option>
-                  <option value="family">가족 모임</option>
-                  <option value="etc">기타 모임</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-zinc-700">모임 비밀번호</div>
-                <input
-                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                  placeholder="새 비밀번호(선택)"
-                  type="password"
-                  value={groupEditPassword}
-                  onChange={(e) => setGroupEditPassword(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-bold text-zinc-700">모임 소개</div>
-                <textarea
-                  className="w-full min-h-[100px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                  placeholder="모임 소개"
-                  value={groupEditDescription}
-                  onChange={(e) => setGroupEditDescription(e.target.value)}
-                />
-              </div>
-              <div className="rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-2">
-                <div className="text-base font-bold text-zinc-700">모임 대표 이미지</div>
-                <div className="flex items-center gap-2">
-                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
-                    <ImagePlus size={13} />
-                    이미지 선택
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => setGroupEditImageFile(e.target.files?.[0] ?? null)}
-                    />
-                  </label>
-                  {groupEditImageFile && <span className="text-base text-zinc-600 truncate">{groupEditImageFile.name}</span>}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 px-2 pb-6 mt-4">
+            {/* 관리자 서브 탭 메뉴 */}
+            <div className="flex bg-white rounded-2xl shadow-sm p-1">
+              <button
+                onClick={() => setAdminTab("info")}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "info" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
+                  }`}
+              >
+                기본 정보
+              </button>
+              <button
+                onClick={() => setAdminTab("faith")}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "faith" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
+                  }`}
+              >
+                신앙활동
+              </button>
+              <button
+                onClick={() => setAdminTab("manage")}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "manage" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
+                  }`}
+              >
+                모임 관리
+              </button>
+            </div>
+
+            {/* 기본 정보 탭 */}
+            {adminTab === "info" && (
+              <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+                <h3 className="font-black text-zinc-900 text-lg mb-2">모임 기본 정보</h3>
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 이름</div>
+                  <input
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
+                    placeholder="모임 이름"
+                    value={groupEditName}
+                    onChange={(e) => setGroupEditName(e.target.value)}
+                  />
                 </div>
-                <button
-                  onClick={uploadGroupEditImage}
-                  disabled={!groupEditImageFile || groupEditImageUploading}
-                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
-                >
-                  {groupEditImageUploading ? "업로드 중..." : "대표 이미지 업로드"}
-                </button>
-                {(group?.group_image || headerImageDraft) && (
-                  <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 아이디</div>
+                  <div className="flex gap-2">
+                    <input
+                      className="flex-1 px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
+                      placeholder="모임 아이디"
+                      value={groupEditSlug}
+                      onChange={(e) => {
+                        setGroupEditSlug(e.target.value);
+                        setSlugCheckState("idle");
+                      }}
+                    />
+                    <button
+                      onClick={checkSlugDuplicate}
+                      className="px-4 py-2 bg-zinc-700 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition-colors whitespace-nowrap min-w-[80px]"
+                      type="button"
+                    >
+                      {slugCheckState === "checking" ? "확인중" : "중복확인"}
+                    </button>
+                  </div>
+                  {slugCheckState === "available" && <p className="text-sm text-emerald-600 ml-1">사용 가능한 모임 아이디입니다.</p>}
+                  {slugCheckState === "taken" && <p className="text-sm text-red-500 ml-1">이미 사용 중인 모임 아이디입니다.</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 유형</div>
+                  <select
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
+                    value={groupEditType}
+                    onChange={(e) => setGroupEditType(e.target.value)}
+                  >
+                    <option value="church">교회 모임</option>
+                    <option value="school">학교 모임</option>
+                    <option value="work">직장 모임</option>
+                    <option value="family">가족 모임</option>
+                    <option value="etc">기타 모임</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 비밀번호</div>
+                  <input
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
+                    placeholder="새 비밀번호(선택)"
+                    type="password"
+                    value={groupEditPassword}
+                    onChange={(e) => setGroupEditPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 소개</div>
+                  <textarea
+                    className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none"
+                    placeholder="모임 소개"
+                    value={groupEditDescription}
+                    onChange={(e) => setGroupEditDescription(e.target.value)}
+                  />
+                </div>
+                <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3">
+                  <div className="text-sm font-bold text-zinc-700">모임 대표 이미지</div>
+                  <div className="flex items-center gap-3">
+                    <label className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold cursor-pointer hover:bg-zinc-800 transition-colors inline-flex items-center gap-2">
+                      <ImagePlus size={16} />
+                      이미지 선택
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleGroupImageSelect}
+                      />
+                    </label>
+                    {groupEditImageFile && <span className="text-sm text-zinc-600 truncate max-w-[150px]">{groupEditImageFile.name}</span>}
+                  </div>
+                  <button
+                    onClick={uploadGroupEditImage}
+                    disabled={!groupEditImageFile || groupEditImageUploading}
+                    className="w-full py-3 rounded-xl bg-zinc-200 text-zinc-800 text-sm font-bold disabled:opacity-50 hover:bg-zinc-300 transition-colors"
+                  >
+                    {groupEditImageUploading ? "업로드 중..." : "대표 이미지 업로드"}
+                  </button>
+                  <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white">
                     <img
-                      src={ensureHttpsUrl(group?.group_image) || headerImageDraft}
+                      src={groupEditImageFile ? URL.createObjectURL(groupEditImageFile) : (ensureHttpsUrl(group?.group_image) || headerImageDraft || "/default-group.png")}
                       alt="group-image-preview"
-                      className="w-full h-28 object-cover"
+                      className="w-full h-32 object-cover"
                     />
                   </div>
-                )}
-              </div>
-              <button
-                onClick={saveGroupBasicSettings}
-                disabled={groupEditSaving}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
-              >
-                {groupEditSaving ? "저장 중..." : "모임 설정 저장"}
-              </button>
-            </section>
-
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-base">신앙활동 항목 관리</h3>
-              <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="새 항목 이름"
-                value={newFaithName}
-                onChange={(e) => setNewFaithName(e.target.value)}
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={newFaithType}
-                  onChange={(e) => setNewFaithType(e.target.value as FaithType)}
-                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                </div>
+                <button
+                  onClick={saveGroupBasicSettings}
+                  disabled={groupEditSaving || (groupEditSlug !== (group?.group_slug ?? "") && slugCheckState !== "available")}
+                  className="w-full py-4 mt-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-60 active:scale-[0.98]"
                 >
-                  <option value="check">체크형</option>
-                  <option value="count">횟수형</option>
-                  <option value="attendance">출석형</option>
-                </select>
-                <select
-                  value={newFaithSourceMode}
-                  onChange={(e) => {
-                    const next = e.target.value as FaithSourceMode;
-                    setNewFaithSourceMode(next);
-                    if (next === "manual") setNewFaithLinkedFeature("none");
-                    if (next !== "manual" && newFaithLinkedFeature === "none") setNewFaithLinkedFeature("qt");
-                  }}
-                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                >
-                  <option value="manual">직접 입력만</option>
-                  <option value="linked">외부 연결만</option>
-                  <option value="both">직접+외부연결</option>
-                </select>
-              </div>
-              {newFaithSourceMode !== "manual" && (
-                <select
-                  value={newFaithLinkedFeature}
-                  onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
-                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                >
-                  <option value="qt">QT 연결</option>
-                  <option value="prayer">기도 연결</option>
-                  <option value="reading">성경읽기 연결</option>
-                </select>
-              )}
-              <button
-                onClick={addFaithItem}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base inline-flex items-center justify-center gap-1"
-              >
-                <Plus size={14} /> 항목 추가
-              </button>
-            </section>
+                  {groupEditSaving ? "저장 중..." : "모임 정보 저장"}
+                </button>
+              </motion.section>
+            )}
 
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-base inline-flex items-center gap-2">
-                <Crown size={14} />
-                모임 상위 리더 등록
-              </h3>
-              <select
-                value={scopeLeaderUserId}
-                onChange={(e) => setScopeLeaderUserId(e.target.value)}
-                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-              >
-                <option value="">멤버 선택</option>
-                {members.map((member) => {
-                  const name = member.profile?.nickname || member.profile?.username || "이름 없음";
-                  return (
-                    <option key={member.user_id} value={member.user_id}>
-                      {name} ({toLabel(member.role)})
-                    </option>
-                  );
-                })}
-              </select>
-              <button
-                onClick={registerScopeLeader}
-                disabled={!scopeLeaderUserId}
-                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
-              >
-                상위 리더 등록
-              </button>
-              <p className="text-base text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
-            </section>
+            {/* 신앙활동 항목 설정 탭 */}
+            {adminTab === "faith" && (
+              <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+                <h3 className="font-black text-zinc-900 text-lg mb-2">신앙생활 관리 항목 설정</h3>
+                <p className="text-sm text-zinc-500 mb-4 px-1 leading-relaxed">
+                  모임 내에서 관리할 신앙활동을 선택하세요. <br />해당 항목들은 멤버들에게 기록할 수 있는 메뉴로 나타납니다.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { id: "reading", name: "성경", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "reading" as LinkedFeature },
+                    { id: "qt", name: "QT", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "qt" as LinkedFeature },
+                    { id: "prayer", name: "기도", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "prayer" as LinkedFeature },
+                    { id: "worship", name: "예배", type: "check" as FaithType, mode: "manual" as FaithSourceMode, feature: "none" as LinkedFeature },
+                  ].map(preset => {
+                    const existingItem = faithItems.find(item => item.name === preset.name);
+                    const isActive = !!existingItem;
 
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
-              <h3 className="font-black text-zinc-900 text-base">하위 모임 연결</h3>
-              <input
-                value={childGroupCode}
-                onChange={(e) => setChildGroupCode(e.target.value)}
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="하위 모임 아이디 입력"
-              />
-              <button
-                onClick={linkChildGroup}
-                disabled={linkingChildGroup || !childGroupCode.trim()}
-                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-60"
-              >
-                {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
-              </button>
-              <p className="text-base text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
-            </section>
+                    const togglePreset = async () => {
+                      if (isActive && existingItem) {
+                        removeFaithItem(existingItem.id);
+                      } else {
+                        if (!group || !user) return;
+                        const payload = {
+                          group_id: group.id,
+                          name: preset.name,
+                          item_type: preset.type,
+                          source_mode: preset.mode,
+                          linked_feature: preset.feature,
+                          created_by: user.id,
+                        };
+                        const { error } = await supabase.from("group_faith_items").insert(payload);
+                        if (!error) loadFaith(group.id, user.id);
+                      }
+                    };
 
-            <section className="bg-[#F6F7F8] border-b border-rose-200 p-4 space-y-3">
-              <h3 className="font-black text-rose-700 text-base">모임 완전 삭제</h3>
-              <p className="text-base text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
-              <button
-                onClick={closeGroup}
-                disabled={closingGroup || role !== "owner"}
-                className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-base disabled:opacity-60"
-              >
-                {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 삭제하기"}
-              </button>
-            </section>
+                    return (
+                      <div key={preset.id} className="flex items-center justify-between p-4 rounded-2xl border border-zinc-100 bg-zinc-50/50">
+                        <div className="flex flex-col">
+                          <span className="font-bold text-base text-zinc-900">{preset.name}</span>
+                          <span className="text-xs text-zinc-500 font-medium">
+                            {preset.mode === "both" ? "직접 기록 + 앱 서비스 연동" : "직접 기록만 사용"}
+                          </span>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" className="sr-only peer" checked={isActive} onChange={togglePreset} />
+                          <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A6741]"></div>
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.section>
+            )}
+
+            {/* 모임 관리 탭 (상위리더 등록, 하위모임 연결, 방 삭제) */}
+            {adminTab === "manage" && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
+                <section className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Crown size={20} className="text-[#4A6741]" />
+                    <h3 className="font-black text-zinc-900 text-lg">상위 리더 등록</h3>
+                  </div>
+                  <p className="text-sm text-zinc-500 leading-relaxed">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 함께 조회할 수 있습니다.</p>
+                  <select
+                    value={scopeLeaderUserId}
+                    onChange={(e) => setScopeLeaderUserId(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
+                  >
+                    <option value="">멤버 선택</option>
+                    {members.map((member) => {
+                      const name = member.profile?.nickname || member.profile?.username || "이름 없음";
+                      return (
+                        <option key={member.user_id} value={member.user_id}>
+                          {name} ({toLabel(member.role)})
+                        </option>
+                      );
+                    })}
+                  </select>
+                  <button
+                    onClick={registerScopeLeader}
+                    disabled={!scopeLeaderUserId}
+                    className="w-full py-3 rounded-xl bg-zinc-900 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                  >
+                    상위 리더 등록하기
+                  </button>
+                </section>
+
+                <section className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
+                  <h3 className="font-black text-zinc-900 text-lg mb-2">하위 모임 연결</h3>
+                  <p className="text-sm text-zinc-500 leading-relaxed">연결된 하위 모임들은 상위 리더 집계 범위에 포함되어 활동 내역이 그룹화됩니다.</p>
+                  <input
+                    value={childGroupCode}
+                    onChange={(e) => setChildGroupCode(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
+                    placeholder="하위 모임 아이디 입력"
+                  />
+                  <button
+                    onClick={linkChildGroup}
+                    disabled={linkingChildGroup || !childGroupCode.trim()}
+                    className="w-full py-3 rounded-xl bg-[#4A6741] text-white font-bold text-sm hover:bg-[#3d5535] disabled:opacity-50 transition-colors"
+                  >
+                    {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
+                  </button>
+                </section>
+
+                <section className="bg-red-50 rounded-3xl shadow-sm p-5 space-y-4 border border-red-100">
+                  <h3 className="font-black text-rose-700 text-lg">모임 삭제 (Danger Zone)</h3>
+                  <p className="text-sm text-rose-600/80 font-medium">삭제된 모임 관련 데이터(게시글, 신앙활동, 사진 등)는 완벽히 제거되며 복구할 수 없습니다.</p>
+                  <button
+                    onClick={closeGroup}
+                    disabled={closingGroup || role !== "owner"}
+                    className="w-full py-3.5 rounded-2xl bg-rose-600 text-white font-black text-base shadow-lg hover:bg-rose-700 disabled:opacity-50 transition-all active:scale-[0.98]"
+                  >
+                    {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 영구 삭제하기"}
+                  </button>
+                </section>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </main>
@@ -3362,6 +3472,61 @@ export default function GroupDashboard() {
           </div>
         )
       }
+
+      {/* 이미지 크롭 모달 */}
+      {cropModalOpen && cropImageSrc && (
+        <div className="fixed inset-0 z-[260] bg-black p-4 flex flex-col">
+          <div className="flex items-center justify-between pb-4">
+            <h3 className="font-black text-white text-lg">대표 이미지 설정</h3>
+            <button
+              onClick={() => {
+                setCropModalOpen(false);
+                setCropImageSrc(null);
+                setGroupEditImageFile(null);
+              }}
+              className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center hover:bg-zinc-700 transition"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="relative flex-1 w-full bg-zinc-900 rounded-2xl overflow-hidden mt-2 mb-6">
+            <Cropper
+              image={cropImageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={16 / 9}
+              onCropChange={setCrop}
+              onCropComplete={onCropComplete}
+              onZoomChange={setZoom}
+              objectFit="vertical-cover"
+            />
+          </div>
+
+          <div className="bg-zinc-900 p-5 rounded-3xl space-y-4 mb-4">
+            <div className="px-2">
+              <label className="text-xs font-bold text-zinc-400 block mb-3">이미지 확대/축소</label>
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                aria-labelledby="Zoom"
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
+              />
+            </div>
+            <button
+              onClick={processCrop}
+              className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
+            >
+              영역 선택 완료
+            </button>
+          </div>
+        </div>
+      )}
+
     </div >
   );
 }
