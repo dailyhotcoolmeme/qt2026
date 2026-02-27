@@ -538,15 +538,20 @@ export default function CommunityPage() {
     const count = memberCounts[row.id] ?? 0;
 
     return (
-      <div className="w-full bg-white border border-[#F5F6F7] p-4 flex items-center gap-3">
-        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
+      <div className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200">
+        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl">
           {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-            <span className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-xs font-semibold rounded-none">{roleText}</span>
+            <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${membership?.role === 'owner' ? 'bg-amber-100 text-amber-700' :
+              membership?.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+                membership ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-50 text-zinc-400'
+              }`}>
+              {roleText}
+            </span>
           </div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
@@ -554,7 +559,7 @@ export default function CommunityPage() {
 
         <button
           onClick={() => openGroup(row.id)}
-          className="w-9 h-9 bg-[#4A6741] opacity-90 text-white rounded-sm flex items-center justify-center"
+          className="w-9 h-9 bg-[#4A6741] opacity-90 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-[#3d5535] transition-colors"
           aria-label="입장"
         >
           <ChevronRight size={16} />
@@ -611,22 +616,22 @@ export default function CommunityPage() {
                     return (
                       <div
                         key={`pending-${item.id}`}
-                        className={`w-full bg-white border p-4 flex items-center gap-3 ${isFocused ? "border-amber-300 bg-amber-50/40" : "border-[#F5F6F7]"}`}
+                        className={`w-full bg-white p-4 flex items-center gap-3 rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 ${isFocused ? "ring-2 ring-amber-300" : ""}`}
                       >
-                        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-sm">
+                        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl">
                           {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-                            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[11px] font-semibold rounded-sm">승인 대기</span>
+                            <span className="px-1.5 py-0.5 bg-amber-50 text-amber-600 text-[11px] font-bold rounded-md">승인 대기</span>
                           </div>
                           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
                           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
                         </div>
                         <button
                           onClick={() => openGroup(row.id)}
-                          className="w-9 h-9 bg-[#4A6741] text-white rounded-sm flex items-center justify-center"
+                          className="w-9 h-9 bg-[#4A6741] text-white rounded-full flex items-center justify-center shadow-sm hover:bg-[#3d5535] transition-colors"
                           aria-label="입장"
                         >
                           <ChevronRight size={16} />
@@ -687,7 +692,7 @@ export default function CommunityPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-xl bg-white border border-zinc-200 p-5 text-base"
+              className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base rounded-2xl shadow-2xl"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 검색</h3>
@@ -698,7 +703,7 @@ export default function CommunityPage() {
 
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" />
                   <input
                     value={groupSearchKeyword}
                     onChange={(e) => setGroupSearchKeyword(e.target.value)}
@@ -706,10 +711,10 @@ export default function CommunityPage() {
                       if (e.key === "Enter") void searchGroups(groupSearchKeyword);
                     }}
                     placeholder="모임 이름/모임 아이디 검색"
-                    className="w-full pl-10 pr-3 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                    className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 focus:border-[#4A6741] transition-all"
                   />
                 </div>
-                <button onClick={() => searchGroups(groupSearchKeyword)} className="px-4 py-3 bg-[#4A6741] text-white text-base font-bold">
+                <button onClick={() => searchGroups(groupSearchKeyword)} className="px-6 py-3 bg-[#4A6741] text-white text-base font-bold rounded-xl hover:bg-[#3d5535] transition-colors shadow-sm">
                   검색
                 </button>
               </div>
@@ -741,7 +746,7 @@ export default function CommunityPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-xl bg-white border border-zinc-200 p-5 text-base max-h-[88vh] overflow-y-auto"
+              className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base max-h-[88vh] overflow-y-auto rounded-3xl shadow-2xl"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 생성</h3>
@@ -750,9 +755,9 @@ export default function CommunityPage() {
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <input
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
                   placeholder="모임 이름"
                   value={createForm.name}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -760,7 +765,7 @@ export default function CommunityPage() {
 
                 <div className="flex gap-2">
                   <input
-                    className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                    className="flex-1 px-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
                     placeholder="모임 아이디"
                     value={createForm.slug}
                     onChange={(e) => {
@@ -770,7 +775,7 @@ export default function CommunityPage() {
                   />
                   <button
                     onClick={checkSlugDuplicate}
-                    className="px-3 py-2 bg-zinc-900 text-white text-sm font-bold"
+                    className="px-4 py-2 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition-colors whitespace-nowrap min-w-[80px]"
                     type="button"
                   >
                     {slugCheckState === "checking" ? "확인중" : "중복확인"}
@@ -780,7 +785,7 @@ export default function CommunityPage() {
                 {slugCheckState === "taken" && <p className="text-sm text-red-500">이미 사용 중인 모임 아이디입니다.</p>}
 
                 <input
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
                   placeholder="모임 비밀번호 (선택)"
                   type="password"
                   value={createForm.password}
@@ -788,7 +793,7 @@ export default function CommunityPage() {
                 />
 
                 <select
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all appearance-none"
                   value={createForm.groupType}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, groupType: e.target.value }))}
                 >
@@ -801,15 +806,15 @@ export default function CommunityPage() {
 
                 {createForm.groupType === "other" && (
                   <input
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
                     placeholder="기타 모임명 입력"
                     value={createForm.customGroupType}
                     onChange={(e) => setCreateForm((prev) => ({ ...prev, customGroupType: e.target.value }))}
                   />
                 )}
 
-                <div className="border border-zinc-200 bg-zinc-50 p-3 space-y-2">
-                  <label className="text-sm font-semibold text-zinc-600">모임 대표이미지</label>
+                <div className="border border-zinc-100 bg-zinc-50 p-4 space-y-3 rounded-2xl">
+                  <label className="text-sm font-bold text-zinc-600 block">모임 대표이미지</label>
                   <input
                     type="file"
                     accept="image/*"
@@ -819,18 +824,18 @@ export default function CommunityPage() {
                       if (file) setGroupImagePreview(URL.createObjectURL(file));
                       else setGroupImagePreview("");
                     }}
-                    className="w-full text-sm"
+                    className="w-full text-sm text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-[#4A6741]/10 file:text-[#4A6741] hover:file:bg-[#4A6741]/20 transition-all"
                   />
                   {groupImagePreview && (
-                    <div className="overflow-hidden border border-zinc-200 bg-zinc-100 inline-block">
-                      <img src={groupImagePreview} className="w-20 h-20 object-cover" alt="group-preview" />
+                    <div className="overflow-hidden border border-zinc-100 bg-white inline-block rounded-xl shadow-sm">
+                      <img src={groupImagePreview} className="w-24 h-24 object-cover" alt="group-preview" />
                     </div>
                   )}
                 </div>
 
                 <textarea
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 text-base min-h-[96px]"
-                  placeholder="모임 소개"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 text-base min-h-[120px] rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all resize-none"
+                  placeholder="여기에 모임에 대한 간단한 소개를 남겨주세요."
                   value={createForm.description}
                   onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
                 />
@@ -838,9 +843,9 @@ export default function CommunityPage() {
                 <button
                   onClick={handleCreateGroup}
                   disabled={saving}
-                  className="w-full py-3 bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
+                  className="w-full py-4 bg-[#4A6741] text-white font-black text-lg rounded-2xl disabled:opacity-50 shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
                 >
-                  {saving ? "생성 중..." : "모임 생성하기"}
+                  {saving ? "모임을 생성하는 중..." : "새로운 모임 시작하기"}
                 </button>
               </div>
             </motion.div>

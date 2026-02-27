@@ -1940,7 +1940,7 @@ export default function GroupDashboard() {
       alert("관리자는 모임을 나갈 수 없습니다. 먼저 소유권을 이전하세요.");
       return;
     }
-    if (!confirm("모임에서 나가시겠습니까?")) return;
+    if (!confirm("모임을 탈퇴하시겠습니까?")) return;
 
     const { error } = await supabase.rpc("leave_group", {
       p_group_id: group.id,
@@ -2580,7 +2580,10 @@ export default function GroupDashboard() {
                           <div className="font-bold text-zinc-900">{name}</div>
 
                           {/* 역할 배지 */}
-                          <span className="px-2 py-0.5 text-xs font-medium bg-zinc-200 text-zinc-600 rounded-md">
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' ? 'bg-amber-100 text-amber-700' :
+                              member.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+                                'bg-zinc-200 text-zinc-600'
+                            }`}>
                             {toLabel(member.role)}
                           </span>
 
