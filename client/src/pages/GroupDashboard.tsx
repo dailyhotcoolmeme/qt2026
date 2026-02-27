@@ -2640,14 +2640,16 @@ export default function GroupDashboard() {
               </button>
             )}
 
-            {role !== "owner" && (
-              <button
-                onClick={leaveGroup}
-                className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base"
-              >
-                모임 탈퇴하기
-              </button>
-            )}
+            <div className="bg-[#F6F7F8] p-2">
+              {role !== "owner" && (
+                <button
+                  onClick={leaveGroup}
+                  className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base shadow-sm hover:shadow-md transition-all duration-200"
+                >
+                  모임 탈퇴하기
+                </button>
+              )}
+            </div>
           </motion.div>
         )}
 
