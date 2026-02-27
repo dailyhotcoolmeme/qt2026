@@ -2519,7 +2519,7 @@ export default function GroupDashboard() {
         {activeTab === "members" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="">
             {isManager && (
-              <div className="bg-[#F6F7F8] p-2">
+              <div className="bg-[#F6F7F8] p-2 mb-20">
                 <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
                   <Shield size={16} /> 가입 요청
                 </h3>
@@ -2557,7 +2557,7 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-[#F6F7F8] p-2 mt-20">
+            <div className="bg-[#F6F7F8] p-2">
               <h3 className="font-bold text-[#4A6741] mb-2 text-lg flex items-center gap-2">
                 <Users size={16} /> 회원 목록
               </h3>
