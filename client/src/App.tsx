@@ -290,21 +290,24 @@ export default function App() {
         // OAuth 콜백 URL 정리: ?code= 가 있으면 returnTo 우선 처리
         if (window.location.search.includes('code=')) {
           const params = new URLSearchParams(window.location.search);
-          const returnTo = params.get('returnTo');
+          const returnTo = params.get('returnTo') || localStorage.getItem('qt_return');
           if (returnTo) {
             try {
               const decoded = decodeURIComponent(returnTo);
-              // syncAgreements 먼저 비동기 실행 후 이동
               syncAgreements();
               void joinPendingInviteGroup(session?.user?.id ?? null);
-              window.location.href = decoded;
+              localStorage.removeItem('qt_return');
+              const parsedUrl = new URL(decoded);
+              window.history.replaceState(null, '', parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
+              window.dispatchEvent(new Event('hashchange'));
               return;
             } catch (e) {
-              console.error('Failed to decode returnTo in SIGNED_IN:', e);
+              console.error('Failed to parse returnTo in SIGNED_IN:', e);
             }
           }
           // returnTo 없으면 홈으로
           window.history.replaceState(null, '', window.location.origin + '/#/');
+          window.dispatchEvent(new Event('hashchange'));
         }
         syncAgreements();
         void joinPendingInviteGroup(session?.user?.id ?? null);

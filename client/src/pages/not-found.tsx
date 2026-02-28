@@ -7,12 +7,6 @@ export default function NotFound() {
   const [isAuthRedirect, setIsAuthRedirect] = useState(true);
 
   useEffect(() => {
-    // OAuth 콜백: ?code= 가 URL에 있으면 hash 추가해서 홈으로 (리로드 없음)
-    if (window.location.search.includes('code=') && !window.location.hash) {
-      window.location.hash = '/';
-      return;
-    }
-
     // 주소창을 확인해서 로그인 토큰이 없다면 500ms 뒤에 진짜 404 화면으로 전환합니다.
     if (!window.location.hash.includes("access_token")) {
       const timer = setTimeout(() => {
