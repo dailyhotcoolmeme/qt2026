@@ -1094,18 +1094,9 @@ export default function GroupDashboard() {
   };
 
   const buildWeekIso = (ref = new Date()) => {
-    const d = new Date(ref);
-    const day = d.getDay();
-    const sunday = new Date(d);
-    sunday.setDate(d.getDate() - day);
-    sunday.setHours(0, 0, 0, 0);
-    const dates: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const cur = new Date(sunday);
-      cur.setDate(sunday.getDate() + i);
-      dates.push(cur.toISOString().split("T")[0]);
-    }
-    return dates;
+    const start = startOfWeek(ref, { weekStartsOn: 0 });
+    const end = endOfWeek(ref, { weekStartsOn: 0 });
+    return eachDayOfInterval({ start, end }).map(d => format(d, 'yyyy-MM-dd'));
   };
 
   const loadWeeklyFaithRecords = async (refDate = faithCurrentDate) => {
@@ -1743,7 +1734,7 @@ export default function GroupDashboard() {
     const year = d.getFullYear();
     const firstDay = new Date(year, month - 1, 1).getDay();
     const week = Math.ceil((d.getDate() + firstDay) / 7);
-    return `< ${year}년 ${month}월 ${week}주차 >`;
+    return `${year}년 ${month}월 ${week}주차`;
   };
 
   const getFaithItemByKeywords = (keywords: string[]) => {
@@ -2731,8 +2722,8 @@ export default function GroupDashboard() {
             <section className="relative">
               <div className="space-y-4">
                 {topicsByAuthor.map(({ userId, topics, author }) => (
-                  <div key={userId} className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-5 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-3 px-5">
+                  <div key={userId} className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-2 px-5">
                       {author.avatar_url ? (
                         <img src={author.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="avatar" />
                       ) : (
@@ -2743,7 +2734,7 @@ export default function GroupDashboard() {
                       <span className="font-bold text-zinc-900 text-[16px]">{author.nickname || author.username}</span>
                     </div>
 
-                    <div className="space-y-4 pb-5 px-5">
+                    <div className="space-y-0 pb-3 px-5">
                       {topics.map(topic => {
                         const relatedPrayers = prayersByTopic.get(topic.id) || [];
                         const heartCount = relatedPrayers.filter(p => p.audio_url === 'amen').length;
@@ -2752,7 +2743,7 @@ export default function GroupDashboard() {
                         const isMine = topic.author_id === user.id;
 
                         return (
-                          <div key={topic.id} className="border-b border-zinc-100 pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group pt-4">
+                          <div key={topic.id} className="border-b border-zinc-100 py-3 last:border-0 last:pb-0 relative group">
                             <div className="flex flex-col gap-1.5 items-start">
                               <div className="w-full flex justify-between items-start gap-2">
                                 <div className="flex-1 font-bold text-[#4A6741] text-sm leading-relaxed whitespace-pre-wrap">{topic.content}</div>
@@ -2836,19 +2827,20 @@ export default function GroupDashboard() {
         )}
 
         {activeTab === "faith" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-0">
+
+            <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
+              <button onClick={() => setFaithCurrentDate(subWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
+              <span className="font-black text-[22px] tracking-tight">{getWeekKoreanLabel(faithCurrentDate)}</span>
+              <button onClick={() => setFaithCurrentDate(addWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight /></button>
+            </div>
 
             {/* ── 주간 수행 현황 카드 ── */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-zinc-100/50">
-              <div className="flex items-center justify-between text-zinc-900 bg-transparent px-4 py-3 border-b border-zinc-50">
-                <button onClick={() => setFaithCurrentDate(subWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
-                <span className="font-black text-[17px] tracking-tight">{getWeekKoreanLabel(faithCurrentDate)}</span>
-                <button onClick={() => setFaithCurrentDate(addWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
-              </div>
-              <div className="w-full px-2">
-                <div className="w-full select-none pb-4">
+            <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 overflow-hidden">
+              <div className="w-full">
+                <div className="w-full select-none pb-0">
                   {/* 헤더 항목 */}
-                  <div className="flex items-center pt-5 pb-4 px-2 sm:px-6">
+                  <div className="flex items-center pt-1 pb-4 px-0 sm:px-2 border-b border-zinc-50">
                     <div className="shrink-0 w-16 sm:w-20" />
                     {faithItemSlots.map((slot) => (
                       <div key={`header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
@@ -2859,14 +2851,18 @@ export default function GroupDashboard() {
                   </div>
 
                   {/* 날짜 행 */}
-                  <div className="space-y-0 px-2 sm:px-6">
+                  <div className="space-y-0 px-0 sm:px-2 pt-2">
                     {weekDates.map((date) => {
-                      const dt = new Date(date);
-                      const isToday = date === new Date().toISOString().split("T")[0];
+                      const dt = parseISO(date);
+                      const isToday = isSameDay(dt, new Date());
+                      const isHoliday = KOREAN_HOLIDAYS[date];
+                      const isSunday = dt.getDay() === 0;
+                      const isSaturday = dt.getDay() === 6;
+                      const isRed = isSunday || isHoliday;
                       return (
                         <div key={date} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-zinc-100/70" : ""}`}>
                           <div className="shrink-0 w-16 sm:w-20 flex flex-col items-center justify-center">
-                            <span className={`text-[13px] sm:text-[15px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-500"} text-center`}>
+                            <span className={`text-[13px] sm:text-[15px] font-bold ${isToday ? "text-[#4A6741]" : isRed ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-500"} text-center`}>
                               {dt.getDate()}({dt.toLocaleDateString("ko-KR", { weekday: "short" })})
                             </span>
                           </div>
