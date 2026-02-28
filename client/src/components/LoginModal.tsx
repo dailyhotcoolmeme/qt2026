@@ -25,8 +25,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
       // ignore storage errors
     }
 
-    const encodedReturnTo = encodeURIComponent(targetReturnTo);
-    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
+    const redirectTo = `${window.location.origin}/#/`;
 
     supabase.auth
       .signInWithOAuth({

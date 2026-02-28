@@ -265,15 +265,17 @@ export default function App() {
 
     persistPendingInviteFromUrl();
 
-    // OAuth 콜백 즉각 처리: ?code= URL에서 빈 해시로 인한 not-found 방지
-    // 리로드 없이 URL에 #/ 추가 → 라우터가 즉시 홈 화면 표시
-    if (!window.location.hash && window.location.search.includes('code=')) {
-      window.history.replaceState(
-        null,
-        '',
-        `${window.location.pathname}${window.location.search}#/`
-      );
-      window.dispatchEvent(new Event('hashchange'));
+    // OAuth 콜백 즉각 처리: ?code= URL에서 빈 해시 혹은 페이스북/카카오가 강제로 넣는 #_=_ 방지
+    // 리로드 없이 URL에 #/ 추가 → 라우터가 즉시 홈 화면(또는 원래 경로) 표시
+    if (window.location.search.includes('code=')) {
+      if (!window.location.hash || window.location.hash === '#_=_') {
+        window.history.replaceState(
+          null,
+          '',
+          `${window.location.pathname}${window.location.search}#/`
+        );
+        window.dispatchEvent(new Event('hashchange'));
+      }
     }
 
     // Process OAuth hash and returnTo FIRST, before any other async operations

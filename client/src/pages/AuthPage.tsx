@@ -50,8 +50,7 @@ function AuthPage() {
   const handleKakaoLogin = async () => {
     try {
       // returnTo: auth 페이지가 아닌 홈으로 설정
-      // (auth 페이지로 돌아오면 로그인됐어도 로그인 화면이 보이는 문제 방지)
-      const redirectTo = `${window.location.origin}/`;
+      const redirectTo = `${window.location.origin}/#/`;
       await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {

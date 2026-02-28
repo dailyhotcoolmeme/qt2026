@@ -194,7 +194,7 @@ export default function RegisterPage() {
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/#/`,
         skipBrowserRedirect: false,
         queryParams: { prompt: 'login' }
       }
