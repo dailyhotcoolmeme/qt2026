@@ -18,7 +18,6 @@ import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage";
 import FindAccountPage from "./pages/FindAccountPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
-import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage";
 import NotFound from "./pages/not-found";
@@ -56,7 +55,6 @@ function AppContent() {
           <Route path="/terms/:type" component={TermsPage} />
           {/* AuthPage 경로 확인: /auth 로 설정됨 */}
           <Route path="/auth" component={AuthPage} />
-          <Route path="/login" component={LoginPage} />
           <Route path="/register" component={RegisterPage} />
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />

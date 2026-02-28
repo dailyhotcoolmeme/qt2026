@@ -2459,7 +2459,7 @@ export default function GroupDashboard() {
             <div className="mt-4">
               {!user ? (
                 <button
-                  onClick={() => setLocation("/login")}
+                  onClick={() => setLocation("/auth")}
                   className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-lg shadow-lg hover:bg-[#3d5535] transition-all"
                 >
                   로그인 후 신청하기

@@ -255,7 +255,13 @@ export default function RegisterPage() {
       {/* 헤더 바 */}
       <header className="px-6 pt-16 pb-6 relative z-30">
         <button
-          onClick={() => setLocation("/auth")}
+          onClick={() => {
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              setLocation("/");
+            }
+          }}
           className="p-2 -ml-2 text-zinc-400 hover:text-zinc-600 transition-all active:scale-90"
         >
           <ArrowLeft size={28} />
@@ -622,7 +628,7 @@ export default function RegisterPage() {
               <button
                 onClick={() => {
                   setModal({ ...modal, show: false });
-                  if (modal.type === 'success' && modal.title === '가입 완료') setLocation("/auth");
+                  if (modal.type === 'success' && modal.title === '가입 완료') setLocation("/");
                 }}
                 className="w-full py-6 bg-zinc-900 text-white rounded-[24px] font-black text-[18px] shadow-lg active:scale-[0.96] transition-all"
               >
