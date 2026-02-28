@@ -642,14 +642,17 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
 
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
-  const groupId = matched ? (routeParams as { id: string }).id : null;
+  const routeIdRaw = matched ? (routeParams as { id: string }).id : null;
+  const groupId = routeIdRaw?.split("?")[0] || null;
+  const urlTabMatch = routeIdRaw?.match(/\?tab=([^&]+)/);
+  const initialTab = urlTabMatch ? urlTabMatch[1] : null;
   const [location, setLocation] = useLocation();
 
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
-  const [activeTab, setActiveTab] = useState<TabKey>("faith");
+  const [activeTab, setActiveTab] = useState<TabKey>((initialTab as TabKey) || "faith");
   const [loading, setLoading] = useState(true);
 
   const [groupPrayers, setGroupPrayers] = useState<GroupPrayerRecord[]>([]);
