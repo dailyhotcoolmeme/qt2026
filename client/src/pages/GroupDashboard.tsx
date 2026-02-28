@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -26,7 +26,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -435,7 +435,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
   const currentList = schedules.filter(s => s.type === listType).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-20">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-12">
       <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
         <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
         <span className="font-black text-[22px] tracking-tight">{format(currentMonth, "yyyy년 M월")}</span>
@@ -464,14 +464,6 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
                       {format(parseISO(ev.start_time), "M월 d일 HH:mm")} ~ {format(parseISO(ev.end_time), "HH:mm")}
                     </div>
                   </div>
-                  {ev.type === "event" && (
-                    <button
-                      onClick={() => toggleAlert(ev.id)}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-2.5 py-1.5 font-bold rounded-lg transition-colors flex items-center gap-1 ${alerted ? "bg-[#4A6741] text-white" : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"}`}
-                    >
-                      {alerted ? "알림 ON" : "알림 받기"}
-                    </button>
-                  )}
                 </div>
               );
             })}
@@ -534,11 +526,11 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       </div>
 
       <div className="fixed right-6 bottom-24 z-[120] flex flex-col gap-3">
-        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-rose-500 text-white shadow-xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
-          <CalendarX size={26} />
+        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-rose-500 text-white shadow-xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
+          <CalendarX size={24} />
         </button>
-        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
-          <CalendarPlus size={26} />
+        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
+          <CalendarPlus size={24} />
         </button>
       </div>
 
@@ -574,7 +566,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
               </div>
 
               <div className="pt-2">
-                <button disabled={saving} onClick={saveSchedule} className="w-full py-4 bg-[#4A6741] text-white font-black text-base shadow-lg rounded-2xl mt-2 active:scale-95 transition-transform disabled:opacity-60">
+                <button disabled={saving} onClick={saveSchedule} className={`w-full py-4 text-white font-black text-base shadow-lg rounded-2xl mt-2 active:scale-95 transition-transform disabled:opacity-60 ${formType === "event" ? "bg-[#4A6741]" : "bg-rose-500"}`}>
                   {saving ? "저장 중..." : "등록하기"}
                 </button>
               </div>
@@ -1935,9 +1927,10 @@ export default function GroupDashboard() {
       try {
         const uploadedUrls = await Promise.all(
           postImageFiles.map(async (file, index) => {
-            const safeName = sanitizeFileName(file.name || `image_${index + 1}.jpg`);
+            const resized = await resizeImageFile(file, 1080, 0.82);
+            const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
             const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-            return uploadFileToR2(key, file, file.type || "image/jpeg");
+            return uploadFileToR2(key, resized, resized.type || "image/jpeg");
           })
         );
 
@@ -2384,6 +2377,31 @@ export default function GroupDashboard() {
     }
   };
 
+  const topicsByAuthor = useMemo(() => {
+    const map = new Map<string, typeof groupPrayerTopics>();
+    groupPrayerTopics.forEach(topic => {
+      if (!map.has(topic.author_id)) map.set(topic.author_id, []);
+      map.get(topic.author_id)!.push(topic);
+    });
+    return Array.from(map.entries()).map(([userId, topics]) => ({
+      userId,
+      topics,
+      author: authorMap[userId] || { nickname: "이름 없음" }
+    }));
+  }, [groupPrayerTopics, authorMap]);
+
+  const prayersByTopic = useMemo(() => {
+    const map = new Map<number, typeof groupPrayers>();
+    groupPrayers.forEach(record => {
+      const match = record.title?.match(/^\[topic:(\d+)\]/);
+      if (match) {
+        const tid = parseInt(match[1]);
+        if (!map.has(tid)) map.set(tid, []);
+        map.get(tid)!.push(record);
+      }
+    });
+    return map;
+  }, [groupPrayers]);
 
   // 1. groupId 없으면 아무것도 렌더링하지 않음
   if (!groupId) return null;
@@ -2522,8 +2540,33 @@ export default function GroupDashboard() {
   // 5. user 없으면 아무것도 렌더링하지 않음
   if (!user) return null;
 
+  const handleHeartPrayer = async (topicId: number) => {
+    if (!group || !user) return;
+    try {
+      const { error } = await supabase.from("group_prayer_records").insert({
+        group_id: group.id,
+        user_id: user.id,
+        source_type: "direct",
+        title: `[topic:${topicId}] Amen`,
+        audio_url: "amen",
+        audio_duration: 0,
+      });
+      if (error) throw error;
+      await loadGroupPrayers(group.id);
+      if (window.navigator?.vibrate) window.navigator.vibrate([20, 50, 20]);
+    } catch (err) {
+      console.error(err);
+      alert("마음기도 저장에 실패했습니다.");
+    }
+  };
+
+  const startVoicePrayerForTopic = (topicId: number) => {
+    setRecordTitle(`[topic:${topicId}] 음성기도`);
+    setShowPrayerComposer(true);
+  };
+
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
+    <div className="min-h-screen bg-[#F6F7F8] pb-12 text-base">
       <header
         className="relative overflow-hidden max-h-[320px] opacity-100 transition-all duration-250"
         style={{
@@ -2601,93 +2644,105 @@ export default function GroupDashboard() {
       <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
 
         {activeTab === "prayer" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
-              <h2 className="font-black text-zinc-900 mb-3 flex items-center gap-2">
-                <MessageSquare size={18} className="text-[#4A6741]" />
-                모임원 기도제목
-              </h2>
-              <div className="space-y-2">
-                {groupPrayerTopics.map((topic) => {
-                  const author = authorMap[topic.author_id];
-                  const authorName = author?.nickname || author?.username || "모임원";
-                  return (
-                    <div key={topic.id} className="px-1 py-3 border-b border-zinc-200">
-                      <div className="text-base text-zinc-900 whitespace-pre-wrap">{topic.content}</div>
-                      <div className="text-base text-zinc-500 mt-2">
-                        {authorName} · {formatDateTime(topic.created_at)}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <section className="bg-white border-b border-zinc-200 py-6 px-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-black text-zinc-900 flex items-center gap-2">
+                  <MessageSquare size={18} className="text-[#4A6741]" />
+                  모임원 기도제목
+                </h2>
+                <button
+                  onClick={() => setShowPrayerTopicModal(true)}
+                  className="px-3 py-1.5 rounded-full bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all"
+                >
+                  <Plus size={14} className="inline mr-1" />
+                  내 기도제목 등록
+                </button>
+              </div>
+
+              <div className="space-y-4 mt-2">
+                {topicsByAuthor.map(({ userId, topics, author }) => (
+                  <div key={userId} className="bg-[#F8F9FA] rounded-[24px] shadow-sm border border-zinc-100/50 pt-5 overflow-hidden">
+                    <div className="flex items-center gap-2 mb-3 px-5">
+                      <div className="w-10 h-10 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
+                        <User size={18} />
                       </div>
+                      <span className="font-bold text-zinc-900 text-[16px]">{author.nickname || author.username}</span>
                     </div>
-                  );
-                })}
-                {groupPrayerTopics.length === 0 && (
-                  <div className="px-4 py-5 text-center text-base text-zinc-500">
-                    아직 등록된 기도제목이 없습니다.
+
+                    <div className="space-y-4 pb-5 px-5">
+                      {topics.map(topic => {
+                        const relatedPrayers = prayersByTopic.get(topic.id) || [];
+                        const heartCount = relatedPrayers.filter(p => p.audio_url === 'amen').length;
+                        const voicePrayers = relatedPrayers.filter(p => p.audio_url && p.audio_url !== 'amen');
+
+                        return (
+                          <div key={topic.id} className="pl-3 border-l-2 border-[#4A6741]/20 py-1">
+                            <div className="text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap">{topic.content}</div>
+
+                            <div className="flex flex-wrap gap-2 mt-3 items-center">
+                              <button
+                                onClick={() => handleHeartPrayer(topic.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-[13px] font-bold transition-all active:scale-95"
+                              >
+                                <Heart size={14} fill="currentColor" className="opacity-80" /> 마음 {heartCount > 0 && <span>{heartCount}</span>}
+                              </button>
+                              <button
+                                onClick={() => startVoicePrayerForTopic(topic.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-[13px] font-bold transition-all active:scale-95"
+                              >
+                                <Mic size={14} /> 음성
+                              </button>
+                            </div>
+
+                            {/* 음성 기도 목록 */}
+                            {voicePrayers.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {voicePrayers.map(vp => {
+                                  // 보이스 기도는 본인 또는 글 작성자만 들을 수 있음
+                                  const canListen = isManager || vp.user_id === user.id || userId === user.id;
+                                  const prayingUser = authorMap[vp.user_id];
+                                  const pname = prayingUser?.nickname || prayingUser?.username || "모임원";
+                                  const canDelete = isManager || vp.user_id === user.id;
+
+                                  return (
+                                    <div key={vp.id} className="bg-white rounded-xl border border-zinc-100 p-2.5 shadow-sm">
+                                      <div className="flex justify-between items-center mb-1.5">
+                                        <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
+                                          <Mic size={12} /> {pname}
+                                        </div>
+                                        {canDelete && (
+                                          <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
+                                            <Trash2 size={12} />
+                                          </button>
+                                        )}
+                                      </div>
+                                      {canListen ? (
+                                        <audio controls className="w-full h-8" src={vp.audio_url} preload="none" />
+                                      ) : (
+                                        <div className="text-xs text-zinc-400 bg-zinc-50 py-2 text-center rounded">
+                                          본인의 기도제목이거나 삭제 권한자만 들을 수 있습니다.
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+
+                {topicsByAuthor.length === 0 && (
+                  <div className="py-10 text-center text-[15px] text-zinc-400">
+                    등록된 기도제목이 없습니다.
                   </div>
                 )}
               </div>
             </section>
-
-            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-6">
-              <div className="flex items-center justify-center gap-6">
-                <button
-                  onClick={() => setShowPrayerComposer(true)}
-                  className="w-28 h-28 rounded-full bg-[#4A6741] text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
-                >
-                  <Mic size={20} />
-                  <span className="text-base font-black">기도하기</span>
-                </button>
-                <button
-                  onClick={() => setShowPrayerTopicModal(true)}
-                  className="w-28 h-28 rounded-full bg-zinc-900 text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
-                >
-                  <Plus size={20} />
-                  <span className="text-base font-black">기도제목 등록</span>
-                </button>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
-                <div className="py-3 text-sm text-zinc-500">모임 내부에서 기도를 녹음하고 저장할 수 있습니다.</div>
-              </div>
-            </section>
-
-            <div className="space-y-2">
-              <h3 className="font-black text-zinc-900 px-1">기도 저장 목록</h3>
-              {groupPrayers.map((record) => (
-                <div key={record.id} className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div>
-                      <div className="font-bold text-zinc-900">{record.title || "제목 없는 기도"}</div>
-                      <div className="text-base text-zinc-500 mt-1">{formatDateTime(record.created_at)}</div>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span
-                        className={`px-2 py-0.5 rounded-sm text-base font-bold ${record.source_type === "direct"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-blue-100 text-blue-700"
-                          }`}
-                      >
-                        {record.source_type === "direct" ? "모임 직접" : "Prayer 연결"}
-                      </span>
-                      {(isManager || record.user_id === user.id) && (
-                        <button
-                          onClick={() => removeGroupPrayer(record)}
-                          className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <audio controls className="w-full" src={record.audio_url} preload="none" />
-                </div>
-              ))}
-
-              {groupPrayers.length === 0 && (
-                <div className="bg-[#F6F7F8] border-b border-zinc-200 px-4 py-5 text-base text-zinc-500 text-center">
-                  아직 모임 기도 기록이 없습니다.
-                </div>
-              )}
-            </div>
           </motion.div>
         )}
 
@@ -2847,55 +2902,71 @@ export default function GroupDashboard() {
                   const author = authorMap[post.author_id];
                   const authorName = author?.nickname || author?.username || "이름 없음";
                   const canDelete = isManager || post.author_id === user.id;
-                  const displayTitle = post.title?.trim() || post.content.slice(0, 40) || "제목 없음";
+                  const displayTitle = post.title?.trim() || "";
                   const isNotice = post.post_type === "notice";
 
                   return (
                     <div
                       key={post.id}
-                      className="rounded-lg bg-white shadow border border-zinc-100 p-4 flex flex-col gap-2"
+                      className="bg-white border-b border-zinc-100 flex flex-col pt-3 pb-5"
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
-                            <span className={`px-2 py-0.5 font-bold rounded ${isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"}`}>{isNotice ? "공지" : "일반"}</span>
-                            <span className="truncate">{authorName}</span>
-                            <span>· {formatDateTime(post.created_at)}</span>
+                      {/* Author Header */}
+                      <div className="flex items-center justify-between px-4 mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center text-zinc-400 shrink-0">
+                            <Users size={18} />
                           </div>
-                          <div className="font-bold text-zinc-900 truncate text-base mb-1">{displayTitle}</div>
+                          <div className="flex flex-col">
+                            <div className="flex items-center gap-1.5 leading-tight">
+                              <span className="font-bold text-zinc-900 text-[15px]">{authorName}</span>
+                              {isNotice && <span className="px-1.5 py-0.5 bg-rose-50 text-rose-600 text-[10px] font-black rounded-sm tracking-tight">공지</span>}
+                            </div>
+                            <div className="text-[12px] text-zinc-400 leading-tight mt-0.5">{formatDateTime(post.created_at)}</div>
+                          </div>
                         </div>
                         {canDelete && (
                           <button
                             onClick={() => removePost(post)}
-                            className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
+                            className="w-8 h-8 flex items-center justify-center text-zinc-400 hover:text-rose-500 rounded-full transition-colors"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={16} />
                           </button>
                         )}
                       </div>
-                      <div className="text-zinc-800 text-base whitespace-pre-wrap">
-                        {post.content}
-                      </div>
+
+                      {/* Image Content (Swipeable) */}
                       {post.image_urls && post.image_urls.length > 0 && (
-                        <div className="mt-2">
-                          <div className="overflow-x-auto flex gap-2 touch-pan-x snap-x snap-mandatory">
-                            {post.image_urls.slice(0, 10).map((url, index) => (
+                        <div className="w-full relative bg-zinc-50 border-y border-zinc-100 mb-3">
+                          <div className="flex overflow-x-auto touch-pan-x snap-x snap-mandatory scrollbar-hide">
+                            {post.image_urls.map((url, index) => (
                               <div
                                 key={`post-image-${post.id}-${index}`}
-                                className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100 snap-center cursor-pointer"
+                                className="flex-shrink-0 w-full sm:w-[400px] snap-center cursor-pointer relative"
                                 onClick={() => {
                                   setModalImages(post.image_urls ?? []);
                                   setModalIndex(index);
                                   setShowImageModal(true);
                                 }}
                               >
-                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
+                                {post.image_urls!.length > 1 && (
+                                  <div className="absolute top-3 right-3 bg-black/60 text-white font-bold text-xs px-2.5 py-1 rounded-full pointer-events-none drop-shadow">
+                                    {index + 1} / {post.image_urls!.length}
+                                  </div>
+                                )}
+                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-auto max-h-[500px] object-contain sm:object-cover aspect-square sm:aspect-auto" />
                               </div>
                             ))}
                           </div>
-                          <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
                         </div>
                       )}
+
+                      {/* Text Content */}
+                      <div className="px-4">
+                        {displayTitle && <div className="font-bold text-zinc-900 text-[15px] mb-1.5 leading-snug">{displayTitle}</div>}
+                        <div className="text-zinc-800 text-[14px] leading-relaxed whitespace-pre-wrap">
+                          {post.content}
+                        </div>
+                      </div>
                     </div>
                   );
                 })}
@@ -2908,10 +2979,10 @@ export default function GroupDashboard() {
             </div>
             <button
               onClick={() => setShowPostComposerModal(true)}
-              className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
+              className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
               aria-label="글 작성"
             >
-              <MessageSquare size={22} />
+              <MessageSquare size={24} />
             </button>
           </motion.div>
         )}
@@ -3040,10 +3111,10 @@ export default function GroupDashboard() {
             {(
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
+                className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
                 aria-label="회원 초대"
               >
-                <UserPlus size={22} />
+                <UserPlus size={24} />
               </button>
             )}
 
@@ -3359,82 +3430,88 @@ export default function GroupDashboard() {
 
       {
         showPrayerComposer && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerComposer(false)} />
-            <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-zinc-900">기도하기</h3>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] bg-zinc-900/95 flex flex-col items-center justify-center p-6"
+          >
+            <div className="w-full max-w-sm flex flex-col items-center">
+              <h3 className="font-black text-white text-xl mb-4">
+                기도하기
+              </h3>
+
+              {!isRecording && !recordedBlob && (
                 <button
-                  onClick={() => setShowPrayerComposer(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+                  onClick={startRecording}
+                  className="w-24 h-24 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
                 >
-                  <X size={14} />
+                  <Mic size={32} />
                 </button>
-              </div>
+              )}
 
-              <input
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="기도 제목 (선택)"
-                value={recordTitle}
-                onChange={(e) => setRecordTitle(e.target.value)}
-              />
-
-              <div className="flex items-center justify-between text-base">
-                <span className="text-zinc-500">녹음 시간</span>
-                <span className="font-black text-zinc-900">
-                  {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")}
-                </span>
-              </div>
-
-              <div className="flex gap-2">
-                {!isRecording ? (
-                  <button
-                    onClick={startRecording}
-                    className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
+              {isRecording && (
+                <div className="flex flex-col items-center mb-6">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="w-24 h-24 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-rose-500/50 shadow-lg mb-6"
                   >
-                    <Mic size={16} /> 녹음 시작
-                  </button>
-                ) : (
-                  <>
-                    {isPaused ? (
-                      <button
-                        onClick={resumeRecording}
-                        className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
-                      >
-                        <Play size={16} /> 재개
-                      </button>
-                    ) : (
-                      <button
-                        onClick={pauseRecording}
-                        className="flex-1 py-3 rounded-sm bg-zinc-800 text-white font-bold inline-flex items-center justify-center gap-2"
-                      >
-                        <Pause size={16} /> 일시정지
-                      </button>
-                    )}
+                    <Mic size={32} />
+                  </motion.div>
+                  <div className="text-white text-2xl font-mono opacity-80 mb-6">
+                    {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
+                  </div>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={isPaused ? resumeRecording : pauseRecording}
+                      className="px-6 py-3 rounded-full bg-white/20 text-white font-bold flex items-center gap-2"
+                    >
+                      {isPaused ? <Play size={16} /> : <Pause size={16} />}
+                      {isPaused ? "이어서" : "일시정지"}
+                    </button>
                     <button
                       onClick={stopRecording}
-                      className="px-4 py-3 rounded-sm bg-rose-600 text-white font-bold inline-flex items-center gap-2"
+                      className="px-6 py-3 rounded-full bg-white/20 text-white font-bold flex items-center gap-2"
                     >
                       <Square size={16} /> 종료
                     </button>
-                  </>
-                )}
-              </div>
+                  </div>
+                </div>
+              )}
 
               {recordPreviewUrl && (
-                <>
-                  <audio controls className="w-full" src={recordPreviewUrl} />
-                  <button
-                    onClick={saveDirectPrayer}
-                    disabled={savingPrayer}
-                    className="w-full py-3 rounded-sm bg-emerald-600 text-white font-bold disabled:opacity-60"
-                  >
-                    {savingPrayer ? "저장 중..." : "모임 기도 저장"}
-                  </button>
-                </>
+                <div className="w-full flex flex-col items-center mt-6 gap-6">
+                  <audio controls className="w-full max-w-xs" src={recordPreviewUrl} />
+                  <div className="flex w-full gap-3 justify-center text-white">
+                    <button
+                      onClick={saveDirectPrayer}
+                      disabled={savingPrayer}
+                      className="flex-1 py-3 rounded-full bg-[#4A6741] font-bold disabled:opacity-50 max-w-xs shadow-lg flex items-center justify-center gap-2"
+                    >
+                      {savingPrayer ? <Loader2 className="animate-spin" size={16} /> : <Mic size={16} />}
+                      {savingPrayer ? "저장 중..." : "기도 저장"}
+                    </button>
+                  </div>
+                </div>
               )}
+
+              <button
+                onClick={() => {
+                  setShowPrayerComposer(false);
+                  if (recordedBlob) URL.revokeObjectURL(recordPreviewUrl!);
+                  setRecordedBlob(null);
+                  setRecordPreviewUrl(null);
+                  setRecordingTime(0);
+                  if (isRecording) stopRecording();
+                }}
+                className="mt-12 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                title="닫기"
+              >
+                <X size={20} />
+              </button>
             </div>
-          </div>
+          </motion.div>
         )
       }
 
@@ -3442,7 +3519,7 @@ export default function GroupDashboard() {
         showPrayerTopicModal && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-            <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h3 className="font-black text-zinc-900">기도제목 등록</h3>
                 <button
@@ -3514,7 +3591,7 @@ export default function GroupDashboard() {
         showPostComposerModal && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-            <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <h3 className="font-black text-zinc-900">글 작성</h3>
                 <button

@@ -609,7 +609,7 @@ export default function CommunityPage() {
               </p>
             </div>
           ) : (
-            <section className="space-y-3">
+            <section className="space-y-3 flex-1 flex flex-col">
               {pendingRequests.length > 0 && (
                 <div className="space-y-2">
                   <h2 className="px-1 text-sm font-bold text-amber-700">가입 승인 대기중</h2>
@@ -648,8 +648,29 @@ export default function CommunityPage() {
               )}
 
               {joinedGroups.length === 0 && pendingRequests.length === 0 ? (
-                <div className="min-h-[42vh] flex items-center justify-center text-center text-zinc-500 px-6">
-                  <p className="text-base font-bold">가입한 모임이 없습니다. <br />모임 검색 또는 신규 생성을 진행해주세요.</p>
+                <div className="flex-1 flex items-center justify-center text-center pb-20">
+                  <div className="max-w-sm w-full bg-white rounded-[32px] p-10 flex flex-col items-center justify-center shadow-xl shadow-zinc-200/50 border border-zinc-100/50">
+                    <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6">
+                      <Users className="text-[#4A6741] opacity-40" size={32} />
+                    </div>
+                    <p className="text-[15px] text-zinc-600 font-bold mb-8 leading-relaxed">
+                      가입한 모임이 없습니다.<br />모임 검색 또는 신규 생성을 진행해주세요.
+                    </p>
+                    <div className="flex flex-col gap-3 w-full">
+                      <button
+                        onClick={() => setShowSearchModal(true)}
+                        className="w-full h-14 bg-[#4A6741] text-white rounded-2xl text-base font-black shadow-lg shadow-green-900/10 active:scale-95 transition-all"
+                      >
+                        모임 검색하기
+                      </button>
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="w-full h-14 bg-zinc-50 text-zinc-600 rounded-2xl text-base font-bold border border-zinc-100 active:scale-95 transition-all"
+                      >
+                        새 모임 만들기
+                      </button>
+                    </div>
+                  </div>
                 </div>
               ) : joinedGroups.length > 0 ? (
                 <div className="space-y-4">
