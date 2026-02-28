@@ -25,14 +25,14 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
       // ignore storage errors
     }
 
-    const redirectTo = `${window.location.origin}/#/`;
+    const encodedReturnTo = encodeURIComponent(targetReturnTo);
+    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
 
     supabase.auth
       .signInWithOAuth({
         provider: "kakao",
         options: {
           redirectTo,
-          queryParams: { prompt: 'login' }
         },
       })
       .catch((error) => {
