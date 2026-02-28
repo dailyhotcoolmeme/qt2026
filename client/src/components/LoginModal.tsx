@@ -31,7 +31,10 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     supabase.auth
       .signInWithOAuth({
         provider: "kakao",
-        options: { redirectTo },
+        options: {
+          redirectTo,
+          queryParams: { prompt: 'login' }
+        },
       })
       .catch((error) => {
         console.error("LoginModal kakao start error", error);

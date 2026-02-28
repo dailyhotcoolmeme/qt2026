@@ -196,6 +196,7 @@ export default function RegisterPage() {
       options: {
         redirectTo: `${window.location.origin}/`,
         skipBrowserRedirect: false,
+        queryParams: { prompt: 'login' }
       }
     });
   };
@@ -662,8 +663,8 @@ export default function RegisterPage() {
                       setIsRankModalOpen(false);
                     }}
                     className={`py-6 rounded-[24px] border-2 font-black text-[16px] transition-all duration-300 ${watch("rank") === r
-                        ? 'border-[#4A6741] bg-[#4A6741] text-white shadow-lg'
-                        : 'border-zinc-50 bg-zinc-50 text-zinc-400 active:border-zinc-200'
+                      ? 'border-[#4A6741] bg-[#4A6741] text-white shadow-lg'
+                      : 'border-zinc-50 bg-zinc-50 text-zinc-400 active:border-zinc-200'
                       }`}
                   >
                     {r}
