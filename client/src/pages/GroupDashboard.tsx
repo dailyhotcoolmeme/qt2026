@@ -1765,54 +1765,13 @@ export default function GroupDashboard() {
     }
   };
 
-  const uploadGroupEditImage = async () => {
-    if (!group || !user || !groupEditImageFile) return;
-    setGroupEditImageUploading(true);
-    try {
-      const optimized = await resizeImageFile(groupEditImageFile, 1280, 0.84);
-      const safeName = sanitizeFileName(optimized.name || "group.jpg");
-      const key = `images/group/${group.id}/${user.id}/${Date.now()}_${safeName}`;
-      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
-      if (!imageUrl) throw new Error("invalid image url");
-
-      const { data, error: persistError } = await supabase.rpc("update_group_visual_settings", {
-        p_group_id: group.id,
-        p_group_image: imageUrl,
-        p_header_image_url: imageUrl,
-        p_header_color: headerColorDraft || "#4A6741",
-      });
-      if (persistError) throw persistError;
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row?.id) throw new Error("failed to persist group image");
-
-      setGroup((prev) =>
-        prev
-          ? {
-            ...prev,
-            group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
-            header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
-            header_color: row.header_color || prev.header_color,
-          }
-          : prev
-      );
-      setHeaderImageDraft(imageUrl);
-      setGroupEditImageFile(null);
-      alert("대표 이미지를 업로드했습니다.");
-    } catch (err) {
-      console.error(error);
-      alert("대표 이미지 업로드에 실패했습니다.");
-    } finally {
-      setGroupEditImageUploading(false);
-    }
-  };
-
   const saveGroupBasicSettings = async () => {
-    if (!group || !isManager) return;
+    if (!group || !user || !isManager) return;
     const name = groupEditName.trim();
     const slug = groupEditSlug.trim().toLowerCase();
     const description = groupEditDescription.trim();
     const groupType = groupEditType.trim() || "etc";
-    const nextImageUrl = ensureHttpsUrl(group?.group_image || null);
+    let nextImageUrl = ensureHttpsUrl(group?.group_image || null);
 
     if (!name || !slug) {
       alert("모임 이름과 모임 아이디를 입력해주세요.");
@@ -1825,6 +1784,24 @@ export default function GroupDashboard() {
 
     setGroupEditSaving(true);
     try {
+      if (groupEditImageFile) {
+        setGroupEditImageUploading(true);
+        const optimized = await resizeImageFile(groupEditImageFile, 1280, 0.84);
+        const safeName = sanitizeFileName(optimized.name || "group.jpg");
+        const key = `images/group/${group.id}/${user.id}/${Date.now()}_${safeName}`;
+        const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
+        if (!imageUrl) throw new Error("invalid image url");
+
+        nextImageUrl = imageUrl;
+        setHeaderImageDraft(imageUrl);
+        await supabase.rpc("update_group_visual_settings", {
+          p_group_id: group.id,
+          p_group_image: imageUrl,
+          p_header_image_url: imageUrl,
+          p_header_color: headerColorDraft || "#4A6741",
+        });
+      }
+
       const { data, error } = await supabase.rpc("update_group_basic_settings", {
         p_group_id: group.id,
         p_name: name,
@@ -1853,6 +1830,7 @@ export default function GroupDashboard() {
           : prev
       );
       setGroupEditPassword("");
+      setGroupEditImageFile(null);
       alert("모임 설정을 저장했습니다.");
     } catch (error) {
       console.error(error);
@@ -1863,6 +1841,7 @@ export default function GroupDashboard() {
       }
     } finally {
       setGroupEditSaving(false);
+      setGroupEditImageUploading(false);
     }
   };
 
@@ -2837,42 +2816,37 @@ export default function GroupDashboard() {
                     onChange={(e) => setGroupEditDescription(e.target.value)}
                   />
                 </div>
-                <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3">
-                  <div className="text-sm font-bold text-zinc-700">모임 대표 이미지</div>
-                  <div className="flex items-center gap-3">
-                    <label className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold cursor-pointer hover:bg-zinc-800 transition-colors inline-flex items-center gap-2">
-                      <ImagePlus size={16} />
-                      이미지 선택
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleGroupImageSelect}
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 대표 이미지</div>
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <label className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold cursor-pointer hover:bg-zinc-800 transition-colors inline-flex items-center gap-2">
+                        <ImagePlus size={16} />
+                        이미지 선택
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleGroupImageSelect}
+                        />
+                      </label>
+                      {groupEditImageFile && <span className="text-sm text-zinc-600 truncate max-w-[150px]">{groupEditImageFile.name}</span>}
+                    </div>
+                    <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white">
+                      <img
+                        src={groupEditImageFile ? URL.createObjectURL(groupEditImageFile) : (ensureHttpsUrl(group?.group_image) || headerImageDraft || "/default-group.png")}
+                        alt="group-image-preview"
+                        className="w-full h-32 object-cover"
                       />
-                    </label>
-                    {groupEditImageFile && <span className="text-sm text-zinc-600 truncate max-w-[150px]">{groupEditImageFile.name}</span>}
-                  </div>
-                  <button
-                    onClick={uploadGroupEditImage}
-                    disabled={!groupEditImageFile || groupEditImageUploading}
-                    className="w-full py-3 rounded-xl bg-zinc-200 text-zinc-800 text-sm font-bold disabled:opacity-50 hover:bg-zinc-300 transition-colors"
-                  >
-                    {groupEditImageUploading ? "업로드 중..." : "대표 이미지 업로드"}
-                  </button>
-                  <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white">
-                    <img
-                      src={groupEditImageFile ? URL.createObjectURL(groupEditImageFile) : (ensureHttpsUrl(group?.group_image) || headerImageDraft || "/default-group.png")}
-                      alt="group-image-preview"
-                      className="w-full h-32 object-cover"
-                    />
+                    </div>
                   </div>
                 </div>
                 <button
                   onClick={saveGroupBasicSettings}
-                  disabled={groupEditSaving || (groupEditSlug !== (group?.group_slug ?? "") && slugCheckState !== "available")}
+                  disabled={groupEditSaving || groupEditImageUploading || ((groupEditSlug !== (group?.group_slug ?? "")) && slugCheckState !== "available")}
                   className="w-full py-4 mt-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-60 active:scale-[0.98]"
                 >
-                  {groupEditSaving ? "저장 중..." : "모임 정보 저장"}
+                  {(groupEditSaving || groupEditImageUploading) ? "업로드 및 저장 중..." : "모임 정보 저장"}
                 </button>
               </motion.section>
             )}
@@ -3495,6 +3469,9 @@ export default function GroupDashboard() {
               image={cropImageSrc}
               crop={crop}
               zoom={zoom}
+              minZoom={0.5}
+              maxZoom={3}
+              restrictPosition={false}
               aspect={16 / 9}
               onCropChange={setCrop}
               onCropComplete={onCropComplete}
@@ -3509,7 +3486,7 @@ export default function GroupDashboard() {
               <input
                 type="range"
                 value={zoom}
-                min={1}
+                min={0.5}
                 max={3}
                 step={0.1}
                 aria-labelledby="Zoom"
