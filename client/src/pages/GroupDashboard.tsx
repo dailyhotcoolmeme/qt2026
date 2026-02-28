@@ -25,18 +25,31 @@ import {
   UserMinus,
   Users,
   X,
-  Loader2,
 } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus } from "lucide-react";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes } from "date-fns";
+import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
-type TabKey = "faith" | "prayer" | "social" | "members" | "admin";
+type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
 type FaithType = "check" | "count" | "attendance";
 type FaithSourceMode = "manual" | "linked" | "both";
 type LinkedFeature = "none" | "qt" | "prayer" | "reading";
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
+
+interface GroupSchedule {
+  id: string;
+  group_id: string;
+  user_id: string;
+  type: "event" | "unavailable";
+  title: string | null;
+  start_time: string;
+  end_time: string;
+  created_at: string;
+}
 
 type GroupRow = {
   id: string;
@@ -309,6 +322,239 @@ const LAST_GROUP_KEY = "last_group_id";
 const GROUP_INVITE_PARAM = "invite_group";
 const HEADER_PALETTE = ["#4A6741", "#1F4E5F", "#7C3A2D", "#3E335A", "#2F4858", "#5C4A3D", "#4B3F72", "#374151"];
 
+function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user: any, isManager: boolean }) {
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [schedules, setSchedules] = useState<GroupSchedule[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showModal, setShowModal] = useState(false);
+  const [formType, setFormType] = useState<"event" | "unavailable">("event");
+  const [formTitle, setFormTitle] = useState("");
+  const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [formStartTime, setFormStartTime] = useState("12:00");
+  const [formEndTime, setFormEndTime] = useState("13:00");
+  const [saving, setSaving] = useState(false);
+
+  const [selectedEvents, setSelectedEvents] = useState<GroupSchedule[] | null>(null);
+
+  const fetchSchedules = async () => {
+    setLoading(true);
+    const startDate = startOfMonth(currentMonth);
+    const endDate = endOfMonth(currentMonth);
+    const { data } = await supabase
+      .from("group_schedules")
+      .select("*, user:profiles(nickname, username)")
+      .eq("group_id", groupId)
+      .gte("end_time", startDate.toISOString())
+      .lte("start_time", endDate.toISOString());
+    if (data) setSchedules(data);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchSchedules();
+  }, [currentMonth, groupId]);
+
+  const saveSchedule = async () => {
+    if (!formDate || !formStartTime || !formEndTime) return;
+    if (formType === "event" && !formTitle.trim()) {
+      alert("모임 일정 제목을 입력해주세요.");
+      return;
+    }
+    setSaving(true);
+    const startStr = `${formDate}T${formStartTime}:00`;
+    const endStr = `${formDate}T${formEndTime}:00`;
+
+    // basic validation
+    if (new Date(endStr) <= new Date(startStr)) {
+      alert("종료 시간이 시작 시간보다 작을 수 없습니다.");
+      setSaving(false); return;
+    }
+
+    const { error } = await supabase.from("group_schedules").insert({
+      group_id: groupId,
+      user_id: user.id,
+      type: formType,
+      title: formType === "event" ? formTitle.trim() : null,
+      start_time: new Date(startStr).toISOString(),
+      end_time: new Date(endStr).toISOString(),
+    });
+
+    if (error) {
+      alert("일정 등록에 실패했습니다.");
+    } else {
+      setShowModal(false);
+      fetchSchedules();
+    }
+    setSaving(false);
+  };
+
+  const deleteSchedule = async (id: string) => {
+    if (!confirm("일정을 삭제하시겠습니까?")) return;
+    const { error } = await supabase.from("group_schedules").delete().eq("id", id);
+    if (!error) {
+      fetchSchedules();
+      setSelectedEvents(prev => prev ? prev.filter(e => e.id !== id) : null);
+    }
+  };
+
+  const daysInMonth = eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
+
+  const events = schedules.filter(s => s.type === "event").sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-20">
+      <div className="flex items-center justify-between text-zinc-900 bg-white shadow-sm p-4 rounded-2xl border border-zinc-100">
+        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2"><ChevronLeft /></button>
+        <span className="font-black text-lg">{format(currentMonth, "yyyy년 M월")}</span>
+        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2"><ChevronRight /></button>
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
+        <h3 className="font-bold text-zinc-900 mb-4 border-b pb-2">이번 달 일정</h3>
+        {events.length === 0 ? (
+          <div className="text-zinc-500 text-center py-4 text-sm font-bold">등록된 모임 일정이 없습니다.</div>
+        ) : (
+          <div className="space-y-3">
+            {events.map(ev => (
+              <div key={ev.id} className="flex gap-3 text-sm items-center bg-zinc-50 p-3 rounded-xl border border-zinc-100">
+                <div className="w-1.5 h-full min-h-[2rem] bg-[#4A6741] rounded-full"></div>
+                <div className="flex-1">
+                  <div className="font-bold text-zinc-900">{ev.title}</div>
+                  <div className="text-zinc-500 text-xs mt-0.5">
+                    {format(parseISO(ev.start_time), "M월 d일 HH:mm")} ~ {format(parseISO(ev.end_time), "HH:mm")}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-bold text-zinc-900 text-base">일정 달력</h3>
+          <div className="flex gap-2 text-xs font-bold items-center">
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4A6741]"></span>일정</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>불가</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-zinc-400 mb-2 mt-4">
+          {["일", "월", "화", "수", "목", "금", "토"].map(d => <div key={d}>{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7 gap-1 flex-1 min-h-[280px]">
+          {daysInMonth.map(day => {
+            const isCurMonth = isSameMonth(day, currentMonth);
+            const daySchedules = schedules.filter(s => isSameDay(parseISO(s.start_time), day)).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+            return (
+              <div key={day.toISOString()} className={`relative border border-zinc-100 p-1 min-h-[60px] rounded-lg ${isCurMonth ? "bg-white" : "bg-zinc-50 opacity-40"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => { if (daySchedules.length > 0) setSelectedEvents(daySchedules); }}>
+                <span className={`text-[10px] font-bold mb-1 ${isSameDay(day, new Date()) ? "bg-[#4A6741] text-white w-5 h-5 flex items-center justify-center rounded-full" : isCurMonth ? "text-zinc-800" : "text-zinc-400"}`}>{format(day, "d")}</span>
+                <div className="flex flex-col gap-[2px] w-full items-center">
+                  {daySchedules.filter(s => s.type === "event").slice(0, 2).map((s, idx) => (
+                    <div key={idx} className="w-2.5 h-2.5 rounded-full bg-[#4A6741]" />
+                  ))}
+                  {daySchedules.filter(s => s.type === "unavailable").slice(0, 3).map((s, idx) => (
+                    <div key={`u-${idx}`} className="w-full bg-rose-50 text-[9px] text-rose-500 overflow-hidden truncate px-1 rounded-sm leading-4 font-bold">
+                      {(s as any).user?.nickname || "멤버"}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="fixed right-6 bottom-24 z-[120] flex flex-col gap-3">
+        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-rose-500 text-white shadow-xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
+          <CalendarX size={26} />
+        </button>
+        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
+          <CalendarPlus size={26} />
+        </button>
+      </div>
+
+      {showModal && (
+        <div className="fixed inset-0 z-[200] flex flex-col items-end sm:items-center justify-end sm:justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-xl animate-in slide-in-from-bottom-5">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-black text-xl text-zinc-900">{formType === "event" ? "모임일정 등록" : "불가능한 시간 등록"}</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-4">
+              {formType === "event" && (
+                <div>
+                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">일정 제목</label>
+                  <input className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" placeholder="예: 첫 정기 모임" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">날짜</label>
+                <input type="date" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formDate} onChange={e => setFormDate(e.target.value)} />
+              </div>
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">시작 시간</label>
+                  <input type="time" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">종료 시간</label>
+                  <input type="time" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="pt-2">
+                <button disabled={saving} onClick={saveSchedule} className="w-full py-4 bg-[#4A6741] text-white font-black text-base shadow-lg rounded-2xl mt-2 active:scale-95 transition-transform disabled:opacity-60">
+                  {saving ? "저장 중..." : "등록하기"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedEvents && selectedEvents.length > 0 && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedEvents(null)}></div>
+          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-xl space-y-4 animate-in zoom-in-95 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 mb-2 border-b">
+              <h3 className="font-black text-xl text-zinc-900">해당일 일정</h3>
+              <button onClick={() => setSelectedEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500"><X size={16} /></button>
+            </div>
+
+            <div className="space-y-4">
+              {selectedEvents.map((ev) => (
+                <div key={ev.id} className="space-y-3 bg-zinc-50 rounded-2xl p-4 border border-zinc-100">
+                  <h4 className="font-bold text-zinc-900 border-b pb-2 mb-2">
+                    <span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-400"}`}></span>
+                    {ev.type === "event" ? ev.title : `${(ev as any).user?.nickname || "멤버"} 불가`}
+                  </h4>
+                  <div className="text-base text-zinc-800 font-bold flex justify-between">
+                    <span className="text-sm text-zinc-400">시작</span>
+                    {format(parseISO(ev.start_time), "MM월 dd일 HH:mm")}
+                  </div>
+                  <div className="text-base text-zinc-800 font-bold flex justify-between">
+                    <span className="text-sm text-zinc-400">종료</span>
+                    {format(parseISO(ev.end_time), "MM월 dd일 HH:mm")}
+                  </div>
+                  {(isManager || user?.id === ev.user_id) && (
+                    <div className="pt-2 mt-2 border-t border-zinc-200">
+                      <button onClick={() => deleteSchedule(ev.id)} className="w-full bg-rose-50 text-rose-500 py-3 rounded-xl font-bold text-base hover:bg-rose-100 transition-colors">이 일정 삭제</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
   const groupId = matched ? (routeParams as { id: string }).id : null;
@@ -461,8 +707,9 @@ export default function GroupDashboard() {
   useEffect(() => {
     if (!authReady) return;
     if (!groupId) return;
-    const queryTab = getTabQueryParam(location);
-    const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin"];
+    const searchParams = new URLSearchParams(location.split("?")[1] || "");
+    const queryTab = searchParams.get("tab");
+    const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin", "schedule"];
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
@@ -2578,6 +2825,10 @@ export default function GroupDashboard() {
               <MessageSquare size={22} />
             </button>
           </motion.div>
+        )}
+
+        {activeTab === "schedule" && (
+          <GroupScheduleTab groupId={group.id} user={user} isManager={isManager} />
         )}
 
         {activeTab === "members" && (

@@ -575,7 +575,7 @@ export default function CommunityPage() {
           <div className="flex justify-end">
             <button
               onClick={() => setLocation("/leadership")}
-              className="text-sm font-bold px-3 py-2 bg-[#4A6741] opacity-90 text-white flex items-center gap-1"
+              className="text-sm font-bold px-3 py-2 bg-[#4A6741] rounded-lg opacity-90 text-white flex items-center gap-1"
             >
               <Shield size={14} /> 상위 리더 대쉬보드
             </button>
