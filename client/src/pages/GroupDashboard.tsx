@@ -342,13 +342,14 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
 
   const [showModal, setShowModal] = useState(false);
   const [formType, setFormType] = useState<"event" | "unavailable">("event");
+  const [listType, setListType] = useState<"event" | "unavailable">("event");
   const [formTitle, setFormTitle] = useState("");
   const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [formStartTime, setFormStartTime] = useState("12:00");
   const [formEndTime, setFormEndTime] = useState("13:00");
   const [saving, setSaving] = useState(false);
 
-  const [selectedEvents, setSelectedEvents] = useState<GroupSchedule[] | null>(null);
+  const [selectedDateEvents, setSelectedDateEvents] = useState<{ dateStr: string, events: GroupSchedule[] } | null>(null);
 
   const fetchSchedules = async () => {
     setLoading(true);
@@ -387,17 +388,17 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
   }, [currentMonth, groupId]);
 
   const saveSchedule = async () => {
-    if (!formDate || !formStartTime || !formEndTime) return;
+    if (!formDate || !formStartTime) return;
     if (formType === "event" && !formTitle.trim()) {
       alert("모임 일정 제목을 입력해주세요.");
       return;
     }
     setSaving(true);
     const startStr = `${formDate}T${formStartTime}:00`;
-    const endStr = `${formDate}T${formEndTime}:00`;
+    const endStr = formEndTime ? `${formDate}T${formEndTime}:00` : startStr;
 
     // basic validation
-    if (new Date(endStr) <= new Date(startStr)) {
+    if (new Date(endStr) < new Date(startStr)) {
       alert("종료 시간이 시작 시간보다 작을 수 없습니다.");
       setSaving(false); return;
     }
@@ -425,45 +426,52 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
     const { error } = await supabase.from("group_schedules").delete().eq("id", id);
     if (!error) {
       fetchSchedules();
-      setSelectedEvents(prev => prev ? prev.filter(e => e.id !== id) : null);
+      setSelectedDateEvents(prev => prev ? { ...prev, events: prev.events.filter(e => e.id !== id) } : null);
     }
   };
 
   const daysInMonth = eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
 
-  const events = schedules.filter(s => s.type === "event").sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+  const currentList = schedules.filter(s => s.type === listType).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-20">
-      <div className="flex items-center justify-between text-zinc-900 bg-white shadow-sm p-4 rounded-2xl border border-zinc-100">
-        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2"><ChevronLeft /></button>
-        <span className="font-black text-lg">{format(currentMonth, "yyyy년 M월")}</span>
-        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2"><ChevronRight /></button>
+      <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
+        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
+        <span className="font-black text-[22px] tracking-tight">{format(currentMonth, "yyyy년 M월")}</span>
+        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight /></button>
       </div>
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-        <h3 className="font-bold text-zinc-900 mb-4 border-b pb-2">이번 달 일정</h3>
-        {events.length === 0 ? (
-          <div className="text-zinc-500 text-center py-4 text-sm font-bold">등록된 모임 일정이 없습니다.</div>
+        <div className="flex border-b border-zinc-100 mb-4">
+          <button onClick={() => setListType("event")} className={`flex-1 pb-3 text-[14px] font-black transition-colors border-b-2 ${listType === "event" ? "border-[#4A6741] text-[#4A6741]" : "border-transparent text-zinc-400 hover:text-zinc-600"}`}>모임 일정</button>
+          <button onClick={() => setListType("unavailable")} className={`flex-1 pb-3 text-[14px] font-black transition-colors border-b-2 ${listType === "unavailable" ? "border-rose-500 text-rose-500" : "border-transparent text-zinc-400 hover:text-zinc-600"}`}>모임 불가</button>
+        </div>
+        {currentList.length === 0 ? (
+          <div className="text-zinc-400 text-center py-8 text-sm font-bold bg-zinc-50 rounded-xl">등록된 내용이 없습니다.</div>
         ) : (
           <div className="space-y-3">
-            {events.map(ev => {
+            {currentList.map(ev => {
               const alerted = alerts.includes(ev.id);
               return (
                 <div key={ev.id} className="flex gap-3 text-sm items-center bg-zinc-50 p-3 rounded-xl border border-zinc-100 relative pr-16 block">
-                  <div className="w-1.5 h-full min-h-[2rem] bg-[#4A6741] rounded-full"></div>
+                  <div className={`w-1.5 h-full min-h-[2rem] rounded-full ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-500"}`}></div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-bold text-zinc-900 truncate">{ev.title}</div>
+                    <div className="font-bold text-zinc-900 truncate">
+                      {ev.type === "event" ? ev.title : `${(ev as any).user?.nickname || "멤버"} 불가`}
+                    </div>
                     <div className="text-zinc-500 text-xs mt-0.5">
                       {format(parseISO(ev.start_time), "M월 d일 HH:mm")} ~ {format(parseISO(ev.end_time), "HH:mm")}
                     </div>
                   </div>
-                  <button
-                    onClick={() => toggleAlert(ev.id)}
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-2.5 py-1.5 font-bold rounded-lg transition-colors flex items-center gap-1 ${alerted ? "bg-[#4A6741] text-white" : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"}`}
-                  >
-                    {alerted ? "알림 ON" : "알림 받기"}
-                  </button>
+                  {ev.type === "event" && (
+                    <button
+                      onClick={() => toggleAlert(ev.id)}
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 text-[10px] px-2.5 py-1.5 font-bold rounded-lg transition-colors flex items-center gap-1 ${alerted ? "bg-[#4A6741] text-white" : "bg-zinc-200 text-zinc-600 hover:bg-zinc-300"}`}
+                    >
+                      {alerted ? "알림 ON" : "알림 받기"}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -475,17 +483,21 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
         <div className="flex items-center justify-between mb-2">
           <h3 className="font-bold text-zinc-900 text-base">일정 달력</h3>
           <div className="flex gap-2 text-xs font-bold items-center">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4A6741]"></span>일정</span>
+            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4A6741]"></span>모임</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>불가</span>
           </div>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs font-bold text-zinc-400 mb-2 mt-4">
-          <div className="text-rose-500">일</div>
-          <div>월</div><div>화</div><div>수</div><div>목</div><div>금</div>
-          <div className="text-blue-500">토</div>
+        <div className="grid grid-cols-7 border-t border-l border-zinc-200 text-center text-xs font-bold text-zinc-400 mt-4 bg-zinc-50">
+          <div className="border-r border-b border-zinc-200 py-2 text-rose-500">일</div>
+          <div className="border-r border-b border-zinc-200 py-2">월</div>
+          <div className="border-r border-b border-zinc-200 py-2">화</div>
+          <div className="border-r border-b border-zinc-200 py-2">수</div>
+          <div className="border-r border-b border-zinc-200 py-2">목</div>
+          <div className="border-r border-b border-zinc-200 py-2">금</div>
+          <div className="border-r border-b border-zinc-200 py-2 text-blue-500">토</div>
         </div>
-        <div className="grid grid-cols-7 gap-1 flex-1 min-h-[280px]">
+        <div className="grid grid-cols-7 flex-1 border-l border-zinc-200">
           {daysInMonth.map(day => {
             const isCurMonth = isSameMonth(day, currentMonth);
             const dateStr = format(day, "yyyy-MM-dd");
@@ -496,22 +508,22 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
 
             const daySchedules = schedules.filter(s => isSameDay(parseISO(s.start_time), day)).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
             return (
-              <div key={day.toISOString()} className={`relative border border-zinc-100 p-1 min-h-[60px] rounded-lg ${isCurMonth ? "bg-white" : "bg-zinc-50 opacity-40"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => { if (daySchedules.length > 0) setSelectedEvents(daySchedules); }}>
-                <div className="flex flex-col items-center mb-1">
-                  <span className={`text-[10px] font-bold ${isSameDay(day, new Date()) ? "bg-[#4A6741] text-white w-5 h-5 flex items-center justify-center rounded-full" : isRedDay ? "text-rose-500" : isSaturday ? "text-blue-500" : isCurMonth ? "text-zinc-800" : "text-zinc-400"}`}>
+              <div key={day.toISOString()} className={`relative border-r border-b border-zinc-200 px-0.5 py-1 min-h-[70px] ${!isCurMonth ? "bg-zinc-50/50" : isSameDay(day, new Date()) ? "bg-zinc-100/80" : "bg-white"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => setSelectedDateEvents({ dateStr, events: daySchedules })}>
+                <div className="flex flex-col items-center mb-1 w-full mt-0.5">
+                  <span className={`text-[10px] sm:text-[11px] font-bold ${!isCurMonth ? "text-zinc-300" : isRedDay ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-800"}`}>
                     {format(day, "d")}
                   </span>
-                  {holidayName && <span className="text-[7.5px] leading-tight text-rose-500 font-bold max-w-full truncate px-0.5" style={{ transform: "scale(0.9)" }}>{holidayName}</span>}
+                  {holidayName && <span className="text-[8px] leading-[1] text-rose-500 font-bold max-w-full truncate px-0.5 mt-0.5" style={{ transform: "scale(0.95)" }}>{holidayName}</span>}
                 </div>
-                <div className="flex flex-col gap-[2px] w-full items-center">
+                <div className="flex flex-col gap-[2px] w-full px-[1px]">
                   {daySchedules.filter(s => s.type === "event").slice(0, 2).map((s, idx) => (
-                    <div key={`e-${idx}`} className="w-full bg-[#4A6741] text-[9.5px] text-white overflow-hidden truncate px-1 rounded-[3px] leading-snug font-bold">
-                      모임
+                    <div key={`e-${idx}`} className="w-full bg-[#4A6741] text-[10px] text-white overflow-hidden text-center px-0.5 rounded-[3px] leading-tight font-black shadow-sm h-4 flex items-center justify-center">
+                      <span className="scale-[0.9]">모임</span>
                     </div>
                   ))}
                   {daySchedules.filter(s => s.type === "unavailable").slice(0, 3).map((s, idx) => (
-                    <div key={`u-${idx}`} className="w-full bg-rose-50 text-[9px] text-rose-500 overflow-hidden truncate px-1 rounded-sm leading-4 font-bold">
-                      {(s as any).user?.nickname || "멤버"}
+                    <div key={`u-${idx}`} className="w-full bg-rose-500 text-[10px] text-white overflow-hidden text-center truncate px-0.5 rounded-[3px] leading-tight font-black shadow-sm h-4 flex items-center justify-center">
+                      <span className="scale-[0.9]">{(s as any).user?.nickname || "멤버"}</span>
                     </div>
                   ))}
                 </div>
@@ -531,9 +543,9 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 shadow-xl animate-in slide-in-from-bottom-5">
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-zinc-900">{formType === "event" ? "모임일정 등록" : "불가능한 시간 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
@@ -571,17 +583,35 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
         </div>
       )}
 
-      {selectedEvents && selectedEvents.length > 0 && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedEvents(null)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-3xl p-6 shadow-xl space-y-4 animate-in zoom-in-95 max-h-[80vh] overflow-y-auto">
+      {selectedDateEvents && (
+        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedDateEvents(null)}></div>
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-2 border-b">
-              <h3 className="font-black text-xl text-zinc-900">해당일 일정</h3>
-              <button onClick={() => setSelectedEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500"><X size={16} /></button>
+              <h3 className="font-black text-xl text-zinc-900">{format(parseISO(selectedDateEvents.dateStr), "M월 d일")} 일정</h3>
+              <button onClick={() => setSelectedDateEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X size={16} /></button>
+            </div>
+
+            <div className="flex gap-2 pb-2">
+              <button
+                onClick={() => { setFormType("event"); setFormDate(selectedDateEvents.dateStr); setSelectedDateEvents(null); setShowModal(true); setFormTitle(""); }}
+                className="flex-1 py-3 bg-[#4A6741] text-white rounded-xl text-sm font-bold shadow-sm hover:bg-[#3d5535] transition-colors"
+              >
+                모임 등록
+              </button>
+              <button
+                onClick={() => { setFormType("unavailable"); setFormDate(selectedDateEvents.dateStr); setSelectedDateEvents(null); setShowModal(true); setFormTitle(""); }}
+                className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-rose-600 transition-colors"
+              >
+                모임 불가 등록
+              </button>
             </div>
 
             <div className="space-y-4">
-              {selectedEvents.map((ev) => (
+              {selectedDateEvents.events.length === 0 && (
+                <div className="text-center text-zinc-400 font-bold py-4">등록된 일정이 없습니다.</div>
+              )}
+              {selectedDateEvents.events.map((ev) => (
                 <div key={ev.id} className="space-y-3 bg-zinc-50 rounded-2xl p-4 border border-zinc-100">
                   <h4 className="font-bold text-zinc-900 border-b pb-2 mb-2">
                     <span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-400"}`}></span>
@@ -2541,9 +2571,9 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all">
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all overflow-x-auto hide-scrollbar">
         <div className="w-full">
-          <nav className="flex items-center">
+          <nav className="flex items-center w-full min-w-max">
             {([
               ["faith", "신앙생활"],
               ["prayer", "중보기도"],

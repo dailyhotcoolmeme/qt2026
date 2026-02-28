@@ -569,8 +569,8 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F6F7] pt-20 pb-10 px-4 text-sm">
-      <div className="max-w-2xl mx-auto space-y-4">
+    <div className="min-h-[100dvh] bg-[#F5F6F7] pt-20 pb-10 px-4 text-sm flex flex-col">
+      <div className="max-w-2xl mx-auto space-y-4 flex-1 flex flex-col w-full">
         {hasLeadershipScope && (
           <div className="flex justify-end">
             <button
@@ -585,19 +585,24 @@ export default function CommunityPage() {
         {/* 최초 로딩 중에는 아무것도 렌더링하지 않음 */}
         {isInitialLoading ? null :
           (!user && !loading ? (
-            <div className="min-h-[60vh] flex items-center justify-center text-center">
-              <div className="max-w-sm w-full bg-[#F6F7F8] rounded-none p-6 flex flex-col items-center justify-center">
-                <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
+            <div className="flex-1 flex items-center justify-center text-center pb-20">
+              <div className="max-w-sm w-full bg-white rounded-[32px] p-10 flex flex-col items-center justify-center shadow-xl shadow-zinc-200/50 border border-zinc-100/50">
+                <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6">
+                  <Users className="text-[#4A6741] opacity-40" size={32} />
+                </div>
+                <p className="text-[15px] text-zinc-600 font-bold mb-8 leading-relaxed">
+                  로그인 후 모임 생성, 가입 및<br />활동이 가능합니다.
+                </p>
                 <button
                   onClick={() => setShowLoginModal(true)}
-                  className="px-4 py-2 bg-[#4A6741] text-white rounded-lg text-sm font-bold"
+                  className="w-full h-14 bg-[#4A6741] text-white rounded-2xl text-base font-black shadow-lg shadow-green-900/10 active:scale-95 transition-all"
                 >
-                  로그인
+                  로그인하기
                 </button>
               </div>
             </div>
           ) : loading ? (
-            <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
+            <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 w-full pb-20">
               <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
               <p className="text-zinc-400 text-sm font-medium text-center">
                 모임 리스트 불러오는 중...
