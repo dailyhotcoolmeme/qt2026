@@ -590,7 +590,7 @@ export default function CommunityPage() {
                 <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 모임 생성, 가입 및 활동이 가능합니다.</p>
                 <button
                   onClick={() => setShowLoginModal(true)}
-                  className="px-4 py-2 bg-[#4A6741] text-white text-sm font-bold"
+                  className="px-4 py-2 bg-[#4A6741] text-white rounded-lg text-sm font-bold"
                 >
                   로그인
                 </button>

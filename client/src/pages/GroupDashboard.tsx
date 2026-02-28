@@ -2493,6 +2493,7 @@ export default function GroupDashboard() {
               ["faith", "신앙생활"],
               ["prayer", "중보기도"],
               ["social", "교제나눔"],
+              ["schedule", "모임일정"],
             ] as Array<[TabKey, string]>).map(([id, label]) => (
               <button
                 key={id}
