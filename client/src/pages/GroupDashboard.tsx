@@ -3469,7 +3469,7 @@ export default function GroupDashboard() {
               image={cropImageSrc}
               crop={crop}
               zoom={zoom}
-              minZoom={0.5}
+              minZoom={0.1}
               maxZoom={3}
               restrictPosition={false}
               aspect={16 / 9}
@@ -3486,7 +3486,7 @@ export default function GroupDashboard() {
               <input
                 type="range"
                 value={zoom}
-                min={0.5}
+                min={0.1}
                 max={3}
                 step={0.1}
                 aria-labelledby="Zoom"
