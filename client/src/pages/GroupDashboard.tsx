@@ -27,7 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, MoreVertical } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes } from "date-fns";
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
 import Cropper from "react-easy-crop";
@@ -364,24 +364,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       .lte("start_time", endDate.toISOString());
     if (data) setSchedules(data);
 
-    const { data: alertData } = await supabase
-      .from("group_schedule_alerts")
-      .select("schedule_id")
-      .eq("user_id", user.id);
-    if (alertData) setAlerts(alertData.map((a: any) => a.schedule_id));
-
     setLoading(false);
-  };
-
-  const toggleAlert = async (scheduleId: string) => {
-    const isAlerted = alerts.includes(scheduleId);
-    if (isAlerted) {
-      const { error } = await supabase.from("group_schedule_alerts").delete().eq("user_id", user.id).eq("schedule_id", scheduleId);
-      if (!error) setAlerts(prev => prev.filter(id => id !== scheduleId));
-    } else {
-      const { error } = await supabase.from("group_schedule_alerts").insert({ user_id: user.id, schedule_id: scheduleId });
-      if (!error) setAlerts(prev => [...prev, scheduleId]);
-    }
   };
 
   useEffect(() => {
@@ -453,9 +436,8 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
         ) : (
           <div className="space-y-3">
             {currentList.map(ev => {
-              const alerted = alerts.includes(ev.id);
               return (
-                <div key={ev.id} className="flex gap-3 text-sm items-center bg-zinc-50 p-3 rounded-xl border border-zinc-100 relative pr-16 block">
+                <div key={ev.id} className="flex gap-3 text-sm items-center bg-zinc-50 p-3 rounded-xl border border-zinc-100 relative pr-4 block">
                   <div className={`w-1.5 h-full min-h-[2rem] rounded-full ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-500"}`}></div>
                   <div className="flex-1 min-w-0">
                     <div className="font-bold text-zinc-900 truncate">
@@ -526,19 +508,19 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
         </div>
       </div>
 
-      <div className="fixed right-6 bottom-24 z-[120] flex flex-col gap-3">
-        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-rose-500 text-white shadow-xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
+      <div className="fixed right-5 bottom-24 z-[90] flex flex-col gap-3">
+        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-rose-500 text-white shadow-2xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
           <CalendarX size={24} />
         </button>
-        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
+        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
           <CalendarPlus size={24} />
         </button>
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5">
+          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-zinc-900">{formType === "event" ? "모임일정 등록" : "불가능한 시간 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
@@ -717,7 +699,7 @@ export default function GroupDashboard() {
   const [availableActivities, setAvailableActivities] = useState<ActivityLogRow[]>([]);
   const [linkingActivityId, setLinkingActivityId] = useState<number | null>(null);
   const [faithRecordDetails, setFaithRecordDetails] = useState<Record<string, FaithRecordDetail>>({});
-  const [faithBoardDate, setFaithBoardDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [faithCurrentDate, setFaithCurrentDate] = useState(() => new Date());
   const [faithBoardRows, setFaithBoardRows] = useState<FaithBoardRow[]>([]);
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
   const [weekDates, setWeekDates] = useState<string[]>([]);
@@ -729,6 +711,7 @@ export default function GroupDashboard() {
   const [postContent, setPostContent] = useState("");
   const [socialViewMode, setSocialViewMode] = useState<"board" | "blog">("board");
   const [showPostComposerModal, setShowPostComposerModal] = useState(false);
+  const [editingPost, setEditingPost] = useState<GroupPostRow | null>(null);
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
@@ -882,13 +865,6 @@ export default function GroupDashboard() {
 
   // Removed dynamic header/tab pinning effect
 
-  useEffect(() => {
-    if (!group?.id) return;
-    if (!(role === "owner" || role === "leader")) return;
-    if (members.length === 0) return;
-    void loadFaithBoard(group.id, faithBoardDate);
-  }, [group?.id, role, members, faithBoardDate]);
-
   const isManager = role === "owner" || role === "leader";
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
@@ -978,7 +954,7 @@ export default function GroupDashboard() {
     ]);
 
     if (nextRole === "owner" || nextRole === "leader") {
-      await loadFaithBoard(targetGroupId, faithBoardDate, nextMembers);
+      await loadFaithBoard(targetGroupId, buildWeekIso(new Date()), nextMembers);
     } else {
       setFaithBoardRows([]);
     }
@@ -1132,9 +1108,9 @@ export default function GroupDashboard() {
     return dates;
   };
 
-  const loadWeeklyFaithRecords = async () => {
+  const loadWeeklyFaithRecords = async (refDate = faithCurrentDate) => {
     if (!group?.id || !user) return;
-    const dates = buildWeekIso(new Date());
+    const dates = buildWeekIso(refDate);
     try {
       const { data } = await supabase
         .from("group_faith_records")
@@ -1158,9 +1134,13 @@ export default function GroupDashboard() {
   };
 
   useEffect(() => {
-    void loadWeeklyFaithRecords();
-    // reload when group or user changes
-  }, [group?.id, user?.id]);
+    if (activeTab === "faith") {
+      void loadWeeklyFaithRecords(faithCurrentDate);
+      if (role === "owner" || role === "leader") {
+        void loadFaithBoard(group?.id || "", buildWeekIso(faithCurrentDate), members);
+      }
+    }
+  }, [group?.id, user?.id, faithCurrentDate, activeTab]);
 
   const handleFaithToggleForDate = async (item: FaithItemRow, dateIso: string) => {
     if (!group || !user) return;
@@ -1305,11 +1285,11 @@ export default function GroupDashboard() {
 
   const loadFaithBoard = async (
     targetGroupId: string,
-    date: string,
+    dates: string[],
     memberRows?: GroupMemberRow[]
   ) => {
     const baseMembers = memberRows ?? members;
-    if (!baseMembers.length) {
+    if (!baseMembers.length || !dates.length) {
       setFaithBoardRows([]);
       return;
     }
@@ -1319,9 +1299,9 @@ export default function GroupDashboard() {
 
     const { data, error } = await supabase
       .from("group_faith_records")
-      .select("user_id, item_id, value")
+      .select("user_id, item_id, value, record_date")
       .eq("group_id", targetGroupId)
-      .eq("record_date", date)
+      .in("record_date", dates)
       .in("user_id", memberIds);
 
     if (error) {
@@ -1332,20 +1312,26 @@ export default function GroupDashboard() {
     }
 
     const valueMap = new Map<string, Record<string, number>>();
-    (data ?? []).forEach((row: { user_id: string; item_id: string; value: number | string }) => {
-      const prev = valueMap.get(row.user_id) ?? {};
-      prev[row.item_id] = Number(row.value ?? 0);
-      valueMap.set(row.user_id, prev);
+    (data ?? []).forEach((row: any) => {
+      // row.value > 0 means done for this day
+      if (Number(row.value) > 0) {
+        const prev = valueMap.get(row.user_id) ?? {};
+        prev[row.item_id] = (prev[row.item_id] || 0) + 1;
+        valueMap.set(row.user_id, prev);
+      }
     });
 
     const boardRows: FaithBoardRow[] = baseMembers
       .map((member) => {
         const values = valueMap.get(member.user_id) ?? {};
         const total = Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
+        let name = member.profile?.nickname || member.profile?.username || "이름없음";
+        if (name.length > 4) name = name.substring(0, 4);
+
         return {
           user_id: member.user_id,
           role: member.role,
-          name: member.profile?.nickname || member.profile?.username || "이름 없음",
+          name: name,
           values,
           total,
         };
@@ -1751,6 +1737,15 @@ export default function GroupDashboard() {
       weekday: "short",
     });
 
+  const getWeekKoreanLabel = (date: Date) => {
+    const d = new Date(date);
+    const month = d.getMonth() + 1;
+    const year = d.getFullYear();
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    const week = Math.ceil((d.getDate() + firstDay) / 7);
+    return `< ${year}년 ${month}월 ${week}주차 >`;
+  };
+
   const getFaithItemByKeywords = (keywords: string[]) => {
     const lowerKeywords = keywords.map((keyword) => keyword.toLowerCase());
     return (
@@ -1927,6 +1922,26 @@ export default function GroupDashboard() {
       title: postTitle.trim() || null,
       content: postContent.trim(),
     };
+
+    if (editingPost) {
+      const { error } = await supabase
+        .from("group_posts")
+        .update({ title: postTitle.trim() || null, content: postContent.trim() })
+        .eq("id", editingPost.id);
+
+      if (error) {
+        alert("게시글 수정에 실패했습니다.");
+        return;
+      }
+      setPostTitle("");
+      setPostContent("");
+      setPostImageFiles([]);
+      setPostImagePreviews([]);
+      setShowPostComposerModal(false);
+      setEditingPost(null);
+      await loadPosts(group.id);
+      return;
+    }
 
     let createdPostId: number | null = null;
     let { data: createdPost, error } = await supabase
@@ -2714,9 +2729,9 @@ export default function GroupDashboard() {
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <section className="relative">
-              <div className="space-y-4 mt-2">
+              <div className="space-y-4">
                 {topicsByAuthor.map(({ userId, topics, author }) => (
-                  <div key={userId} className="bg-white rounded-[24px] shadow-sm border border-zinc-100/50 pt-5 overflow-hidden">
+                  <div key={userId} className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-5 overflow-hidden">
                     <div className="flex items-center gap-2 mb-3 px-5">
                       {author.avatar_url ? (
                         <img src={author.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="avatar" />
@@ -2738,12 +2753,11 @@ export default function GroupDashboard() {
 
                         return (
                           <div key={topic.id} className="border-b border-zinc-100 pb-4 mb-4 last:border-0 last:pb-0 last:mb-0 relative group pt-4">
-                            <div className="flex justify-between items-start gap-2">
-                              <div className="flex-1 text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap">{topic.content}</div>
-
-                              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <div className="flex flex-col gap-1.5 items-start">
+                              <div className="w-full flex justify-between items-start gap-2">
+                                <div className="flex-1 font-bold text-[#4A6741] text-sm leading-relaxed whitespace-pre-wrap">{topic.content}</div>
                                 {isMine && (
-                                  <div className="flex items-center gap-1 opacity-60 mb-0.5">
+                                  <div className="flex items-center gap-1 opacity-60 mb-0.5 shrink-0 self-start">
                                     <button onClick={() => editPrayerTopic(topic)} className="p-1 hover:text-[#4A6741]">
                                       <Pencil size={13} />
                                     </button>
@@ -2752,16 +2766,17 @@ export default function GroupDashboard() {
                                     </button>
                                   </div>
                                 )}
-
+                              </div>
+                              <div className="flex items-center gap-2 mt-1 shrink-0">
                                 <button
                                   onClick={() => handleHeartPrayer(topic.id)}
-                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-[11px] font-bold transition-all active:scale-95"
+                                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-xs font-bold transition-all active:scale-95"
                                 >
                                   <Heart size={12} fill="currentColor" className="opacity-80" /> 마음기도 {heartCount > 0 && <span>{heartCount}</span>}
                                 </button>
                                 <button
                                   onClick={() => startVoicePrayerForTopic(topic.id)}
-                                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-[11px] font-bold transition-all active:scale-95"
+                                  className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
                                 >
                                   <Mic size={12} /> 음성기도
                                 </button>
@@ -2811,7 +2826,7 @@ export default function GroupDashboard() {
 
               <button
                 onClick={() => setShowPrayerTopicModal(true)}
-                className="fixed bottom-24 right-4 z-[90] w-12 h-12 bg-[#4A6741] opacity-90 text-white rounded-full shadow-xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
+                className="fixed right-5 bottom-24 z-[90] w-14 h-14 bg-[#4A6741] text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
                 aria-label="내 기도제목 등록"
               >
                 <Plus size={24} />
@@ -2824,37 +2839,35 @@ export default function GroupDashboard() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
 
             {/* ── 주간 수행 현황 카드 ── */}
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-              <div className="px-4 pt-5 pb-3 border-b border-zinc-50 flex flex-col items-start justify-center text-left">
-                <p className="text-sm font-black text-[#4A6741]">{getTodayKoreanLabel()} 신앙생활</p>
-
+            <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-zinc-100/50">
+              <div className="flex items-center justify-between text-zinc-900 bg-transparent px-4 py-3 border-b border-zinc-50">
+                <button onClick={() => setFaithCurrentDate(subWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft size={20} /></button>
+                <span className="font-black text-[17px] tracking-tight">{getWeekKoreanLabel(faithCurrentDate)}</span>
+                <button onClick={() => setFaithCurrentDate(addWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight size={20} /></button>
               </div>
               <div className="w-full px-2">
                 <div className="w-full select-none pb-4">
                   {/* 헤더 항목 */}
-                  <div className="flex items-center pt-5 pb-4 px-4 sm:px-6">
-                    <div className="shrink-0 w-12 sm:w-16" />
+                  <div className="flex items-center pt-5 pb-4 px-2 sm:px-6">
+                    <div className="shrink-0 w-16 sm:w-20" />
                     {faithItemSlots.map((slot) => (
                       <div key={`header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
-                        <span className="text-[13px] sm:text-[15px] font-bold text-zinc-700">{slot.label}</span>
+                        <span className="text-[14px] sm:text-[16px] font-black text-zinc-700">{slot.label}</span>
                         {!slot.item && <span className="text-[10px] text-zinc-300 mt-0.5">미설정</span>}
                       </div>
                     ))}
                   </div>
 
                   {/* 날짜 행 */}
-                  <div className="space-y-4 px-4 sm:px-6">
+                  <div className="space-y-0 px-2 sm:px-6">
                     {weekDates.map((date) => {
                       const dt = new Date(date);
                       const isToday = date === new Date().toISOString().split("T")[0];
                       return (
-                        <div key={date} className="flex items-center">
-                          <div className="shrink-0 w-12 sm:w-16 flex flex-col items-start justify-center">
-                            <span className={`text-[12px] sm:text-[14px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-400"} text-left`}>
-                              {dt.toLocaleDateString("ko-KR", { weekday: "short" })}
-                            </span>
-                            <span className={`mt-0.5 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-full text-sm font-bold ${isToday ? "bg-[#4A6741] text-white" : "text-zinc-600"} shrink-0`}>
-                              {dt.getDate()}
+                        <div key={date} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-zinc-100/70" : ""}`}>
+                          <div className="shrink-0 w-16 sm:w-20 flex flex-col items-center justify-center">
+                            <span className={`text-[13px] sm:text-[15px] font-bold ${isToday ? "text-[#4A6741]" : "text-zinc-500"} text-center`}>
+                              {dt.getDate()}({dt.toLocaleDateString("ko-KR", { weekday: "short" })})
                             </span>
                           </div>
                           {faithItemSlots.map((slot) => {
@@ -2867,20 +2880,15 @@ export default function GroupDashboard() {
                                 <button
                                   onClick={() => item && void handleFaithToggleForDate(item, date)}
                                   disabled={disabled}
-                                  className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center transition-all shrink-0
+                                  className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0
                                        ${disabled
-                                      ? "opacity-25 cursor-not-allowed bg-zinc-100"
+                                      ? "opacity-25 cursor-not-allowed bg-zinc-50"
                                       : done
-                                        ? "bg-[#4A6741] shadow-md"
-                                        : isToday
-                                          ? "bg-white border-2 border-[#4A6741]/20"
-                                          : "bg-zinc-100"
+                                        ? "bg-[#4A6741]/10 text-[#4A6741]"
+                                        : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
                                     }`}
                                 >
-                                  {done
-                                    ? <Check size={18} className="text-white" strokeWidth={3} />
-                                    : <span className="text-zinc-300 text-lg leading-none">·</span>
-                                  }
+                                  {done ? <Check size={20} strokeWidth={3.5} /> : <span className="font-bold text-[14px]">—</span>}
                                 </button>
                               </div>
                             );
@@ -2901,61 +2909,43 @@ export default function GroupDashboard() {
 
             {/* ── 관리자: 전체 멤버 현황 ── */}
             {isManager && (
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                <div className="px-5 pt-5 pb-3 flex items-center justify-between border-b border-zinc-50">
-                  <div>
-                    <p className="text-sm font-black text-zinc-900">전체 멤버 현황</p>
-                    <p className="text-xs text-zinc-400 mt-0.5">날짜별 수행 여부 조회</p>
-                  </div>
-                  <input
-                    type="date"
-                    value={faithBoardDate}
-                    onChange={(e) => setFaithBoardDate(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-50 border border-zinc-200 text-xs text-zinc-700 focus:outline-none focus:border-[#4A6741]"
-                  />
+              <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-zinc-100/50">
+                <div className="px-5 pt-5 pb-4 border-b border-zinc-50">
+                  <p className="text-sm font-black text-zinc-900">주간 현황</p>
                 </div>
                 {faithBoardLoading ? (
                   <div className="py-10 text-sm text-zinc-400 text-center">현황 불러오는 중...</div>
                 ) : faithBoardRows.length === 0 ? (
                   <div className="py-10 text-sm text-zinc-400 text-center">조회된 기록이 없습니다.</div>
                 ) : (
-                  <div
-                    className="overflow-x-auto"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-                  >
-                    <table className="w-full text-sm min-w-max">
-                      <thead>
-                        <tr className="border-b border-zinc-100">
-                          <th className="text-left py-3 px-5 text-xs font-bold text-zinc-400 whitespace-nowrap">멤버</th>
-                          {faithItemSlots.filter((slot) => slot.item).map((slot) => (
-                            <th key={slot.key} className="text-center py-3 px-4 text-xs font-bold text-zinc-400 whitespace-nowrap">
-                              {slot.label}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {faithBoardRows.map((row, idx) => (
-                          <tr key={row.user_id} className={`border-b border-zinc-50 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/40"}`}>
-                            <td className="py-3 px-5 font-bold text-zinc-800 whitespace-nowrap">{row.name}</td>
-                            {faithItemSlots.filter((slot) => slot.item).map((slot) => {
-                              const done = (row.values[slot.item!.id] ?? 0) > 0;
-                              return (
-                                <td key={slot.key} className="py-3 px-4 text-center">
-                                  {done ? (
-                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#4A6741]/10">
-                                      <Check size={12} className="text-[#4A6741]" strokeWidth={3} />
-                                    </span>
-                                  ) : (
-                                    <span className="text-zinc-300 font-bold text-base">—</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="w-full text-sm pb-4">
+                    <div className="flex items-center pt-3 pb-3 px-4 sm:px-8 border-b border-zinc-50 bg-zinc-50/30">
+                      <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-400 text-[13px] text-center">멤버</div>
+                      {faithItemSlots.filter((slot) => slot.item).map((slot) => (
+                        <div key={slot.key} className="flex-1 flex justify-center font-bold text-zinc-400 text-[13px] text-center">
+                          {slot.label}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="space-y-0 px-4 sm:px-8">
+                      {faithBoardRows.map((row, idx) => (
+                        <div key={row.user_id} className={`flex items-center py-4 border-b border-zinc-50 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/20"}`}>
+                          <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-800 text-[13px] whitespace-nowrap text-center">{row.name}</div>
+                          {faithItemSlots.filter((slot) => slot.item).map((slot) => {
+                            const count = row.values[slot.item!.id] ?? 0;
+                            return (
+                              <div key={slot.key} className="flex-1 flex justify-center relative">
+                                {count > 0 ? (
+                                  <span className="font-black text-[#4A6741] text-[15px]">{count}</span>
+                                ) : (
+                                  <span className="text-zinc-300 font-bold text-[15px]">—</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2965,103 +2955,94 @@ export default function GroupDashboard() {
         )}
 
         {activeTab === "social" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="bg-[#F6F7F8]">
-              <div className="grid gap-4">
-                {posts.map((post) => {
-                  const author = authorMap[post.author_id];
-                  const authorName = author?.nickname || author?.username || "이름 없음";
-                  const canDelete = isManager || post.author_id === user.id;
-                  const displayTitle = post.title?.trim() || "";
-                  const isNotice = post.post_type === "notice";
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <div className="grid gap-4">
+              {posts.map((post) => {
+                const author = authorMap[post.author_id];
+                const authorName = author?.nickname || author?.username || "이름 없음";
+                const canDelete = isManager || post.author_id === user.id;
+                const displayTitle = post.title?.trim() || "";
+                const isNotice = post.post_type === "notice";
 
-                  return (
-                    <div
-                      key={post.id}
-                      className="bg-white rounded-[24px] shadow-sm border border-zinc-100/60 flex flex-col py-5 px-0"
-                    >
-                      <div className="flex items-center justify-between mb-2 mx-4 border-b border-zinc-100 pb-3">
-                        <div className="flex items-center gap-2">
-                          {isNotice && <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[11px] font-black rounded-sm tracking-tight">공지</span>}
-                          {displayTitle && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">{displayTitle}</h3>}
-                          {!displayTitle && !isNotice && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">교제나눔</h3>}
-                        </div>
-                        <div className="w-4" />
+                return (
+                  <div
+                    key={post.id}
+                    className="bg-white rounded-2xl shadow-sm border border-zinc-100/60 flex flex-col py-5 px-0"
+                  >
+                    <div className="flex items-center justify-between mb-2 mx-4 border-b border-zinc-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        {isNotice && <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[11px] font-black rounded-sm tracking-tight">공지</span>}
+                        {displayTitle && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">{displayTitle}</h3>}
+                        {!displayTitle && !isNotice && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">교제나눔</h3>}
                       </div>
+                      <div className="w-4" />
+                    </div>
 
-                      {post.content && (
-                        <div className="text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3">
-                          {post.content}
-                        </div>
-                      )}
+                    {post.content && (
+                      <div className="text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3 max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                        {post.content}
+                      </div>
+                    )}
 
-                      {post.image_urls && post.image_urls.length > 0 && (
-                        <PostImageCarousel
-                          urls={post.image_urls}
-                          onImageClick={(index) => {
-                            setModalImages(post.image_urls ?? []);
-                            setModalIndex(index);
-                            setShowImageModal(true);
-                          }}
-                        />
-                      )}
+                    {post.image_urls && post.image_urls.length > 0 && (
+                      <PostImageCarousel
+                        urls={post.image_urls}
+                        onImageClick={(index) => {
+                          setModalImages(post.image_urls ?? []);
+                          setModalIndex(index);
+                          setShowImageModal(true);
+                        }}
+                      />
+                    )}
 
-                      <div className="flex items-center justify-between gap-2.5 mt-2 pt-3 mx-4 border-t border-zinc-100">
-                        <div className="flex items-center gap-2.5">
-                          {author?.avatar_url ? (
-                            <img src={author.avatar_url} className="w-9 h-9 rounded-full object-cover shrink-0" alt="avatar" />
-                          ) : (
-                            <div className="w-9 h-9 rounded-full bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center text-zinc-400 shrink-0">
-                              <User size={15} />
-                            </div>
-                          )}
-                          <div className="flex flex-col">
-                            <span className="font-bold text-zinc-900 text-[14px] leading-tight">{authorName}</span>
-                            <span className="text-[12px] text-zinc-400 leading-tight mt-0.5">{formatDateTime(post.created_at)}</span>
-                          </div>
-                        </div>
-
-                        {canDelete && (
-                          <div className="flex items-center gap-0.5 opacity-60">
-                            <button
-                              onClick={() => {
-                                const updatedTitle = prompt("수정할 제목을 입력하세요:", post.title ?? "");
-                                if (updatedTitle === null) return;
-                                const updatedContent = prompt("수정할 내용을 입력하세요:", post.content ?? "");
-                                if (updatedContent === null) return;
-                                if (!updatedContent.trim() && !post.image_urls?.length) {
-                                  alert("내용을 입력해주세요.");
-                                  return;
-                                }
-                                supabase.from('group_posts').update({ title: updatedTitle.trim() || null, content: updatedContent.trim() }).eq('id', post.id)
-                                  .then(({ error }) => {
-                                    if (error) alert("수정 실패: " + error.message);
-                                    else loadPosts(group.id);
-                                  });
-                              }}
-                              className="p-1.5 hover:text-[#4A6741] transition-colors"
-                            >
-                              <Pencil size={14} />
-                            </button>
-                            <button onClick={() => removePost(post)} className="p-1.5 hover:text-rose-500 transition-colors">
-                              <Trash2 size={14} />
-                            </button>
+                    <div className="flex items-center justify-between gap-2.5 mt-2 pt-3 mx-4 border-t border-zinc-100">
+                      <div className="flex items-center gap-2.5">
+                        {author?.avatar_url ? (
+                          <img src={author.avatar_url} className="w-9 h-9 rounded-full object-cover shrink-0" alt="avatar" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-zinc-100 border border-zinc-200 overflow-hidden flex items-center justify-center text-zinc-400 shrink-0">
+                            <User size={15} />
                           </div>
                         )}
+                        <div className="flex flex-col">
+                          <span className="font-bold text-zinc-900 text-[14px] leading-tight">{authorName}</span>
+                          <span className="text-[12px] text-zinc-400 leading-tight mt-0.5">{formatDateTime(post.created_at)}</span>
+                        </div>
                       </div>
+
+                      {canDelete && (
+                        <div className="flex items-center gap-0.5 opacity-60">
+                          <button
+                            onClick={() => {
+                              setEditingPost(post);
+                              setPostType(post.post_type);
+                              setPostTitle(post.title || "");
+                              setPostContent(post.content || "");
+                              setPostImagePreviews(post.image_urls || []);
+                              setShowPostComposerModal(true);
+                            }}
+                            className="p-1.5 hover:text-[#4A6741] transition-colors"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button onClick={() => removePost(post)} className="p-1.5 hover:text-rose-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-                {posts.length === 0 && (
-                  <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
-                    아직 게시글이 없습니다.
                   </div>
-                )}
-              </div>
+                );
+              })}
+              {posts.length === 0 && (
+                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
+                  아직 게시글이 없습니다.
+                </div>
+              )}
             </div>
             <button
-              onClick={() => setShowPostComposerModal(true)}
-              className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
+              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setShowPostComposerModal(true); }}
+              className="fixed right-5 bottom-24 z-[90] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
               aria-label="글 작성"
             >
               <MessageSquare size={24} />
@@ -3599,7 +3580,7 @@ export default function GroupDashboard() {
 
       {
         showPrayerTopicModal && (
-          <div className="fixed inset-0 z-[220] flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
             <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl p-6 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto mt-auto sm:mt-0">
               <div className="flex items-center justify-between">
@@ -3671,89 +3652,93 @@ export default function GroupDashboard() {
 
       {
         showPostComposerModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] p-0 sm:p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-            <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-zinc-900">글 작성</h3>
-                <button
-                  onClick={() => setShowPostComposerModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setPostType("post")}
-                  className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                    }`}
-                >
-                  일반글
-                </button>
-                <button
-                  onClick={() => setPostType("notice")}
-                  disabled={!isManager}
-                  className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                    } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  공지
-                </button>
-              </div>
-
-              <input
-                value={postTitle}
-                onChange={(e) => setPostTitle(e.target.value)}
-                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="제목"
-              />
-              <textarea
-                value={postContent}
-                onChange={(e) => setPostContent(e.target.value)}
-                className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                placeholder="모임 내부 공유 글을 작성하세요."
-              />
-
-              <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-base font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
-                  <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
-                    <ImagePlus size={13} />
-                    사진 선택
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => handlePostImageSelect(e.target.files)}
-                    />
-                  </label>
+            <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] mt-auto sm:mt-0">
+              <div className="flex flex-col flex-1 overflow-hidden">
+                <div className="flex items-center justify-between mb-4 shrink-0">
+                  <h3 className="font-black text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
+                  <button
+                    onClick={() => setShowPostComposerModal(false)}
+                    className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
 
-                {postImagePreviews.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    {postImagePreviews.map((preview, index) => (
-                      <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
-                        <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
-                        <button
-                          onClick={() => removePostImage(index)}
-                          className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
-                    ))}
+                <div className="flex-1 overflow-y-auto space-y-4 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setPostType("post")}
+                      className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                        }`}
+                    >
+                      일반글
+                    </button>
+                    <button
+                      onClick={() => setPostType("notice")}
+                      disabled={!isManager}
+                      className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                        } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
+                    >
+                      공지
+                    </button>
                   </div>
-                )}
-              </div>
 
-              <button
-                onClick={addPost}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
-              >
-                등록
-              </button>
+                  <input
+                    value={postTitle}
+                    onChange={(e) => setPostTitle(e.target.value)}
+                    className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                    placeholder="제목"
+                  />
+                  <textarea
+                    value={postContent}
+                    onChange={(e) => setPostContent(e.target.value)}
+                    className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                    placeholder="모임 내부 공유 글을 작성하세요."
+                  />
+
+                  <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
+                      <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                        <ImagePlus size={13} />
+                        사진 선택
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => handlePostImageSelect(e.target.files)}
+                        />
+                      </label>
+                    </div>
+
+                    {postImagePreviews.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {postImagePreviews.map((preview, index) => (
+                          <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
+                            <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
+                            <button
+                              onClick={() => removePostImage(index)}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={addPost}
+                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all"
+                  >
+                    {editingPost ? "수정완료" : "등록완료"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )
@@ -3947,61 +3932,63 @@ export default function GroupDashboard() {
       }
 
       {/* 이미지 크롭 모달 */}
-      {cropModalOpen && cropImageSrc && (
-        <div className="fixed inset-0 z-[260] bg-black p-4 flex flex-col">
-          <div className="flex items-center justify-between pb-4">
-            <h3 className="font-black text-white text-lg">대표 이미지 설정</h3>
-            <button
-              onClick={() => {
-                setCropModalOpen(false);
-                setCropImageSrc(null);
-                setGroupEditImageFile(null);
-              }}
-              className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center hover:bg-zinc-700 transition"
-            >
-              <X size={16} />
-            </button>
-          </div>
+      {
+        cropModalOpen && cropImageSrc && (
+          <div className="fixed inset-0 z-[260] bg-black p-4 flex flex-col">
+            <div className="flex items-center justify-between pb-4">
+              <h3 className="font-black text-white text-lg">대표 이미지 설정</h3>
+              <button
+                onClick={() => {
+                  setCropModalOpen(false);
+                  setCropImageSrc(null);
+                  setGroupEditImageFile(null);
+                }}
+                className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center hover:bg-zinc-700 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-          <div className="relative flex-1 w-full bg-zinc-900 rounded-2xl overflow-hidden mt-2 mb-6">
-            <Cropper
-              image={cropImageSrc}
-              crop={crop}
-              zoom={zoom}
-              minZoom={0.1}
-              maxZoom={3}
-              restrictPosition={false}
-              aspect={16 / 9}
-              onCropChange={setCrop}
-              onCropComplete={onCropComplete}
-              onZoomChange={setZoom}
-              objectFit="vertical-cover"
-            />
-          </div>
-
-          <div className="bg-zinc-900 p-5 rounded-3xl space-y-4 mb-4">
-            <div className="px-2">
-              <label className="text-xs font-bold text-zinc-400 block mb-3">이미지 확대/축소</label>
-              <input
-                type="range"
-                value={zoom}
-                min={0.1}
-                max={3}
-                step={0.1}
-                aria-labelledby="Zoom"
-                onChange={(e) => setZoom(Number(e.target.value))}
-                className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
+            <div className="relative flex-1 w-full bg-zinc-900 rounded-2xl overflow-hidden mt-2 mb-6">
+              <Cropper
+                image={cropImageSrc}
+                crop={crop}
+                zoom={zoom}
+                minZoom={0.1}
+                maxZoom={3}
+                restrictPosition={false}
+                aspect={16 / 9}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+                objectFit="vertical-cover"
               />
             </div>
-            <button
-              onClick={processCrop}
-              className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
-            >
-              영역 선택 완료
-            </button>
+
+            <div className="bg-zinc-900 p-5 rounded-3xl space-y-4 mb-4">
+              <div className="px-2">
+                <label className="text-xs font-bold text-zinc-400 block mb-3">이미지 확대/축소</label>
+                <input
+                  type="range"
+                  value={zoom}
+                  min={0.1}
+                  max={3}
+                  step={0.1}
+                  aria-labelledby="Zoom"
+                  onChange={(e) => setZoom(Number(e.target.value))}
+                  className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
+                />
+              </div>
+              <button
+                onClick={processCrop}
+                className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
+              >
+                영역 선택 완료
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
     </div >
   );
