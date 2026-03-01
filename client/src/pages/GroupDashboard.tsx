@@ -64,6 +64,7 @@ type GroupRow = {
   header_color?: string | null;
   is_closed?: boolean | null;
   created_at?: string;
+  menu_settings?: { faith?: boolean; prayer?: boolean; social?: boolean; schedule?: boolean; };
 };
 
 type GroupPrayerRecord = {
@@ -714,6 +715,7 @@ export default function GroupDashboard() {
   const [editingPost, setEditingPost] = useState<GroupPostRow | null>(null);
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
+  const [postExistingImages, setPostExistingImages] = useState<string[]>([]);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
   const [expandedPosts, setExpandedPosts] = useState<Record<number, boolean>>({});
   const [showImageModal, setShowImageModal] = useState(false);
@@ -751,7 +753,7 @@ export default function GroupDashboard() {
   const [groupEditSaving, setGroupEditSaving] = useState(false);
   const [slugCheckState, setSlugCheckState] = useState<"idle" | "checking" | "available" | "taken">("idle");
 
-  const [adminTab, setAdminTab] = useState<"info" | "faith" | "manage">("info");
+  const [adminTab, setAdminTab] = useState<"info" | "menu" | "manage">("info");
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [cropModalOpen, setCropModalOpen] = useState(false);
@@ -890,6 +892,7 @@ export default function GroupDashboard() {
       owner_id: groupData.owner_id ?? null,
       group_type: (groupData as any).group_type ?? "etc",
       password: (groupData as any).password ?? null,
+      menu_settings: (groupData as any).menu_settings ?? { faith: true, prayer: true, social: true, schedule: true },
       group_image: ensureHttpsUrl((groupData as any).group_image) ?? null,
       header_image_url: ensureHttpsUrl((groupData as any).header_image_url) ?? null,
       header_color: (groupData as any).header_color ?? "#4A6741",
@@ -1037,7 +1040,41 @@ export default function GroupDashboard() {
         .eq("record_date", today),
     ]);
 
-    setFaithItems((items ?? []) as FaithItemRow[]);
+    let currentItems = (items ?? []) as FaithItemRow[];
+    // Ensure default items exist (성경, QT, 기도, 예배)
+    const requiredItems = [
+      { name: "성경", type: "check", mode: "both", feature: "reading" },
+      { name: "QT", type: "check", mode: "both", feature: "qt" },
+      { name: "기도", type: "check", mode: "both", feature: "prayer" },
+      { name: "예배", type: "check", mode: "manual", feature: "none" }
+    ];
+
+    let needReload = false;
+    for (const req of requiredItems) {
+      if (!currentItems.find(i => i.name === req.name)) {
+        await supabase.from("group_faith_items").insert({
+          group_id: targetGroupId,
+          name: req.name,
+          item_type: req.type,
+          source_mode: req.mode,
+          linked_feature: req.feature,
+          created_by: userId
+        });
+        needReload = true;
+      }
+    }
+
+    if (needReload) {
+      const { data: updatedItems } = await supabase
+        .from("group_faith_items")
+        .select("id, name, item_type, source_mode, linked_feature, sort_order")
+        .eq("group_id", targetGroupId)
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      currentItems = (updatedItems ?? []) as FaithItemRow[];
+    }
+    setFaithItems(currentItems);
 
     const nextValues: Record<string, number> = {};
     const baseDetails: Record<string, FaithRecordDetail> = {};
@@ -1924,10 +1961,44 @@ export default function GroupDashboard() {
         alert("게시글 수정에 실패했습니다.");
         return;
       }
+
+      await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
+
+      try {
+        let uploadedUrls: string[] = [];
+        if (postImageFiles.length > 0) {
+          uploadedUrls = await Promise.all(
+            postImageFiles.map(async (file, index) => {
+              const resized = await resizeImageFile(file, 1080, 0.82);
+              const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
+              const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
+              return uploadFileToR2(key, resized, resized.type || "image/jpeg");
+            })
+          );
+        }
+
+        const finalUrls = [...postExistingImages, ...uploadedUrls];
+        if (finalUrls.length > 0) {
+          const { error: imageInsertError } = await supabase.from("group_post_images").insert(
+            finalUrls.map((url, index) => ({
+              post_id: editingPost.id,
+              uploader_id: user.id,
+              image_url: url,
+              sort_order: index,
+            }))
+          );
+          if (imageInsertError) throw imageInsertError;
+        }
+      } catch (uploadError) {
+        console.error("post image upload error:", uploadError);
+        alert(`사진 업로드/저장에 실패했습니다.`);
+      }
+
       setPostTitle("");
       setPostContent("");
       setPostImageFiles([]);
       setPostImagePreviews([]);
+      setPostExistingImages([]);
       setShowPostComposerModal(false);
       setEditingPost(null);
       await loadPosts(group.id);
@@ -2000,6 +2071,7 @@ export default function GroupDashboard() {
     setPostTitle("");
     setPostContent("");
     setPostImageFiles([]);
+    setPostExistingImages([]);
     setShowPostComposerModal(false);
     await loadPosts(group.id);
   };
@@ -2693,24 +2765,26 @@ export default function GroupDashboard() {
 
       <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all overflow-x-auto hide-scrollbar">
         <div className="w-full">
-          <nav className="flex items-center w-full min-w-max">
+          <nav className="flex items-center justify-center w-full max-w-xl mx-auto">
             {([
               ["faith", "신앙생활"],
               ["prayer", "중보기도"],
               ["social", "교제나눔"],
               ["schedule", "모임일정"],
-            ] as Array<[TabKey, string]>).map(([id, label]) => (
-              <button
-                key={id}
-                onClick={() => setActiveTab(id)}
-                className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${activeTab === id
-                  ? "border-[#4A6741] bg-white text-[#4A6741]"
-                  : "border-transparent text-zinc-500 hover:text-zinc-700"
-                  }`}
-              >
-                {label}
-              </button>
-            ))}
+            ] as Array<[TabKey, string]>)
+              .filter(([id]) => group.menu_settings?.[id as keyof typeof group.menu_settings] !== false)
+              .map(([id, label]) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveTab(id)}
+                  className={`flex-1 min-w-[4rem] py-3 text-base font-bold border-b-2 transition-colors ${activeTab === id
+                    ? "border-[#4A6741] bg-white text-[#4A6741]"
+                    : "border-transparent text-zinc-500 hover:text-zinc-700"
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
           </nav>
         </div>
       </div>
@@ -3019,7 +3093,9 @@ export default function GroupDashboard() {
                               setPostType(post.post_type);
                               setPostTitle(post.title || "");
                               setPostContent(post.content || "");
-                              setPostImagePreviews(post.image_urls || []);
+                              setPostImagePreviews([]);
+                              setPostImageFiles([]);
+                              setPostExistingImages([...(post.image_urls || [])]);
                               setShowPostComposerModal(true);
                             }}
                             className="p-1.5 hover:text-[#4A6741] transition-colors"
@@ -3042,7 +3118,7 @@ export default function GroupDashboard() {
               )}
             </div>
             <button
-              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setShowPostComposerModal(true); }}
+              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setPostExistingImages([]); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }}
               className="fixed right-5 bottom-24 z-[90] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
               aria-label="글 작성"
             >
@@ -3207,11 +3283,11 @@ export default function GroupDashboard() {
                 기본 정보
               </button>
               <button
-                onClick={() => setAdminTab("faith")}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "faith" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
+                onClick={() => setAdminTab("menu")}
+                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "menu" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
                   }`}
               >
-                신앙활동
+                메뉴 설정
               </button>
               <button
                 onClick={() => setAdminTab("manage")}
@@ -3326,51 +3402,38 @@ export default function GroupDashboard() {
               </motion.section>
             )}
 
-            {/* 신앙활동 항목 설정 탭 */}
-            {adminTab === "faith" && (
+            {/* 메뉴 설정 탭 */}
+            {adminTab === "menu" && (
               <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                <h3 className="font-black text-zinc-900 text-lg mb-2">신앙생활 관리 항목 설정</h3>
+                <h3 className="font-black text-zinc-900 text-lg mb-2">메뉴 설정</h3>
                 <p className="text-sm text-zinc-500 mb-4 px-1 leading-relaxed">
-                  모임 내에서 관리할 신앙활동을 선택하세요. <br />해당 항목들은 멤버들에게 기록할 수 있는 메뉴로 나타납니다.
+                  모임원들에게 보여줄 메뉴들을 활성화 또는 비활성화 하세요. <br />최소 1개 이상의 메뉴는 활성화 상태를 유지해야 합니다.
                 </p>
                 <div className="space-y-3">
-                  {[
-                    { id: "reading", name: "성경", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "reading" as LinkedFeature },
-                    { id: "qt", name: "QT", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "qt" as LinkedFeature },
-                    { id: "prayer", name: "기도", type: "check" as FaithType, mode: "both" as FaithSourceMode, feature: "prayer" as LinkedFeature },
-                    { id: "worship", name: "예배", type: "check" as FaithType, mode: "manual" as FaithSourceMode, feature: "none" as LinkedFeature },
-                  ].map(preset => {
-                    const existingItem = faithItems.find(item => item.name === preset.name);
-                    const isActive = !!existingItem;
-
-                    const togglePreset = async () => {
-                      if (isActive && existingItem) {
-                        removeFaithItem(existingItem.id);
+                  {(["faith", "prayer", "social", "schedule"] as const).map(menuKey => {
+                    const toggleMenu = async () => {
+                      const cur = group.menu_settings ?? { faith: true, prayer: true, social: true, schedule: true };
+                      const newVal = !(cur[menuKey] ?? true);
+                      const enabledCount = Object.values(cur).filter(Boolean).length;
+                      if (!newVal && enabledCount <= 1) {
+                        alert("최소 1개 이상의 메뉴는 활성화해야 합니다.");
+                        return;
+                      }
+                      const newSettings = { ...cur, [menuKey]: newVal };
+                      const { error } = await supabase.from("groups").update({ menu_settings: newSettings }).eq("id", group.id);
+                      if (!error) {
+                        setGroup({ ...group, menu_settings: newSettings });
                       } else {
-                        if (!group || !user) return;
-                        const payload = {
-                          group_id: group.id,
-                          name: preset.name,
-                          item_type: preset.type,
-                          source_mode: preset.mode,
-                          linked_feature: preset.feature,
-                          created_by: user.id,
-                        };
-                        const { error } = await supabase.from("group_faith_items").insert(payload);
-                        if (!error) loadFaith(group.id, user.id);
+                        alert("설정 변경에 실패했습니다.");
                       }
                     };
-
+                    const isEnabled = group.menu_settings?.[menuKey] ?? true;
+                    const labelStr = menuKey === "faith" ? "신앙생활" : menuKey === "prayer" ? "중보기도" : menuKey === "social" ? "교제나눔" : "모임일정";
                     return (
-                      <div key={preset.id} className="flex items-center justify-between p-4 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-base text-zinc-900">{preset.name}</span>
-                          <span className="text-xs text-zinc-500 font-medium">
-                            {preset.mode === "both" ? "직접 기록 + 앱 서비스 연동" : "직접 기록만 사용"}
-                          </span>
-                        </div>
+                      <div key={menuKey} className="flex justify-between items-center p-4 rounded-2xl border border-zinc-100 bg-zinc-50/50">
+                        <span className="font-bold text-base text-zinc-900">{labelStr}</span>
                         <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" checked={isActive} onChange={togglePreset} />
+                          <input type="checkbox" className="sr-only peer" checked={isEnabled} onChange={toggleMenu} />
                           <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A6741]"></div>
                         </label>
                       </div>
@@ -3715,8 +3778,19 @@ export default function GroupDashboard() {
                       </label>
                     </div>
 
-                    {postImagePreviews.length > 0 && (
+                    {(postExistingImages.length > 0 || postImagePreviews.length > 0) && (
                       <div className="grid grid-cols-3 gap-2">
+                        {postExistingImages.map((preview, index) => (
+                          <div key={`exist-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
+                            <img src={preview} alt={`exist-${index}`} className="w-full h-20 object-cover" />
+                            <button
+                              onClick={() => setPostExistingImages(prev => prev.filter((_, i) => i !== index))}
+                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ))}
                         {postImagePreviews.map((preview, index) => (
                           <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
                             <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
