@@ -2379,13 +2379,12 @@ export default function GroupDashboard() {
       setGroupEditImageUploading(true);
       const oldImages = [group.group_image, group.header_image_url].filter(Boolean) as string[];
 
-      const { error } = await supabase.from("groups")
-        .update({
-          group_image: null,
-          header_image_url: null,
-          header_color: "#4A6741"
-        })
-        .eq("id", group.id);
+      const { error } = await supabase.rpc("update_group_visual_settings", {
+        p_group_id: group.id,
+        p_group_image: null,
+        p_header_image_url: null,
+        p_header_color: "#4A6741"
+      });
 
       if (error) throw error;
 
