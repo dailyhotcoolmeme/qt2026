@@ -1,11 +1,11 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
-import { 
-  Headphones, BookHeadphones, Share2, Copy, Bookmark, 
+import {
+  Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square, Trash2, NotebookPen, SquarePen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase"; 
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 import { useAuth } from "../hooks/use-auth";
@@ -22,21 +22,23 @@ import { uploadFileToR2 } from "../utils/upload";
 
 
 
+import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+
 export default function QTPage() {
-  const [location, setLocation] = useLocation(); 
+  const [location, setLocation] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
-    // 쿼리스트링에 date가 있으면 해당 날짜로 이동
-    useEffect(() => {
-      if (!location) return;
-      const query = location.split("?")[1];
-      if (!query) return;
-      const params = new URLSearchParams(query);
-      const dateStr = params.get("date");
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) setCurrentDate(d);
-      }
-    }, [location]);
+  // 쿼리스트링에 date가 있으면 해당 날짜로 이동
+  useEffect(() => {
+    if (!location) return;
+    const query = location.split("?")[1];
+    if (!query) return;
+    const params = new URLSearchParams(query);
+    const dateStr = params.get("date");
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) setCurrentDate(d);
+    }
+  }, [location]);
   const today = new Date();
   const dateInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
@@ -55,6 +57,7 @@ export default function QTPage() {
   const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [isMeditationCompleted, setIsMeditationCompleted] = useState(false);
+  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
 
   // 묵상 기록 관련 상태
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -122,7 +125,7 @@ export default function QTPage() {
     }
 
     const formattedDate = currentDate.toISOString().split('T')[0];
-    
+
     const { data, error } = await supabase
       .from('user_meditation_records')
       .select('*')
@@ -146,7 +149,7 @@ export default function QTPage() {
     }
 
     const formattedDate = currentDate.toISOString().split('T')[0];
-    
+
     const { data, error } = await supabase
       .from('user_meditation_records')
       .select('*')
@@ -194,7 +197,7 @@ export default function QTPage() {
   // 묵상 완료 취소
   const handleCancelMeditation = async () => {
     const formattedDate = currentDate.toISOString().split('T')[0];
-    
+
     try {
       // 해당 날짜의 모든 레코드 찾기
       const recordsToDelete = meditationRecords.filter(
@@ -228,7 +231,7 @@ export default function QTPage() {
       setIsMeditationCompleted(false);
       setShowCancelConfirmModal(false);
       await loadMeditationRecords();
-      
+
       if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
     } catch (error) {
       console.error('Error canceling meditation:', error);
@@ -243,7 +246,7 @@ export default function QTPage() {
       return;
     }
     const formattedDate = currentDate.toISOString().split('T')[0];
-    
+
     try {
       const { data: inserted, error } = await supabase
         .from('user_meditation_records')
@@ -264,8 +267,10 @@ export default function QTPage() {
       setIsMeditationCompleted(true);
       setShowConfirmModal(false);
 
-
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
+
+      // 기록 완료 후 모임 연결 모달 띄우기 (타이머를 줘서 모달 전환이 부드럽게)
+      setTimeout(() => setShowGroupLinkModal(true), 150);
     } catch (error) {
       console.error('Error completing meditation:', error);
       alert('묵상 완료 중 오류가 발생했습니다.');
@@ -349,10 +354,10 @@ export default function QTPage() {
       if (audioBlob) {
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user.id}/${kstDate}/qt_${timestamp}.webm`;
-        
+
         // Blob을 File로 변환
         const audioFile = new File([audioBlob], `qt_${timestamp}.webm`, { type: 'audio/webm' });
-        
+
         // R2 업로드 (기존 함수 활용, 경로만 전달)
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
@@ -364,7 +369,7 @@ export default function QTPage() {
         });
 
         if (!response.ok) throw new Error('음성 업로드 실패');
-        
+
         const { publicUrl } = await response.json();
         audioUrl = publicUrl;
       }
@@ -402,6 +407,9 @@ export default function QTPage() {
       // ...existing code...
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
+
+      // 기록 완료 후 모임 연결 모달 띄우기
+      setTimeout(() => setShowGroupLinkModal(true), 150);
     } catch (error) {
       console.error('Error saving meditation:', error);
       // error가 있을 때만 alert, inserted?.id 체크로 불필요하게 throw하지 않음
@@ -433,7 +441,7 @@ export default function QTPage() {
         const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
-        
+
         const response = await fetch('/api/audio/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -444,7 +452,7 @@ export default function QTPage() {
         });
 
         if (!response.ok) throw new Error('음성 업로드 실패');
-        
+
         const { publicUrl } = await response.json();
         audioUrl = publicUrl;
       }
@@ -467,9 +475,9 @@ export default function QTPage() {
       setMeditationText('');
       setAudioBlob(null);
       setRecordingTime(0);
-      
+
       await loadMeditationRecords();
-      
+
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
       console.error('Error updating meditation:', error);
@@ -490,23 +498,23 @@ export default function QTPage() {
     try {
       // 삭제할 레코드 찾기
       const recordToDelete = meditationRecords.find(r => r.id === deletingRecordId);
-      
+
       // R2 파일 삭제 (음성이 있는 경우)
       if (recordToDelete?.audio_url) {
         try {
           console.log('[R2 삭제] 시작:', recordToDelete.audio_url);
-          
+
           const response = await fetch('/api/audio/delete', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileUrl: recordToDelete.audio_url })
           });
-          
+
           console.log('[R2 삭제] 응답 상태:', response.status, response.statusText);
-          
+
           const result = await response.json();
           console.log('[R2 삭제] 결과:', result);
-          
+
           if (!response.ok || !result.success) {
             console.error('[R2 삭제] 실패:', result.error);
             console.warn('DB는 삭제 진행');
@@ -531,7 +539,7 @@ export default function QTPage() {
       setDeletingRecordId(null);
       await loadMeditationRecords();
       await checkMeditationStatus();
-      
+
       if (window.navigator?.vibrate) window.navigator.vibrate([30, 30]);
     } catch (error) {
       console.error('Error deleting meditation:', error);
@@ -626,34 +634,34 @@ export default function QTPage() {
   useEffect(() => {
     fetchVerse();
   }, [currentDate]);
-  
+
   const fetchVerse = async () => {
-  const formattedDate = currentDate.toISOString().split('T')[0];
-  
-  // 1. 오늘의 말씀 가져오기
-  const { data: verse } = await supabase
-    .from('daily_qt_verses')
-    .select('*')
-    .eq('display_date', formattedDate)
-    .maybeSingle();
-  
-  if (verse) {
-    // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
-    const { data: book } = await supabase
-      .from('bible_books')
-      .select('book_order')
-      .eq('book_name', verse.bible_name) // bible_name으로 매칭
+    const formattedDate = currentDate.toISOString().split('T')[0];
+
+    // 1. 오늘의 말씀 가져오기
+    const { data: verse } = await supabase
+      .from('daily_qt_verses')
+      .select('*')
+      .eq('display_date', formattedDate)
       .maybeSingle();
 
-    // 3. bible_books 데이터를 포함해서 상태 업데이트
-    setBibleData({ ...verse, bible_books: book });
-  }
-};
+    if (verse) {
+      // 2. 중요: bible_books 테이블에서 해당 성경의 순서(book_order)를 가져옴
+      const { data: book } = await supabase
+        .from('bible_books')
+        .select('book_order')
+        .eq('book_name', verse.bible_name) // bible_name으로 매칭
+        .maybeSingle();
+
+      // 3. bible_books 데이터를 포함해서 상태 업데이트
+      setBibleData({ ...verse, bible_books: book });
+    }
+  };
 
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
-      .replace(/^[.\s]+/, "") 
+      .replace(/^[.\s]+/, "")
       .replace(/\d+절/g, "")
       .replace(/\d+/g, "")
       .replace(/[."'“”‘’]/g, "")
@@ -662,77 +670,77 @@ export default function QTPage() {
   };
 
   const handleCopy = () => {
-  if (bibleData) {
-    // 실제 복사 로직
-    navigator.clipboard.writeText(cleanContent(bibleData.content));
-    
-    // 토스트 켜고 2초 뒤 끄기
-    setShowCopyToast(true);
-    setTimeout(() => setShowCopyToast(false), 2000);
-    
-    // 햅틱 반응 (선택)
+    if (bibleData) {
+      // 실제 복사 로직
+      navigator.clipboard.writeText(cleanContent(bibleData.content));
+
+      // 토스트 켜고 2초 뒤 끄기
+      setShowCopyToast(true);
+      setTimeout(() => setShowCopyToast(false), 2000);
+
+      // 햅틱 반응 (선택)
+      if (window.navigator?.vibrate) window.navigator.vibrate(20);
+    }
+  };
+  const handleShare = async () => {
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
-  }
-};
-const handleShare = async () => {
-  if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
-  const shareDate = bibleData?.display_date;
-  const shareUrl = shareDate
-    ? `${window.location.origin}/?date=${shareDate}#/qt`
-    : window.location.href;
+    const shareDate = bibleData?.display_date;
+    const shareUrl = shareDate
+      ? `${window.location.origin}/?date=${shareDate}#/qt`
+      : window.location.href;
 
-  const shareData = {
-    title: '성경 말씀',
-    text: bibleData?.content
-      ? cleanContent(bibleData.content)
-      : '말씀을 공유해요.',
-    url: shareUrl,
+    const shareData = {
+      title: '성경 말씀',
+      text: bibleData?.content
+        ? cleanContent(bibleData.content)
+        : '말씀을 공유해요.',
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        alert("링크가 클립보드에 복사되었습니다.");
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name !== 'AbortError') {
+        console.error("공유 실패:", error);
+      }
+    }
   };
 
-  try {
-    if (navigator.share) {
-      await navigator.share(shareData);
-    } else {
-      await navigator.clipboard.writeText(shareUrl);
-      alert("링크가 클립보드에 복사되었습니다.");
-    }
-  } catch (error) {
-    if (error instanceof Error && error.name !== 'AbortError') {
-      console.error("공유 실패:", error);
-    }
-  }
-};
-
-const handleBookmark = async () => {
-  if (!bibleData) return;
-  if (!user?.id) {
-    setShowLoginModal(true);
-    return;
-  }
-
-  const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
-  const { error } = await supabase.from("verse_bookmarks").insert({
-    user_id: user.id,
-    source: "qt",
-    verse_ref: verseRef,
-    content: cleanContent(bibleData.content),
-    memo: null,
-  });
-
-  if (error) {
-    if (error.code === "23505") {
-      alert("이미 저장한 말씀입니다.");
+  const handleBookmark = async () => {
+    if (!bibleData) return;
+    if (!user?.id) {
+      setShowLoginModal(true);
       return;
     }
-    alert("기록함 저장에 실패했습니다.");
-    return;
-  }
 
-  alert("기록함에 저장되었습니다.");
-};
-  
-// 1. 재생/일시정지 토글
+    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
+    const { error } = await supabase.from("verse_bookmarks").insert({
+      user_id: user.id,
+      source: "qt",
+      verse_ref: verseRef,
+      content: cleanContent(bibleData.content),
+      memo: null,
+    });
+
+    if (error) {
+      if (error.code === "23505") {
+        alert("이미 저장한 말씀입니다.");
+        return;
+      }
+      alert("기록함 저장에 실패했습니다.");
+      return;
+    }
+
+    alert("기록함에 저장되었습니다.");
+  };
+
+  // 1. 재생/일시정지 토글
   const parsedVerses = useMemo(() => parseVerses(bibleData?.content || ""), [bibleData?.content]);
 
   const markUserScroll = () => {
@@ -884,9 +892,9 @@ const handleBookmark = async () => {
       const plainText = parsedVerses.length
         ? parsedVerses.map((v) => v.text).join(" ")
         : String(bibleData?.content || "")
-            .replace(/\s+/g, " ")
-            .replace(/\d+\.?\s*/g, " ")
-            .trim();
+          .replace(/\s+/g, " ")
+          .replace(/\d+\.?\s*/g, " ")
+          .trim();
       const keyParts = [
         String(bibleData?.date || currentDate.toISOString().slice(0, 10)),
         `b${String(bookId).padStart(3, "0")}`,
@@ -955,7 +963,7 @@ const handleBookmark = async () => {
       setAudioSubtitle("\uC624\uB514\uC624\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
     }
   };
-const onDragEnd = (event: any, info: any) => {
+  const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
@@ -969,18 +977,18 @@ const onDragEnd = (event: any, info: any) => {
 
   return (
     <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
-      
+
       {/* 상단 날짜 영역 */}
-            <header className="text-center mb-3 flex flex-col items-center w-full relative">
-              <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
-                {currentDate.getFullYear()}
-              </p>
-               {/* 날짜 정렬 영역 */}
-              <div className="flex items-center justify-center w-full">
-              {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
+      <header className="text-center mb-3 flex flex-col items-center w-full relative">
+        <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
+          {currentDate.getFullYear()}
+        </p>
+        {/* 날짜 정렬 영역 */}
+        <div className="flex items-center justify-center w-full">
+          {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
           <div className="flex-1 flex justify-end pr-3">
-            <button 
-              onClick={() => dateInputRef.current?.showPicker()} 
+            <button
+              onClick={() => dateInputRef.current?.showPicker()}
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
@@ -990,171 +998,171 @@ const onDragEnd = (event: any, info: any) => {
           <h2 className="font-black text-zinc-900 tracking-tighter shrink-0" style={{ fontSize: `${fontSize * 1.25}px` }}>
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
-           {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
-    <div className="flex-1 flex justify-start pl-3">
-      {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
+          {/* 3. 오른쪽: 가상의 빈 공간 (연필 버튼과 똑같은 너비를 확보하여 날짜를 중앙으로 밀어줌) */}
+          <div className="flex-1 flex justify-start pl-3">
+            {/* 아이콘이 없더라도 버튼과 똑같은 크기(w-[32px] h-[32px])의 
           투명한 박스를 두어 왼쪽 버튼과 무게 중심을 맞춥니다. 
       */}
-      <div className="w-[28px] h-[28px]" aria-hidden="true" />
-    </div>
-    {/* 숨겨진 날짜 입력 input */}
-    <input 
-      type="date"
-      ref={dateInputRef}
-      onChange={handleDateChange}
-      max={new Date().toISOString().split("T")[0]} 
-      className="absolute opacity-0 pointer-events-none"
-    />
-  </div>
-</header>
+            <div className="w-[28px] h-[28px]" aria-hidden="true" />
+          </div>
+          {/* 숨겨진 날짜 입력 input */}
+          <input
+            type="date"
+            ref={dateInputRef}
+            onChange={handleDateChange}
+            max={new Date().toISOString().split("T")[0]}
+            className="absolute opacity-0 pointer-events-none"
+          />
+        </div>
+      </header>
 
       {/* 2. 말씀 카드 (양옆 힌트 카드 디자인 복구) */}
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
-  
-  {/* 왼쪽 힌트 카드 (어제) */}
-<div className="absolute left-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-  
-  <AnimatePresence mode="wait">
-  <motion.div 
-    key={currentDate.toISOString()}
-    drag="x" 
-    dragConstraints={{ left: 0, right: 0 }}
-    dragElastic={0.2}
-    onDragEnd={onDragEnd}
-    initial={{ opacity: 0, x: 20 }} 
-    animate={{ opacity: 1, x: 0 }} 
-    exit={{ opacity: 0, x: -20 }}
-    className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
-  >
-    {bibleData ? (
-      <>
-        {/* 출처 영역 - 상단으로 이동 */}
-        <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
-          {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
-        </span>
 
-        {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
-    <div
-          ref={verseContainerRef}
-          onWheel={markUserScroll}
-          onTouchMove={markUserScroll}
-          className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium"
-          style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
-        >
-          {parsedVerses.map(({ verse, text }) => {
-            return (
-              <p
-                key={verse}
-                ref={(el) => {
-                  verseRowRefs.current[verse] = el;
-                }}
-                className="flex items-start gap-2 rounded-lg px-2 py-1 transition-colors"
-              >
-                <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
-                <span className="flex-1">{text}</span>
-              </p>
-            );
-          })}
-          {parsedVerses.length === 0 && bibleData.content.split("\n").map((line: string, i: number) => <p key={i}>{line}</p>)}
-        </div>
-      </>
-    ) : (
-      <div className="animate-pulse text-zinc-200 w-full text-center">
-        말씀을 불러오는 중...
-      </div>
-    )}
-  </motion.div>
-</AnimatePresence>
+        {/* 왼쪽 힌트 카드 (어제) */}
+        <div className="absolute left-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
 
-  {/* 오른쪽 힌트 카드 (내일) */}
-<div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentDate.toISOString()}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={onDragEnd}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+          >
+            {bibleData ? (
+              <>
+                {/* 출처 영역 - 상단으로 이동 */}
+                <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                  {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === '시편' ? '편' : '장'} {bibleData.verse}절
+                </span>
+
+                {/* 말씀 본문 영역 - 높이 고정 및 스크롤 추가 */}
+                <div
+                  ref={verseContainerRef}
+                  onWheel={markUserScroll}
+                  onTouchMove={markUserScroll}
+                  className="w-full flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-5 text-zinc-800 leading-[1.5] break-keep font-medium"
+                  style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
+                >
+                  {parsedVerses.map(({ verse, text }) => {
+                    return (
+                      <p
+                        key={verse}
+                        ref={(el) => {
+                          verseRowRefs.current[verse] = el;
+                        }}
+                        className="flex items-start gap-2 rounded-lg px-2 py-1 transition-colors"
+                      >
+                        <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
+                        <span className="flex-1">{text}</span>
+                      </p>
+                    );
+                  })}
+                  {parsedVerses.length === 0 && bibleData.content.split("\n").map((line: string, i: number) => <p key={i}>{line}</p>)}
+                </div>
+              </>
+            ) : (
+              <div className="animate-pulse text-zinc-200 w-full text-center">
+                말씀을 불러오는 중...
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {/* 오른쪽 힌트 카드 (내일) */}
+        <div className="absolute right-[-75%] w-[82%] max-w-sm h-[450px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
       {/* 3. 툴바 (카드와 좁게, 아래와 넓게) */}
-  <div className="flex items-center gap-8 mt-3 mb-4"> 
-    <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
-              className="flex flex-col items-center gap-1.5 text-[#4A6741]">
-      <BookHeadphones size={22} strokeWidth={1.5} />
-      <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
-    </button>
-{/* 말씀 복사 버튼 찾아서 수정 */}
-<button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
-  <Copy size={22} strokeWidth={1.5} />
-  <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
-</button>
-    <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-    <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
-  </div>
+      <div className="flex items-center gap-8 mt-3 mb-4">
+        <button onClick={() => handlePlayTTS()}  // 반드시 빈 괄호를 넣어주세요!
+          className="flex flex-col items-center gap-1.5 text-[#4A6741]">
+          <BookHeadphones size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
+        </button>
+        {/* 말씀 복사 버튼 찾아서 수정 */}
+        <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
+          <Copy size={22} strokeWidth={1.5} />
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
+        </button>
+        <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
+      </div>
       {/* QT 묵상 질문 영역 */}
-{bibleData?.qt_question && (
-  <div className="w-full mt-8 mb-8 px-4">
+      {bibleData?.qt_question && (
+        <div className="w-full mt-8 mb-8 px-4">
 
-    {/* 제목 */}
-    <div className="flex items-center gap-2 mb-6">
-      <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-      <h4
-        className="font-bold text-[#4A6741] opacity-70"
-        style={{ fontSize: `${fontSize * 1.0}px` }}
-      >
-        묵상 질문
-      </h4>
-    </div>
+          {/* 제목 */}
+          <div className="flex items-center gap-2 mb-6">
+            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <h4
+              className="font-bold text-[#4A6741] opacity-70"
+              style={{ fontSize: `${fontSize * 1.0}px` }}
+            >
+              묵상 질문
+            </h4>
+          </div>
 
-    <div className="space-y-10">
-      {bibleData.qt_question
-        .split(/\n?\d+\.\s/) // 번호 기준 분리
-        .filter((q: string) => q.trim() !== "")
-        .map((item: string, index: number, arr: string[]) => {
+          <div className="space-y-10">
+            {bibleData.qt_question
+              .split(/\n?\d+\.\s/) // 번호 기준 분리
+              .filter((q: string) => q.trim() !== "")
+              .map((item: string, index: number, arr: string[]) => {
 
-          // 🔥 (25절) 같은 패턴 기준으로 분리
-const verseMatch = item.match(/\(\d+절\)[\.\!\?…"”"]*/);
+                // 🔥 (25절) 같은 패턴 기준으로 분리
+                const verseMatch = item.match(/\(\d+절\)[\.\!\?…"”"]*/);
 
-let description = item;
-let question = "";
+                let description = item;
+                let question = "";
 
-if (verseMatch) {
-  const splitIndex = verseMatch.index! + verseMatch[0].length;
+                if (verseMatch) {
+                  const splitIndex = verseMatch.index! + verseMatch[0].length;
 
-  description = item.slice(0, splitIndex).trim();
-  question = item.slice(splitIndex).trim();
-}
+                  description = item.slice(0, splitIndex).trim();
+                  question = item.slice(splitIndex).trim();
+                }
 
-          return (
-            <div key={index}>
+                return (
+                  <div key={index}>
 
-              {/* 번호 + 설명 */}
-              <p
-                className="leading-[1.8] break-keep"
-                style={{ fontSize: `${fontSize * 0.95}px` }}
-              >
-                <span className="text-zinc-700 mr-1">
-                  {index + 1}.
-                </span>
-                <span className="text-zinc-700">
-                  {description}
-                </span>
-              </p>
+                    {/* 번호 + 설명 */}
+                    <p
+                      className="leading-[1.8] break-keep"
+                      style={{ fontSize: `${fontSize * 0.95}px` }}
+                    >
+                      <span className="text-zinc-700 mr-1">
+                        {index + 1}.
+                      </span>
+                      <span className="text-zinc-700">
+                        {description}
+                      </span>
+                    </p>
 
-              {/* 실제 질문 */}
-              {question && (
-                <p
-                  className="mt-4 text-[#4A6741] font-semibold opacity-80 leading-[1.9] break-keep"
-                  style={{ fontSize: `${fontSize * 0.95}px` }}
-                >
-                  {question}
-                </p>
-              )}
+                    {/* 실제 질문 */}
+                    {question && (
+                      <p
+                        className="mt-4 text-[#4A6741] font-semibold opacity-80 leading-[1.9] break-keep"
+                        style={{ fontSize: `${fontSize * 0.95}px` }}
+                      >
+                        {question}
+                      </p>
+                    )}
 
-              {/* 마지막 제외 얇은 구분선 */}
-              {index < arr.length - 1 && (
-                <div className="w-full h-[1px] bg-zinc-200 mt-8" />
-              )}
-            </div>
-          );
-        })}
-    </div>
-  </div>
-)}
+                    {/* 마지막 제외 얇은 구분선 */}
+                    {index < arr.length - 1 && (
+                      <div className="w-full h-[1px] bg-zinc-200 mt-8" />
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* 묵상 완료 버튼 (아멘 버튼 스타일) */}
       <div className="flex flex-col items-center gap-3 pb-6 mt-8">
@@ -1182,25 +1190,23 @@ if (verseMatch) {
           </AnimatePresence>
 
           {/* 실제 버튼 */}
-          <motion.button 
+          <motion.button
             onClick={handleMeditationComplete}
-            whileTap={{ scale: 0.9 }} 
+            whileTap={{ scale: 0.9 }}
             disabled={currentDate.toDateString() !== today.toDateString()}
             className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-              ${
-                isMeditationCompleted
-                  ? 'bg-[#4A6741] text-white border-none' 
-                  : 'bg-white text-[#4A6741] border border-green-50'
+              ${isMeditationCompleted
+                ? 'bg-[#4A6741] text-white border-none'
+                : 'bg-white text-[#4A6741] border border-green-50'
               }
-              ${
-                currentDate.toDateString() !== today.toDateString()
-                  ? 'cursor-not-allowed opacity-60'
-                  : ''
+              ${currentDate.toDateString() !== today.toDateString()
+                ? 'cursor-not-allowed opacity-60'
+                : ''
               }`}
           >
-            <Heart 
-              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`} 
-              strokeWidth={isMeditationCompleted ? 0 : 2} 
+            <Heart
+              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`}
+              strokeWidth={isMeditationCompleted ? 0 : 2}
             />
             <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
               {isMeditationCompleted ? '묵상 완료' : '묵상 완료'}
@@ -1215,16 +1221,22 @@ if (verseMatch) {
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
             <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            묵상 기록
+              묵상 기록
             </h3>
-             <div className="flex-1" />
-              <button
+            <div className="flex-1" />
+            <button
+              onClick={() => setShowGroupLinkModal(true)}
+              className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors mr-2 flex items-center gap-1.5"
+            >
+              <Share2 size={12} /> 모임에 연결
+            </button>
+            <button
               onClick={() => setShowWriteSheet(true)}
               className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
               title="묵상 기록 추가"
-               >
+            >
               <NotebookPen size={18} />
-              </button>
+            </button>
           </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
@@ -1235,7 +1247,7 @@ if (verseMatch) {
                     {record.meditation_text}
                   </p>
                 )}
-                
+
                 {/* 음성 재생 */}
                 {record.audio_url && (
                   <div className="bg-[#4A6741]/5 rounded-none p-3 mb-2">
@@ -1256,7 +1268,7 @@ if (verseMatch) {
                             ? `${formatTime(Math.floor(audioProgress))} / ${formatTime(Math.floor(audioDuration))}`
                             : formatTime(record.audio_duration || 0)}
                         </div>
-                        <div 
+                        <div
                           className="h-1.5 bg-zinc-200 rounded-full overflow-hidden cursor-pointer"
                           onClick={(e) => {
                             if (playingAudioId === record.id && audioDuration > 0) {
@@ -1267,9 +1279,9 @@ if (verseMatch) {
                             }
                           }}
                         >
-                          <div 
+                          <div
                             className="h-full bg-[#4A6741] transition-all"
-                            style={{ 
+                            style={{
                               width: playingAudioId === record.id && audioDuration > 0
                                 ? `${(audioProgress / audioDuration) * 100}%`
                                 : '0%'
@@ -1280,7 +1292,7 @@ if (verseMatch) {
                     </div>
                   </div>
                 )}
-                
+
                 {/* 수정/삭제 버튼 */}
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
                   <span className="text-xs text-zinc-400">
@@ -1315,23 +1327,23 @@ if (verseMatch) {
         </div>
       )}
 
-    
+
 
       {/* 묵상 기록 확인 모달 */}
       <AnimatePresence>
         {showConfirmModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowConfirmModal(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[320px] shadow-2xl text-center"
             >
@@ -1348,11 +1360,11 @@ if (verseMatch) {
                 기록을 남기시겠습니까?
               </h4>
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                오늘 말씀이나 묵상 질문에 대해 느낀점을 <br/> 글이나 음성으로 남겨주세요
+                오늘 말씀이나 묵상 질문에 대해 느낀점을 <br /> 글이나 음성으로 남겨주세요
               </p>
-              
+
               <div className="flex flex-col gap-3">
-                <button 
+                <button
                   onClick={() => {
                     setShowConfirmModal(false);
                     setShowWriteSheet(true);
@@ -1362,7 +1374,7 @@ if (verseMatch) {
                 >
                   기록 남기기
                 </button>
-                <button 
+                <button
                   onClick={handleCompleteOnly}
                   className="w-full py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
@@ -1379,30 +1391,30 @@ if (verseMatch) {
       <AnimatePresence>
         {showWriteSheet && (
           <>
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowWriteSheet(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400]"
             />
-            
-            <motion.div 
-              initial={{ y: "100%" }} 
-              animate={{ y: 0 }} 
+
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
             >
               <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
-              
+
               <div className="flex justify-between items-center mb-6">
                 <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>
                   {editingRecord ? '묵상 기록 수정' : '묵상 기록'}
                 </h3>
-                <button 
+                <button
                   onClick={editingRecord ? handleUpdateMeditation : handleSubmitMeditation}
-                  className="text-[#4A6741] font-bold" 
+                  className="text-[#4A6741] font-bold"
                   style={{ fontSize: `${fontSize}px` }}
                 >
                   {editingRecord ? '저장' : '등록'}
@@ -1410,7 +1422,7 @@ if (verseMatch) {
               </div>
 
               {/* 텍스트 입력 영역 */}
-              <textarea 
+              <textarea
                 value={meditationText}
                 onChange={(e) => setMeditationText(e.target.value)}
                 placeholder="오늘 말씀이나 묵상 질문에 대해 느낀점을 남겨주세요"
@@ -1421,7 +1433,7 @@ if (verseMatch) {
               {/* 음성 녹음 영역 */}
               <div className="space-y-3">
                 <p className="text-zinc-600 font-medium text-sm">음성으로 기록</p>
-                
+
                 {/* 기존 음성 파일 (수정 모드) */}
                 {editingRecord?.audio_url && !audioBlob && (
                   <div className="bg-white rounded-xl p-4 border border-zinc-200">
@@ -1456,15 +1468,14 @@ if (verseMatch) {
                     </button>
                   </div>
                 )}
-                
+
                 {!audioBlob && (!editingRecord || !editingRecord.audio_url) ? (
                   <button
                     onClick={isRecording ? stopRecording : startRecording}
-                    className={`w-full py-4 rounded-xl font-bold transition-all ${
-                      isRecording
-                        ? 'bg-red-500 text-white'
-                        : 'bg-white border border-zinc-200 text-zinc-700'
-                    }`}
+                    className={`w-full py-4 rounded-xl font-bold transition-all ${isRecording
+                      ? 'bg-red-500 text-white'
+                      : 'bg-white border border-zinc-200 text-zinc-700'
+                      }`}
                     style={{ fontSize: `${fontSize * 0.9}px` }}
                   >
                     {isRecording ? (
@@ -1508,14 +1519,14 @@ if (verseMatch) {
                       </button>
                     </div>
                     <div className="flex justify-end w-full px-2"> {/* 오른쪽 정렬을 위한 감싸는 div */}
-  <button
-    onClick={deleteAudio}
-    className="p-2 text-red-300 hover:bg-red-50 rounded-full transition-colors"
-    title="삭제"
-  >
-    <Trash2 size={18} />
-  </button>
-</div>
+                      <button
+                        onClick={deleteAudio}
+                        className="p-2 text-red-300 hover:bg-red-50 rounded-full transition-colors"
+                        title="삭제"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -1528,17 +1539,17 @@ if (verseMatch) {
       <AnimatePresence>
         {showCancelConfirmModal && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCancelConfirmModal(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
             >
@@ -1548,16 +1559,16 @@ if (verseMatch) {
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 오늘 날짜의 모든 묵상 기록이 삭제됩니다.
               </p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setShowCancelConfirmModal(false)}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
                   아니오
                 </button>
-                <button 
+                <button
                   onClick={handleCancelMeditation}
                   className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold transition-active active:scale-95 shadow-lg"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
@@ -1574,17 +1585,17 @@ if (verseMatch) {
       <AnimatePresence>
         {showDeleteConfirm && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowDeleteConfirm(false)}
               className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
-            
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
+
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="relative bg-white rounded-[28px] p-8 w-full max-w-[280px] shadow-2xl text-center"
             >
@@ -1594,16 +1605,16 @@ if (verseMatch) {
               <p className="text-zinc-500 mb-6" style={{ fontSize: `${fontSize * 0.85}px` }}>
                 삭제된 기록은 복구할 수 없습니다.
               </p>
-              
+
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => setShowDeleteConfirm(false)}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-600 font-bold transition-active active:scale-95"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
                   취소
                 </button>
-                <button 
+                <button
                   onClick={handleDeleteRecord}
                   className="flex-1 py-3 rounded-xl bg-red-500 text-white font-bold transition-active active:scale-95 shadow-lg shadow-red-200"
                   style={{ fontSize: `${fontSize * 0.9}px` }}
@@ -1630,27 +1641,36 @@ if (verseMatch) {
         onPrevVerse={jumpPrevVerse}
         onNextVerse={jumpNextVerse}
       />
-<AnimatePresence>
-  {showCopyToast && (
-    <motion.div 
-      initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
-      animate={{ opacity: 1, x: "-50%", y: 0 }} 
-      exit={{ opacity: 0, x: "-50%", y: 20 }} 
-      transition={{ duration: 0.3 }}
-      className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
-      style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
-    >
-      말씀이 복사되었습니다
-    </motion.div>
-  )}
-</AnimatePresence>
+      <AnimatePresence>
+        {showCopyToast && (
+          <motion.div
+            initial={{ opacity: 0, x: "-50%", y: 20 }} // x는 중앙 고정, y만 움직임
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
+            style={{ left: '50%', transform: 'translateX(-50%)' }} // 인라인 스타일로 한 번 더 강제
+          >
+            말씀이 복사되었습니다
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-{/* 로그인 모달 */}
-<LoginModal 
-  open={showLoginModal} 
-  onOpenChange={setShowLoginModal}
-  returnTo={`${window.location.origin}/#/qt`}
-/> 
+      {/* 모임에 기록 연결 모달 */}
+      <ActivityGroupLinkModal
+        open={showGroupLinkModal}
+        onOpenChange={setShowGroupLinkModal}
+        user={user}
+        activityType="qt"
+        activityDate={currentDate}
+      />
+
+      {/* 로그인 모달 */}
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
+        returnTo={`${window.location.origin}/#/qt`}
+      />
 
 
     </div>

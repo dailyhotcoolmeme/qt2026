@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import confetti from 'canvas-confetti';
-import { 
-  Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark, 
+import {
+  Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Check, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Pencil, NotebookPen,
   BookX, Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase"; 
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
@@ -21,26 +21,27 @@ import {
   parseVerseRange,
   parseVerses,
 } from "../lib/bibleAudio";
+import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 
 import { useLocation } from "wouter";
 
 export default function ReadingPage() {
   const [location] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
-    // 쿼리스트링에 date가 있으면 해당 날짜로 이동
-    useEffect(() => {
-      if (!location) return;
-      const query = location.split("?")[1];
-      if (!query) return;
-      const params = new URLSearchParams(query);
-      const dateStr = params.get("date");
-      if (dateStr) {
-        const d = new Date(dateStr);
-        if (!isNaN(d.getTime())) setCurrentDate(d);
-      }
-    }, [location]);
+  // 쿼리스트링에 date가 있으면 해당 날짜로 이동
+  useEffect(() => {
+    if (!location) return;
+    const query = location.split("?")[1];
+    if (!query) return;
+    const params = new URLSearchParams(query);
+    const dateStr = params.get("date");
+    if (dateStr) {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) setCurrentDate(d);
+    }
+  }, [location]);
   const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null); 
+  const dateInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoading: isAuthLoading } = useAuth();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
@@ -49,7 +50,7 @@ export default function ReadingPage() {
   const [pendingGroupLinkSourceRowId, setPendingGroupLinkSourceRowId] = useState<string | null>(null);
   const [pendingGroupLinkLabel, setPendingGroupLinkLabel] = useState("");
   const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
-  
+
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = new Date(e.target.value);
     if (!isNaN(selectedDate.getTime())) {
@@ -61,20 +62,20 @@ export default function ReadingPage() {
     }
   };
   const [bibleData, setBibleData] = useState<any>(null);
-  
+
   const BIBLE_BOOKS = {
     구약: [
-      "창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기", 
-      "사무엘상", "사무엘하", "열왕기상", "열왕기하", "역대상", "역대하", "에스라", 
-      "느헤미야", "에스더", "욥기", "시편", "잠언", "전도서", "아가", "이사야", 
-      "예레미야", "예레미야 애가", "에스겔", "다니엘", "호세아", "요엘", "아모스", 
+      "창세기", "출애굽기", "레위기", "민수기", "신명기", "여호수아", "사사기", "룻기",
+      "사무엘상", "사무엘하", "열왕기상", "열왕기하", "역대상", "역대하", "에스라",
+      "느헤미야", "에스더", "욥기", "시편", "잠언", "전도서", "아가", "이사야",
+      "예레미야", "예레미야 애가", "에스겔", "다니엘", "호세아", "요엘", "아모스",
       "오바댜", "요나", "미가", "나훔", "하박국", "스바냐", "학개", "스가랴", "말라기"
     ],
     신약: [
-      "마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서", 
-      "고린도후서", "갈라디아서", "에베소서", "빌립보서", "골로새서", "데살로니가전서", 
-      "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서", 
-      "야고보서", "베드로전서", "베드로후서", "요한일서", "요한이서", "요한삼서", 
+      "마태복음", "마가복음", "누가복음", "요한복음", "사도행전", "로마서", "고린도전서",
+      "고린도후서", "갈라디아서", "에베소서", "빌립보서", "골로새서", "데살로니가전서",
+      "데살로니가후서", "디모데전서", "디모데후서", "디도서", "빌레몬서", "히브리서",
+      "야고보서", "베드로전서", "베드로후서", "요한일서", "요한이서", "요한삼서",
       "유다서", "요한계시록"
     ]
   };
@@ -83,7 +84,7 @@ export default function ReadingPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<any>(null);
-  const [rangePages, setRangePages] = useState<any[]>([]); 
+  const [rangePages, setRangePages] = useState<any[]>([]);
   const [currentPageIdx, setCurrentPageIdx] = useState(0);
 
   const [isReadCompleted, setIsReadCompleted] = useState(false);
@@ -123,7 +124,7 @@ export default function ReadingPage() {
   const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const currentPageIdxRef = useRef<number>(0);  // 현재 인덱스를 ref로도 관리
   const previousDateRef = useRef<string>(new Date().toDateString());
-  
+
   // 재생 방식 선택 및 전체 재생 모드 관련 상태
   const [showPlayModePopup, setShowPlayModePopup] = useState(false);
   const [isContinuousPlayMode, setIsContinuousPlayMode] = useState(false);
@@ -203,243 +204,243 @@ export default function ReadingPage() {
     }
   }, []);
 
-// 🔥 범위 선택 관련 상태
-type SelectionPhase = 'start' | 'end';
-const [selectionPhase, setSelectionPhase] = useState<SelectionPhase>('start');
-const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'chapter'>('testament');
-const [tempSelection, setTempSelection] = useState({
-  start_testament: '',
-  start_book: '',
-  start_chapter: 0,
-  end_testament: '',
-  end_book: '',
-  end_chapter: 0,
-});
-const [availableChapters, setAvailableChapters] = useState<number[]>([]);
-const [readingProgress, setReadingProgress] = useState<Record<string, number>>({});
-const [bookOrderMap, setBookOrderMap] = useState<Record<string, number>>({});
+  // 🔥 범위 선택 관련 상태
+  type SelectionPhase = 'start' | 'end';
+  const [selectionPhase, setSelectionPhase] = useState<SelectionPhase>('start');
+  const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'chapter'>('testament');
+  const [tempSelection, setTempSelection] = useState({
+    start_testament: '',
+    start_book: '',
+    start_chapter: 0,
+    end_testament: '',
+    end_book: '',
+    end_chapter: 0,
+  });
+  const [availableChapters, setAvailableChapters] = useState<number[]>([]);
+  const [readingProgress, setReadingProgress] = useState<Record<string, number>>({});
+  const [bookOrderMap, setBookOrderMap] = useState<Record<string, number>>({});
 
-// 책 순서 매핑 로드
-useEffect(() => {
-  const loadBookOrders = async () => {
-    const { data } = await supabase
-      .from('bible_books')
-      .select('book_name, book_order');
-    
-    if (data) {
-      const orderMap: Record<string, number> = {};
-      data.forEach(book => {
-        orderMap[book.book_name] = book.book_order;
-      });
-      setBookOrderMap(orderMap);
-    }
-  };
-  loadBookOrders();
-}, []);
+  // 책 순서 매핑 로드
+  useEffect(() => {
+    const loadBookOrders = async () => {
+      const { data } = await supabase
+        .from('bible_books')
+        .select('book_name, book_order');
 
-// 날짜별 말씀 로드 (로그인한 회원용)
-const loadDailyVerse = async (date: Date, options?: { forceTodayRestore?: boolean }) => {
-  // 로그인하지 않았으면 실행 안 함
-  if (!user) return;
-  
-  const today = new Date();
-  const isToday = date.toDateString() === today.toDateString();
-  const forceTodayRestore = Boolean(options?.forceTodayRestore);
-  
-  console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
-  
-  // 오늘 날짜이고 rangePages가 비어있으면 localStorage 복원
-  if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
-    const savedPages = localStorage.getItem('reading_pages');
-    const savedDate = localStorage.getItem('reading_date');
-    const savedIdx = localStorage.getItem('reading_page_idx');
-    
-    // 날짜 확인: 저장된 날짜가 오늘이 아니면 무시
-    const todayStr = today.toISOString().split('T')[0];
-    if (savedPages && savedDate === todayStr) {
-      try {
-        const pages = JSON.parse(savedPages);
-        const idx = Number(savedIdx) || 0;
-        
-        console.log('localStorage 복원:', pages.length, '페이지');
-        
-        setRangePages(pages);
-        setCurrentPageIdx(idx);
-        if (pages[idx]) {
-          setBibleData(pages[idx]);
-        }
-        return;
-      } catch (e) {
-        console.error('복원 실패:', e);
+      if (data) {
+        const orderMap: Record<string, number> = {};
+        data.forEach(book => {
+          orderMap[book.book_name] = book.book_order;
+        });
+        setBookOrderMap(orderMap);
       }
-    } else if (savedDate && savedDate !== todayStr) {
-      // 날짜가 다르면 localStorage 삭제
-      console.log('localStorage 날짜 불일치, 삭제');
-      localStorage.removeItem('reading_pages');
-      localStorage.removeItem('reading_date');
-      localStorage.removeItem('reading_page_idx');
-      if (forceTodayRestore) {
+    };
+    loadBookOrders();
+  }, []);
+
+  // 날짜별 말씀 로드 (로그인한 회원용)
+  const loadDailyVerse = async (date: Date, options?: { forceTodayRestore?: boolean }) => {
+    // 로그인하지 않았으면 실행 안 함
+    if (!user) return;
+
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    const forceTodayRestore = Boolean(options?.forceTodayRestore);
+
+    console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
+
+    // 오늘 날짜이고 rangePages가 비어있으면 localStorage 복원
+    if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
+      const savedPages = localStorage.getItem('reading_pages');
+      const savedDate = localStorage.getItem('reading_date');
+      const savedIdx = localStorage.getItem('reading_page_idx');
+
+      // 날짜 확인: 저장된 날짜가 오늘이 아니면 무시
+      const todayStr = today.toISOString().split('T')[0];
+      if (savedPages && savedDate === todayStr) {
+        try {
+          const pages = JSON.parse(savedPages);
+          const idx = Number(savedIdx) || 0;
+
+          console.log('localStorage 복원:', pages.length, '페이지');
+
+          setRangePages(pages);
+          setCurrentPageIdx(idx);
+          if (pages[idx]) {
+            setBibleData(pages[idx]);
+          }
+          return;
+        } catch (e) {
+          console.error('복원 실패:', e);
+        }
+      } else if (savedDate && savedDate !== todayStr) {
+        // 날짜가 다르면 localStorage 삭제
+        console.log('localStorage 날짜 불일치, 삭제');
+        localStorage.removeItem('reading_pages');
+        localStorage.removeItem('reading_date');
+        localStorage.removeItem('reading_page_idx');
+        if (forceTodayRestore) {
+          setRangePages([]);
+          setCurrentPageIdx(0);
+          setBibleData(null);
+        }
+      } else if (forceTodayRestore) {
         setRangePages([]);
         setCurrentPageIdx(0);
         setBibleData(null);
       }
-    } else if (forceTodayRestore) {
-      setRangePages([]);
-      setCurrentPageIdx(0);
-      setBibleData(null);
     }
-  }
-  
-  // 오늘 날짜면 아무것도 안 함 (rangePages 유지)
-  if (isToday) {
-    console.log('오늘 날짜, rangePages 유지');
-    // 상태 초기화
-    setIsLoadingVerse(false);
-    if (rangePages.length === 0) {
-      setNoReadingForDate(false);
+
+    // 오늘 날짜면 아무것도 안 함 (rangePages 유지)
+    if (isToday) {
+      console.log('오늘 날짜, rangePages 유지');
+      // 상태 초기화
+      setIsLoadingVerse(false);
+      if (rangePages.length === 0) {
+        setNoReadingForDate(false);
+      }
+      return;
     }
-    return;
-  }
-  
-  // 과거 날짜만 서버에서 로드
-  console.log('과거 날짜, 서버에서 로드');
-  setIsLoadingVerse(true);
-  setNoReadingForDate(false);
-  
-  const dateStr = date.toISOString().split('T')[0];
-  
-  // 해당 날짜의 모든 읽은 장을 가져옵니다
-  const { data: records, error } = await supabase
-    .from('user_reading_records')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('date', dateStr)
-    .order('updated_at', { ascending: true });
-  
-  if (records && records.length > 0) {
-    // 모든 읽은 장을 rangePages로 변환 (성경 순서대로 정렬)
-    const pages = [];
-    
-    // 먼저 bible_books에서 book_order를 가져와서 정렬
-    const bookOrders: Record<string, number> = {};
-    for (const record of records) {
-      if (!bookOrders[record.book_name]) {
-        const { data: bookInfo } = await supabase
-          .from('bible_books')
-          .select('book_order')
-          .eq('book_name', record.book_name)
-          .single();
-        
-        if (bookInfo) {
-          bookOrders[record.book_name] = bookInfo.book_order;
+
+    // 과거 날짜만 서버에서 로드
+    console.log('과거 날짜, 서버에서 로드');
+    setIsLoadingVerse(true);
+    setNoReadingForDate(false);
+
+    const dateStr = date.toISOString().split('T')[0];
+
+    // 해당 날짜의 모든 읽은 장을 가져옵니다
+    const { data: records, error } = await supabase
+      .from('user_reading_records')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', dateStr)
+      .order('updated_at', { ascending: true });
+
+    if (records && records.length > 0) {
+      // 모든 읽은 장을 rangePages로 변환 (성경 순서대로 정렬)
+      const pages = [];
+
+      // 먼저 bible_books에서 book_order를 가져와서 정렬
+      const bookOrders: Record<string, number> = {};
+      for (const record of records) {
+        if (!bookOrders[record.book_name]) {
+          const { data: bookInfo } = await supabase
+            .from('bible_books')
+            .select('book_order')
+            .eq('book_name', record.book_name)
+            .single();
+
+          if (bookInfo) {
+            bookOrders[record.book_name] = bookInfo.book_order;
+          }
         }
       }
-    }
-    
-    // book_order로 정렬
-    const sortedRecords = [...records].sort((a, b) => {
-      const orderA = bookOrders[a.book_name] || 0;
-      const orderB = bookOrders[b.book_name] || 0;
-      if (orderA !== orderB) return orderA - orderB;
-      return a.chapter - b.chapter;
-    });
-    
-    for (const record of sortedRecords) {
-      // bible_books 정보 별도 조회
-      const { data: bookInfo } = await supabase
-        .from('bible_books')
-        .select('*')
-        .eq('book_name', record.book_name)
-        .single();
-      
-      // 절 번호와 함께 포맷팅
-      const { data: verses } = await supabase
-        .from('bible_verses')
-        .select('*')
-        .eq('book_name', record.book_name)
-        .eq('chapter', record.chapter)
-        .gte('verse', record.start_verse || 1)
-        .lte('verse', record.end_verse || 999)
-        .order('verse', { ascending: true });
-      
-      if (verses && verses.length > 0) {
-        const formattedContent = verses.map(v => `${v.verse}. ${v.content}`).join('\n');
-        const hasVerseRange = typeof record.start_verse === 'number' && typeof record.end_verse === 'number';
-        const verseLabel = hasVerseRange
-          ? (record.start_verse === record.end_verse
-            ? `${record.start_verse}`
-            : `${record.start_verse}-${record.end_verse}`)
-          : undefined;
-        
-        pages.push({
-          id: record.id,
-          bible_name: record.book_name,
-          chapter: record.chapter,
-          verse: verseLabel,
-          content: formattedContent,
-          bible_books: bookInfo || { book_order: 0 },
-        });
+
+      // book_order로 정렬
+      const sortedRecords = [...records].sort((a, b) => {
+        const orderA = bookOrders[a.book_name] || 0;
+        const orderB = bookOrders[b.book_name] || 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.chapter - b.chapter;
+      });
+
+      for (const record of sortedRecords) {
+        // bible_books 정보 별도 조회
+        const { data: bookInfo } = await supabase
+          .from('bible_books')
+          .select('*')
+          .eq('book_name', record.book_name)
+          .single();
+
+        // 절 번호와 함께 포맷팅
+        const { data: verses } = await supabase
+          .from('bible_verses')
+          .select('*')
+          .eq('book_name', record.book_name)
+          .eq('chapter', record.chapter)
+          .gte('verse', record.start_verse || 1)
+          .lte('verse', record.end_verse || 999)
+          .order('verse', { ascending: true });
+
+        if (verses && verses.length > 0) {
+          const formattedContent = verses.map(v => `${v.verse}. ${v.content}`).join('\n');
+          const hasVerseRange = typeof record.start_verse === 'number' && typeof record.end_verse === 'number';
+          const verseLabel = hasVerseRange
+            ? (record.start_verse === record.end_verse
+              ? `${record.start_verse}`
+              : `${record.start_verse}-${record.end_verse}`)
+            : undefined;
+
+          pages.push({
+            id: record.id,
+            bible_name: record.book_name,
+            chapter: record.chapter,
+            verse: verseLabel,
+            content: formattedContent,
+            bible_books: bookInfo || { book_order: 0 },
+          });
+        }
       }
-    }
-    
-    if (pages.length > 0) {
-      setRangePages(pages);
-      setCurrentPageIdx(0);
-      setBibleData(pages[0]);
-      setNoReadingForDate(false);
-    } else {
+
+      if (pages.length > 0) {
+        setRangePages(pages);
+        setCurrentPageIdx(0);
+        setBibleData(pages[0]);
+        setNoReadingForDate(false);
+      } else {
+        setBibleData(null);
+        setNoReadingForDate(true);
+      }
+      setIsLoadingVerse(false);
+    } else if (!error) {
       setBibleData(null);
+      setRangePages([]);
       setNoReadingForDate(true);
+      setIsLoadingVerse(false);
+    } else {
+      console.error('말씀 로드 실패:', error);
+      setBibleData(null);
+      setRangePages([]);
+      setIsLoadingVerse(false);
     }
-    setIsLoadingVerse(false);
-  } else if (!error) {
-    setBibleData(null);
-    setRangePages([]);
-    setNoReadingForDate(true);
-    setIsLoadingVerse(false);
-  } else {
-    console.error('말씀 로드 실패:', error);
-    setBibleData(null);
-    setRangePages([]);
-    setIsLoadingVerse(false);
-  }
-};
+  };
 
-// 로그인한 회원의 경우 날짜별 말씀 로드
-useEffect(() => {
-  // 초기화 완료 후에만 실행
-  if (!isInitialized) return;
-  
-  const today = new Date();
-  const todayKey = today.toDateString();
-  const currentKey = currentDate.toDateString();
-  const isToday = currentKey === todayKey;
-  const wasToday = previousDateRef.current === todayKey;
-  let forceTodayRestore = false;
-  
-  // 오늘이 아닌 경우만 화면 클리어
-  if (!isToday) {
-    setRangePages([]);
-    setBibleData(null);
-  } else if (!wasToday) {
-    setRangePages([]);
-    setBibleData(null);
-    forceTodayRestore = true;
-  }
-  
-  previousDateRef.current = currentKey;
+  // 로그인한 회원의 경우 날짜별 말씀 로드
+  useEffect(() => {
+    // 초기화 완료 후에만 실행
+    if (!isInitialized) return;
 
-  if (user) {
-    loadDailyVerse(currentDate, { forceTodayRestore });
-  }
-}, [user, currentDate, isInitialized]);
+    const today = new Date();
+    const todayKey = today.toDateString();
+    const currentKey = currentDate.toDateString();
+    const isToday = currentKey === todayKey;
+    const wasToday = previousDateRef.current === todayKey;
+    let forceTodayRestore = false;
 
-// 모달이 열릴 때 전체 읽기 이력 로드
-useEffect(() => {
-  if (isEditModalOpen && user) {
-    loadAllReadingProgress();
-  }
-}, [isEditModalOpen, user]);
+    // 오늘이 아닌 경우만 화면 클리어
+    if (!isToday) {
+      setRangePages([]);
+      setBibleData(null);
+    } else if (!wasToday) {
+      setRangePages([]);
+      setBibleData(null);
+      forceTodayRestore = true;
+    }
+
+    previousDateRef.current = currentKey;
+
+    if (user) {
+      loadDailyVerse(currentDate, { forceTodayRestore });
+    }
+  }, [user, currentDate, isInitialized]);
+
+  // 모달이 열릴 때 전체 읽기 이력 로드
+  useEffect(() => {
+    if (isEditModalOpen && user) {
+      loadAllReadingProgress();
+    }
+  }, [isEditModalOpen, user]);
 
   // localStorage에서 상태 복원
   useEffect(() => {
@@ -448,7 +449,7 @@ useEffect(() => {
     const savedIdx = localStorage.getItem('reading_page_idx');
     const savedDate = localStorage.getItem('reading_date');
     const todayStr = new Date().toISOString().split('T')[0];
-    
+
     if (savedSelection) {
       try {
         const selection = JSON.parse(savedSelection);
@@ -457,7 +458,7 @@ useEffect(() => {
         console.error('상태 복원 실패:', e);
       }
     }
-    
+
     // 복원 완료 표시
     if (savedPages && savedDate === todayStr) {
       try {
@@ -492,7 +493,7 @@ useEffect(() => {
     if (rangePages.length > 0) {
       const today = new Date();
       const isToday = currentDate.toDateString() === today.toDateString();
-      
+
       // 오늘 날짜일 때만 localStorage에 저장
       if (isToday) {
         const todayStr = today.toISOString().split('T')[0];
@@ -501,335 +502,335 @@ useEffect(() => {
         localStorage.setItem('reading_page_idx', String(currentPageIdx));
         console.log('localStorage 저장:', todayStr, rangePages.length, '페이지');
       }
-      
+
       // 마지막 읽은 장으로 이동 (최초 로드 시에만)
       if (user && bibleData === null) {
         loadLastReadChapter();
       }
     }
   }, [rangePages, currentPageIdx]);
-  
+
   // bibleData 변경 시 읽기 상태 확인 및 초기화
   useEffect(() => {
     // 페이지가 변경되면 읽기완료 상태를 초기화 (각 장이 독립적)
     setIsReadCompleted(false);
-    
+
     if (bibleData && user) {
       checkCurrentChapterReadStatus();
     } else {
       setReadCount(0);
     }
   }, [bibleData, user]);
-  
-const loadAllReadingProgress = async () => {
-  if (!user) return;
-  
-  // user_reading_records에서 모든 읽기 기록 가져오기
-  const { data } = await supabase
-    .from('user_reading_records')
-    .select('book_name, chapter, read_count')
-    .eq('user_id', user.id);
-  
-  if (!data) return;
-  
-  // 각 책의 장별 카운트 계산
-  const bookData: Record<string, { chapters: Set<number>; chapterCounts: Record<number, number> }> = {};
-  
-  data.forEach(record => {
-    if (!bookData[record.book_name]) {
-      bookData[record.book_name] = {
-        chapters: new Set(),
-        chapterCounts: {}
-      };
-    }
-    bookData[record.book_name].chapters.add(record.chapter);
-    bookData[record.book_name].chapterCounts[record.chapter] = record.read_count;
-  });
-  
-  // 각 책의 전체 장 수를 가져와서 진행률 계산
-  const progressMap: Record<string, number> = {};
-  
-  for (const bookName in bookData) {
-    const { data: verses } = await supabase
-      .from('bible_verses')
-      .select('chapter')
-      .eq('book_name', bookName)
-      .order('chapter', { ascending: true });
-    
-    if (verses) {
-      const totalChapters = Array.from(new Set(verses.map(v => v.chapter)));
-      const completedChapters = bookData[bookName].chapters.size;
-      
-      // 책 전체 진행률 (소숫점 1자리)
-      const percentage = totalChapters.length > 0 
-        ? Math.round((completedChapters / totalChapters.length) * 1000) / 10
-        : 0;
-      progressMap[`${bookName}_total`] = percentage;
-      
-      // 각 장별 읽은 횟수도 저장
-      totalChapters.forEach(ch => {
-        const key = `${bookName}_${ch}`;
-        progressMap[key] = bookData[bookName].chapterCounts[ch] || 0;
-      });
-    }
-  }
-  
-  setReadingProgress(progressMap);
-};
 
-const loadChapters = async (book: string) => {
-  console.log('loadChapters 호출됨:', book, 'selectionPhase:', selectionPhase);
-  
-  if (selectionPhase === 'start') {
-    setTempSelection(p => ({ ...p, start_book: book }));
-  } else {
-    setTempSelection(p => ({ ...p, end_book: book }));
-  }
+  const loadAllReadingProgress = async () => {
+    if (!user) return;
 
-  // lib/bibleData.ts에서 정확한 장 수 가져오기
-  const bookInfo = BOOK_CHAPTERS.find(b => b.name === book);
-  
-  console.log('bookInfo:', bookInfo);
+    // user_reading_records에서 모든 읽기 기록 가져오기
+    const { data } = await supabase
+      .from('user_reading_records')
+      .select('book_name, chapter, read_count')
+      .eq('user_id', user.id);
 
-  if (bookInfo && bookInfo.chapters) {
-    // 1부터 chapters까지 배열 생성
-    const chapters = Array.from({ length: bookInfo.chapters }, (_, i) => i + 1);
-    setAvailableChapters(chapters);
-    
-    console.log('장 목록 설정:', chapters.length, '개');
-    
-    // 먼저 장 선택 화면으로 전환
-    setSelectionStep('chapter');
-    
-    // 로그인 상태면 읽기 진행률 백그라운드로 불러오기
-    if (user) {
-      loadReadingProgress(book, chapters);
-    }
-  } else {
-    console.error('책 정보를 찾을 수 없습니다:', book);
-  }
-};
+    if (!data) return;
 
-const loadReadingProgress = async (book: string, chapters: number[]) => {
-  if (!user) return;
-  
-  const { data } = await supabase
-    .from('user_reading_records')
-    .select('chapter, read_count')
-    .eq('user_id', user.id)
-    .eq('book_name', book);
-  
-  if (data) {
-    const uniqueCompletedChapters = Array.from(new Set(data.map(d => d.chapter)));
-    const chapterCounts: Record<number, number> = {};
-    
-    data.forEach(d => {
-      chapterCounts[d.chapter] = d.read_count;
+    // 각 책의 장별 카운트 계산
+    const bookData: Record<string, { chapters: Set<number>; chapterCounts: Record<number, number> }> = {};
+
+    data.forEach(record => {
+      if (!bookData[record.book_name]) {
+        bookData[record.book_name] = {
+          chapters: new Set(),
+          chapterCounts: {}
+        };
+      }
+      bookData[record.book_name].chapters.add(record.chapter);
+      bookData[record.book_name].chapterCounts[record.chapter] = record.read_count;
     });
-    
+
+    // 각 책의 전체 장 수를 가져와서 진행률 계산
     const progressMap: Record<string, number> = {};
-    
-    chapters.forEach(ch => {
-      const key = `${book}_${ch}`;
-      // 읽은 횟수 저장 (장 선택에서 사용)
-      progressMap[key] = chapterCounts[ch] || 0;
-    });
-    
-    // 권 전체 진행률 계산 (소숫점 1자리까지)
-    const bookProgressPercentage = chapters.length > 0
-      ? Math.round((uniqueCompletedChapters.length / chapters.length) * 1000) / 10
-      : 0;
-    progressMap[`${book}_total`] = bookProgressPercentage;
-    
-    setReadingProgress(prev => ({ ...prev, ...progressMap }));
-  }
-};
 
-const checkCurrentChapterReadStatus = async () => {
-  if (!user || !bibleData) return;
-  
-  const { data } = await supabase
-    .from('user_reading_records')
-    .select('read_count')
-    .eq('user_id', user.id)
-    .eq('book_name', bibleData.bible_name)
-    .eq('chapter', bibleData.chapter)
-    .maybeSingle();
-  
-  const totalCount = data?.read_count || 0;
-  setReadCount(totalCount);
-  
-  // 읽기 완료 상태 설정 (한 번이라도 읽었으면 true)
-  setIsReadCompleted(totalCount > 0);
-};
-
-const loadLastReadChapter = async () => {
-  if (!user || rangePages.length === 0) return;
-  
-  const { data } = await supabase
-    .from('user_reading_records')
-    .select('book_name, chapter, updated_at')
-    .eq('user_id', user.id)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  
-  if (data && rangePages.length > 0) {
-    const lastReadIndex = rangePages.findIndex(
-      p => p.bible_name === data.book_name && p.chapter === data.chapter
-    );
-    
-    if (lastReadIndex !== -1) {
-      setCurrentPageIdx(lastReadIndex);
-      setBibleData(rangePages[lastReadIndex]);
-    }
-  }
-};
-
-const loadRangePagesWithSelection = async (selection: typeof tempSelection) => {
-  console.log('loadRangePagesWithSelection 시작:', selection);
-  setNoReadingForDate(false);
-  
-  if (!selection.start_book || !selection.start_chapter) {
-    alert('시작 범위를 선택해주세요.');
-    return;
-  }
-
-  if (!selection.end_book || !selection.end_chapter) {
-    alert('종료 범위를 선택해주세요.');
-    return;
-  }
-
-  // 권 순서 확인 (시작 권이 종료 권보다 뒤에 있으면 안됨)
-  const { data: startBookData } = await supabase
-    .from('bible_books')
-    .select('book_order')
-    .eq('book_name', selection.start_book)
-    .maybeSingle();
-
-  const { data: endBookData } = await supabase
-    .from('bible_books')
-    .select('book_order')
-    .eq('book_name', selection.end_book)
-    .maybeSingle();
-
-  if (startBookData && endBookData && startBookData.book_order > endBookData.book_order) {
-    alert('시작 범위가 종료 범위보다 뒤에 있을 수 없습니다.');
-    return;
-  }
-
-  const pages: any[] = [];
-  
-  // 같은 권인 경우
-  if (selection.start_book === selection.end_book) {
-    for (let ch = selection.start_chapter; ch <= selection.end_chapter; ch++) {
-      const { data, error } = await supabase
+    for (const bookName in bookData) {
+      const { data: verses } = await supabase
         .from('bible_verses')
-        .select('*')
-        .eq('book_name', selection.start_book)
-        .eq('chapter', ch)
-        .order('verse', { ascending: true });
+        .select('chapter')
+        .eq('book_name', bookName)
+        .order('chapter', { ascending: true });
 
-      console.log(`${selection.start_book} ${ch}장 데이터:`, data, error);
+      if (verses) {
+        const totalChapters = Array.from(new Set(verses.map(v => v.chapter)));
+        const completedChapters = bookData[bookName].chapters.size;
 
-      if (data && data.length > 0) {
-        // 각 절을 verse 번호와 함께 포맷팅
-        const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
-        
-        pages.push({
-          id: `${selection.start_book}_${ch}`,
-          bible_name: selection.start_book,
-          chapter: ch,
-          content: formattedContent,
-          verse: null,
-          bible_books: startBookData,
+        // 책 전체 진행률 (소숫점 1자리)
+        const percentage = totalChapters.length > 0
+          ? Math.round((completedChapters / totalChapters.length) * 1000) / 10
+          : 0;
+        progressMap[`${bookName}_total`] = percentage;
+
+        // 각 장별 읽은 횟수도 저장
+        totalChapters.forEach(ch => {
+          const key = `${bookName}_${ch}`;
+          progressMap[key] = bookData[bookName].chapterCounts[ch] || 0;
         });
       }
     }
-  } else {
-    // 다른 권인 경우 - 시작 권부터 종료 권까지 모든 장 가져오기
-    const { data: allBooks } = await supabase
+
+    setReadingProgress(progressMap);
+  };
+
+  const loadChapters = async (book: string) => {
+    console.log('loadChapters 호출됨:', book, 'selectionPhase:', selectionPhase);
+
+    if (selectionPhase === 'start') {
+      setTempSelection(p => ({ ...p, start_book: book }));
+    } else {
+      setTempSelection(p => ({ ...p, end_book: book }));
+    }
+
+    // lib/bibleData.ts에서 정확한 장 수 가져오기
+    const bookInfo = BOOK_CHAPTERS.find(b => b.name === book);
+
+    console.log('bookInfo:', bookInfo);
+
+    if (bookInfo && bookInfo.chapters) {
+      // 1부터 chapters까지 배열 생성
+      const chapters = Array.from({ length: bookInfo.chapters }, (_, i) => i + 1);
+      setAvailableChapters(chapters);
+
+      console.log('장 목록 설정:', chapters.length, '개');
+
+      // 먼저 장 선택 화면으로 전환
+      setSelectionStep('chapter');
+
+      // 로그인 상태면 읽기 진행률 백그라운드로 불러오기
+      if (user) {
+        loadReadingProgress(book, chapters);
+      }
+    } else {
+      console.error('책 정보를 찾을 수 없습니다:', book);
+    }
+  };
+
+  const loadReadingProgress = async (book: string, chapters: number[]) => {
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('user_reading_records')
+      .select('chapter, read_count')
+      .eq('user_id', user.id)
+      .eq('book_name', book);
+
+    if (data) {
+      const uniqueCompletedChapters = Array.from(new Set(data.map(d => d.chapter)));
+      const chapterCounts: Record<number, number> = {};
+
+      data.forEach(d => {
+        chapterCounts[d.chapter] = d.read_count;
+      });
+
+      const progressMap: Record<string, number> = {};
+
+      chapters.forEach(ch => {
+        const key = `${book}_${ch}`;
+        // 읽은 횟수 저장 (장 선택에서 사용)
+        progressMap[key] = chapterCounts[ch] || 0;
+      });
+
+      // 권 전체 진행률 계산 (소숫점 1자리까지)
+      const bookProgressPercentage = chapters.length > 0
+        ? Math.round((uniqueCompletedChapters.length / chapters.length) * 1000) / 10
+        : 0;
+      progressMap[`${book}_total`] = bookProgressPercentage;
+
+      setReadingProgress(prev => ({ ...prev, ...progressMap }));
+    }
+  };
+
+  const checkCurrentChapterReadStatus = async () => {
+    if (!user || !bibleData) return;
+
+    const { data } = await supabase
+      .from('user_reading_records')
+      .select('read_count')
+      .eq('user_id', user.id)
+      .eq('book_name', bibleData.bible_name)
+      .eq('chapter', bibleData.chapter)
+      .maybeSingle();
+
+    const totalCount = data?.read_count || 0;
+    setReadCount(totalCount);
+
+    // 읽기 완료 상태 설정 (한 번이라도 읽었으면 true)
+    setIsReadCompleted(totalCount > 0);
+  };
+
+  const loadLastReadChapter = async () => {
+    if (!user || rangePages.length === 0) return;
+
+    const { data } = await supabase
+      .from('user_reading_records')
+      .select('book_name, chapter, updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (data && rangePages.length > 0) {
+      const lastReadIndex = rangePages.findIndex(
+        p => p.bible_name === data.book_name && p.chapter === data.chapter
+      );
+
+      if (lastReadIndex !== -1) {
+        setCurrentPageIdx(lastReadIndex);
+        setBibleData(rangePages[lastReadIndex]);
+      }
+    }
+  };
+
+  const loadRangePagesWithSelection = async (selection: typeof tempSelection) => {
+    console.log('loadRangePagesWithSelection 시작:', selection);
+    setNoReadingForDate(false);
+
+    if (!selection.start_book || !selection.start_chapter) {
+      alert('시작 범위를 선택해주세요.');
+      return;
+    }
+
+    if (!selection.end_book || !selection.end_chapter) {
+      alert('종료 범위를 선택해주세요.');
+      return;
+    }
+
+    // 권 순서 확인 (시작 권이 종료 권보다 뒤에 있으면 안됨)
+    const { data: startBookData } = await supabase
       .from('bible_books')
-      .select('*')
-      .gte('book_order', startBookData?.book_order)
-      .lte('book_order', endBookData?.book_order)
-      .order('book_order', { ascending: true });
+      .select('book_order')
+      .eq('book_name', selection.start_book)
+      .maybeSingle();
 
-    if (allBooks) {
-      for (const book of allBooks) {
-        // 각 권의 모든 장 가져오기
-        const { data: chapters } = await supabase
+    const { data: endBookData } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', selection.end_book)
+      .maybeSingle();
+
+    if (startBookData && endBookData && startBookData.book_order > endBookData.book_order) {
+      alert('시작 범위가 종료 범위보다 뒤에 있을 수 없습니다.');
+      return;
+    }
+
+    const pages: any[] = [];
+
+    // 같은 권인 경우
+    if (selection.start_book === selection.end_book) {
+      for (let ch = selection.start_chapter; ch <= selection.end_chapter; ch++) {
+        const { data, error } = await supabase
           .from('bible_verses')
-          .select('chapter')
-          .eq('book_name', book.book_name)
-          .order('chapter', { ascending: true });
+          .select('*')
+          .eq('book_name', selection.start_book)
+          .eq('chapter', ch)
+          .order('verse', { ascending: true });
 
-        if (chapters) {
-          const uniqueChapters = Array.from(new Set(chapters.map(c => c.chapter)));
-          
-          for (const ch of uniqueChapters) {
-            // 시작 권의 경우 시작 장부터
-            if (book.book_name === selection.start_book && ch < selection.start_chapter) continue;
-            // 종료 권의 경우 종료 장까지
-            if (book.book_name === selection.end_book && ch > selection.end_chapter) continue;
+        console.log(`${selection.start_book} ${ch}장 데이터:`, data, error);
 
-            const { data, error } = await supabase
-              .from('bible_verses')
-              .select('*')
-              .eq('book_name', book.book_name)
-              .eq('chapter', ch)
-              .order('verse', { ascending: true });
+        if (data && data.length > 0) {
+          // 각 절을 verse 번호와 함께 포맷팅
+          const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
 
-            console.log(`${book.book_name} ${ch}장 데이터:`, data, error);
+          pages.push({
+            id: `${selection.start_book}_${ch}`,
+            bible_name: selection.start_book,
+            chapter: ch,
+            content: formattedContent,
+            verse: null,
+            bible_books: startBookData,
+          });
+        }
+      }
+    } else {
+      // 다른 권인 경우 - 시작 권부터 종료 권까지 모든 장 가져오기
+      const { data: allBooks } = await supabase
+        .from('bible_books')
+        .select('*')
+        .gte('book_order', startBookData?.book_order)
+        .lte('book_order', endBookData?.book_order)
+        .order('book_order', { ascending: true });
 
-            if (data && data.length > 0) {
-              // 각 절을 verse 번호와 함께 포맷팅
-              const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
-              
-              pages.push({
-                id: `${book.book_name}_${ch}`,
-                bible_name: book.book_name,
-                chapter: ch,
-                content: formattedContent,
-                verse: null,
-                bible_books: { book_order: book.book_order },
-              });
+      if (allBooks) {
+        for (const book of allBooks) {
+          // 각 권의 모든 장 가져오기
+          const { data: chapters } = await supabase
+            .from('bible_verses')
+            .select('chapter')
+            .eq('book_name', book.book_name)
+            .order('chapter', { ascending: true });
+
+          if (chapters) {
+            const uniqueChapters = Array.from(new Set(chapters.map(c => c.chapter)));
+
+            for (const ch of uniqueChapters) {
+              // 시작 권의 경우 시작 장부터
+              if (book.book_name === selection.start_book && ch < selection.start_chapter) continue;
+              // 종료 권의 경우 종료 장까지
+              if (book.book_name === selection.end_book && ch > selection.end_chapter) continue;
+
+              const { data, error } = await supabase
+                .from('bible_verses')
+                .select('*')
+                .eq('book_name', book.book_name)
+                .eq('chapter', ch)
+                .order('verse', { ascending: true });
+
+              console.log(`${book.book_name} ${ch}장 데이터:`, data, error);
+
+              if (data && data.length > 0) {
+                // 각 절을 verse 번호와 함께 포맷팅
+                const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
+
+                pages.push({
+                  id: `${book.book_name}_${ch}`,
+                  bible_name: book.book_name,
+                  chapter: ch,
+                  content: formattedContent,
+                  verse: null,
+                  bible_books: { book_order: book.book_order },
+                });
+              }
             }
           }
         }
       }
     }
-  }
 
-  console.log('생성된 pages:', pages);
+    console.log('생성된 pages:', pages);
 
-  if (pages.length === 0) {
-    alert('선택한 범위의 성경 데이터를 찾을 수 없습니다. 데이터베이스를 확인해주세요.');
-    return;
-  }
+    if (pages.length === 0) {
+      alert('선택한 범위의 성경 데이터를 찾을 수 없습니다. 데이터베이스를 확인해주세요.');
+      return;
+    }
 
-  setRangePages(pages);
-  setCurrentPageIdx(0);
-  setBibleData(pages[0]);
-  setIsEditModalOpen(false);
-  
-  // 토스트 메시지로 범위 안내
-  const message = selection.start_book === selection.end_book
-    ? `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_chapter}장 말씀입니다.`
-    : `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_book} ${selection.end_chapter}장 말씀입니다.`;
-  
-  setRangeToastMessage(message);
-  setShowRangeToast(true);
-  setTimeout(() => setShowRangeToast(false), 3000);
-};
+    setRangePages(pages);
+    setCurrentPageIdx(0);
+    setBibleData(pages[0]);
+    setIsEditModalOpen(false);
 
-const loadRangePages = async () => {
-  await loadRangePagesWithSelection(tempSelection);
-};
+    // 토스트 메시지로 범위 안내
+    const message = selection.start_book === selection.end_book
+      ? `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_chapter}장 말씀입니다.`
+      : `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_book} ${selection.end_chapter}장 말씀입니다.`;
+
+    setRangeToastMessage(message);
+    setShowRangeToast(true);
+    setTimeout(() => setShowRangeToast(false), 3000);
+  };
+
+  const loadRangePages = async () => {
+    await loadRangePagesWithSelection(tempSelection);
+  };
   const cleanContent = (text: string) => {
     if (!text) return "";
     return text
-      .replace(/^[.\s]+/, "") 
+      .replace(/^[.\s]+/, "")
       .replace(/\d+절/g, "")
       .replace(/\d+/g, "")
       .replace(/[."'“”‘’]/g, "")
@@ -840,32 +841,32 @@ const loadRangePages = async () => {
   const setupAudioEvents = (audio: HTMLAudioElement, startTime: number, fromServer = false, isContinuous = false, currentIdx = 0) => {
     audioRef.current = audio;
     audio.currentTime = startTime;
-    
+
     // 현재 장 데이터 캡처 (클로저로 인한 stale state 방지)
     const currentChapterData = rangePages[currentIdx] || bibleData;
-    
+
     // 서버 파일일 때 duration 및 진행 상태 업데이트
     setIsFromServer(fromServer);
-    
+
     audio.onloadedmetadata = () => {
       setDuration(audio.duration);
-      
+
       // 전체 재생 모드일 때 다음 장 미리 로드
       if (isContinuous && rangePages.length > 0 && currentIdx < rangePages.length - 1) {
         const nextChapter = rangePages[currentIdx + 1];
         preloadNextChapterAudio(nextChapter);
       }
     };
-    
+
     audio.ontimeupdate = () => {
       setCurrentTime(audio.currentTime);
-      
+
       // 음성 싱크: 절별 스크롤 (하이라이트 제거)
       if (verseRefs.current.length > 0 && audio.duration > 0) {
         const totalVerses = verseRefs.current.length;
         const estimatedVerseIndex = Math.floor((audio.currentTime / audio.duration) * totalVerses);
         const clampedIndex = Math.min(estimatedVerseIndex, totalVerses - 1);
-        
+
         if (clampedIndex !== currentVerseIndex && verseRefs.current[clampedIndex]) {
           setCurrentVerseIndex(clampedIndex);
           // 스크롤만 수행 (하이라이트 제거)
@@ -873,12 +874,12 @@ const loadRangePages = async () => {
         }
       }
     };
-    
+
     audio.onended = async () => {
       // 자동 읽기 완료 처리 (전체 재생 모드에서는 조용히 처리)
       // 현재 장 데이터를 전달하여 올바른 장에 기록
       await handleReadComplete(isContinuous, currentChapterData);
-      
+
       // 전체 재생 모드일 때 다음 장으로 자동 이동
       if (isContinuous && rangePages.length > 0 && currentIdx < rangePages.length - 1) {
         const nextIdx = currentIdx + 1;
@@ -886,7 +887,7 @@ const loadRangePages = async () => {
         currentPageIdxRef.current = nextIdx;
         setCurrentPageIdx(nextIdx);
         setBibleData(nextChapterData);
-        
+
         // \ub2e4\uc74c \uc7a5 \ub370\uc774\ud130\ub97c \uc9c1\uc811 \uc804\ub2ec\ud558\uc5ec \uc7ac\uc0dd
         setTimeout(() => {
           playNextChapterInContinuousMode(nextChapterData, nextIdx);
@@ -901,7 +902,7 @@ const loadRangePages = async () => {
         audioRef.current = null;
       }
     };
-    
+
     setShowAudioControl(true);
     setIsPlaying(true);
     // play()는 여기서 호출하지 않음 - R2 파일 loadeddata에서만 호출
@@ -913,14 +914,14 @@ const loadRangePages = async () => {
 
   const handlePlayTTS = async (selectedVoice?: 'F' | 'M', skipPopup = false, isContinuous = false) => {
     if (!bibleData) return;
-    
+
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
     if (selectedVoice) {
       setVoiceType(selectedVoice);
       return;
     }
-    
+
     // 2개 장 이상일 때 재생 방식 선택 팝업
     if (!skipPopup && rangePages.length > 1) {
       setShowPlayModePopup(true);
@@ -949,15 +950,15 @@ const loadRangePages = async () => {
       // 1. R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
-      
+
       let errorOccurred = false;
-      
+
       // 즉시 UI 표시
       audioRef.current = savedAudio;
       savedAudio.currentTime = lastTime;
       setShowAudioControl(true);
       setIsFromServer(true);
-      
+
       // 오디오 이벤트 설정
       savedAudio.onloadedmetadata = () => {
         if (!errorOccurred) {
@@ -969,7 +970,7 @@ const loadRangePages = async () => {
           }
         }
       };
-      
+
       savedAudio.ontimeupdate = () => {
         if (!errorOccurred) {
           setCurrentTime(savedAudio.currentTime);
@@ -985,12 +986,12 @@ const loadRangePages = async () => {
           }
         }
       };
-      
+
       savedAudio.onended = async () => {
         if (!errorOccurred) {
           const currentChapterData = rangePages[currentPageIdx] || bibleData;
           await handleReadComplete(isContinuous, currentChapterData);
-          
+
           if (isContinuous && rangePages.length > 0 && currentPageIdx < rangePages.length - 1) {
             const nextIdx = currentPageIdx + 1;
             const nextChapterData = rangePages[nextIdx];
@@ -1010,13 +1011,13 @@ const loadRangePages = async () => {
           }
         }
       };
-      
+
       // 에러 핸들러 정의
       const errorHandler = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
         console.log('[Audio] R2 파일 없음, TTS 생성 시작');
-        
+
         // UI 숨기고 오디오 정리
         setShowAudioControl(false);
         setIsPlaying(false);
@@ -1024,11 +1025,11 @@ const loadRangePages = async () => {
         savedAudio.onloadedmetadata = null;
         savedAudio.ontimeupdate = null;
         savedAudio.onended = null;
-        
+
         // TTS 생성
         await generateAndUploadTTS();
       };
-      
+
       // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
@@ -1038,93 +1039,93 @@ const loadRangePages = async () => {
           savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
-      
+
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', errorHandler, { once: true });
-      
+
       return;
-      
+
     } catch (error) {
       console.error("Audio 재생 에러:", error);
       setIsPlaying(false);
     }
-    
+
     // TTS 생성 및 업로드 함수
     async function generateAndUploadTTS() {
       try {
-      // 2. 숫자 변환 및 텍스트 정제
-      const toKorNum = (num: number | string) => {
-        const n = Number(num);
-        if (isNaN(n)) return String(num);
-        const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-        const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
-        if (n === 0) return "영";
-        if (n < 10) return units[n];
-        if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-        return String(n);
-      };
+        // 2. 숫자 변환 및 텍스트 정제
+        const toKorNum = (num: number | string) => {
+          const n = Number(num);
+          if (isNaN(n)) return String(num);
+          const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+          const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
+          if (n === 0) return "영";
+          if (n < 10) return units[n];
+          if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+          return String(n);
+        };
 
-      // 절 번호 제거
-      const mainContent = bibleData.content.replace(/\d+\.\s*/g, '');
-      const unit = bibleData.bible_name === "시편" ? "편" : "장";
-      const chapterKor = toKorNum(bibleData.chapter);
-      // 순서 변경: 책 이름 + 장 먼저, 그 다음 말씀 내용 ('말씀' 제거)
-      const textToSpeak = `${bibleData.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
+        // 절 번호 제거
+        const mainContent = bibleData.content.replace(/\d+\.\s*/g, '');
+        const unit = bibleData.bible_name === "시편" ? "편" : "장";
+        const chapterKor = toKorNum(bibleData.chapter);
+        // 순서 변경: 책 이름 + 장 먼저, 그 다음 말씀 내용 ('말씀' 제거)
+        const textToSpeak = `${bibleData.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
 
-      // 3. Azure API 호출
-      const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
-      const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-      const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
+        // 3. Azure API 호출
+        const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
+        const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
+        const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
-      const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-        method: "POST",
-        headers: {
-          "Ocp-Apim-Subscription-Key": AZURE_KEY,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-16khz-64kbitrate-mono-mp3",
-        },
-        body: `
+        const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": AZURE_KEY,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-16khz-64kbitrate-mono-mp3",
+          },
+          body: `
           <speak version='1.0' xml:lang='ko-KR'>
             <voice xml:lang='ko-KR' name='${azureVoice}'>
               <prosody rate="1.0">${textToSpeak}</prosody>
             </voice>
           </speak>
         `,
-      });
+        });
 
-      if (!response.ok) throw new Error("API 호출 실패");
+        if (!response.ok) throw new Error("API 호출 실패");
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const ttsAudio = new Audio(audioUrl);
-      
-      // 4. 오디오 설정 및 재생
-      setupAudioEvents(ttsAudio, lastTime, false, isContinuous, currentPageIdx);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const ttsAudio = new Audio(audioUrl);
 
-      // R2 업로드 (백그라운드)
-      (async () => {
-        try {
-          console.log('[R2 Upload] Uploading:', fileName);
-          // 1. Presigned URL 받기
-          const urlRes = await fetch('/api/audio/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName })
-          });
-          const { uploadUrl, publicUrl } = await urlRes.json();
-          
-          // 2. 직접 R2에 업로드
-          await fetch(uploadUrl, {
-            method: 'PUT',
-            body: audioBlob,
-            headers: { 'Content-Type': 'audio/mp3' }
-          });
-          
-          console.log('[R2 Upload] ✅ Success! URL:', publicUrl);
-        } catch (error) {
-          console.error('[R2 Upload] ❌ Failed:', error);
-        }
-      })();
+        // 4. 오디오 설정 및 재생
+        setupAudioEvents(ttsAudio, lastTime, false, isContinuous, currentPageIdx);
+
+        // R2 업로드 (백그라운드)
+        (async () => {
+          try {
+            console.log('[R2 Upload] Uploading:', fileName);
+            // 1. Presigned URL 받기
+            const urlRes = await fetch('/api/audio/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName })
+            });
+            const { uploadUrl, publicUrl } = await urlRes.json();
+
+            // 2. 직접 R2에 업로드
+            await fetch(uploadUrl, {
+              method: 'PUT',
+              body: audioBlob,
+              headers: { 'Content-Type': 'audio/mp3' }
+            });
+
+            console.log('[R2 Upload] ✅ Success! URL:', publicUrl);
+          } catch (error) {
+            console.error('[R2 Upload] ❌ Failed:', error);
+          }
+        })();
 
       } catch (error) {
         console.error("Azure TTS 에러:", error);
@@ -1270,13 +1271,13 @@ const loadRangePages = async () => {
       const verseRange = parseVerseRange(chapterData?.verse);
       const rangeStart = verseRange
         ? metadata.verses.find((v) => v.verse === verseRange.start) ??
-          metadata.verses.find((v) => v.verse > verseRange.start) ??
-          null
+        metadata.verses.find((v) => v.verse > verseRange.start) ??
+        null
         : null;
       const rangeEnd = verseRange
         ? [...metadata.verses].reverse().find((v) => v.verse === verseRange.end) ??
-          [...metadata.verses].reverse().find((v) => v.verse < verseRange.end) ??
-          null
+        [...metadata.verses].reverse().find((v) => v.verse < verseRange.end) ??
+        null
         : null;
       let startMs = rangeStart?.start_ms ?? 0;
       let endMs = rangeEnd?.end_ms ?? metadata.durationMs;
@@ -1371,7 +1372,7 @@ const loadRangePages = async () => {
       setAudioSubtitle("\uC624\uB514\uC624\uB97C \uBD88\uB7EC\uC624\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.");
     }
   };
-const togglePlay = () => {
+  const togglePlay = () => {
     if (!audioRef.current || audioLoading) return;
     if (audioRef.current.paused) {
       audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
@@ -1418,7 +1419,7 @@ const togglePlay = () => {
   // \uc804\uccb4 \uc7ac\uc0dd \ubaa8\ub4dc\uc5d0\uc11c \ub2e4\uc74c \uc7a5 \uc7ac\uc0dd
   const playNextChapterInContinuousMode = async (chapterData: any, chapterIdx: number) => {
     if (!chapterData) return;
-    
+
     const targetVoice = voiceType;
     const bookOrder = chapterData.bible_books?.book_order || '0';
     const fileName = `reading/reading_b${bookOrder}_c${chapterData.chapter}_${targetVoice}.mp3`;
@@ -1434,15 +1435,15 @@ const togglePlay = () => {
       // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
-      
+
       let errorOccurred = false;
-      
+
       // 즉시 UI 표시
       audioRef.current = savedAudio;
       savedAudio.currentTime = 0;
       setShowAudioControl(true);
       setIsFromServer(true);
-      
+
       // 오디오 이벤트 설정
       savedAudio.onloadedmetadata = () => {
         if (!errorOccurred) {
@@ -1453,7 +1454,7 @@ const togglePlay = () => {
           }
         }
       };
-      
+
       savedAudio.ontimeupdate = () => {
         if (!errorOccurred) {
           setCurrentTime(savedAudio.currentTime);
@@ -1468,12 +1469,12 @@ const togglePlay = () => {
           }
         }
       };
-      
+
       savedAudio.onended = async () => {
         if (!errorOccurred) {
           const currentChapterData = rangePages[chapterIdx] || bibleData;
           await handleReadComplete(true, currentChapterData);
-          
+
           if (rangePages.length > 0 && chapterIdx < rangePages.length - 1) {
             const nextIdx = chapterIdx + 1;
             const nextChapterData = rangePages[nextIdx];
@@ -1493,13 +1494,13 @@ const togglePlay = () => {
           }
         }
       };
-      
+
       // 에러 핸들러 정의
       const errorHandlerContinuous = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
         console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
-        
+
         // UI 숨기고 오디오 정리
         setShowAudioControl(false);
         setIsPlaying(false);
@@ -1507,11 +1508,11 @@ const togglePlay = () => {
         savedAudio.onloadedmetadata = null;
         savedAudio.ontimeupdate = null;
         savedAudio.onended = null;
-        
+
         // TTS 생성
         await generateContinuousTTS();
       };
-      
+
       // 파일이 로드되면 재생 시작
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
@@ -1521,10 +1522,10 @@ const togglePlay = () => {
           savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
-      
+
       // 파일이 없으면 TTS 생성
       savedAudio.addEventListener('error', errorHandlerContinuous, { once: true });
-      
+
       return;
 
     } catch (error) {
@@ -1532,76 +1533,76 @@ const togglePlay = () => {
       setIsPlaying(false);
       setIsContinuousPlayMode(false);
     }
-    
+
     async function generateContinuousTTS() {
       try {
-      // 서버에 파일이 없으면 TTS API 호출
-      const toKorNum = (num: number | string) => {
-        const n = Number(num);
-        if (isNaN(n)) return String(num);
-        const units = ["", "\uc77c", "\uc774", "\uc0bc", "\uc0ac", "\uc624", "\uc721", "\uce60", "\ud314", "\uad6c"];
-        const tens = ["", "\uc2ed", "\uc774\uc2ed", "\uc0bc\uc2ed", "\uc0ac\uc2ed", "\uc624\uc2ed", "\uc721\uc2ed", "\uce60\uc2ed", "\ud314\uc2ed", "\uad6c\uc2ed"];
-        if (n === 0) return "\uc601";
-        if (n < 10) return units[n];
-        if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-        return String(n);
-      };
+        // 서버에 파일이 없으면 TTS API 호출
+        const toKorNum = (num: number | string) => {
+          const n = Number(num);
+          if (isNaN(n)) return String(num);
+          const units = ["", "\uc77c", "\uc774", "\uc0bc", "\uc0ac", "\uc624", "\uc721", "\uce60", "\ud314", "\uad6c"];
+          const tens = ["", "\uc2ed", "\uc774\uc2ed", "\uc0bc\uc2ed", "\uc0ac\uc2ed", "\uc624\uc2ed", "\uc721\uc2ed", "\uce60\uc2ed", "\ud314\uc2ed", "\uad6c\uc2ed"];
+          if (n === 0) return "\uc601";
+          if (n < 10) return units[n];
+          if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+          return String(n);
+        };
 
-      const mainContent = chapterData.content.replace(/\d+\.\s*/g, '');
-      const unit = chapterData.bible_name === "\uc2dc\ud3b8" ? "\ud3b8" : "\uc7a5";
-      const chapterKor = toKorNum(chapterData.chapter);
-      const textToSpeak = `${chapterData.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
+        const mainContent = chapterData.content.replace(/\d+\.\s*/g, '');
+        const unit = chapterData.bible_name === "\uc2dc\ud3b8" ? "\ud3b8" : "\uc7a5";
+        const chapterKor = toKorNum(chapterData.chapter);
+        const textToSpeak = `${chapterData.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
 
-      const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
-      const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-      const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
+        const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
+        const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
+        const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
-      const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-        method: "POST",
-        headers: {
-          "Ocp-Apim-Subscription-Key": AZURE_KEY,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-        },
-        body: `
+        const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": AZURE_KEY,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+          },
+          body: `
           <speak version='1.0' xml:lang='ko-KR'>
             <voice xml:lang='ko-KR' name='${azureVoice}'>
               <prosody rate="1.0">${textToSpeak}</prosody>
             </voice>
           </speak>
         `,
-      });
+        });
 
-      if (!response.ok) throw new Error("API \ud638\ucd9c \uc2e4\ud328");
+        if (!response.ok) throw new Error("API \ud638\ucd9c \uc2e4\ud328");
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const ttsAudio = new Audio(audioUrl);
-      
-      setupAudioEvents(ttsAudio, 0, false, true, chapterIdx);
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const ttsAudio = new Audio(audioUrl);
 
-      // R2 업로드 (백그라운드)
-      (async () => {
-        try {
-          console.log('[R2 Upload - Continuous] Uploading:', fileName);
-          const urlRes = await fetch('/api/audio/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName })
-          });
-          const { uploadUrl, publicUrl } = await urlRes.json();
-          
-          await fetch(uploadUrl, {
-            method: 'PUT',
-            body: audioBlob,
-            headers: { 'Content-Type': 'audio/mp3' }
-          });
-          
-          console.log('[R2 Upload - Continuous] ✅ Success! URL:', publicUrl);
-        } catch (error) {
-          console.error('[R2 Upload - Continuous] ❌ Failed:', error);
-        }
-      })();
+        setupAudioEvents(ttsAudio, 0, false, true, chapterIdx);
+
+        // R2 업로드 (백그라운드)
+        (async () => {
+          try {
+            console.log('[R2 Upload - Continuous] Uploading:', fileName);
+            const urlRes = await fetch('/api/audio/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName })
+            });
+            const { uploadUrl, publicUrl } = await urlRes.json();
+
+            await fetch(uploadUrl, {
+              method: 'PUT',
+              body: audioBlob,
+              headers: { 'Content-Type': 'audio/mp3' }
+            });
+
+            console.log('[R2 Upload - Continuous] ✅ Success! URL:', publicUrl);
+          } catch (error) {
+            console.error('[R2 Upload - Continuous] ❌ Failed:', error);
+          }
+        })();
 
       } catch (error) {
         console.error("Azure TTS \uc5d0\ub7ec:", error);
@@ -1614,7 +1615,7 @@ const togglePlay = () => {
   // 다음 장 오디오 미리 로드
   const preloadNextChapterAudio = async (nextChapter: any) => {
     if (!nextChapter) return;
-    
+
     const targetVoice = voiceType;
     const bookOrder = nextChapter.bible_books?.book_order || '0';
     const fileName = `reading/reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
@@ -1624,30 +1625,30 @@ const togglePlay = () => {
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const preloadAudio = new Audio(publicUrl);
       preloadAudio.preload = 'auto';
-      
+
       let audioLoadFailed = false;
       let audioLoaded = false;
-      
+
       preloadAudio.addEventListener('error', async () => {
         if (audioLoadFailed || audioLoaded) return;
         audioLoadFailed = true;
         console.log('[Audio Preload] R2 파일 없음, TTS 생성 시작');
-        
+
         // 실패한 오디오 정리
         preloadAudio.pause();
         preloadAudio.src = '';
-        
+
         // TTS 생성
         await generatePreloadTTS();
       }, { once: true });
-      
+
       preloadAudio.addEventListener('canplay', () => {
         if (audioLoadFailed) return;
         audioLoaded = true;
         console.log('[Audio Preload] R2 파일 로드 성공');
         nextChapterAudioCache.current = preloadAudio;
       }, { once: true });
-      
+
       // 임시로 캐시에 할당 (canplay 이벤트에서 재할당)
       nextChapterAudioCache.current = preloadAudio;
       return;
@@ -1655,75 +1656,75 @@ const togglePlay = () => {
     } catch (error) {
       console.error("다음 장 미리 로드 실패:", error);
     }
-    
+
     async function generatePreloadTTS() {
       try {
-      // 서버에 파일이 없으면 TTS API로 미리 생성
-      const toKorNum = (num: number | string) => {
-        const n = Number(num);
-        if (isNaN(n)) return String(num);
-        const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-        const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
-        if (n === 0) return "영";
-        if (n < 10) return units[n];
-        if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
-        return String(n);
-      };
+        // 서버에 파일이 없으면 TTS API로 미리 생성
+        const toKorNum = (num: number | string) => {
+          const n = Number(num);
+          if (isNaN(n)) return String(num);
+          const units = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+          const tens = ["", "십", "이십", "삼십", "사십", "오십", "육십", "칠십", "팔십", "구십"];
+          if (n === 0) return "영";
+          if (n < 10) return units[n];
+          if (n < 100) return tens[Math.floor(n / 10)] + units[n % 10];
+          return String(n);
+        };
 
-      const mainContent = nextChapter.content.replace(/\d+\.\s*/g, '');
-      const unit = nextChapter.bible_name === "시편" ? "편" : "장";
-      const chapterKor = toKorNum(nextChapter.chapter);
-      const textToSpeak = `${nextChapter.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
+        const mainContent = nextChapter.content.replace(/\d+\.\s*/g, '');
+        const unit = nextChapter.bible_name === "시편" ? "편" : "장";
+        const chapterKor = toKorNum(nextChapter.chapter);
+        const textToSpeak = `${nextChapter.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
 
-      const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
-      const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
-      const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
+        const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
+        const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
+        const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
 
-      const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
-        method: "POST",
-        headers: {
-          "Ocp-Apim-Subscription-Key": AZURE_KEY,
-          "Content-Type": "application/ssml+xml",
-          "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
-        },
-        body: `
+        const response = await fetch(`https://${AZURE_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`, {
+          method: "POST",
+          headers: {
+            "Ocp-Apim-Subscription-Key": AZURE_KEY,
+            "Content-Type": "application/ssml+xml",
+            "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
+          },
+          body: `
           <speak version='1.0' xml:lang='ko-KR'>
             <voice xml:lang='ko-KR' name='${azureVoice}'>
               <prosody rate="1.0">${textToSpeak}</prosody>
             </voice>
           </speak>
         `,
-      });
+        });
 
-      if (!response.ok) throw new Error("API 호출 실패");
+        if (!response.ok) throw new Error("API 호출 실패");
 
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      nextChapterAudioCache.current = new Audio(audioUrl);
-      nextChapterAudioCache.current.preload = 'auto';
+        const audioBlob = await response.blob();
+        const audioUrl = URL.createObjectURL(audioBlob);
+        nextChapterAudioCache.current = new Audio(audioUrl);
+        nextChapterAudioCache.current.preload = 'auto';
 
-      // R2 업로드 (백그라운드)
-      (async () => {
-        try {
-          console.log('[R2 Upload - Preload] Uploading:', fileName);
-          const urlRes = await fetch('/api/audio/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName })
-          });
-          const { uploadUrl, publicUrl } = await urlRes.json();
-          
-          await fetch(uploadUrl, {
-            method: 'PUT',
-            body: audioBlob,
-            headers: { 'Content-Type': 'audio/mp3' }
-          });
-          
-          console.log('[R2 Upload - Preload] ✅ Success! URL:', publicUrl);
-        } catch (error) {
-          console.error('[R2 Upload - Preload] ❌ Failed:', error);
-        }
-      })();
+        // R2 업로드 (백그라운드)
+        (async () => {
+          try {
+            console.log('[R2 Upload - Preload] Uploading:', fileName);
+            const urlRes = await fetch('/api/audio/upload', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName })
+            });
+            const { uploadUrl, publicUrl } = await urlRes.json();
+
+            await fetch(uploadUrl, {
+              method: 'PUT',
+              body: audioBlob,
+              headers: { 'Content-Type': 'audio/mp3' }
+            });
+
+            console.log('[R2 Upload - Preload] ✅ Success! URL:', publicUrl);
+          } catch (error) {
+            console.error('[R2 Upload - Preload] ❌ Failed:', error);
+          }
+        })();
 
       } catch (error) {
         console.error("다음 장 미리 로드 실패:", error);
@@ -1734,11 +1735,11 @@ const togglePlay = () => {
   const handleCopy = () => {
     if (bibleData) {
       navigator.clipboard.writeText(cleanContent(bibleData.content));
-      
+
       // 토스트 켜고 2초 뒤 끄기
       setShowCopyToast(true);
       setTimeout(() => setShowCopyToast(false), 2000);
-      
+
       // 햅틱 반응
       if (window.navigator?.vibrate) window.navigator.vibrate(20);
     }
@@ -1746,17 +1747,17 @@ const togglePlay = () => {
 
   const handleShare = async () => {
     if (!bibleData) return;
-    
+
     const unit = bibleData.bible_name === '시편' ? '편' : '장';
     const title = `${bibleData.bible_name} ${bibleData.chapter}${unit}`;
-    
+
     // 절 번호 포함된 전체 내용
     const contentWithVerses = bibleData.content;
-    
+
     const shareData = {
       title: title,
       text: `${title}\n\n${contentWithVerses}`,
-      url: window.location.href, 
+      url: window.location.href,
     };
 
     try {
@@ -1817,7 +1818,7 @@ const togglePlay = () => {
 
       if (existing && existing.read_count > 0) {
         const newCount = existing.read_count - 1;
-        
+
         if (newCount === 0) {
           // 0이 되면 레코드 삭제
           await supabase
@@ -1830,7 +1831,7 @@ const togglePlay = () => {
           // 1 감소
           await supabase
             .from('user_reading_records')
-            .update({ 
+            .update({
               read_count: newCount,
               updated_at: new Date().toISOString()
             })
@@ -1841,12 +1842,12 @@ const togglePlay = () => {
 
         // 로컬 상태 업데이트
         await checkCurrentChapterReadStatus();
-        
+
         // 햅틱 피드백 (취소 패턴 - 3번 진동)
         if (navigator.vibrate) {
           navigator.vibrate([100, 50, 100]);
         }
-        
+
         // 취소 토스트 표시
         setShowCancelToast(true);
         setTimeout(() => setShowCancelToast(false), 2000);
@@ -1862,10 +1863,8 @@ const togglePlay = () => {
       const groups = await fetchMyGroups(user.id);
       if (groups.length === 0) return;
 
-      setMyGroups(groups);
-      setPendingGroupLinkSourceRowId(sourceRowId);
       setPendingGroupLinkLabel(label);
-      setShowGroupLinkPrompt(true);
+      setShowGroupLinkModal(true);
     },
     [user?.id]
   );
@@ -1873,9 +1872,6 @@ const togglePlay = () => {
   const closeReadingGroupLinkFlow = () => {
     setShowGroupLinkPrompt(false);
     setShowGroupLinkModal(false);
-    setPendingGroupLinkSourceRowId(null);
-    setPendingGroupLinkLabel("");
-    setLinkingGroupId(null);
   };
 
   const handleReadingGroupLink = async (groupId: string) => {
@@ -1915,12 +1911,12 @@ const togglePlay = () => {
     // 폭죽 효과 (전체 재생 모드가 아닐 때만)
     if (!silent) {
       confetti({
-        particleCount: 100, 
-        spread: 70, 
-        origin: { y: 0.8 }, 
-        colors: ['#f897c4', '#88B04B', '#FFD700'] 
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.8 },
+        colors: ['#f897c4', '#88B04B', '#FFD700']
       });
-      
+
       // 햅틱 피드백 (짧은 진동)
       if (navigator.vibrate) {
         navigator.vibrate(50);
@@ -1956,7 +1952,7 @@ const togglePlay = () => {
           if (!Number.isNaN(startNum)) startVerse = startNum;
           if (!Number.isNaN(endNum)) endVerse = endNum;
         }
-        
+
         // upsert 사용: 있으면 업데이트, 없으면 생성
         const { data: existing } = await supabase
           .from('user_reading_records')
@@ -1965,9 +1961,9 @@ const togglePlay = () => {
           .eq('book_name', chapterData.bible_name)
           .eq('chapter', chapterData.chapter)
           .maybeSingle();
-        
+
         const newReadCount = existing ? existing.read_count + 1 : 1;
-        
+
         const { data: savedRecord, error: upsertError } = await supabase
           .from('user_reading_records')
           .upsert({
@@ -1993,7 +1989,7 @@ const togglePlay = () => {
         // 진행률 업데이트
         const key = `${chapterData.bible_name}_${chapterData.chapter}`;
         setReadingProgress(prev => ({ ...prev, [key]: 100 }));
-        
+
         // 읽기 상태 다시 확인 (횟수 및 상태 업데이트)
         await checkCurrentChapterReadStatus();
 
@@ -2014,17 +2010,17 @@ const togglePlay = () => {
     const handleStart = (e: TouchEvent | MouseEvent) => {
       pressStartedRef.current = true; // 버튼 누름 시작 플래그
       longPressStartTimeRef.current = Date.now();
-      
+
       // 읽기 완료 상태일 때만 진행 바 시작
       if (!isReadCompleted) return;
-      
+
       // 즉시 진행 바 시작
       isLongPressingRef.current = true;
       setIsLongPressing(true);
-      
+
       const animate = () => {
         const elapsed = Date.now() - longPressStartTimeRef.current;
-        
+
         if (elapsed >= 1500) {
           // 1.5초 완료 - 취소 실행
           handleReadCancel();
@@ -2043,7 +2039,7 @@ const togglePlay = () => {
       if (pressStartedRef.current && !longPressCancelledRef.current) {
         handleReadComplete();
       }
-      
+
       // 모든 상태 초기화
       pressStartedRef.current = false;
       longPressCancelledRef.current = false;
@@ -2102,8 +2098,8 @@ const togglePlay = () => {
         </p>
         <div className="flex items-center justify-center w-full">
           <div className="flex-1 flex justify-end pr-3">
-            <button 
-              onClick={() => dateInputRef.current?.showPicker()} 
+            <button
+              onClick={() => dateInputRef.current?.showPicker()}
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
@@ -2113,22 +2109,29 @@ const togglePlay = () => {
             {currentDate.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
           </h2>
           <div className="flex-1 flex justify-start pl-3">
-            {/* 오늘 날짜에만 NotebookPen 버튼 표시 */}
             {currentDate.toDateString() === today.toDateString() ? (
-              <button
-                onClick={() => {
-                  setIsEditModalOpen(true);
-                }}
-                className="relative flex items-center justify-center p-1.5 rounded-full bg-[#4A6741] shadow-sm active:scale-95 transition-transform"
-              >
-                <motion.span
-                  initial={{ scale: 1, opacity: 0.3 }}
-                  animate={{ scale: 1.5, opacity: 0 }}
-                  transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
-                  className="absolute inset-0 rounded-full bg-white"
-                />
-                <NotebookPen size={16} strokeWidth={1.5} className="relative z-10 text-white" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowGroupLinkModal(true)}
+                  className="px-2.5 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1 shrink-0"
+                >
+                  <Share2 size={12} /> 모임에 연결
+                </button>
+                <button
+                  onClick={() => {
+                    setIsEditModalOpen(true);
+                  }}
+                  className="relative flex items-center justify-center p-1.5 rounded-full bg-[#4A6741] shadow-sm active:scale-95 transition-transform"
+                >
+                  <motion.span
+                    initial={{ scale: 1, opacity: 0.3 }}
+                    animate={{ scale: 1.5, opacity: 0 }}
+                    transition={{ duration: 1.5, repeat: 9, ease: "circOut" }}
+                    className="absolute inset-0 rounded-full bg-white"
+                  />
+                  <NotebookPen size={16} strokeWidth={1.5} className="relative z-10 text-white" />
+                </button>
+              </div>
             ) : (
               <div className="w-[28px] h-[28px]" aria-hidden="true" />
             )}
@@ -2140,14 +2143,14 @@ const togglePlay = () => {
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
         <AnimatePresence mode="wait">
-          <motion.div 
+          <motion.div
             key={bibleData?.id || bibleData?.chapter || currentDate.toISOString()}
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}
             dragElastic={0.2}
             onDragEnd={onDragEnd}
-            initial={{ opacity: 0, rotateY: -15, scale: 0.95 }} 
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }} 
+            initial={{ opacity: 0, rotateY: -15, scale: 0.95 }}
+            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
             exit={{ opacity: 0, rotateY: 15, scale: 0.95 }}
             className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
             style={{ perspective: 1000 }}
@@ -2210,7 +2213,7 @@ const togglePlay = () => {
         <div className="absolute right-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
       </div>
 
-      <div className="flex items-center gap-8 mt-3 mb-14"> 
+      <div className="flex items-center gap-8 mt-3 mb-14">
         <button onClick={() => handlePlayServerAudio()} className="flex flex-col items-center gap-1.5  text-[#4A6741]">
           <BookHeadphones size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
@@ -2223,15 +2226,15 @@ const togglePlay = () => {
       </div>
 
       <div className="flex items-center justify-center gap-8 pb-6">
-        <motion.button 
+        <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => { 
-            if (rangePages.length > 0 && currentPageIdx > 0) { 
-              const newIdx = currentPageIdx - 1; 
-              setCurrentPageIdx(newIdx); 
-              setBibleData(rangePages[newIdx]); 
-            } 
+          onClick={() => {
+            if (rangePages.length > 0 && currentPageIdx > 0) {
+              const newIdx = currentPageIdx - 1;
+              setCurrentPageIdx(newIdx);
+              setBibleData(rangePages[newIdx]);
+            }
           }}
           className={`${rangePages.length > 0 && currentPageIdx > 0 ? 'text-[#4A6741]' : 'text-zinc-300'} transition-colors p-2`}
         >
@@ -2239,7 +2242,7 @@ const togglePlay = () => {
         </motion.button>
 
         <div className="relative flex flex-col items-center">
-          <motion.button 
+          <motion.button
             ref={readCompleteButtonRef}
             whileTap={{ scale: 0.9 }}
             className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
@@ -2253,7 +2256,7 @@ const togglePlay = () => {
               </span>
             )}
           </motion.button>
-          
+
           {/* 미세 힌트 텍스트 (읽기 완료 상태일 때만) */}
           {isReadCompleted && (
             <div className="text-xs text-gray-400 mt-1.5 opacity-60">
@@ -2262,430 +2265,344 @@ const togglePlay = () => {
           )}
         </div>
 
-        <motion.button 
+        <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.9 }}
-          onClick={() => { 
-            if (rangePages.length > 0 && currentPageIdx < rangePages.length - 1) { 
-              const newIdx = currentPageIdx + 1; 
-              setCurrentPageIdx(newIdx); 
-              setBibleData(rangePages[newIdx]); 
-            } 
+          onClick={() => {
+            if (rangePages.length > 0 && currentPageIdx < rangePages.length - 1) {
+              const newIdx = currentPageIdx + 1;
+              setCurrentPageIdx(newIdx);
+              setBibleData(rangePages[newIdx]);
+            }
           }}
           className={`${rangePages.length > 0 && currentPageIdx < rangePages.length - 1 ? 'text-[#4A6741]' : 'text-zinc-300'} transition-colors p-2`}
         >
           <ChevronRight size={32} strokeWidth={1.5} />
         </motion.button>
       </div>
-<AnimatePresence>
-  {isEditModalOpen && (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center"
-      onClick={() => setIsEditModalOpen(false)}
-    >
-      <motion.div
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* 선택 상태 표시 및 클릭 가능한 인디케이터 */}
-        <div className="flex flex-wrap items-center gap-2 mb-6">
-          {/* 시작 범위 */}
-          <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.625}px` }}>
-            <span className="opacity-60">시작:</span>
-            {tempSelection.start_testament && (
-              <button 
-                onClick={() => { setSelectionPhase('start'); setSelectionStep('testament'); }}
-                className="underline underline-offset-2 hover:text-[#4A6741]"
-              >
-                {tempSelection.start_testament}
-              </button>
-            )}
-            {tempSelection.start_book && (
-              <>
-                〉
-                <button 
-                  onClick={() => { setSelectionPhase('start'); setSelectionStep('book'); }}
-                  className="underline underline-offset-2 hover:text-[#4A6741]"
-                >
-                  {tempSelection.start_book}
-                </button>
-              </>
-            )}
-            {tempSelection.start_chapter > 0 && (
-              <>
-                〉
-                <button 
-                  onClick={() => { setSelectionPhase('start'); setSelectionStep('chapter'); loadChapters(tempSelection.start_book); }}
-                  className="underline underline-offset-2 hover:text-[#4A6741]"
-                >
-                  {tempSelection.start_chapter}장
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* 종료 범위 */}
-          {tempSelection.start_chapter > 0 && (
-            <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700" style={{ fontSize: `${fontSize * 0.625}px` }}>
-              <span className="opacity-60">종료:</span>
-              {tempSelection.end_testament && (
-                <button 
-                  onClick={() => { setSelectionPhase('end'); setSelectionStep('testament'); }}
-                  className="underline underline-offset-2 hover:text-blue-700"
-                >
-                  {tempSelection.end_testament}
-                </button>
-              )}
-              {tempSelection.end_book && (
-                <>
-                  〉
-                  <button 
-                    onClick={() => { setSelectionPhase('end'); setSelectionStep('book'); }}
-                    className="underline underline-offset-2 hover:text-blue-700"
-                  >
-                    {tempSelection.end_book}
-                  </button>
-                </>
-              )}
-              {tempSelection.end_chapter > 0 && (
-                <>
-                  〉
-                  <button 
-                    onClick={() => { setSelectionPhase('end'); setSelectionStep('chapter'); loadChapters(tempSelection.end_book); }}
-                    className="underline underline-offset-2 hover:text-blue-700"
-                  >
-                    {tempSelection.end_chapter}장
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* 다시 정하기 버튼 */}
-          {(tempSelection.start_chapter > 0 || tempSelection.end_chapter > 0) && (
-            <button
-              onClick={() => {
-                setTempSelection({
-                  start_testament: '',
-                  start_book: '',
-                  start_chapter: 0,
-                  end_testament: '',
-                  end_book: '',
-                  end_chapter: 0,
-                });
-                setSelectionPhase('start');
-                setSelectionStep('testament');
-                setRangePages([]);
-                setBibleData(null);
-                setAvailableChapters([]);
-                // localStorage 초기화
-                localStorage.removeItem('reading_selection');
-                localStorage.removeItem('reading_pages');
-                localStorage.removeItem('reading_page_idx');
-              }}
-              className="py-2 px-4 bg-red-50 text-red-600 rounded-full"
-              style={{ fontSize: `${fontSize * 0.625}px` }}
-            >
-              다시 정하기
-            </button>
-          )}
-        </div>
-
-        {/* 단계별 제목 */}
-        <h3 className="text-xl font-black mb-6 text-zinc-900">
-          {selectionPhase === 'start' && '📖 시작 범위를 정해주세요'}
-          {selectionPhase === 'end' && '📕 종료 범위를 정해주세요'}
-        </h3>
-
-        <h4 className="text-sm font-bold mb-3 text-zinc-500">
-          {selectionStep === 'testament' && '구약 또는 신약을 선택하세요'}
-          {selectionStep === 'book' && '권을 선택하세요'}
-          {selectionStep === 'chapter' && '장을 선택하세요'}
-        </h4>
-
-        <div className="grid grid-cols-4 gap-2">
-          {/* 신약/구약 선택 */}
-          {selectionStep === 'testament' &&
-            ['구약', '신약'].map(t => {
-              // 구약/신약 전체 진행률 계산 (모든 책 포함)
-              const testamentBooks = BIBLE_BOOKS[t as '구약' | '신약'] || [];
-              let totalProgress = 0;
-              
-              testamentBooks.forEach(book => {
-                const bookProgress = readingProgress[`${book}_total`];
-                // 읽기 이력이 없는 책은 0%로 계산
-                totalProgress += (bookProgress || 0);
-              });
-              
-              // 소숫점 1자리까지 계산 (전체 책 수로 나눔)
-              const avgProgress = testamentBooks.length > 0
-                ? Math.round((totalProgress / testamentBooks.length) * 10) / 10 
-                : 0;
-              const hasProgress = user && avgProgress > 0;
-              
-              return (
-                <button
-                  key={t}
-                  onClick={() => { 
-                    if (selectionPhase === 'start') {
-                      setTempSelection(p => ({ ...p, start_testament: t }));
-                    } else {
-                      setTempSelection(p => ({ ...p, end_testament: t }));
-                    }
-                    setSelectionStep('book');
-                  }}
-                  className={`py-5 rounded-2xl font-bold col-span-4 text-lg ${
-                    hasProgress
-                      ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
-                      : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span>{t}</span>
-                    {user && (
-                      <span className={`text-xs font-bold ${
-                        hasProgress ? 'text-[#4A6741]' : 'text-zinc-400'
-                      }`}>
-                        {avgProgress}%
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-
-          {/* 권 선택 */}
-          {selectionStep === 'book' && (() => {
-            const testament = selectionPhase === 'start' ? tempSelection.start_testament : tempSelection.end_testament;
-            const startBookOrder = tempSelection.start_book ? bookOrderMap[tempSelection.start_book] : null;
-            
-            return BIBLE_BOOKS[testament as '구약' | '신약']?.map(b => {
-              const bookProgress = readingProgress[`${b}_total`];
-              const displayProgress = bookProgress !== undefined ? bookProgress : 0;
-              const hasProgress = displayProgress > 0;
-              
-              // 종료 범위 선택 시 시작 권보다 앞에 있는 권은 비활성화
-              const currentBookOrder = bookOrderMap[b];
-              const isDisabled = selectionPhase === 'end' && startBookOrder !== null && 
-                                 currentBookOrder < startBookOrder;
-              
-              return (
-                <button
-                  key={b}
-                  disabled={isDisabled}
-                  onClick={() => loadChapters(b)}
-                  className={`py-3 rounded-xl text-sm font-bold relative ${
-                    isDisabled
-                      ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                      : hasProgress 
-                      ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200' 
-                      : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span>{b}</span>
-                    {user && !isDisabled && (
-                      <span className={`text-[9px] font-bold ${
-                        hasProgress ? 'text-[#4A6741]' : 'text-zinc-400'
-                      }`}>
-                        {displayProgress}%
-                      </span>
-                    )}
-                  </div>
-                </button>
-              );
-            });
-          })()}
-
-          {/* 장 선택 */}
-          {selectionStep === 'chapter' &&
-            availableChapters.map(ch => {
-              const currentBook = selectionPhase === 'start' ? tempSelection.start_book : tempSelection.end_book;
-              const progressKey = `${currentBook}_${ch}`;
-              const readCount = readingProgress[progressKey] || 0;
-              const hasBeenRead = readCount > 0;
-              
-              // 종료 범위 선택 시 시작 장보다 작은 장은 비활성화
-              const isDisabled = selectionPhase === 'end' && 
-                                 tempSelection.start_book === tempSelection.end_book && 
-                                 ch < tempSelection.start_chapter;
-              
-              // 시작/종료 장 표시
-              const isStartChapter = tempSelection.start_book === currentBook && tempSelection.start_chapter === ch;
-              const isEndChapter = tempSelection.end_book === currentBook && tempSelection.end_chapter === ch;
-              const isInRange = tempSelection.start_book === currentBook && 
-                                tempSelection.start_chapter > 0 && 
-                                tempSelection.end_chapter > 0 && 
-                                ch >= tempSelection.start_chapter && 
-                                ch <= tempSelection.end_chapter;
-              
-              return (
-                <button
-                  key={ch}
-                  disabled={isDisabled}
-                  onClick={() => {
-                    if (selectionPhase === 'start') {
-                      const updatedSelection = { 
-                        ...tempSelection, 
-                        start_chapter: ch,
-                        end_testament: tempSelection.start_testament, // 종료 범위도 동일하게 설정
-                        end_book: tempSelection.start_book // 종료 책도 시작 책과 동일하게 설정
-                      };
-                      setTempSelection(updatedSelection);
-                      setSelectionPhase('end');
-                      // 종료 범위는 바로 장 선택으로 (같은 책이므로)
-                      // 다른 책 선택하려면 뒤로가기 가능
-                      loadChapters(tempSelection.start_book);
-                    } else {
-                      // 종료 범위 선택 완료 -> 확인 모달 표시
-                      const updatedSelection = {
-                        ...tempSelection,
-                        end_chapter: ch
-                      };
-                      setTempSelection(updatedSelection);
-                      setPendingSelection(updatedSelection);
-                      setShowConfirmModal(true);
-                    }
-                  }}
-                  className={`py-3 rounded-xl font-bold relative overflow-hidden transition-all ${
-                    isDisabled
-                      ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
-                      : isStartChapter || isEndChapter
-                      ? 'bg-blue-500 text-white border-2 border-blue-600'
-                      : isInRange
-                      ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
-                      : hasBeenRead
-                      ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
-                      : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <div className="flex items-center gap-1">
-                      {isStartChapter && <span className="text-[9px]">시작</span>}
-                      <span>{ch}</span>
-                      {isEndChapter && <span className="text-[9px]">종료</span>}
-                    </div>
-                    {user && hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && (
-                      <span className="text-[9px] text-[#4A6741] font-bold">{readCount}회</span>
-                    )}
-                  </div>
-                  
-                  {hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && <Check size={12} className="absolute top-0.5 right-0.5 text-[#4A6741]" />}
-                </button>
-              );
-            })}
-        </div>
-
-        <button
-          onClick={() => setIsEditModalOpen(false)}
-          className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
-        >
-          닫기
-        </button>
-      </motion.div>
-    </motion.div>
-  )}
-</AnimatePresence>
-
       <AnimatePresence>
-        {showGroupLinkPrompt && (
-          <div className="fixed inset-0 z-[320] flex items-center justify-center p-6">
+        {isEditModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center"
+            onClick={() => setIsEditModalOpen(false)}
+          >
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeReadingGroupLinkFlow}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative bg-white rounded-[28px] p-6 w-full max-w-[360px] shadow-2xl text-center"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
             >
-              <h4 className="font-bold text-zinc-900 mb-2">모임에 완료 연결할까요?</h4>
-              <p className="text-sm text-zinc-500 mb-6">
-                {pendingGroupLinkLabel || "읽기 완료"} 기록을 모임 신앙생활에 연결할 수 있습니다.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={closeReadingGroupLinkFlow}
-                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold"
-                >
-                  나중에
-                </button>
-                <button
-                  onClick={() => {
-                    setShowGroupLinkPrompt(false);
-                    setShowGroupLinkModal(true);
-                  }}
-                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold"
-                >
-                  연결하기
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showGroupLinkModal && pendingGroupLinkSourceRowId && (
-          <div className="fixed inset-0 z-[330] flex items-center justify-center p-6">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeReadingGroupLinkFlow}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-            />
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="relative bg-white rounded-[28px] p-6 w-full max-w-[420px] shadow-2xl"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold text-zinc-900">연결할 모임 선택</h4>
-                <button
-                  onClick={closeReadingGroupLinkFlow}
-                  className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <div className="space-y-2 max-h-[320px] overflow-y-auto">
-                {myGroups.map((group) => (
-                  <div key={group.id} className="flex items-center justify-between bg-zinc-50 rounded-xl px-3 py-2">
-                    <span className="text-sm font-semibold text-zinc-800">{group.name}</span>
+              {/* 선택 상태 표시 및 클릭 가능한 인디케이터 */}
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                {/* 시작 범위 */}
+                <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.625}px` }}>
+                  <span className="opacity-60">시작:</span>
+                  {tempSelection.start_testament && (
                     <button
-                      onClick={() => handleReadingGroupLink(group.id)}
-                      disabled={linkingGroupId === group.id}
-                      className="px-3 py-1.5 rounded-lg bg-[#4A6741] text-white text-xs font-bold disabled:opacity-60"
+                      onClick={() => { setSelectionPhase('start'); setSelectionStep('testament'); }}
+                      className="underline underline-offset-2 hover:text-[#4A6741]"
                     >
-                      {linkingGroupId === group.id ? "연결 중..." : "연결"}
+                      {tempSelection.start_testament}
                     </button>
+                  )}
+                  {tempSelection.start_book && (
+                    <>
+                      〉
+                      <button
+                        onClick={() => { setSelectionPhase('start'); setSelectionStep('book'); }}
+                        className="underline underline-offset-2 hover:text-[#4A6741]"
+                      >
+                        {tempSelection.start_book}
+                      </button>
+                    </>
+                  )}
+                  {tempSelection.start_chapter > 0 && (
+                    <>
+                      〉
+                      <button
+                        onClick={() => { setSelectionPhase('start'); setSelectionStep('chapter'); loadChapters(tempSelection.start_book); }}
+                        className="underline underline-offset-2 hover:text-[#4A6741]"
+                      >
+                        {tempSelection.start_chapter}장
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                {/* 종료 범위 */}
+                {tempSelection.start_chapter > 0 && (
+                  <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700" style={{ fontSize: `${fontSize * 0.625}px` }}>
+                    <span className="opacity-60">종료:</span>
+                    {tempSelection.end_testament && (
+                      <button
+                        onClick={() => { setSelectionPhase('end'); setSelectionStep('testament'); }}
+                        className="underline underline-offset-2 hover:text-blue-700"
+                      >
+                        {tempSelection.end_testament}
+                      </button>
+                    )}
+                    {tempSelection.end_book && (
+                      <>
+                        〉
+                        <button
+                          onClick={() => { setSelectionPhase('end'); setSelectionStep('book'); }}
+                          className="underline underline-offset-2 hover:text-blue-700"
+                        >
+                          {tempSelection.end_book}
+                        </button>
+                      </>
+                    )}
+                    {tempSelection.end_chapter > 0 && (
+                      <>
+                        〉
+                        <button
+                          onClick={() => { setSelectionPhase('end'); setSelectionStep('chapter'); loadChapters(tempSelection.end_book); }}
+                          className="underline underline-offset-2 hover:text-blue-700"
+                        >
+                          {tempSelection.end_chapter}장
+                        </button>
+                      </>
+                    )}
                   </div>
-                ))}
-                {myGroups.length === 0 && (
-                  <div className="text-sm text-zinc-500 text-center py-6">연결 가능한 모임이 없습니다.</div>
+                )}
+
+                {/* 다시 정하기 버튼 */}
+                {(tempSelection.start_chapter > 0 || tempSelection.end_chapter > 0) && (
+                  <button
+                    onClick={() => {
+                      setTempSelection({
+                        start_testament: '',
+                        start_book: '',
+                        start_chapter: 0,
+                        end_testament: '',
+                        end_book: '',
+                        end_chapter: 0,
+                      });
+                      setSelectionPhase('start');
+                      setSelectionStep('testament');
+                      setRangePages([]);
+                      setBibleData(null);
+                      setAvailableChapters([]);
+                      // localStorage 초기화
+                      localStorage.removeItem('reading_selection');
+                      localStorage.removeItem('reading_pages');
+                      localStorage.removeItem('reading_page_idx');
+                    }}
+                    className="py-2 px-4 bg-red-50 text-red-600 rounded-full"
+                    style={{ fontSize: `${fontSize * 0.625}px` }}
+                  >
+                    다시 정하기
+                  </button>
                 )}
               </div>
+
+              {/* 단계별 제목 */}
+              <h3 className="text-xl font-black mb-6 text-zinc-900">
+                {selectionPhase === 'start' && '📖 시작 범위를 정해주세요'}
+                {selectionPhase === 'end' && '📕 종료 범위를 정해주세요'}
+              </h3>
+
+              <h4 className="text-sm font-bold mb-3 text-zinc-500">
+                {selectionStep === 'testament' && '구약 또는 신약을 선택하세요'}
+                {selectionStep === 'book' && '권을 선택하세요'}
+                {selectionStep === 'chapter' && '장을 선택하세요'}
+              </h4>
+
+              <div className="grid grid-cols-4 gap-2">
+                {/* 신약/구약 선택 */}
+                {selectionStep === 'testament' &&
+                  ['구약', '신약'].map(t => {
+                    // 구약/신약 전체 진행률 계산 (모든 책 포함)
+                    const testamentBooks = BIBLE_BOOKS[t as '구약' | '신약'] || [];
+                    let totalProgress = 0;
+
+                    testamentBooks.forEach(book => {
+                      const bookProgress = readingProgress[`${book}_total`];
+                      // 읽기 이력이 없는 책은 0%로 계산
+                      totalProgress += (bookProgress || 0);
+                    });
+
+                    // 소숫점 1자리까지 계산 (전체 책 수로 나눔)
+                    const avgProgress = testamentBooks.length > 0
+                      ? Math.round((totalProgress / testamentBooks.length) * 10) / 10
+                      : 0;
+                    const hasProgress = user && avgProgress > 0;
+
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => {
+                          if (selectionPhase === 'start') {
+                            setTempSelection(p => ({ ...p, start_testament: t }));
+                          } else {
+                            setTempSelection(p => ({ ...p, end_testament: t }));
+                          }
+                          setSelectionStep('book');
+                        }}
+                        className={`py-5 rounded-2xl font-bold col-span-4 text-lg ${hasProgress
+                          ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
+                          : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
+                          }`}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{t}</span>
+                          {user && (
+                            <span className={`text-xs font-bold ${hasProgress ? 'text-[#4A6741]' : 'text-zinc-400'
+                              }`}>
+                              {avgProgress}%
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+
+                {/* 권 선택 */}
+                {selectionStep === 'book' && (() => {
+                  const testament = selectionPhase === 'start' ? tempSelection.start_testament : tempSelection.end_testament;
+                  const startBookOrder = tempSelection.start_book ? bookOrderMap[tempSelection.start_book] : null;
+
+                  return BIBLE_BOOKS[testament as '구약' | '신약']?.map(b => {
+                    const bookProgress = readingProgress[`${b}_total`];
+                    const displayProgress = bookProgress !== undefined ? bookProgress : 0;
+                    const hasProgress = displayProgress > 0;
+
+                    // 종료 범위 선택 시 시작 권보다 앞에 있는 권은 비활성화
+                    const currentBookOrder = bookOrderMap[b];
+                    const isDisabled = selectionPhase === 'end' && startBookOrder !== null &&
+                      currentBookOrder < startBookOrder;
+
+                    return (
+                      <button
+                        key={b}
+                        disabled={isDisabled}
+                        onClick={() => loadChapters(b)}
+                        className={`py-3 rounded-xl text-sm font-bold relative ${isDisabled
+                          ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                          : hasProgress
+                            ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
+                            : 'bg-zinc-50 text-zinc-600 hover:bg-zinc-100'
+                          }`}
+                      >
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span>{b}</span>
+                          {user && !isDisabled && (
+                            <span className={`text-[9px] font-bold ${hasProgress ? 'text-[#4A6741]' : 'text-zinc-400'
+                              }`}>
+                              {displayProgress}%
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  });
+                })()}
+
+                {/* 장 선택 */}
+                {selectionStep === 'chapter' &&
+                  availableChapters.map(ch => {
+                    const currentBook = selectionPhase === 'start' ? tempSelection.start_book : tempSelection.end_book;
+                    const progressKey = `${currentBook}_${ch}`;
+                    const readCount = readingProgress[progressKey] || 0;
+                    const hasBeenRead = readCount > 0;
+
+                    // 종료 범위 선택 시 시작 장보다 작은 장은 비활성화
+                    const isDisabled = selectionPhase === 'end' &&
+                      tempSelection.start_book === tempSelection.end_book &&
+                      ch < tempSelection.start_chapter;
+
+                    // 시작/종료 장 표시
+                    const isStartChapter = tempSelection.start_book === currentBook && tempSelection.start_chapter === ch;
+                    const isEndChapter = tempSelection.end_book === currentBook && tempSelection.end_chapter === ch;
+                    const isInRange = tempSelection.start_book === currentBook &&
+                      tempSelection.start_chapter > 0 &&
+                      tempSelection.end_chapter > 0 &&
+                      ch >= tempSelection.start_chapter &&
+                      ch <= tempSelection.end_chapter;
+
+                    return (
+                      <button
+                        key={ch}
+                        disabled={isDisabled}
+                        onClick={() => {
+                          if (selectionPhase === 'start') {
+                            const updatedSelection = {
+                              ...tempSelection,
+                              start_chapter: ch,
+                              end_testament: tempSelection.start_testament, // 종료 범위도 동일하게 설정
+                              end_book: tempSelection.start_book // 종료 책도 시작 책과 동일하게 설정
+                            };
+                            setTempSelection(updatedSelection);
+                            setSelectionPhase('end');
+                            // 종료 범위는 바로 장 선택으로 (같은 책이므로)
+                            // 다른 책 선택하려면 뒤로가기 가능
+                            loadChapters(tempSelection.start_book);
+                          } else {
+                            // 종료 범위 선택 완료 -> 확인 모달 표시
+                            const updatedSelection = {
+                              ...tempSelection,
+                              end_chapter: ch
+                            };
+                            setTempSelection(updatedSelection);
+                            setPendingSelection(updatedSelection);
+                            setShowConfirmModal(true);
+                          }
+                        }}
+                        className={`py-3 rounded-xl font-bold relative overflow-hidden transition-all ${isDisabled
+                          ? 'bg-zinc-100 text-zinc-300 cursor-not-allowed'
+                          : isStartChapter || isEndChapter
+                            ? 'bg-blue-500 text-white border-2 border-blue-600'
+                            : isInRange
+                              ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                              : hasBeenRead
+                                ? 'bg-green-100 text-[#4A6741] border-2 border-green-300 hover:bg-green-200'
+                                : 'bg-zinc-50 text-zinc-700 hover:bg-zinc-100'
+                          }`}
+                      >
+                        <div className="flex flex-col items-center gap-0.5">
+                          <div className="flex items-center gap-1">
+                            {isStartChapter && <span className="text-[9px]">시작</span>}
+                            <span>{ch}</span>
+                            {isEndChapter && <span className="text-[9px]">종료</span>}
+                          </div>
+                          {user && hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && (
+                            <span className="text-[9px] text-[#4A6741] font-bold">{readCount}회</span>
+                          )}
+                        </div>
+
+                        {hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && <Check size={12} className="absolute top-0.5 right-0.5 text-[#4A6741]" />}
+                      </button>
+                    );
+                  })}
+              </div>
+
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
+              >
+                닫기
+              </button>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
+      <ActivityGroupLinkModal
+        open={showGroupLinkModal}
+        onOpenChange={setShowGroupLinkModal}
+        user={user}
+        activityType="reading"
+        activityDate={currentDate}
+      />
+
       {/* 로그인 모달 */}
-      <LoginModal 
-        open={showLoginModal} 
-        onOpenChange={setShowLoginModal} 
+      <LoginModal
+        open={showLoginModal}
+        onOpenChange={setShowLoginModal}
       />
 
       {/* 말씀 범위 확인 모달 */}
@@ -2765,7 +2682,7 @@ const togglePlay = () => {
               <p className="text-sm text-zinc-500 mb-6 text-center">
                 {currentPageIdx === 0 ? `${rangePages.length}개 장의 말씀이 있습니다` : `현재 장 포함 ${rangePages.length - currentPageIdx}개 장이 남았습니다`}
               </p>
-              
+
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => {
@@ -2777,7 +2694,7 @@ const togglePlay = () => {
                 >
                   {currentPageIdx === 0 ? `전체 범위 재생 (${rangePages.length}개 장)` : `나머지 장 재생 (${rangePages.length - currentPageIdx}개 장)`}
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setShowPlayModePopup(false);
@@ -2788,7 +2705,7 @@ const togglePlay = () => {
                 >
                   현재 장만 재생 (1장씩)
                 </button>
-                
+
                 <button
                   onClick={() => setShowPlayModePopup(false)}
                   className="w-full py-3 text-zinc-400 font-medium text-sm"
@@ -2805,7 +2722,7 @@ const togglePlay = () => {
       {/* 말씀 복사 토스트 */}
       <AnimatePresence>
         {showCopyToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}
@@ -2821,7 +2738,7 @@ const togglePlay = () => {
       {/* 범위 선택 완료 토스트 */}
       <AnimatePresence>
         {showRangeToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}
@@ -2837,7 +2754,7 @@ const togglePlay = () => {
       {/* 로그인 안내 토스트 */}
       <AnimatePresence>
         {showLoginAlert && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}
@@ -2853,7 +2770,7 @@ const togglePlay = () => {
       {/* 읽기 완료 취소 토스트 (빨간색) */}
       <AnimatePresence>
         {showCancelToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}
@@ -2869,7 +2786,7 @@ const togglePlay = () => {
       {/* 경고 토스트 (빨간색) */}
       <AnimatePresence>
         {showWarningToast && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: "-50%", y: 20 }}
             animate={{ opacity: 1, x: "-50%", y: 0 }}
             exit={{ opacity: 0, x: "-50%", y: 20 }}

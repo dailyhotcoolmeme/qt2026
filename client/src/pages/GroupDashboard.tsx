@@ -1730,7 +1730,7 @@ export default function GroupDashboard() {
     }
     setSelectedFaithItem(item);
     setShowFaithLinkModal(true);
-    const todayStart = new Date();
+    const todayStart = new Date(faithCurrentDate);
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setDate(todayStart.getDate() + 1);
@@ -1932,7 +1932,7 @@ export default function GroupDashboard() {
           group_id: group.id,
           item_id: selectedFaithItem.id,
           user_id: user.id,
-          record_date: new Date().toISOString().split("T")[0],
+          record_date: format(faithCurrentDate, "yyyy-MM-dd"),
           value: nextValue,
           note: noteText,
           source_type: "linked",
@@ -2379,12 +2379,14 @@ export default function GroupDashboard() {
       setGroupEditImageUploading(true);
       const oldImages = [group.group_image, group.header_image_url].filter(Boolean) as string[];
 
-      const { error } = await supabase.rpc("update_group_visual_settings", {
-        p_group_id: group.id,
-        p_group_image: null,
-        p_header_image_url: null,
-        p_header_color: "#4A6741"
-      });
+      const { error } = await supabase
+        .from("groups")
+        .update({
+          group_image: null,
+          header_image_url: null,
+          header_color: "#4A6741"
+        })
+        .eq("id", group.id);
 
       if (error) throw error;
 

@@ -5,7 +5,7 @@ import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check,
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
-
+import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 
 export default function PrayerPage() {
   // 최상단에 상태 변수, ref, useEffect 선언
@@ -41,7 +41,8 @@ export default function PrayerPage() {
   const [showKeywords, setShowKeywords] = useState<number | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  // 모임 연결 관련 상태 제거
+  const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
+
   // ref
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
@@ -433,7 +434,8 @@ export default function PrayerPage() {
         setSavingProgress(0);
       }, 500);
 
-      // 모임 연결 팝업 비활성화: 아무 동작도 하지 않음
+      // 기록 완료 후 모임 연결 모달 띄우기 (150ms 딜레이)
+      setTimeout(() => setShowGroupLinkModal(true), 150);
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -556,6 +558,8 @@ export default function PrayerPage() {
       if (!error) {
         await loadPrayerRecords();
         if (window.navigator?.vibrate) window.navigator.vibrate([20, 40, 20]);
+        // 기록 완료 후 모임 연결 모달 띄우기
+        setTimeout(() => setShowGroupLinkModal(true), 250);
       }
     } catch (err) {
       console.error('Amen 저장 실패:', err);
@@ -821,6 +825,13 @@ export default function PrayerPage() {
               <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
                 기도 기록
               </h3>
+              <div className="flex-1" />
+              <button
+                onClick={() => setShowGroupLinkModal(true)}
+                className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
+              >
+                <Share2 size={12} /> 모임에 연결
+              </button>
             </div>
             <div className="space-y-3">
               {prayerRecords.map((record) => {
@@ -1279,6 +1290,15 @@ export default function PrayerPage() {
         open={showLoginModal}
         onOpenChange={setShowLoginModal}
       />
+      {/* 모임에 기록 연결 모달 */}
+      <ActivityGroupLinkModal
+        open={showGroupLinkModal}
+        onOpenChange={setShowGroupLinkModal}
+        user={user}
+        activityType="prayer"
+        activityDate={new Date()}
+      />
+
     </div>
   );
 }

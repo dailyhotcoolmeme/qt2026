@@ -1,9 +1,10 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Share2, Trash2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
+import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Users, Share2, Trash2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
+import { LoginModal } from "../components/LoginModal";
 
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
 type MenuType = "all" | ActivityType | "group";
@@ -279,6 +280,7 @@ export default function ArchivePage() {
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>("all");
   const [startDate, setStartDate] = useState(defaultStart);
   const [endDate, setEndDate] = useState(defaultEnd);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [logs, setLogs] = useState<ActivityLogRow[]>([]);
@@ -548,16 +550,25 @@ export default function ArchivePage() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F8F8F8] flex items-center justify-center px-4">
-        <div className="max-w-sm w-full bg-[#F8F8F8] rounded-none border border-zinc-100 p-6 text-center">
-          <p className="text-sm text-zinc-600 font-bold mb-4">로그인 후 기록함을 확인할 수 있습니다.</p>
+      <div className="flex-1 min-h-screen flex items-center justify-center text-center">
+        {/* 1. min-h-screen으로 전체 높이 확보, 2. pb-20 제거 */}
+        <div className="max-w-sm w-full bg-white rounded-[32px] p-10 flex flex-col items-center justify-center shadow-xl shadow-zinc-200/50 border border-zinc-100/50">
+          <div className="w-16 h-16 bg-zinc-50 rounded-2xl flex items-center justify-center mb-6">
+            <Users className="text-[#4A6741] opacity-40" size={32} />
+          </div>
+
+          <p className="text-[15px] text-zinc-600 font-bold mb-8 leading-relaxed">
+            로그인 후 기록함을 확인할 수 있습니다.
+          </p>
+
           <button
-            onClick={() => setLocation("/")}
-            className="px-4 py-2 rounded-none bg-[#4A6741] text-white text-sm font-bold"
+            onClick={() => setShowLoginModal(true)}
+            className="w-full h-14 bg-[#4A6741] text-white rounded-2xl text-base font-black shadow-lg shadow-green-900/10 active:scale-95 transition-all"
           >
-            돌아가기
+            로그인하기
           </button>
         </div>
+        <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
       </div>
     );
   }
@@ -863,6 +874,7 @@ export default function ArchivePage() {
           </div>
         )}
       </AnimatePresence>
+      <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
     </div>
   );
 }

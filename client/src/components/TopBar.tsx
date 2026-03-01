@@ -382,7 +382,7 @@ export function TopBar() {
             aria-label="홈으로 이동"
           >
             <img src="/favicon.png" alt="logo" className="w-6 h-6 object-contain" />
-            <div className="relative h-[18px] w-[85px] flex items-center">
+            <div className="relative h-[18px] w-[95px] flex items-center">
               <AnimatePresence mode="wait">
                 <motion.span
                   key={logoTexts[logoTextIndex]}
@@ -507,10 +507,7 @@ export function TopBar() {
 
             <div className="space-y-0.5">
               <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
-                {user?.nickname || "닉네임 없음"}
-              </p>
-              <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                {user?.username || "아이디 없음"}
+                {user?.nickname || "비로그인 상태"}
               </p>
               {user?.church && (
                 <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
@@ -524,19 +521,7 @@ export function TopBar() {
               )}
             </div>
 
-            {user && (
-              <button
-                onClick={() => {
-                  setIsProfileModalOpen(true);
-                  setIsMenuOpen(false);
-                }}
-                className="mt-3 flex items-center gap-1 text-zinc-400 transition-colors hover:text-zinc-600"
-                style={{ fontSize: `${fontSize - 4}px` }}
-              >
-                프로필 관리
-                <ChevronRight className="h-3 w-3" />
-              </button>
-            )}
+
           </div>
 
           <nav className="flex flex-col gap-1">
@@ -544,23 +529,35 @@ export function TopBar() {
               <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록함" />
             </Link>
 
+            {isAuthenticated && (
+              <SidebarItem
+                icon={<User className="h-5 w-5" />}
+                label="프로필 수정"
+                onClick={() => {
+                  setIsProfileModalOpen(true);
+                  setIsMenuOpen(false);
+                }}
+              />
+            )}
+
             {!isAuthenticated && (
               <div className="mt-2 flex flex-col gap-2">
-                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  <button className="group flex w-full items-center gap-3 rounded-xl bg-green-50 p-3.5 text-left text-[#4A6741] transition-colors hover:bg-green-100">
-                    <div className="text-[#4A6741] transition-colors">
-                      <User className="h-5 w-5" />
-                    </div>
-                    <span className="text-[14px] font-semibold transition-colors">회원가입</span>
-                  </button>
-                </Link>
-
                 <button onClick={handleLoginClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
                   <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
                     <User className="h-5 w-5" />
                   </div>
                   <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">로그인</span>
                 </button>
+                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                  <button className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+                    <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">회원가입</span>
+                  </button>
+                </Link>
+
+
               </div>
             )}
 
@@ -590,13 +587,13 @@ export function TopBar() {
                   setShowDeleteConfirm(true);
                 }}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
-                style={{ fontSize: `${fontSize - 4}px` }}
+                style={{ fontSize: `${fontSize - 2}px` }}
               >
                 <UserX className="h-3.5 w-3.5" />
                 <span>회원탈퇴</span>
               </button>
             )}
-            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[9px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED.</p>
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED</p>
           </div>
         </div>
       </div>
@@ -728,9 +725,9 @@ export function TopBar() {
   );
 }
 
-function SidebarItem({ icon, label }: { icon: React.ReactNode; label: string }) {
+function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
-    <button className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+    <button onClick={onClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
       <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">{icon}</div>
       <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">{label}</span>
     </button>
