@@ -2844,8 +2844,8 @@ export default function GroupDashboard() {
                     <div className="shrink-0 w-16 sm:w-20" />
                     {faithItemSlots.map((slot) => (
                       <div key={`header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
-                        <span className="text-[14px] sm:text-[16px] font-black text-zinc-700">{slot.label}</span>
-                        {!slot.item && <span className="text-[10px] text-zinc-300 mt-0.5">미설정</span>}
+                        <span className="text-base sm:text-lg font-bold text-[#4A6741] leading-none">{slot.label}</span>
+                        {!slot.item && <span className="text-[0.7em] text-zinc-300 mt-1">미설정</span>}
                       </div>
                     ))}
                   </div>
@@ -2860,12 +2860,12 @@ export default function GroupDashboard() {
                       const isSaturday = dt.getDay() === 6;
                       const isRed = isSunday || isHoliday;
                       return (
-                        <div key={date} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-zinc-100/70" : ""}`}>
+                        <div key={date} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-[#4A6741]/20" : ""}`}>
                           <div className="shrink-0 w-16 sm:w-20 flex flex-col items-center justify-center">
-                            <span className={`text-[13px] sm:text-[15px] font-bold ${isToday ? "text-[#4A6741]" : isRed ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-500"} text-center`}>
+                            <span className={`text-base base:text-sm font-bold leading-none ${isToday ? "text-[#4A6741]" : isRed ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-500"} text-center`}>
                               {dt.getDate()}({dt.toLocaleDateString("ko-KR", { weekday: "short" })})
                             </span>
-                            {isHoliday && <span className="text-[10px] sm:text-[11px] leading-[1] text-rose-500 font-bold max-w-full truncate px-0.5 mt-1" style={{ transform: "scale(0.95)" }}>{isHoliday}</span>}
+                            {isHoliday && <span className="text-[0.65em] leading-tight text-rose-500 font-bold max-w-full truncate px-0.5 mt-1" style={{ transform: "scale(0.95)" }}>{isHoliday}</span>}
                           </div>
                           {faithItemSlots.map((slot) => {
                             const item = slot.item;
@@ -2881,11 +2881,15 @@ export default function GroupDashboard() {
                                        ${disabled
                                       ? "opacity-25 cursor-not-allowed bg-zinc-50"
                                       : done
-                                        ? "bg-[#4A6741]/10 text-[#4A6741]"
+                                        ? "bg-[#4A6741] text-white shadow-sm" // 배경을 진하게, 글자를 흰색으로 수정
                                         : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
                                     }`}
                                 >
-                                  {done ? <Check size={20} strokeWidth={3.5} /> : <span className="font-bold text-[14px]">—</span>}
+                                  <Check
+                                    size={20}
+                                    strokeWidth={done ? 4 : 2.5} // 완료 시 더 두껍게, 미완료 시 더 얇게 표현
+                                    className={done ? "opacity-100" : "opacity-40"} // 미완료 시 아이콘을 더 흐리게
+                                  />
                                 </button>
                               </div>
                             );
