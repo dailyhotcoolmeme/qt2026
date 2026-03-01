@@ -1966,11 +1966,14 @@ export default function GroupDashboard() {
   };
 
   const addPost = async () => {
-    if (!group || !user || !postContent.trim()) return;
+    if (!group || !user || (!postContent.trim() && postImageFiles.length === 0 && postExistingImages.length === 0)) return;
     if (postType === "notice" && !isManager) {
       alert("공지 작성은 리더/관리자만 가능합니다.");
       return;
     }
+
+    // @ts-ignore
+    setShowPostComposerModal('submitting');
 
     const payload = {
       group_id: group.id,
@@ -1989,6 +1992,11 @@ export default function GroupDashboard() {
       if (error) {
         alert("게시글 수정에 실패했습니다.");
         return;
+      }
+
+      const imagesToRemove = (editingPost.image_urls || []).filter(url => !postExistingImages.includes(url));
+      for (const removedUrl of imagesToRemove) {
+        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: removedUrl }) }).catch(() => undefined);
       }
 
       await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
@@ -2371,15 +2379,14 @@ export default function GroupDashboard() {
       setGroupEditImageUploading(true);
       const oldImages = [group.group_image, group.header_image_url].filter(Boolean) as string[];
 
-      const { data, error } = await supabase.from("groups")
+      const { error } = await supabase.from("groups")
         .update({
           group_image: null,
           header_image_url: null,
           header_color: "#4A6741"
         })
-        .eq("id", group.id)
-        .select()
-        .single();
+        .eq("id", group.id);
+
       if (error) throw error;
 
       // 기존 이미지 R2에서 삭제
@@ -2387,7 +2394,7 @@ export default function GroupDashboard() {
         fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
       }
 
-      setGroup(data as GroupRow);
+      setGroup(prev => prev ? { ...prev, group_image: null, header_image_url: null, header_color: "#4A6741" } : prev);
       setGroupEditImageFile(null);
       alert("모임 대표 이미지가 초기화되었습니다.");
     } catch (err) {
