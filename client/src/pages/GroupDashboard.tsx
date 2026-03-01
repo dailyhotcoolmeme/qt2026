@@ -2369,6 +2369,8 @@ export default function GroupDashboard() {
     if (!confirm("모임 대표 이미지를 초기화하시겠습니까?")) return;
     try {
       setGroupEditImageUploading(true);
+      const oldImages = [group.group_image, group.header_image_url].filter(Boolean) as string[];
+
       const { data, error } = await supabase.from("groups")
         .update({
           group_image: null,
@@ -2379,6 +2381,12 @@ export default function GroupDashboard() {
         .select()
         .single();
       if (error) throw error;
+
+      // 기존 이미지 R2에서 삭제
+      for (const url of oldImages) {
+        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
+      }
+
       setGroup(data as GroupRow);
       setGroupEditImageFile(null);
       alert("모임 대표 이미지가 초기화되었습니다.");
