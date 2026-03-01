@@ -67,6 +67,8 @@ export function TopBar() {
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
+  const [logoTextIndex, setLogoTextIndex] = useState(0);
+  const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
   const { user, logout, isAuthenticated } = useAuth();
@@ -359,22 +361,41 @@ export function TopBar() {
     }
   };
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogoTextIndex((prev) => (prev + 1) % logoTexts.length);
+    }, 10000); // <-- 이 숫자(ms 단위)를 수정하시면 됩니다. (1000 = 1초)
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
       <div className="fixed left-0 right-0 top-0 z-[150] flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
           <button onClick={() => setIsMenuOpen(true)} className="-ml-2 rounded-full p-2 transition-colors hover:bg-zinc-100">
             <Menu className="h-6 w-6 text-zinc-700" />
           </button>
 
           <button
             onClick={() => setLocation("/")}
-            className="flex items-center text-[#4A6741] p-0" /* p-0으로 기본 패딩 제거 */
+            className="flex items-center gap-1.5 text-[#4A6741] p-0" /* p-0으로 기본 패딩 제거 */
             aria-label="홈으로 이동"
           >
-            <span className="text-[20px] font-black tracking-tighter leading-none">
-              마이아멘
-            </span>
+            <img src="/favicon.png" alt="logo" className="w-6 h-6 object-contain" />
+            <div className="relative h-[18px] w-[85px] flex items-center">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={logoTexts[logoTextIndex]}
+                  initial={{ y: 10, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -10, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute text-[18px] font-black tracking-tighter leading-none whitespace-nowrap"
+                >
+                  {logoTexts[logoTextIndex]}
+                </motion.span>
+              </AnimatePresence>
+            </div>
           </button>
         </div>
 

@@ -2651,10 +2651,12 @@ export default function GroupDashboard() {
   if (!authReady || loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center text-center gap-3 w-full">
-        <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
-        <p className="text-zinc-400 text-sm font-medium text-center">
-          모임 화면 불러오는 중...
-        </p>
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
+          <p className="text-zinc-400 text-sm font-medium text-center">
+            모임 화면 불러오는 중...
+          </p>
+        </div>
       </div>
     );
   }
