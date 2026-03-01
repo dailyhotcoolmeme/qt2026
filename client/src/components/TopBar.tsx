@@ -369,11 +369,12 @@ export function TopBar() {
 
           <button
             onClick={() => setLocation("/")}
-            className="relative inline-block text-xl font-bold tracking-tighter text-[#4A6741]"
+            className="flex items-center text-[#4A6741] p-0" /* p-0으로 기본 패딩 제거 */
             aria-label="홈으로 이동"
           >
-            <span className="absolute -left-4 -top-2.5 text-[14px] font-bold">my</span>
-            <span>Amen</span>
+            <span className="text-[20px] font-black tracking-tighter leading-none">
+              마이아멘
+            </span>
           </button>
         </div>
 
