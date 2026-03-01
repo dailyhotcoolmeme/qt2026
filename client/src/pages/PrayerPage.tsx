@@ -684,7 +684,7 @@ export default function PrayerPage() {
         >
           <Heart size={32} strokeWidth={1.0} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            Amen
+            마음기도
           </span>
         </motion.button>
         <motion.button
