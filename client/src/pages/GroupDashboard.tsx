@@ -2650,7 +2650,7 @@ export default function GroupDashboard() {
   // 2. authReady 또는 loading이 끝나기 전에는 무조건 스피너만 렌더링
   if (!authReady || loading) {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
+      <div className="min-h-screen flex flex-col items-center justify-center text-center gap-3 w-full">
         <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
         <p className="text-zinc-400 text-sm font-medium text-center">
           모임 화면 불러오는 중...
@@ -3194,7 +3194,7 @@ export default function GroupDashboard() {
 
                         {faithBoardRows.length > 0 && (
                           <div className="flex items-center py-3 bg-[#f3f4f6] border-t border-zinc-200 mt-2 rounded-xl">
-                            <div className="shrink-0 w-16 sm:w-20 font-black text-zinc-900 text-base sm:text-lg text-center flex items-center justify-center leading-tight px-1">합계</div>
+                            <div className="shrink-0 w-16 sm:w-20 font-black text-[#4A6741] text-base sm:text-lg text-center flex items-center justify-center leading-tight px-1">합계</div>
                             {faithItemSlots.filter((slot) => slot.item).map((slot) => {
                               const sum = faithBoardRows.reduce((acc, row) => acc + (row.values[slot.item!.id] ?? 0), 0);
                               return (
