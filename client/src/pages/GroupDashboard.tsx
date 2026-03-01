@@ -10,6 +10,7 @@ import {
   LayoutGrid,
   LayoutList,
   Link2,
+  ChartBar,
   Lock,
   MessageSquare,
   Mic,
@@ -523,7 +524,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
           <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-xl text-zinc-900">{formType === "event" ? "모임일정 등록" : "불가능한 시간 등록"}</h3>
+              <h3 className="font-black text-xl text-zinc-800">{formType === "event" ? "모임 일정 등록" : "불가능한 일정 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
             </div>
 
@@ -2914,7 +2915,7 @@ export default function GroupDashboard() {
               <div className="w-full">
                 <div className="w-full select-none pb-0">
                   {/* 헤더 항목 */}
-                  <div className="flex items-center pt-1 pb-4 px-0 sm:px-2 border-b border-zinc-50">
+                  <div className="flex items-center pt-1 pb-4 px-0 sm:px-2">
                     <div className="shrink-0 w-16 sm:w-20" />
                     {faithItemSlots.map((slot) => (
                       <div key={`header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
@@ -2984,45 +2985,74 @@ export default function GroupDashboard() {
 
             {/* ── 관리자: 전체 멤버 현황 ── */}
             {isManager && (
-              <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-zinc-100/50">
-                <div className="px-5 pt-5 pb-4 border-b border-zinc-50">
-                  <p className="text-sm font-black text-zinc-900">주간 현황</p>
-                </div>
-                {faithBoardLoading ? (
-                  <div className="py-10 text-sm text-zinc-400 text-center">현황 불러오는 중...</div>
-                ) : faithBoardRows.length === 0 ? (
-                  <div className="py-10 text-sm text-zinc-400 text-center">조회된 기록이 없습니다.</div>
-                ) : (
-                  <div className="w-full text-sm pb-4">
-                    <div className="flex items-center pt-3 pb-3 px-4 sm:px-8 border-b border-zinc-50 bg-zinc-50/30">
-                      <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-400 text-[13px] text-center">멤버</div>
-                      {faithItemSlots.filter((slot) => slot.item).map((slot) => (
-                        <div key={slot.key} className="flex-1 flex justify-center font-bold text-zinc-400 text-[13px] text-center">
-                          {slot.label}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="space-y-0 px-4 sm:px-8">
-                      {faithBoardRows.map((row, idx) => (
-                        <div key={row.user_id} className={`flex items-center py-4 border-b border-zinc-50 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/20"}`}>
-                          <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-800 text-[13px] whitespace-nowrap text-center">{row.name}</div>
-                          {faithItemSlots.filter((slot) => slot.item).map((slot) => {
-                            const count = row.values[slot.item!.id] ?? 0;
-                            return (
-                              <div key={slot.key} className="flex-1 flex justify-center relative">
-                                {count > 0 ? (
-                                  <span className="font-black text-[#4A6741] text-[15px]">{count}</span>
-                                ) : (
-                                  <span className="text-zinc-300 font-bold text-[15px]">—</span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
+              <div className="space-y-4"> {/* 제목과 박스 사이 간격을 위해 감싸는 div 추가 */}
+
+                {/* 1. 주간 현황 제목 (아이콘 추가 버전) */}
+                <div className="px-1 pt-10">
+                  <div className="flex items-center gap-2 mb-1">
+                    {/* ChartBar 아이콘: 통계와 현황 느낌을 줍니다 */}
+                    <ChartBar className="text-[#4A6741]" size={20} strokeWidth={2.5} />
+
+                    <p className="text-lg lg:text-xl font-black text-[#4A6741] leading-none">
+                      주간 현황
+                    </p>
                   </div>
-                )}
+                </div>
+
+                {/* 실제 데이터 박스 */}
+                <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+                  {/* 기존에 제목이 있던 div(border-b)는 제거하거나 비워둡니다 */}
+
+                  {faithBoardLoading ? (
+                    <div className="py-10 text-sm text-zinc-400 text-center">현황 불러오는 중...</div>
+                  ) : faithBoardRows.length === 0 ? (
+                    <div className="py-10 text-sm text-zinc-400 text-center">조회된 기록이 없습니다.</div>
+                  ) : (
+                    <div className="w-full text-sm pb-4">
+
+                      {/* 2. 열 제목 (멤버, 성경, QT 등 헤더) */}
+                      <div className="flex items-center pt-6 pb-3 px-4 sm:px-8 bg-white">
+                        {/* '멤버' 글자 크기: text-[13px] -> text-sm sm:text-base 등으로 수정 */}
+                        <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-300 text-sm sm:text-base text-center">닉네임</div>
+
+                        {faithItemSlots.filter((slot) => slot.item).map((slot) => (
+                          /* '성경, QT...' 글자 크기: text-[13px] -> text-sm sm:text-base 등으로 수정 */
+                          <div key={slot.key} className="flex-1 flex justify-center font-bold text-[#4A6741] text-base base:text-lg text-center">
+                            {slot.label}
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="space-y-0 px-4 sm:px-8">
+                        {faithBoardRows.map((row, idx) => (
+                          <div key={row.user_id} className={`flex items-center py-3 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/20"}`}>
+
+                            {/* 3. 행 제목 (멤버 이름) */}
+                            {/* text-[13px] -> text-base sm:text-lg 등으로 수정 */}
+                            <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-700 text-base sm:text-lg whitespace-nowrap text-center">{row.name}</div>
+
+                            {faithItemSlots.filter((slot) => slot.item).map((slot) => {
+                              const count = row.values[slot.item!.id] ?? 0;
+                              return (
+                                <div key={slot.key} className="flex-1 flex justify-center relative">
+                                  {/* 4. 기록 숫자 크기 */}
+                                  {/* text-[15px] -> text-lg sm:text-xl 등으로 수정 */}
+                                  {count > 0 ? (
+                                    <span className="inline-flex w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] bg-[#4A6741] text-white shadow-sm font-black text-lg lg:text-xl flex items-center justify-center transition-all shrink-0">
+                                      {count}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] bg-zinc-50 border border-zinc-100/80 text-zinc-300 font-black text-base sm:text-lg flex items-center justify-center transition-all shrink-0">0</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 
@@ -3047,14 +3077,14 @@ export default function GroupDashboard() {
                     <div className="flex items-center justify-between mb-2 mx-4 border-b border-zinc-100 pb-3">
                       <div className="flex items-center gap-2">
                         {isNotice && <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[11px] font-black rounded-sm tracking-tight">공지</span>}
-                        {displayTitle && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">{displayTitle}</h3>}
-                        {!displayTitle && !isNotice && <h3 className="font-black text-zinc-900 text-[17px] leading-tight break-all">교제나눔</h3>}
+                        {displayTitle && <h3 className="font-bold text-zinc-900 text-base leading-tight break-all">{displayTitle}</h3>}
+                        {!displayTitle && !isNotice && <h3 className="font-bold text-zinc-900 text-base leading-tight break-all">교제나눔</h3>}
                       </div>
                       <div className="w-4" />
                     </div>
 
                     {post.content && (
-                      <div className="text-zinc-800 text-[15px] leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3 max-h-[400px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+                      <div className="text-zinc-800 text-sm leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3 max-h-[300px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
                         {post.content}
                       </div>
                     )}
@@ -3112,7 +3142,7 @@ export default function GroupDashboard() {
                 );
               })}
               {posts.length === 0 && (
-                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
+                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center justify-center item-center">
                   아직 게시글이 없습니다.
                 </div>
               )}
