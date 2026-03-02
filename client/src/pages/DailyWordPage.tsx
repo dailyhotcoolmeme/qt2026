@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, ImagePlus as ImageIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -6,6 +6,7 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { VerseCardMakerModal } from "../components/VerseCardMakerModal";
+import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 
 function cleanContent(text: string) {
   return String(text || "")
@@ -21,6 +22,67 @@ function formatLocalDate(date: Date) {
   return `${y}-${m}-${d}`;
 }
 
+function toLocalDateKey(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatLocalDate(parsed);
+}
+
+const VERSE_CARD_DB = "myamen_verse_cards";
+const VERSE_CARD_STORE = "cards";
+
+type SavedCardMeta = {
+  createdAt?: string;
+};
+
+function verseCardStorageKey(userId?: string | null) {
+  return `verse-card-records:${userId || "guest"}`;
+}
+
+function openVerseCardDB(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(VERSE_CARD_DB, 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(VERSE_CARD_STORE)) {
+        db.createObjectStore(VERSE_CARD_STORE);
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function loadSavedCardDateKeys(userId?: string | null): Promise<string[]> {
+  const key = verseCardStorageKey(userId);
+  const db = await openVerseCardDB();
+  let records: SavedCardMeta[] = [];
+
+  if (db) {
+    records = await new Promise<SavedCardMeta[]>((resolve) => {
+      const tx = db.transaction(VERSE_CARD_STORE, "readonly");
+      const store = tx.objectStore(VERSE_CARD_STORE);
+      const req = store.get(key);
+      req.onsuccess = () => resolve((req.result as SavedCardMeta[]) ?? []);
+      req.onerror = () => resolve([]);
+    });
+    db.close();
+  } else {
+    try {
+      const raw = localStorage.getItem(key);
+      records = raw ? (JSON.parse(raw) as SavedCardMeta[]) : [];
+    } catch {
+      records = [];
+    }
+  }
+
+  return records
+    .map((record) => toLocalDateKey(record.createdAt))
+    .filter((dateKey): dateKey is string => Boolean(dateKey));
+}
+
 export default function DailyWordPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bibleData, setBibleData] = useState<any>(null);
@@ -29,9 +91,10 @@ export default function DailyWordPage() {
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showCardMaker, setShowCardMaker] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
 
   const today = useMemo(() => new Date(), []);
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const { fontSize = 16 } = useDisplaySettings();
   const { user } = useAuth();
 
@@ -66,8 +129,7 @@ export default function DailyWordPage() {
     fetchVerse();
   }, [currentDate]);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedDate = new Date(e.target.value);
+  const handleDateChange = (selectedDate: Date) => {
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
         alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
@@ -173,6 +235,37 @@ export default function DailyWordPage() {
     ? `${bibleData.bible_name} ${bibleData.chapter}:${bibleData.verse}`
     : "";
 
+  useEffect(() => {
+    let alive = true;
+
+    const loadActivityDateKeys = async () => {
+      const next = new Set<string>();
+
+      if (user?.id) {
+        const { data: bookmarkRows } = await supabase
+          .from("verse_bookmarks")
+          .select("created_at")
+          .eq("user_id", user.id)
+          .eq("source", "daily_word");
+
+        (bookmarkRows || []).forEach((row: any) => {
+          const dateKey = toLocalDateKey(row.created_at);
+          if (dateKey) next.add(dateKey);
+        });
+      }
+
+      const savedCardDateKeys = await loadSavedCardDateKeys(user?.id ?? null);
+      savedCardDateKeys.forEach((dateKey) => next.add(dateKey));
+
+      if (alive) setActivityDateKeys(next);
+    };
+
+    void loadActivityDateKeys();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, showCardMaker]);
+
   return (
     <div className="flex min-h-full w-full flex-col items-center overflow-x-hidden overflow-y-auto bg-[#F8F8F8] px-4 pb-4 pt-24">
       <header className="relative mb-3 flex w-full flex-col items-center text-center">
@@ -182,7 +275,7 @@ export default function DailyWordPage() {
         <div className="flex w-full items-center justify-center">
           <div className="flex flex-1 justify-end pr-3">
             <button
-              onClick={() => dateInputRef.current?.showPicker()}
+              onClick={() => setShowCalendarModal(true)}
               className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
@@ -198,13 +291,6 @@ export default function DailyWordPage() {
             <div className="h-[28px] w-[28px]" aria-hidden="true" />
           </div>
 
-          <input
-            ref={dateInputRef}
-            type="date"
-            onChange={handleDateChange}
-            max={formatLocalDate(new Date())}
-            className="pointer-events-none absolute opacity-0"
-          />
         </div>
       </header>
 
@@ -320,6 +406,16 @@ export default function DailyWordPage() {
         userId={user?.id ?? null}
       />
 
+      <ActivityCalendarModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        selectedDate={currentDate}
+        onSelectDate={handleDateChange}
+        highlightedDateKeys={activityDateKeys}
+        maxDate={today}
+        title="말씀 날짜 선택"
+      />
+
       <AnimatePresence>
         {showCopyToast && (
           <motion.div
@@ -339,3 +435,11 @@ export default function DailyWordPage() {
     </div>
   );
 }
+
+
+
+
+
+
+
+

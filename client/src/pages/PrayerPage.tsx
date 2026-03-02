@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
@@ -56,11 +57,11 @@ export default function PrayerPage() {
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [prayerSubTab, setPrayerSubTab] = useState<"topics" | "archive">("topics");
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // ref
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const todayRef = useRef(new Date());
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
@@ -654,11 +655,7 @@ export default function PrayerPage() {
   const selectedDateKey = formatLocalDate(currentDate);
   const todayDateKey = formatLocalDate(todayRef.current);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (!value) return;
-    const [year, month, day] = value.split('-').map(Number);
-    const selected = new Date(year, month - 1, day);
+  const handleDateChange = (selected: Date) => {
     if (Number.isNaN(selected.getTime())) return;
     if (formatLocalDate(selected) > todayDateKey) {
       alert('오늘 이후의 기록은 볼 수 없습니다.');
@@ -678,6 +675,12 @@ export default function PrayerPage() {
     if (record.date) return record.date;
     return toLocalDateKey(record.created_at) || "";
   };
+
+  const activityDateKeys = new Set(
+    prayerRecords
+      .map((record) => getRecordDateKey(record))
+      .filter((dateKey): dateKey is string => Boolean(dateKey))
+  );
 
   const selectedDateRecords = prayerRecords.filter((record) => getRecordDateKey(record) === selectedDateKey);
 
@@ -715,7 +718,7 @@ export default function PrayerPage() {
   {/* 1. 달력 버튼 컨테이너 (날짜 왼쪽으로 밀어내기) */}
   <div className="absolute right-full pr-3"> {/* <- 여기서 pr-3이 간격을 결정합니다! */}
     <button
-      onClick={() => dateInputRef.current?.showPicker()}
+      onClick={() => setShowCalendarModal(true)}
       className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
     >
       <CalendarIcon size={16} strokeWidth={1.5} />
@@ -746,14 +749,6 @@ export default function PrayerPage() {
       </button>
     </div>
 
-    <input
-      ref={dateInputRef}
-      type="date"
-      onChange={handleDateChange}
-      value={selectedDateKey}
-      max={todayDateKey}
-      className="pointer-events-none absolute opacity-0"
-    />
   </div>
 </header>
       {/* 중앙: Amen + 기도하기 버튼 */}
@@ -1413,13 +1408,22 @@ export default function PrayerPage() {
         open={showLoginModal}
         onOpenChange={setShowLoginModal}
       />
+      <ActivityCalendarModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        selectedDate={currentDate}
+        onSelectDate={handleDateChange}
+        highlightedDateKeys={activityDateKeys}
+        maxDate={todayRef.current}
+        title="기도 날짜 선택"
+      />
       {/* 모임에 기록 연결 모달 */}
       <ActivityGroupLinkModal
         open={showGroupLinkModal}
         onOpenChange={setShowGroupLinkModal}
         user={user ? { id: user.id } : null}
         activityType="prayer"
-        activityDate={new Date()}
+        activityDate={currentDate}
       />
 
     </div>

@@ -22,8 +22,23 @@ import {
   parseVerses,
 } from "../lib/bibleAudio";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 
 import { useLocation } from "wouter";
+
+function formatLocalDate(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toLocalDateKey(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatLocalDate(parsed);
+}
 
 export default function ReadingPage() {
   const [location] = useLocation();
@@ -41,8 +56,9 @@ export default function ReadingPage() {
     }
   }, [location]);
   const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const { user, isLoading: isAuthLoading } = useAuth();
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [myGroups, setMyGroups] = useState<{ id: string; name: string }[]>([]);
   const [showGroupLinkPrompt, setShowGroupLinkPrompt] = useState(false);
@@ -51,8 +67,7 @@ export default function ReadingPage() {
   const [pendingGroupLinkLabel, setPendingGroupLinkLabel] = useState("");
   const [linkingGroupId, setLinkingGroupId] = useState<string | null>(null);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedDate = new Date(e.target.value);
+  const handleDateChange = (selectedDate: Date) => {
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
         alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
@@ -141,6 +156,44 @@ export default function ReadingPage() {
   const pressStartedRef = useRef(false); // handleStart 실행 여부 확인용
 
   const { fontSize = 16 } = useDisplaySettings();
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadActivityDateKeys = async () => {
+      if (!user?.id) {
+        if (alive) setActivityDateKeys(new Set());
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_reading_records")
+        .select("date, created_at")
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("Error loading reading activity dates:", error);
+        return;
+      }
+
+      const next = new Set<string>();
+      (data || []).forEach((row: any) => {
+        if (row.date) {
+          next.add(row.date);
+          return;
+        }
+        const dateKey = toLocalDateKey(row.created_at);
+        if (dateKey) next.add(dateKey);
+      });
+
+      if (alive) setActivityDateKeys(next);
+    };
+
+    void loadActivityDateKeys();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, currentDate, isReadCompleted]);
 
   // currentPageIdx 상태와 ref 동기화
   useEffect(() => {
@@ -2106,7 +2159,7 @@ export default function ReadingPage() {
         <div className="flex items-center justify-center w-full">
           <div className="flex-1 flex justify-end pr-3">
             <button
-              onClick={() => dateInputRef.current?.showPicker()}
+              onClick={() => setShowCalendarModal(true)}
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
@@ -2137,7 +2190,6 @@ export default function ReadingPage() {
               <div className="w-[28px] h-[28px]" aria-hidden="true" />
             )}
           </div>
-          <input type="date" ref={dateInputRef} onChange={handleDateChange} max={new Date().toISOString().split("T")[0]} className="absolute opacity-0 pointer-events-none" />
         </div>
       </header>
 
@@ -2599,6 +2651,16 @@ export default function ReadingPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ActivityCalendarModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        selectedDate={currentDate}
+        onSelectDate={handleDateChange}
+        highlightedDateKeys={activityDateKeys}
+        maxDate={today}
+        title="통독 날짜 선택"
+      />
 
       <ActivityGroupLinkModal
         open={showGroupLinkModal}

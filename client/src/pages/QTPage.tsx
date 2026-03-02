@@ -11,6 +11,7 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
+import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import {
   getCachedAudioObjectUrl,
   parseVerseRange,
@@ -23,6 +24,20 @@ import { uploadFileToR2 } from "../utils/upload";
 
 
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+
+function formatLocalDate(date: Date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function toLocalDateKey(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatLocalDate(parsed);
+}
 
 export default function QTPage() {
   const [location, setLocation] = useLocation();
@@ -40,8 +55,9 @@ export default function QTPage() {
     }
   }, [location]);
   const today = new Date();
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
 
   // 사용자 관련 상태
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -106,8 +122,46 @@ export default function QTPage() {
     loadMeditationRecords();
   }, [user?.id, currentDate]);
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedDate = new Date(e.target.value);
+  useEffect(() => {
+    let alive = true;
+
+    const loadActivityDateKeys = async () => {
+      if (!user?.id) {
+        if (alive) setActivityDateKeys(new Set());
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_meditation_records")
+        .select("date, created_at")
+        .eq("user_id", user.id)
+        .eq("meditation_type", "daily_qt");
+
+      if (error) {
+        console.error("Error loading meditation activity dates:", error);
+        return;
+      }
+
+      const next = new Set<string>();
+      (data || []).forEach((row: any) => {
+        if (row.date) {
+          next.add(row.date);
+          return;
+        }
+        const dateKey = toLocalDateKey(row.created_at);
+        if (dateKey) next.add(dateKey);
+      });
+
+      if (alive) setActivityDateKeys(next);
+    };
+
+    void loadActivityDateKeys();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, meditationRecords.length, isMeditationCompleted]);
+
+  const handleDateChange = (selectedDate: Date) => {
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
         alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
@@ -988,7 +1042,7 @@ export default function QTPage() {
           {/* 1. 왼쪽 공간 확보용 (달력 버튼 포함) */}
           <div className="flex-1 flex justify-end pr-3">
             <button
-              onClick={() => dateInputRef.current?.showPicker()}
+              onClick={() => setShowCalendarModal(true)}
               className="p-1.5 rounded-full bg-white shadow-sm border border-zinc-100 text-[#4A6741] active:scale-95 transition-transform"
             >
               <CalendarIcon size={16} strokeWidth={1.5} />
@@ -1005,14 +1059,6 @@ export default function QTPage() {
       */}
             <div className="w-[28px] h-[28px]" aria-hidden="true" />
           </div>
-          {/* 숨겨진 날짜 입력 input */}
-          <input
-            type="date"
-            ref={dateInputRef}
-            onChange={handleDateChange}
-            max={new Date().toISOString().split("T")[0]}
-            className="absolute opacity-0 pointer-events-none"
-          />
         </div>
       </header>
 
@@ -1225,12 +1271,14 @@ export default function QTPage() {
               묵상 기록
             </h3>
             <div className="flex-1" />
-            <button
-              onClick={() => setShowGroupLinkModal(true)}
-              className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors mr-2 flex items-center gap-1.5"
-            >
-              <Share2 size={12} /> 모임에 연결
-            </button>
+            {currentDate.toDateString() === today.toDateString() && (
+              <button
+                onClick={() => setShowGroupLinkModal(true)}
+                className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors mr-2 flex items-center gap-1.5"
+              >
+                <Share2 size={12} /> 모임에 연결
+              </button>
+            )}
             <button
               onClick={() => setShowWriteSheet(true)}
               className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
@@ -1656,6 +1704,16 @@ export default function QTPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ActivityCalendarModal
+        open={showCalendarModal}
+        onOpenChange={setShowCalendarModal}
+        selectedDate={currentDate}
+        onSelectDate={handleDateChange}
+        highlightedDateKeys={activityDateKeys}
+        maxDate={today}
+        title="QT 날짜 선택"
+      />
 
       {/* 모임에 기록 연결 모달 */}
       <ActivityGroupLinkModal
