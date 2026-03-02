@@ -1197,7 +1197,7 @@ export default function QTPage() {
             className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
               ${isMeditationCompleted
                 ? 'bg-[#4A6741] text-white border-none'
-                : 'bg-white text-[#4A6741] border border-green-50'
+                : 'bg-white text-gray-400 border border-green-50'
               }
               ${currentDate.toDateString() !== today.toDateString()
                 ? 'cursor-not-allowed opacity-60'
@@ -1209,7 +1209,7 @@ export default function QTPage() {
               strokeWidth={isMeditationCompleted ? 0 : 2}
             />
             <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-              {isMeditationCompleted ? '묵상 완료' : '묵상 완료'}
+              {isMeditationCompleted ? '묵상완료' : '묵상완료'}
             </span>
           </motion.button>
         </div>

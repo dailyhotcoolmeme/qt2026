@@ -689,7 +689,7 @@ export default function PrayerPage() {
 
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-4 pt-24 pb-4">
-      <header className="relative mb-3 flex w-full flex-col items-center px-6 text-center">
+      <header className="relative mb-3 flex w-full flex-col items-center px-3 text-center">
   {/* 1. 연도 표시 (중앙 기준점) */}
   <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
     {currentDate.getFullYear()}
@@ -703,7 +703,7 @@ export default function PrayerPage() {
         className="rounded-full p-2 hover:bg-zinc-200 rounded-full transition-colors"
         title="이전 날짜"
       >
-        <ChevronLeft size={20} strokeWidth={1.8} />
+        <ChevronLeft size={24} strokeWidth={1.8} />
       </button>
     </div>
 
@@ -740,7 +740,7 @@ export default function PrayerPage() {
         }`}
         title="다음 날짜"
       >
-        <ChevronRight size={20} strokeWidth={1.8} />
+        <ChevronRight size={24} strokeWidth={1.8} />
       </button>
     </div>
 
@@ -783,7 +783,7 @@ export default function PrayerPage() {
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
-      <div className="px-6">
+      <div className="px-3">
         <div className="mb-4 bg-white rounded-2xl border border-zinc-100 p-1 flex">
           <button
             onClick={() => setPrayerSubTab('topics')}
