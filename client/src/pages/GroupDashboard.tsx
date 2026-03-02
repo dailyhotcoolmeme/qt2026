@@ -2561,7 +2561,7 @@ export default function GroupDashboard() {
 
   const buildInviteUrl = () => {
     if (!group?.id) return "";
-    return `${window.location.origin}/#/register?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
+    return `${window.location.origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
   };
 
   const buildInviteMessage = () => {

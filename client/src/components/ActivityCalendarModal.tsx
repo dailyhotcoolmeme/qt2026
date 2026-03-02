@@ -61,57 +61,57 @@ export function ActivityCalendarModal({
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-[220] flex items-center justify-center bg-black/40 p-5"
       onClick={() => onOpenChange(false)}
       role="dialog"
       aria-modal="true"
       aria-label={title}
     >
       <div
-        className="w-full max-w-sm rounded-3xl bg-white p-4 shadow-2xl"
+        className="w-full max-w-md min-h-[560px] rounded-3xl bg-white p-6 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-zinc-700">{title}</h3>
+        <div className="mb-5 flex items-center justify-between">
+          <h3 className="text-base font-bold text-zinc-700">{title}</h3>
           <button
             onClick={() => onOpenChange(false)}
-            className="rounded-full p-1 text-zinc-500 transition-colors hover:bg-zinc-100"
+            className="rounded-full p-2 text-zinc-500 transition-colors hover:bg-zinc-100"
             aria-label="달력 닫기"
           >
-            <X size={16} />
+            <X size={22} />
           </button>
         </div>
 
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-5 flex items-center justify-between">
           <button
             onClick={() => moveMonth(-1)}
-            className="rounded-full p-1.5 text-zinc-600 transition-colors hover:bg-zinc-100"
+            className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100"
             aria-label="이전 달"
           >
-            <ChevronLeft size={18} />
+            <ChevronLeft size={22} />
           </button>
-          <p className="text-base font-black text-zinc-900">
+          <p className="text-xl font-black text-zinc-900">
             {viewYear}년 {viewMonth + 1}월
           </p>
           <button
             onClick={() => moveMonth(1)}
             disabled={!canGoNextMonth}
-            className={`rounded-full p-1.5 transition-colors ${
+            className={`rounded-full p-2 transition-colors ${
               canGoNextMonth ? "text-zinc-600 hover:bg-zinc-100" : "cursor-not-allowed text-zinc-300"
             }`}
             aria-label="다음 달"
           >
-            <ChevronRight size={18} />
+            <ChevronRight size={22} />
           </button>
         </div>
 
-        <div className="grid grid-cols-7 gap-y-2 text-center text-xs font-semibold text-zinc-400">
+        <div className="grid grid-cols-7 gap-y-3 text-center text-sm font-semibold text-zinc-400">
           {WEEKDAY_LABELS.map((weekday) => (
             <div key={weekday}>{weekday}</div>
           ))}
         </div>
 
-        <div className="mt-2 grid grid-cols-7 gap-y-1.5">
+        <div className="mt-3 grid grid-cols-7 gap-y-2">
           {Array.from({ length: 42 }).map((_, i) => {
             const date = new Date(viewYear, viewMonth, i - firstWeekday + 1);
             const isCurrentMonth = date.getMonth() === viewMonth;
@@ -130,7 +130,7 @@ export function ActivityCalendarModal({
                     onOpenChange(false);
                   }}
                   disabled={isFuture}
-                  className={`relative h-9 w-9 rounded-full text-sm font-semibold transition-colors ${
+                  className={`relative h-11 w-11 rounded-full text-base font-semibold transition-colors ${
                     isSelected
                       ? "bg-[#4A6741] text-white"
                       : isCurrentMonth
@@ -143,7 +143,7 @@ export function ActivityCalendarModal({
                   {date.getDate()}
                   {hasActivity && (
                     <span
-                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full ${
+                      className={`absolute bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full ${
                         isSelected ? "bg-white" : "bg-[#4A6741]"
                       }`}
                     />

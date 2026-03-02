@@ -106,6 +106,14 @@ export default function App() {
       }
     };
 
+    const redirectToRegisterForInvite = (groupId: string) => {
+      const targetPath = `/register?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(groupId)}`;
+      const targetHash = `#${targetPath}`;
+      if (!window.location.hash.startsWith(targetHash)) {
+        window.location.href = `${window.location.origin}/#${targetPath}`;
+      }
+    };
+
     const joinPendingInviteGroup = async (sessionUserId?: string | null) => {
       if (inviteJoinInFlight) return;
 
@@ -128,7 +136,10 @@ export default function App() {
         const { data: sessionData } = await supabase.auth.getSession();
         userId = sessionData?.session?.user?.id ?? null;
       }
-      if (!userId) return;
+      if (!userId) {
+        redirectToRegisterForInvite(pendingGroupId);
+        return;
+      }
 
       inviteJoinInFlight = true;
       try {
@@ -286,7 +297,7 @@ export default function App() {
     void joinPendingInviteGroup();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
         // OAuth 콜백 URL 정리: ?code= 가 있으면 returnTo 우선 처리
         if (window.location.search.includes('code=')) {
           const params = new URLSearchParams(window.location.search);
