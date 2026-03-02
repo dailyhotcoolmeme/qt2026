@@ -74,6 +74,7 @@ async function fetchUser(): Promise<User | null> {
   const isKakao = data.user.app_metadata?.provider === 'kakao';
   if (isKakao) {
     const updates: { username?: string; avatar_url?: string } = {};
+    const isProfileMissing = !profile;
 
     // 1. username prefix: user_ → myamen_
     const rawUsername = profile?.username ?? null;
@@ -81,8 +82,9 @@ async function fetchUser(): Promise<User | null> {
       updates.username = `myamen_${rawUsername.slice(5)}`;
     }
 
-    // 2. 프로필 사진 동기화 (아직 없을 때만)
-    if (!profile?.avatar_url) {
+    // 2. 프로필 사진 동기화 (프로필 레코드가 없을 때만)
+    // avatar_url이 null인 경우는 사용자가 의도적으로 초기화한 상태일 수 있으므로 덮어쓰지 않음
+    if (isProfileMissing) {
       const meta = data.user.user_metadata as Record<string, unknown>;
       const kakaoAvatar =
         (typeof meta?.avatar_url === 'string' ? meta.avatar_url : null)

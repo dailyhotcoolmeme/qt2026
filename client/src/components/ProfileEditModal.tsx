@@ -19,43 +19,117 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isResettingAvatar, setIsResettingAvatar] = useState(false);
+
+  const getAvatarPathFromUrl = (avatarUrl: string | null | undefined): string | null => {
+    if (!avatarUrl || !avatarUrl.includes("/storage/v1/object/public/avatars/")) return null;
+    try {
+      const url = new URL(avatarUrl);
+      const marker = "/storage/v1/object/public/avatars/";
+      const idx = url.pathname.indexOf(marker);
+      if (idx === -1) return null;
+      const rawPath = url.pathname.slice(idx + marker.length);
+      return decodeURIComponent(rawPath);
+    } catch {
+      return null;
+    }
+  };
+
+  const removeAvatarFiles = async (avatarUrl?: string) => {
+    if (!user?.id) return;
+
+    const targetPaths = new Set<string>();
+    const parsedPath = getAvatarPathFromUrl(avatarUrl);
+    if (parsedPath) targetPaths.add(parsedPath);
+
+    const { data: listed, error: listError } = await supabase.storage
+      .from("avatars")
+      .list("", { search: user.id, limit: 100 });
+
+    if (!listError && listed?.length) {
+      for (const item of listed) {
+        if (item.name.startsWith(`${user.id}-`)) {
+          targetPaths.add(item.name);
+        }
+      }
+    }
+
+    if (targetPaths.size === 0) return;
+
+    const { error: removeError } = await supabase.storage.from("avatars").remove(Array.from(targetPaths));
+    if (removeError) {
+      throw removeError;
+    }
+  };
+
+  const compressImageFile = async (file: File): Promise<File> => {
+    const maxDimension = 1024;
+    const targetMaxBytes = 350 * 1024;
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("이미지 읽기 실패"));
+      reader.readAsDataURL(file);
+    });
+
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("이미지 로드 실패"));
+      img.src = dataUrl;
+    });
+
+    let width = image.width;
+    let height = image.height;
+    if (width > maxDimension || height > maxDimension) {
+      const ratio = Math.min(maxDimension / width, maxDimension / height);
+      width = Math.max(1, Math.round(width * ratio));
+      height = Math.max(1, Math.round(height * ratio));
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(image, 0, 0, width, height);
+
+    const toBlob = (quality: number) =>
+      new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+      });
+
+    let quality = 0.85;
+    let blob = await toBlob(quality);
+    while (blob && blob.size > targetMaxBytes && quality > 0.45) {
+      quality -= 0.1;
+      blob = await toBlob(quality);
+    }
+
+    if (!blob) return file;
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" });
+  };
+
   // 아바타 초기화 핸들러
   const handleAvatarReset = async () => {
     if (!user?.id) return;
     setIsResettingAvatar(true);
     try {
-      // 기존 avatar_url에서 파일 경로 추출
-      const avatarUrl = formData.avatar_url;
-      let filePath = null;
-      if (avatarUrl && avatarUrl.includes('/storage/v1/object/public/avatars/')) {
-        try {
-          const url = new URL(avatarUrl);
-          const path = url.pathname;
-          const idx = path.indexOf('/avatars/');
-          if (idx !== -1) {
-            filePath = path.substring(idx + '/avatars/'.length);
-          }
-        } catch (e) {
-          // ignore URL parse error
-        }
-      }
       // DB에서 avatar_url NULL 처리
       const { error } = await supabase
         .from("profiles")
         .update({ avatar_url: null })
         .eq("id", user.id);
       if (error) throw error;
-      // 스토리지에서 파일 삭제
-      if (filePath) {
-        await supabase.storage.from("avatars").remove([filePath]);
-      }
+
+      await removeAvatarFiles(formData.avatar_url || undefined);
+
       setAvatarPreview(null);
       setAvatarFile(null);
       setFormData((prev) => ({ ...prev, avatar_url: "" }));
-      // user.avatar_url도 강제로 null 처리 (카카오 등 외부 URL fallback 방지)
-      if (user) user.avatar_url = null;
       alert("프로필 사진이 초기화되었습니다.");
     } catch (e) {
+      console.error("avatar reset failed", e);
       alert("프로필 사진 초기화 중 오류가 발생했습니다.");
     } finally {
       setIsResettingAvatar(false);
@@ -114,21 +188,29 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     }
   };
 
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarFile(file);
+
+    const optimized = await compressImageFile(file);
+    setAvatarFile(optimized);
     const reader = new FileReader();
     reader.onloadend = () => setAvatarPreview(reader.result as string);
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(optimized);
   };
 
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !user?.id) return null;
-    const ext = avatarFile.name.split(".").pop() || "jpg";
+    await removeAvatarFiles(formData.avatar_url || undefined);
+
+    const ext = avatarFile.type === "image/png" ? "png" : "jpg";
     const fileName = `${user.id}-${Date.now()}.${ext}`;
 
-    const { error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, { upsert: true });
+    const { error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, {
+      upsert: true,
+      contentType: avatarFile.type || "image/jpeg",
+      cacheControl: "3600",
+    });
     if (error) return null;
 
     const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
