@@ -2595,7 +2595,7 @@ export default function GroupDashboard() {
     try {
       if (navigator.share) {
         await navigator.share({
-          title: `myAmen 모임 초대 - ${group.name}`,
+          title: `[마이아멘(myAmen) 모임 초대] 모임명 : ${group.name}`,
           text,
           url: inviteUrl,
         });
