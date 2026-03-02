@@ -1,11 +1,25 @@
 ﻿import React, { useState, useEffect, useRef } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+
+function formatLocalDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function toLocalDateKey(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return formatLocalDate(parsed);
+}
 
 export default function PrayerPage() {
   // 최상단에 상태 변수, ref, useEffect 선언
@@ -43,8 +57,11 @@ export default function PrayerPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
   const [prayerSubTab, setPrayerSubTab] = useState<"topics" | "archive">("topics");
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // ref
+  const dateInputRef = useRef<HTMLInputElement>(null);
+  const todayRef = useRef(new Date());
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
   const recordingTimerRef = useRef<any>(null);
@@ -135,7 +152,7 @@ export default function PrayerPage() {
 
     const { error } = await supabase
       .from('prayer_topics')
-      .delete()
+      .update({ is_public: null })
       .eq('id', deleteTopicId);
 
     if (!error) {
@@ -634,19 +651,109 @@ export default function PrayerPage() {
     return topic.prayer_count || 0;
   };
 
-  const groupedPrayerRecords = prayerRecords.reduce((groups, record) => {
-    const dateKey = record.date || (record.created_at ? new Date(record.created_at).toISOString().split('T')[0] : 'unknown');
-    const lastGroup = groups[groups.length - 1];
-    if (!lastGroup || lastGroup.dateKey !== dateKey) {
-      groups.push({ dateKey, records: [record] });
-    } else {
-      lastGroup.records.push(record);
+  const selectedDateKey = formatLocalDate(currentDate);
+  const todayDateKey = formatLocalDate(todayRef.current);
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (!value) return;
+    const [year, month, day] = value.split('-').map(Number);
+    const selected = new Date(year, month - 1, day);
+    if (Number.isNaN(selected.getTime())) return;
+    if (formatLocalDate(selected) > todayDateKey) {
+      alert('오늘 이후의 기록은 볼 수 없습니다.');
+      return;
     }
-    return groups;
-  }, [] as { dateKey: string; records: any[] }[]);
+    setCurrentDate(selected);
+  };
+
+  const moveDate = (offset: number) => {
+    const nextDate = new Date(currentDate);
+    nextDate.setDate(nextDate.getDate() + offset);
+    if (formatLocalDate(nextDate) > todayDateKey) return;
+    setCurrentDate(nextDate);
+  };
+
+  const getRecordDateKey = (record: any) => {
+    if (record.date) return record.date;
+    return toLocalDateKey(record.created_at) || "";
+  };
+
+  const selectedDateRecords = prayerRecords.filter((record) => getRecordDateKey(record) === selectedDateKey);
+
+  const visibleMyTopics = myTopics.filter((topic) => {
+    const createdDateKey = toLocalDateKey(topic.created_at) || selectedDateKey;
+    const deletedDateKey = topic.is_public === null ? toLocalDateKey(topic.updated_at) : null;
+    return createdDateKey <= selectedDateKey && (!deletedDateKey || selectedDateKey < deletedDateKey);
+  });
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-2">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-4 pt-24 pb-4">
+      <header className="relative mb-3 flex w-full flex-col items-center px-6 text-center">
+  {/* 1. 연도 표시 (중앙 기준점) */}
+  <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
+    {currentDate.getFullYear()}
+  </p>
+
+  <div className="relative flex w-full items-center justify-center">
+    {/* 2. 왼쪽 이전 버튼 (절대 위치로 왼쪽 끝 고정) */}
+    <div className="absolute left-0">
+      <button
+        onClick={() => moveDate(-1)}
+        className="rounded-full p-2 hover:bg-zinc-200 rounded-full transition-colors"
+        title="이전 날짜"
+      >
+        <ChevronLeft size={20} strokeWidth={1.8} />
+      </button>
+    </div>
+
+    {/* 중앙 영역: 날짜 텍스트를 기준으로 정렬 */}
+<div className="relative flex items-center justify-center">
+  
+  {/* 1. 달력 버튼 컨테이너 (날짜 왼쪽으로 밀어내기) */}
+  <div className="absolute right-full pr-3"> {/* <- 여기서 pr-3이 간격을 결정합니다! */}
+    <button
+      onClick={() => dateInputRef.current?.showPicker()}
+      className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
+    >
+      <CalendarIcon size={16} strokeWidth={1.5} />
+    </button>
+  </div>
+  
+  {/* 2. 날짜 텍스트 (연도와 수직 정렬되는 주인공) */}
+  <h2 
+    className="font-black tracking-tighter text-zinc-900 whitespace-nowrap" 
+    style={{ fontSize: `${fontSize * 1.25}px` }}
+  >
+    {currentDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+  </h2>
+
+</div>
+
+    {/* 4. 오른쪽 다음 버튼 (절대 위치로 오른쪽 끝 고정) */}
+    <div className="absolute right-0">
+      <button
+        onClick={() => moveDate(1)}
+        disabled={selectedDateKey >= todayDateKey}
+        className={`rounded-full p-2 hover:bg-zinc-200 rounded-full transition-colors ${
+          selectedDateKey >= todayDateKey ? 'opacity-40 cursor-not-allowed' : ''
+        }`}
+        title="다음 날짜"
+      >
+        <ChevronRight size={20} strokeWidth={1.8} />
+      </button>
+    </div>
+
+    <input
+      ref={dateInputRef}
+      type="date"
+      onChange={handleDateChange}
+      value={selectedDateKey}
+      max={todayDateKey}
+      className="pointer-events-none absolute opacity-0"
+    />
+  </div>
+</header>
       {/* 중앙: Amen + 기도하기 버튼 */}
       <div className="flex items-center justify-center gap-10 py-16 mt-1 mb-2">
         <motion.button
@@ -714,7 +821,7 @@ export default function PrayerPage() {
             </div>
 
             <div className="space-y-1 max-w-md bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
-              {myTopics.length === 0 && !showAddInput && (
+              {visibleMyTopics.length === 0 && !showAddInput && (
                 <div className="px-3 py-6 text-center text-sm text-zinc-400">
                   등록된 기도 제목이 없습니다.
                   <br />
@@ -722,7 +829,7 @@ export default function PrayerPage() {
                 </div>
               )}
 
-              {myTopics.map((topic) => (
+              {visibleMyTopics.map((topic) => (
                 <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2">
                   <div className="flex-shrink-0 flex items-center h-6">
                     <Check size={16} className="text-[#4A6741]" />
@@ -801,13 +908,12 @@ export default function PrayerPage() {
               </button>
             </div>
 
-            {prayerRecords.length === 0 ? (
+            {selectedDateRecords.length === 0 ? (
               <div className="bg-white rounded-2xl border border-zinc-100 p-6 text-center text-sm text-zinc-400">저장된 기도 기록이 없습니다.</div>
             ) : (
               <div className="space-y-3">
-                {groupedPrayerRecords.map((group) => (
-                  <div key={group.dateKey} className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                    {group.records.map((record, index) => {
+                <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                  {selectedDateRecords.map((record, index) => {
                       const isAmen = !record.audio_url || record.audio_url === 'amen';
                       const formattedDate = new Date(record.created_at).toLocaleString('ko-KR', {
                         month: 'short', day: 'numeric',
@@ -895,12 +1001,11 @@ export default function PrayerPage() {
                               </div>
                             </div>
                           )}
-                          {index !== group.records.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
+                          {index !== selectedDateRecords.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
                         </React.Fragment>
                       );
                     })}
-                  </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
