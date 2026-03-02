@@ -27,16 +27,16 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       // 기존 avatar_url에서 파일 경로 추출
       const avatarUrl = formData.avatar_url;
       let filePath = null;
-      if (avatarUrl) {
-        // Supabase public URL 예시: https://<project>.supabase.co/storage/v1/object/public/avatars/<filePath>
-        // 실제 예시: https://zjnxvdhjbzqrlbrzrxit.supabase.co/storage/v1/object/public/avatars/2c0f4361-abbb-4526-a18c-b6c44d52059f-1772424100237.png
-        // filePath는 avatars/ 뒤의 전체 경로
-        const url = new URL(avatarUrl);
-        const path = url.pathname;
-        // /storage/v1/object/public/avatars/<filePath>
-        const idx = path.indexOf('/avatars/');
-        if (idx !== -1) {
-          filePath = path.substring(idx + '/avatars/'.length);
+      if (avatarUrl && avatarUrl.includes('/storage/v1/object/public/avatars/')) {
+        try {
+          const url = new URL(avatarUrl);
+          const path = url.pathname;
+          const idx = path.indexOf('/avatars/');
+          if (idx !== -1) {
+            filePath = path.substring(idx + '/avatars/'.length);
+          }
+        } catch (e) {
+          // ignore URL parse error
         }
       }
       // DB에서 avatar_url NULL 처리
@@ -52,6 +52,8 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       setAvatarPreview(null);
       setAvatarFile(null);
       setFormData((prev) => ({ ...prev, avatar_url: "" }));
+      // user.avatar_url도 강제로 null 처리 (카카오 등 외부 URL fallback 방지)
+      if (user) user.avatar_url = null;
       alert("프로필 사진이 초기화되었습니다.");
     } catch (e) {
       alert("프로필 사진 초기화 중 오류가 발생했습니다.");
