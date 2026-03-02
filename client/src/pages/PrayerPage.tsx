@@ -850,7 +850,7 @@ export default function PrayerPage() {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="flex items-center justify-between text-xs text-[#4A6741]/60 -mt-1.5">
+                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-1.5">
                                     <span>{formattedDate}</span>
                                     <button
                                       onClick={() => handleDeleteRecord(record.id, record.audio_url)}
