@@ -3,6 +3,7 @@ import { X, Camera, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
+import { uploadFileToR2 } from "../utils/upload";
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -20,44 +21,18 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isResettingAvatar, setIsResettingAvatar] = useState(false);
 
-  const getAvatarPathFromUrl = (avatarUrl: string | null | undefined): string | null => {
-    if (!avatarUrl || !avatarUrl.includes("/storage/v1/object/public/avatars/")) return null;
-    try {
-      const url = new URL(avatarUrl);
-      const marker = "/storage/v1/object/public/avatars/";
-      const idx = url.pathname.indexOf(marker);
-      if (idx === -1) return null;
-      const rawPath = url.pathname.slice(idx + marker.length);
-      return decodeURIComponent(rawPath);
-    } catch {
-      return null;
-    }
-  };
+  const deleteAvatarFromR2 = async (avatarUrl?: string | null) => {
+    if (!avatarUrl) return;
 
-  const removeAvatarFiles = async (avatarUrl?: string) => {
-    if (!user?.id) return;
+    const response = await fetch("/api/file/delete", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileUrl: avatarUrl }),
+    });
 
-    const targetPaths = new Set<string>();
-    const parsedPath = getAvatarPathFromUrl(avatarUrl);
-    if (parsedPath) targetPaths.add(parsedPath);
-
-    const { data: listed, error: listError } = await supabase.storage
-      .from("avatars")
-      .list("", { search: user.id, limit: 100 });
-
-    if (!listError && listed?.length) {
-      for (const item of listed) {
-        if (item.name.startsWith(`${user.id}-`)) {
-          targetPaths.add(item.name);
-        }
-      }
-    }
-
-    if (targetPaths.size === 0) return;
-
-    const { error: removeError } = await supabase.storage.from("avatars").remove(Array.from(targetPaths));
-    if (removeError) {
-      throw removeError;
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || "avatar delete failed");
     }
   };
 
@@ -122,7 +97,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
         .eq("id", user.id);
       if (error) throw error;
 
-      await removeAvatarFiles(formData.avatar_url || undefined);
+      await deleteAvatarFromR2(formData.avatar_url);
 
       setAvatarPreview(null);
       setAvatarFile(null);
@@ -201,20 +176,10 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
   const uploadAvatar = async (): Promise<string | null> => {
     if (!avatarFile || !user?.id) return null;
-    await removeAvatarFiles(formData.avatar_url || undefined);
+    await deleteAvatarFromR2(formData.avatar_url);
 
-    const ext = avatarFile.type === "image/png" ? "png" : "jpg";
-    const fileName = `${user.id}-${Date.now()}.${ext}`;
-
-    const { error } = await supabase.storage.from("avatars").upload(fileName, avatarFile, {
-      upsert: true,
-      contentType: avatarFile.type || "image/jpeg",
-      cacheControl: "3600",
-    });
-    if (error) return null;
-
-    const { data } = supabase.storage.from("avatars").getPublicUrl(fileName);
-    return data.publicUrl;
+    const uploadedUrl = await uploadFileToR2(avatarFile, `avatars/profile/${user.id}`);
+    return uploadedUrl || null;
   };
 
   const checkDuplicate = async (
