@@ -2942,16 +2942,18 @@ export default function GroupDashboard() {
                           <User size={18} />
                         </div>
                       )}
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
                         <span className="font-bold text-zinc-900 text-base truncate">{author.nickname || author.username}</span>
                         <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
                       </div>
-                      {userId === user.id && (
-                        <div className="flex items-center gap-1 opacity-60 ml-auto shrink-0">
-                          <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
-                          <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 opacity-60 shrink-0 min-w-[52px] justify-end">
+                        {userId === user.id && (
+                          <>
+                            <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
+                            <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <div className="space-y-4 pb-3 px-5">
@@ -2966,7 +2968,7 @@ export default function GroupDashboard() {
                       </div>
 
                       {/* 기도 버튼 및 내 기도 관리 버튼 영역 */}
-                      <div className="flex items-center gap-2 mt-2 pt-3 border-t border-zinc-100 shrink-0">
+                      <div className="flex items-center gap-2 mt-0 pt-3 border-t border-zinc-150 shrink-0">
                         {(() => {
                           const relatedPrayers = prayersByTargetUser.get(userId) || [];
                           const heartCount = relatedPrayers.filter(p => p.audio_url === 'amen').length;

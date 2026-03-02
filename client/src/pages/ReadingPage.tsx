@@ -1192,7 +1192,14 @@ export default function ReadingPage() {
 
     const verses = getPlayableVerseNumbers();
     if (!verses.length) return;
-    const foundIdx = verses.findIndex((v) => v >= targetVerse);
+    let foundIdx = -1;
+    for (let index = 0; index < verses.length; index++) {
+      const verseNumber = Number(verses[index]);
+      if (verseNumber >= targetVerse) {
+        foundIdx = index;
+        break;
+      }
+    }
     const targetIdx = foundIdx === -1 ? verses.length - 1 : foundIdx;
     const dur = audioRef.current.duration || duration || 0;
     if (dur > 0) {
@@ -2112,12 +2119,6 @@ export default function ReadingPage() {
             {currentDate.toDateString() === today.toDateString() ? (
               <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setShowGroupLinkModal(true)}
-                  className="px-2.5 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1 shrink-0"
-                >
-                  <Share2 size={12} /> 모임에 연결
-                </button>
-                <button
                   onClick={() => {
                     setIsEditModalOpen(true);
                   }}
@@ -2259,8 +2260,16 @@ export default function ReadingPage() {
 
           {/* 미세 힌트 텍스트 (읽기 완료 상태일 때만) */}
           {isReadCompleted && (
-            <div className="text-xs text-gray-400 mt-1.5 opacity-60">
-              길게 누르면 취소
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="text-xs text-gray-400 opacity-60">길게 누르면 취소</div>
+              {currentDate.toDateString() === today.toDateString() && (
+                <button
+                  onClick={() => setShowGroupLinkModal(true)}
+                  className="px-2.5 py-1 bg-[#4A6741]/10 text-[#4A6741] text-[11px] font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1 shrink-0"
+                >
+                  <Share2 size={11} /> 모임에 연결
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -2594,7 +2603,7 @@ export default function ReadingPage() {
       <ActivityGroupLinkModal
         open={showGroupLinkModal}
         onOpenChange={setShowGroupLinkModal}
-        user={user}
+        user={user ? { id: user.id } : null}
         activityType="reading"
         activityDate={currentDate}
       />
