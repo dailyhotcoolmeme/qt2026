@@ -18,6 +18,47 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isResettingAvatar, setIsResettingAvatar] = useState(false);
+  // 아바타 초기화 핸들러
+  const handleAvatarReset = async () => {
+    if (!user?.id) return;
+    setIsResettingAvatar(true);
+    try {
+      // 기존 avatar_url에서 파일 경로 추출
+      const avatarUrl = formData.avatar_url;
+      let filePath = null;
+      if (avatarUrl) {
+        // Supabase public URL 예시: https://<project>.supabase.co/storage/v1/object/public/avatars/<filePath>
+        // 실제 예시: https://zjnxvdhjbzqrlbrzrxit.supabase.co/storage/v1/object/public/avatars/2c0f4361-abbb-4526-a18c-b6c44d52059f-1772424100237.png
+        // filePath는 avatars/ 뒤의 전체 경로
+        const url = new URL(avatarUrl);
+        const path = url.pathname;
+        // /storage/v1/object/public/avatars/<filePath>
+        const idx = path.indexOf('/avatars/');
+        if (idx !== -1) {
+          filePath = path.substring(idx + '/avatars/'.length);
+        }
+      }
+      // DB에서 avatar_url NULL 처리
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("id", user.id);
+      if (error) throw error;
+      // 스토리지에서 파일 삭제
+      if (filePath) {
+        await supabase.storage.from("avatars").remove([filePath]);
+      }
+      setAvatarPreview(null);
+      setAvatarFile(null);
+      setFormData((prev) => ({ ...prev, avatar_url: "" }));
+      alert("프로필 사진이 초기화되었습니다.");
+    } catch (e) {
+      alert("프로필 사진 초기화 중 오류가 발생했습니다.");
+    } finally {
+      setIsResettingAvatar(false);
+    }
+  };
 
   const [formData, setFormData] = useState({
     avatar_url: "",
@@ -224,16 +265,28 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
                     <Camera className="w-10 h-10 text-zinc-300" />
                   </div>
                 )}
-                <label className="absolute bottom-0 right-0 bg-[#4A6741] p-2 rounded-full cursor-pointer hover:bg-[#3d5636] transition-colors shadow-lg">
+                <label className="absolute bottom-0 -right-2 bg-[#4A6741] p-2 rounded-full cursor-pointer hover:bg-[#3d5636] transition-colors shadow-lg">
                   <Camera className="w-4 h-4 text-white" />
                   <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
                 </label>
+                {/* 사진 초기화 버튼 */}
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={handleAvatarReset}
+                    disabled={isResettingAvatar}
+                    className="absolute top-0 -right-4 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg transition-colors text-xs"
+                    style={{ fontSize: '0.75rem', minWidth: 0 }}
+                  >
+                    {isResettingAvatar ? '삭제중' : '초기화'}
+                  </button>
+                )}
               </div>
             </div>
 
             {/* 2. 닉네임 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 닉네임 (앱에서 보여지는 이름)
               </label>
               <input
@@ -247,7 +300,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
             {/* 3. 이메일 (중복확인) */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 이메일
               </label>
               <div className="flex gap-2 items-stretch">
@@ -277,7 +330,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
             {/* 4. 아이디 (중복확인) */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 아이디 (ID)
               </label>
               <div className="flex gap-2 items-stretch">
@@ -307,7 +360,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
             {/* 5. 본명 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 본명
               </label>
               <input
@@ -321,7 +374,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
             {/* 6. 섬기는 교회 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 섬기는 교회
               </label>
               <input
@@ -335,7 +388,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
             {/* 7. 직분 */}
             <div>
-              <label className="block text-zinc-600 font-medium mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
+              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 직분
               </label>
               <input

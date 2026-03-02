@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -10,13 +10,11 @@ import {
   LayoutGrid,
   LayoutList,
   Link2,
-  ChartBar,
   Lock,
   MessageSquare,
   Mic,
   Pause,
   Play,
-  HandHeart,
   Plus,
   SendHorizontal,
   Settings,
@@ -27,31 +25,16 @@ import {
   UserMinus,
   Users,
   X,
+  Loader2,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, MoreVertical } from "lucide-react";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
-import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
-import Cropper from "react-easy-crop";
-import getCroppedImg from "../lib/cropImage";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
-type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
+type TabKey = "faith" | "prayer" | "social" | "members" | "admin";
 type FaithType = "check" | "count" | "attendance";
 type FaithSourceMode = "manual" | "linked" | "both";
 type LinkedFeature = "none" | "qt" | "prayer" | "reading";
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
-
-interface GroupSchedule {
-  id: string;
-  group_id: string;
-  user_id: string;
-  type: "event" | "unavailable";
-  title: string | null;
-  start_time: string;
-  end_time: string;
-  created_at: string;
-}
 
 type GroupRow = {
   id: string;
@@ -65,8 +48,6 @@ type GroupRow = {
   header_image_url?: string | null;
   header_color?: string | null;
   is_closed?: boolean | null;
-  created_at?: string;
-  menu_settings?: { faith?: boolean; prayer?: boolean; social?: boolean; schedule?: boolean; };
 };
 
 type GroupPrayerRecord = {
@@ -93,7 +74,6 @@ type ProfileLite = {
   id: string;
   username: string | null;
   nickname: string | null;
-  avatar_url: string | null;
 };
 
 type GroupMemberRow = {
@@ -184,15 +164,12 @@ type FaithRecordDetail = {
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return "-";
-  const date = new Date(iso);
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-
-  return `${year}-${month}-${day}. ${hours}:${minutes}`;
+  return new Date(iso).toLocaleString("ko-KR", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatJoinedAt(iso?: string | null) {
@@ -209,7 +186,7 @@ function formatJoinedAt(iso?: string | null) {
 function toLabel(role: string) {
   if (role === "owner") return "관리자";
   if (role === "leader") return "리더";
-  if (role === "member") return "일반";
+  if (role === "member") return "멤버";
   return role;
 }
 
@@ -325,350 +302,17 @@ async function uploadFileToR2(fileName: string, blob: Blob, contentType: string)
 const LAST_GROUP_KEY = "last_group_id";
 const GROUP_INVITE_PARAM = "invite_group";
 const HEADER_PALETTE = ["#4A6741", "#1F4E5F", "#7C3A2D", "#3E335A", "#2F4858", "#5C4A3D", "#4B3F72", "#374151"];
-const KOREAN_HOLIDAYS: Record<string, string> = {
-  "2026-01-01": "신정", "2026-02-16": "설날 연휴", "2026-02-17": "설날", "2026-02-18": "설날 연휴",
-  "2026-03-01": "삼일절", "2026-03-02": "대체공휴일", "2026-05-05": "어린이날", "2026-05-24": "부처님오신날",
-  "2026-05-25": "대체공휴일", "2026-06-06": "현충일", "2026-08-15": "광복절", "2026-08-17": "대체공휴일",
-  "2026-09-24": "추석 연휴", "2026-09-25": "추석", "2026-09-26": "추석 연휴", "2026-10-03": "개천절",
-  "2026-10-05": "대체공휴일", "2026-10-09": "한글날", "2026-12-25": "성탄절",
-  "2027-01-01": "신정", "2027-02-06": "설날 연휴", "2027-02-07": "설날", "2027-02-08": "설날 연휴", "2027-02-09": "대체공휴일",
-  "2027-03-01": "삼일절", "2027-05-05": "어린이날", "2027-05-13": "부처님오신날", "2027-06-06": "현충일", "2027-06-07": "대체공휴일",
-  "2027-08-15": "광복절", "2027-08-16": "대체공휴일", "2027-09-14": "추석 연휴", "2027-09-15": "추석", "2027-09-16": "추석 연휴",
-  "2027-10-03": "개천절", "2027-10-04": "대체공휴일", "2027-10-09": "한글날", "2027-10-11": "대체공휴일", "2027-12-25": "성탄절"
-};
-
-function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user: any, isManager: boolean }) {
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
-  const [schedules, setSchedules] = useState<GroupSchedule[]>([]);
-  const [alerts, setAlerts] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-
-
-  const [showModal, setShowModal] = useState(false);
-  const [formType, setFormType] = useState<"event" | "unavailable">("event");
-  const [listType, setListType] = useState<"event" | "unavailable">("event");
-  const [formTitle, setFormTitle] = useState("");
-  const [formDate, setFormDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [formStartTime, setFormStartTime] = useState("12:00");
-  const [formEndTime, setFormEndTime] = useState("13:00");
-  const [saving, setSaving] = useState(false);
-
-  const [selectedDateEvents, setSelectedDateEvents] = useState<{ dateStr: string, events: GroupSchedule[] } | null>(null);
-
-  const fetchSchedules = async () => {
-    setLoading(true);
-    const startDate = startOfMonth(currentMonth);
-    const endDate = endOfMonth(currentMonth);
-    const { data } = await supabase
-      .from("group_schedules")
-      .select("*, user:profiles(nickname, username)")
-      .eq("group_id", groupId)
-      .gte("end_time", startDate.toISOString())
-      .lte("start_time", endDate.toISOString());
-    if (data) setSchedules(data);
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchSchedules();
-  }, [currentMonth, groupId]);
-
-  const saveSchedule = async () => {
-    if (!formDate || !formStartTime) return;
-    if (formType === "event" && !formTitle.trim()) {
-      alert("모임 일정 제목을 입력해주세요.");
-      return;
-    }
-    setSaving(true);
-    const startStr = `${formDate}T${formStartTime}:00`;
-    const endStr = formEndTime ? `${formDate}T${formEndTime}:00` : startStr;
-
-    // basic validation
-    if (new Date(endStr) < new Date(startStr)) {
-      alert("종료 시간이 시작 시간보다 작을 수 없습니다.");
-      setSaving(false); return;
-    }
-
-    const { error } = await supabase.from("group_schedules").insert({
-      group_id: groupId,
-      user_id: user.id,
-      type: formType,
-      title: formType === "event" ? formTitle.trim() : null,
-      start_time: new Date(startStr).toISOString(),
-      end_time: new Date(endStr).toISOString(),
-    });
-
-    if (error) {
-      alert("일정 등록에 실패했습니다.");
-    } else {
-      setShowModal(false);
-      fetchSchedules();
-    }
-    setSaving(false);
-  };
-
-  const deleteSchedule = async (id: string) => {
-    if (!confirm("일정을 삭제하시겠습니까?")) return;
-    const { error } = await supabase.from("group_schedules").delete().eq("id", id);
-    if (!error) {
-      fetchSchedules();
-      setSelectedDateEvents(prev => prev ? { ...prev, events: prev.events.filter(e => e.id !== id) } : null);
-    }
-  };
-
-  const daysInMonth = eachDayOfInterval({ start: startOfWeek(startOfMonth(currentMonth)), end: endOfWeek(endOfMonth(currentMonth)) });
-
-  const currentList = schedules.filter(s => s.type === listType).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-0">
-      <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
-        <button onClick={() => setCurrentMonth(subMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
-        <span className="font-black text-xl tracking-tight">{format(currentMonth, "yyyy년 M월")}</span>
-        <button onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight /></button>
-      </div>
-
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-        <div className="flex border-b border-zinc-100 mb-4">
-          <button onClick={() => setListType("event")} className={`flex-1 pb-3 text-base font-black transition-colors border-b-2 ${listType === "event" ? "border-[#4A6741] text-[#4A6741]" : "border-transparent text-zinc-400 hover:text-zinc-600"}`}>모임 일정</button>
-          <button onClick={() => setListType("unavailable")} className={`flex-1 pb-3 text-base font-black transition-colors border-b-2 ${listType === "unavailable" ? "border-rose-500 text-rose-500" : "border-transparent text-zinc-400 hover:text-zinc-600"}`}>모임 불가</button>
-        </div>
-        {currentList.length === 0 ? (
-          <div className="text-zinc-400 text-center py-8 text-sm font-bold bg-zinc-50 rounded-xl">등록된 내용이 없습니다.</div>
-        ) : (
-          <div className="space-y-3">
-            {currentList.map(ev => {
-              return (
-                <div key={ev.id} className="flex gap-3 text-sm items-center bg-zinc-50 p-3 rounded-xl border border-zinc-100 relative pr-4 block">
-                  <div className={`w-1.5 h-full min-h-[2rem] rounded-full ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-500"}`}></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-zinc-900 truncate">
-                      {ev.type === "event" ? ev.title : `${(ev as any).user?.nickname || "멤버"} 불가`}
-                    </div>
-                    <div className="text-zinc-500 text-xs mt-0.5">
-                      {format(parseISO(ev.start_time), "M월 d일 HH:mm")} ~ {format(parseISO(ev.end_time), "HH:mm")}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-zinc-100">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="font-bold text-zinc-900 text-base">일정 달력</h3>
-          <div className="flex gap-2 text-xs font-bold items-center">
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#4A6741]"></span>모임</span>
-            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-rose-400"></span>불가</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-7 border-t border-l border-zinc-200 text-center text-xs font-bold text-zinc-400 mt-4 bg-zinc-50">
-          <div className="border-r border-b border-zinc-200 py-2 text-rose-500">일</div>
-          <div className="border-r border-b border-zinc-200 py-2">월</div>
-          <div className="border-r border-b border-zinc-200 py-2">화</div>
-          <div className="border-r border-b border-zinc-200 py-2">수</div>
-          <div className="border-r border-b border-zinc-200 py-2">목</div>
-          <div className="border-r border-b border-zinc-200 py-2">금</div>
-          <div className="border-r border-b border-zinc-200 py-2 text-blue-500">토</div>
-        </div>
-        <div className="grid grid-cols-7 flex-1 border-l border-zinc-200">
-          {daysInMonth.map(day => {
-            const isCurMonth = isSameMonth(day, currentMonth);
-            const dateStr = format(day, "yyyy-MM-dd");
-            const holidayName = KOREAN_HOLIDAYS[dateStr];
-            const isSunday = day.getDay() === 0;
-            const isSaturday = day.getDay() === 6;
-            const isRedDay = isSunday || holidayName;
-
-            const daySchedules = schedules.filter(s => isSameDay(parseISO(s.start_time), day)).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-            return (
-              <div key={day.toISOString()} className={`relative border-r border-b border-zinc-200 px-0.5 py-1 min-h-[70px] ${!isCurMonth ? "bg-zinc-50/50" : isSameDay(day, new Date()) ? "bg-zinc-100/80" : "bg-white"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => setSelectedDateEvents({ dateStr, events: daySchedules })}>
-                <div className="flex flex-col items-center mb-1 w-full mt-0.5">
-                  <span className={`text-[10px] sm:text-[11px] font-bold ${!isCurMonth ? "text-zinc-300" : isRedDay ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-800"}`}>
-                    {format(day, "d")}
-                  </span>
-                  {holidayName && <span className="text-[8px] leading-[1] text-rose-500 font-bold max-w-full truncate px-0.5 mt-0.5" style={{ transform: "scale(0.95)" }}>{holidayName}</span>}
-                </div>
-                <div className="flex flex-col gap-[2px] w-full px-[1px]">
-                  {daySchedules.filter(s => s.type === "event").slice(0, 2).map((s, idx) => (
-                    <div key={`e-${idx}`} className="w-full bg-[#4A6741] text-[10px] text-white overflow-hidden text-center px-0.5 rounded-[3px] leading-tight font-black shadow-sm h-4 flex items-center justify-center">
-                      <span className="scale-[0.9]">모임</span>
-                    </div>
-                  ))}
-                  {daySchedules.filter(s => s.type === "unavailable").slice(0, 3).map((s, idx) => (
-                    <div key={`u-${idx}`} className="w-full bg-rose-500 text-[10px] text-white overflow-hidden text-center truncate px-0.5 rounded-[3px] leading-tight font-black shadow-sm h-4 flex items-center justify-center">
-                      <span className="scale-[0.9]">{(s as any).user?.nickname || "멤버"}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="fixed right-5 bottom-24 z-[90] flex flex-col gap-3">
-        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-rose-500 text-white shadow-2xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
-          <CalendarX size={24} />
-        </button>
-        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
-          <CalendarPlus size={24} />
-        </button>
-      </div>
-
-      {showModal && (
-        <div className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
-            <div className="flex justify-between items-center mb-6">
-              <h3 className="font-black text-xl text-zinc-800">{formType === "event" ? "모임 일정 등록" : "불가능한 일정 등록"}</h3>
-              <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
-            </div>
-
-            <div className="space-y-4">
-              {formType === "event" && (
-                <div>
-                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">일정 제목</label>
-                  <input className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" placeholder="예: 첫 정기 모임" value={formTitle} onChange={e => setFormTitle(e.target.value)} />
-                </div>
-              )}
-              <div>
-                <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">날짜</label>
-                <input type="date" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formDate} onChange={e => setFormDate(e.target.value)} />
-              </div>
-              <div className="flex gap-3">
-                <div className="flex-1">
-                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">시작 시간</label>
-                  <input type="time" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formStartTime} onChange={e => setFormStartTime(e.target.value)} />
-                </div>
-                <div className="flex-1">
-                  <label className="text-sm font-bold text-zinc-700 ml-1 mb-1.5 block">종료 시간</label>
-                  <input type="time" className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20" value={formEndTime} onChange={e => setFormEndTime(e.target.value)} />
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <button disabled={saving} onClick={saveSchedule} className={`w-full py-4 text-white font-black text-base shadow-lg rounded-2xl mt-2 active:scale-95 transition-transform disabled:opacity-60 ${formType === "event" ? "bg-[#4A6741]" : "bg-rose-500"}`}>
-                  {saving ? "저장 중..." : "등록하기"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {selectedDateEvents && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedDateEvents(null)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 mb-2 border-b">
-              <h3 className="font-black text-xl text-zinc-900">{format(parseISO(selectedDateEvents.dateStr), "M월 d일")} 일정</h3>
-              <button onClick={() => setSelectedDateEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X size={16} /></button>
-            </div>
-
-            <div className="flex gap-2 pb-2">
-              <button
-                onClick={() => { setFormType("event"); setFormDate(selectedDateEvents.dateStr); setSelectedDateEvents(null); setShowModal(true); setFormTitle(""); }}
-                className="flex-1 py-3 bg-[#4A6741] text-white rounded-xl text-sm font-bold shadow-sm hover:bg-[#3d5535] transition-colors"
-              >
-                모임 등록
-              </button>
-              <button
-                onClick={() => { setFormType("unavailable"); setFormDate(selectedDateEvents.dateStr); setSelectedDateEvents(null); setShowModal(true); setFormTitle(""); }}
-                className="flex-1 py-3 bg-rose-500 text-white rounded-xl text-sm font-bold shadow-sm hover:bg-rose-600 transition-colors"
-              >
-                모임 불가 등록
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              {selectedDateEvents.events.length === 0 && (
-                <div className="text-center text-zinc-400 font-bold py-4">등록된 일정이 없습니다.</div>
-              )}
-              {selectedDateEvents.events.map((ev) => (
-                <div key={ev.id} className="space-y-3 bg-zinc-50 rounded-2xl p-4 border border-zinc-100">
-                  <h4 className="font-bold text-zinc-900 border-b pb-2 mb-2">
-                    <span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${ev.type === "event" ? "bg-[#4A6741]" : "bg-rose-400"}`}></span>
-                    {ev.type === "event" ? ev.title : `${(ev as any).user?.nickname || "멤버"} 불가`}
-                  </h4>
-                  <div className="text-base text-zinc-800 font-bold flex justify-between">
-                    <span className="text-sm text-zinc-400">시작</span>
-                    {format(parseISO(ev.start_time), "MM월 dd일 HH:mm")}
-                  </div>
-                  <div className="text-base text-zinc-800 font-bold flex justify-between">
-                    <span className="text-sm text-zinc-400">종료</span>
-                    {format(parseISO(ev.end_time), "MM월 dd일 HH:mm")}
-                  </div>
-                  {(isManager || user?.id === ev.user_id) && (
-                    <div className="pt-2 mt-2 border-t border-zinc-200">
-                      <button onClick={() => deleteSchedule(ev.id)} className="w-full bg-rose-50 text-rose-500 py-3 rounded-xl font-bold text-base hover:bg-rose-100 transition-colors">이 일정 삭제</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-    </motion.div>
-  );
-}
-
-const PostImageCarousel = ({ urls, onImageClick }: { urls: string[]; onImageClick: (index: number) => void }) => {
-  const [activeIndex, setActiveIndex] = useState(0);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollLeft = e.currentTarget.scrollLeft;
-    const width = e.currentTarget.clientWidth;
-    const MathIndex = Math.round(scrollLeft / width);
-    if (MathIndex !== activeIndex) {
-      setActiveIndex(MathIndex);
-    }
-  };
-
-  if (!urls || urls.length === 0) return null;
-
-  return (
-    <div className="w-full mt-3 mb-1 flex flex-col relative px-4">
-      <div
-        onScroll={handleScroll}
-        className="w-full flex overflow-x-auto touch-pan-x snap-x snap-mandatory items-center pb-2"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
-      >
-        {urls.map((url, idx) => (
-          <div key={idx} className="flex-shrink-0 w-full snap-center flex justify-center cursor-pointer px-1" onClick={() => onImageClick(idx)}>
-            <img src={url} alt={`img-${idx}`} className="w-full h-auto max-h-[400px] object-cover sm:object-contain rounded-2xl shadow-sm border border-black/5" />
-          </div>
-        ))}
-      </div>
-      {urls.length > 1 && (
-        <div className="flex justify-center gap-1.5 mt-1">
-          {urls.map((_, idx) => (
-            <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === activeIndex ? "bg-[#4A6741]" : "bg-zinc-200"}`} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
 
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
-  const routeIdRaw = matched ? (routeParams as { id: string }).id : null;
-  const groupId = routeIdRaw?.split("?")[0] || null;
-  const urlTabMatch = routeIdRaw?.match(/\?tab=([^&]+)/);
-  const initialTab = urlTabMatch ? urlTabMatch[1] : null;
+  const groupId = matched ? (routeParams as { id: string }).id : null;
   const [location, setLocation] = useLocation();
 
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
-  const [activeTab, setActiveTab] = useState<TabKey>((initialTab as TabKey) || "faith");
+  const [activeTab, setActiveTab] = useState<TabKey>("faith");
   const [loading, setLoading] = useState(true);
 
   const [groupPrayers, setGroupPrayers] = useState<GroupPrayerRecord[]>([]);
@@ -702,7 +346,7 @@ export default function GroupDashboard() {
   const [availableActivities, setAvailableActivities] = useState<ActivityLogRow[]>([]);
   const [linkingActivityId, setLinkingActivityId] = useState<number | null>(null);
   const [faithRecordDetails, setFaithRecordDetails] = useState<Record<string, FaithRecordDetail>>({});
-  const [faithCurrentDate, setFaithCurrentDate] = useState(() => new Date());
+  const [faithBoardDate, setFaithBoardDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [faithBoardRows, setFaithBoardRows] = useState<FaithBoardRow[]>([]);
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
   const [weekDates, setWeekDates] = useState<string[]>([]);
@@ -714,13 +358,8 @@ export default function GroupDashboard() {
   const [postContent, setPostContent] = useState("");
   const [socialViewMode, setSocialViewMode] = useState<"board" | "blog">("board");
   const [showPostComposerModal, setShowPostComposerModal] = useState(false);
-  const [editingPost, setEditingPost] = useState<GroupPostRow | null>(null);
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
-  const [postExistingImages, setPostExistingImages] = useState<string[]>([]);
-  const [postLikes, setPostLikes] = useState<Record<number, any[]>>({});
-  const [postComments, setPostComments] = useState<Record<number, any[]>>({});
-  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
   const [expandedPosts, setExpandedPosts] = useState<Record<number, boolean>>({});
   const [showImageModal, setShowImageModal] = useState(false);
@@ -756,42 +395,6 @@ export default function GroupDashboard() {
   const [groupEditImageFile, setGroupEditImageFile] = useState<File | null>(null);
   const [groupEditImageUploading, setGroupEditImageUploading] = useState(false);
   const [groupEditSaving, setGroupEditSaving] = useState(false);
-  const [slugCheckState, setSlugCheckState] = useState<"idle" | "checking" | "available" | "taken">("idle");
-
-  const [adminTab, setAdminTab] = useState<"info" | "menu" | "manage">("info");
-  const [crop, setCrop] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
-  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
-  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null);
-
-  const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
-    setCroppedAreaPixels(croppedAreaPixels);
-  };
-
-  const handleGroupImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-      const imageUrl = URL.createObjectURL(file);
-      setCropImageSrc(imageUrl);
-      setCropModalOpen(true);
-      // 부모 input 리셋용
-      e.target.value = '';
-    }
-  };
-
-  const processCrop = async () => {
-    try {
-      if (!cropImageSrc || !croppedAreaPixels) return;
-      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels);
-      if (croppedFile) {
-        setGroupEditImageFile(croppedFile);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-    setCropModalOpen(false);
-  };
 
   useEffect(() => {
     let mounted = true;
@@ -814,18 +417,16 @@ export default function GroupDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!authReady) return;
     if (!groupId) return;
-    const searchParams = new URLSearchParams(location.split("?")[1] || "");
-    const queryTab = searchParams.get("tab");
-    const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin", "schedule"];
+    const queryTab = getTabQueryParam(location);
+    const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin"];
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
       setActiveTab("faith");
     }
     void loadAll(groupId, user?.id ?? null);
-  }, [groupId, user?.id, location, authReady]);
+  }, [groupId, user?.id, location]);
 
   useEffect(() => {
     return () => {
@@ -872,6 +473,13 @@ export default function GroupDashboard() {
 
   // Removed dynamic header/tab pinning effect
 
+  useEffect(() => {
+    if (!group?.id) return;
+    if (!(role === "owner" || role === "leader")) return;
+    if (members.length === 0) return;
+    void loadFaithBoard(group.id, faithBoardDate);
+  }, [group?.id, role, members, faithBoardDate]);
+
   const isManager = role === "owner" || role === "leader";
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
@@ -897,12 +505,10 @@ export default function GroupDashboard() {
       owner_id: groupData.owner_id ?? null,
       group_type: (groupData as any).group_type ?? "etc",
       password: (groupData as any).password ?? null,
-      menu_settings: (groupData as any).menu_settings ?? { faith: true, prayer: true, social: true, schedule: true },
       group_image: ensureHttpsUrl((groupData as any).group_image) ?? null,
       header_image_url: ensureHttpsUrl((groupData as any).header_image_url) ?? null,
       header_color: (groupData as any).header_color ?? "#4A6741",
       is_closed: Boolean((groupData as any).is_closed),
-      created_at: (groupData as any).created_at,
     });
 
     let nextRole: GroupRole = "guest";
@@ -962,7 +568,7 @@ export default function GroupDashboard() {
     ]);
 
     if (nextRole === "owner" || nextRole === "leader") {
-      await loadFaithBoard(targetGroupId, buildWeekIso(new Date()), nextMembers);
+      await loadFaithBoard(targetGroupId, faithBoardDate, nextMembers);
     } else {
       setFaithBoardRows([]);
     }
@@ -991,7 +597,7 @@ export default function GroupDashboard() {
     if (authorIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, username, nickname, avatar_url")
+        .select("id, username, nickname")
         .in("id", authorIds);
 
       if (profiles?.length) {
@@ -1045,41 +651,7 @@ export default function GroupDashboard() {
         .eq("record_date", today),
     ]);
 
-    let currentItems = (items ?? []) as FaithItemRow[];
-    // Ensure default items exist (성경, QT, 기도, 예배)
-    const requiredItems = [
-      { name: "성경", type: "check", mode: "both", feature: "reading" },
-      { name: "QT", type: "check", mode: "both", feature: "qt" },
-      { name: "기도", type: "check", mode: "both", feature: "prayer" },
-      { name: "예배", type: "check", mode: "manual", feature: "none" }
-    ];
-
-    let needReload = false;
-    for (const req of requiredItems) {
-      if (!currentItems.find(i => i.name === req.name)) {
-        await supabase.from("group_faith_items").insert({
-          group_id: targetGroupId,
-          name: req.name,
-          item_type: req.type,
-          source_mode: req.mode,
-          linked_feature: req.feature,
-          created_by: userId
-        });
-        needReload = true;
-      }
-    }
-
-    if (needReload) {
-      const { data: updatedItems } = await supabase
-        .from("group_faith_items")
-        .select("id, name, item_type, source_mode, linked_feature, sort_order")
-        .eq("group_id", targetGroupId)
-        .eq("is_active", true)
-        .order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true });
-      currentItems = (updatedItems ?? []) as FaithItemRow[];
-    }
-    setFaithItems(currentItems);
+    setFaithItems((items ?? []) as FaithItemRow[]);
 
     const nextValues: Record<string, number> = {};
     const baseDetails: Record<string, FaithRecordDetail> = {};
@@ -1136,14 +708,23 @@ export default function GroupDashboard() {
   };
 
   const buildWeekIso = (ref = new Date()) => {
-    const start = startOfWeek(ref, { weekStartsOn: 0 });
-    const end = endOfWeek(ref, { weekStartsOn: 0 });
-    return eachDayOfInterval({ start, end }).map(d => format(d, 'yyyy-MM-dd'));
+    const d = new Date(ref);
+    const day = d.getDay();
+    const sunday = new Date(d);
+    sunday.setDate(d.getDate() - day);
+    sunday.setHours(0, 0, 0, 0);
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const cur = new Date(sunday);
+      cur.setDate(sunday.getDate() + i);
+      dates.push(cur.toISOString().split("T")[0]);
+    }
+    return dates;
   };
 
-  const loadWeeklyFaithRecords = async (refDate = faithCurrentDate) => {
+  const loadWeeklyFaithRecords = async () => {
     if (!group?.id || !user) return;
-    const dates = buildWeekIso(refDate);
+    const dates = buildWeekIso(new Date());
     try {
       const { data } = await supabase
         .from("group_faith_records")
@@ -1167,13 +748,9 @@ export default function GroupDashboard() {
   };
 
   useEffect(() => {
-    if (activeTab === "faith") {
-      void loadWeeklyFaithRecords(faithCurrentDate);
-      if (role === "owner" || role === "leader") {
-        void loadFaithBoard(group?.id || "", buildWeekIso(faithCurrentDate), members);
-      }
-    }
-  }, [group?.id, user?.id, faithCurrentDate, activeTab]);
+    void loadWeeklyFaithRecords();
+    // reload when group or user changes
+  }, [group?.id, user?.id]);
 
   const handleFaithToggleForDate = async (item: FaithItemRow, dateIso: string) => {
     if (!group || !user) return;
@@ -1260,23 +837,6 @@ export default function GroupDashboard() {
           image_urls: imageMap.get(post.id) ?? [],
         }));
       }
-
-      const [likesRes, commentsRes] = await Promise.all([
-        supabase.from("group_post_likes").select("id, post_id, user_id").in("post_id", postIds),
-        supabase.from("group_post_comments").select("id, post_id, user_id, content, created_at").in("post_id", postIds).order("created_at", { ascending: true })
-      ]);
-      const lMap: Record<number, any[]> = {};
-      const cMap: Record<number, any[]> = {};
-      (likesRes.data ?? []).forEach((l: any) => {
-        if (!lMap[l.post_id]) lMap[l.post_id] = [];
-        lMap[l.post_id].push(l);
-      });
-      (commentsRes.data ?? []).forEach((c: any) => {
-        if (!cMap[c.post_id]) cMap[c.post_id] = [];
-        cMap[c.post_id].push(c);
-      });
-      setPostLikes(lMap);
-      setPostComments(cMap);
     }
 
     nextPosts = [...nextPosts].sort((a, b) => {
@@ -1288,10 +848,7 @@ export default function GroupDashboard() {
 
     setPosts(nextPosts);
 
-    const authorIds = Array.from(new Set([
-      ...nextPosts.map((post) => post.author_id),
-      ...Object.values(postComments).flatMap(arr => arr.map(c => c.user_id))
-    ]));
+    const authorIds = Array.from(new Set(nextPosts.map((post) => post.author_id)));
     if (authorIds.length === 0) {
       setAuthorMap({});
       return;
@@ -1299,7 +856,7 @@ export default function GroupDashboard() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, username, nickname, avatar_url")
+      .select("id, username, nickname")
       .in("id", authorIds);
 
     const map: Record<string, ProfileLite> = {};
@@ -1338,11 +895,11 @@ export default function GroupDashboard() {
 
   const loadFaithBoard = async (
     targetGroupId: string,
-    dates: string[],
+    date: string,
     memberRows?: GroupMemberRow[]
   ) => {
     const baseMembers = memberRows ?? members;
-    if (!baseMembers.length || !dates.length) {
+    if (!baseMembers.length) {
       setFaithBoardRows([]);
       return;
     }
@@ -1352,9 +909,9 @@ export default function GroupDashboard() {
 
     const { data, error } = await supabase
       .from("group_faith_records")
-      .select("user_id, item_id, value, record_date")
+      .select("user_id, item_id, value")
       .eq("group_id", targetGroupId)
-      .in("record_date", dates)
+      .eq("record_date", date)
       .in("user_id", memberIds);
 
     if (error) {
@@ -1365,26 +922,20 @@ export default function GroupDashboard() {
     }
 
     const valueMap = new Map<string, Record<string, number>>();
-    (data ?? []).forEach((row: any) => {
-      // row.value > 0 means done for this day
-      if (Number(row.value) > 0) {
-        const prev = valueMap.get(row.user_id) ?? {};
-        prev[row.item_id] = (prev[row.item_id] || 0) + 1;
-        valueMap.set(row.user_id, prev);
-      }
+    (data ?? []).forEach((row: { user_id: string; item_id: string; value: number | string }) => {
+      const prev = valueMap.get(row.user_id) ?? {};
+      prev[row.item_id] = Number(row.value ?? 0);
+      valueMap.set(row.user_id, prev);
     });
 
     const boardRows: FaithBoardRow[] = baseMembers
       .map((member) => {
         const values = valueMap.get(member.user_id) ?? {};
         const total = Object.values(values).reduce((sum, value) => sum + Number(value || 0), 0);
-        let name = member.profile?.nickname || member.profile?.username || "이름없음";
-        if (name.length > 7) name = name.substring(0, 7) + "...";
-
         return {
           user_id: member.user_id,
           role: member.role,
-          name: name,
+          name: member.profile?.nickname || member.profile?.username || "이름 없음",
           values,
           total,
         };
@@ -1413,7 +964,7 @@ export default function GroupDashboard() {
 
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id, username, nickname, avatar_url")
+      .select("id, username, nickname")
       .in("id", requesterIds);
 
     const profileMap = new Map<string, ProfileLite>();
@@ -1431,8 +982,7 @@ export default function GroupDashboard() {
 
   const submitJoinRequest = async () => {
     if (!group || !user) return;
-    // group에 비밀번호가 설정되어 있을 때만 비밀번호 검증
-    if (group.password && !joinPassword.trim()) {
+    if (!joinPassword.trim()) {
       alert("가입 비밀번호를 입력해주세요.");
       return;
     }
@@ -1560,28 +1110,24 @@ export default function GroupDashboard() {
   const addPrayerTopic = async () => {
     if (!group || !user || !newPrayerTopic.trim()) return;
 
-    const topicsToInsert = newPrayerTopic.split("\n").filter(t => t.trim().length > 0);
-    if (topicsToInsert.length === 0) return;
+    const { error } = await supabase.from("group_prayer_topics").insert({
+      group_id: group.id,
+      author_id: user.id,
+      content: newPrayerTopic.trim(),
+      is_active: true,
+    });
 
-    for (const text of topicsToInsert) {
-      const { error } = await supabase.from("group_prayer_topics").insert({
-        group_id: group.id,
-        author_id: user.id,
-        content: text.trim(),
-        is_active: true,
-      });
-
-      if (error) {
-        if (error.code === "42P01") {
-          alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
-          return;
-        }
-        alert("일부 기도제목 등록에 실패했습니다.");
+    if (error) {
+      if (error.code === "42P01") {
+        alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
         return;
       }
+      alert("기도제목 등록에 실패했습니다.");
+      return;
     }
 
     setNewPrayerTopic("");
+    setShowPrayerTopicModal(false);
     await loadGroupPrayerTopics(group.id);
   };
 
@@ -1730,7 +1276,7 @@ export default function GroupDashboard() {
     }
     setSelectedFaithItem(item);
     setShowFaithLinkModal(true);
-    const todayStart = new Date(faithCurrentDate);
+    const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const tomorrowStart = new Date(todayStart);
     tomorrowStart.setDate(todayStart.getDate() + 1);
@@ -1794,15 +1340,6 @@ export default function GroupDashboard() {
       weekday: "short",
     });
 
-  const getWeekKoreanLabel = (date: Date) => {
-    const d = new Date(date);
-    const month = d.getMonth() + 1;
-    const year = d.getFullYear();
-    const firstDay = new Date(year, month - 1, 1).getDay();
-    const week = Math.ceil((d.getDate() + firstDay) / 7);
-    return `${year}년 ${month}월 ${week}주차`;
-  };
-
   const getFaithItemByKeywords = (keywords: string[]) => {
     const lowerKeywords = keywords.map((keyword) => keyword.toLowerCase());
     return (
@@ -1823,10 +1360,10 @@ export default function GroupDashboard() {
   };
 
   const faithItemSlots = [
-    { key: "reading", label: "성경", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
+    { key: "reading", label: "성경읽기", item: getFaithItemByKeywords(["성경", "읽기", "reading"]) },
     { key: "qt", label: "QT", item: getFaithItemByKeywords(["qt", "묵상"]) },
     { key: "prayer", label: "기도", item: getFaithItemByKeywords(["기도", "prayer"]) },
-    { key: "attendance", label: "예배", item: getFaithItemByKeywords(["예배", "출석", "attendance"]) },
+    { key: "attendance", label: "예배 참석", item: getFaithItemByKeywords(["예배", "출석", "attendance"]) },
   ] as const;
 
   const getLinkedFaithDetailText = (itemId: string) => {
@@ -1913,18 +1450,18 @@ export default function GroupDashboard() {
       const noteText =
         activity.activity_type === "reading"
           ? (() => {
-            const payload = activity.payload ?? {};
-            const book = payload.book_name;
-            const chapter = payload.chapter;
-            const endChapter = payload.end_chapter;
-            if (typeof book !== "string" || (typeof chapter !== "number" && typeof chapter !== "string")) {
-              return null;
-            }
-            if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
-              return `${book} ${chapter}~${endChapter}장`;
-            }
-            return `${book} ${chapter}장`;
-          })()
+              const payload = activity.payload ?? {};
+              const book = payload.book_name;
+              const chapter = payload.chapter;
+              const endChapter = payload.end_chapter;
+              if (typeof book !== "string" || (typeof chapter !== "number" && typeof chapter !== "string")) {
+                return null;
+              }
+              if (typeof endChapter === "number" && endChapter !== Number(chapter)) {
+                return `${book} ${chapter}~${endChapter}장`;
+              }
+              return `${book} ${chapter}장`;
+            })()
           : null;
 
       const { error: faithError } = await supabase.from("group_faith_records").upsert(
@@ -1932,7 +1469,7 @@ export default function GroupDashboard() {
           group_id: group.id,
           item_id: selectedFaithItem.id,
           user_id: user.id,
-          record_date: format(faithCurrentDate, "yyyy-MM-dd"),
+          record_date: new Date().toISOString().split("T")[0],
           value: nextValue,
           note: noteText,
           source_type: "linked",
@@ -1966,14 +1503,11 @@ export default function GroupDashboard() {
   };
 
   const addPost = async () => {
-    if (!group || !user || (!postContent.trim() && postImageFiles.length === 0 && postExistingImages.length === 0)) return;
+    if (!group || !user || !postContent.trim()) return;
     if (postType === "notice" && !isManager) {
       alert("공지 작성은 리더/관리자만 가능합니다.");
       return;
     }
-
-    // @ts-ignore
-    setShowPostComposerModal('submitting');
 
     const payload = {
       group_id: group.id,
@@ -1982,65 +1516,6 @@ export default function GroupDashboard() {
       title: postTitle.trim() || null,
       content: postContent.trim(),
     };
-
-    if (editingPost) {
-      const { error } = await supabase
-        .from("group_posts")
-        .update({ title: postTitle.trim() || null, content: postContent.trim() })
-        .eq("id", editingPost.id);
-
-      if (error) {
-        alert("게시글 수정에 실패했습니다.");
-        return;
-      }
-
-      const imagesToRemove = (editingPost.image_urls || []).filter(url => !postExistingImages.includes(url));
-      for (const removedUrl of imagesToRemove) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: removedUrl }) }).catch(() => undefined);
-      }
-
-      await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
-
-      try {
-        let uploadedUrls: string[] = [];
-        if (postImageFiles.length > 0) {
-          uploadedUrls = await Promise.all(
-            postImageFiles.map(async (file, index) => {
-              const resized = await resizeImageFile(file, 1080, 0.82);
-              const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
-              const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-              return uploadFileToR2(key, resized, resized.type || "image/jpeg");
-            })
-          );
-        }
-
-        const finalUrls = [...postExistingImages, ...uploadedUrls];
-        if (finalUrls.length > 0) {
-          const { error: imageInsertError } = await supabase.from("group_post_images").insert(
-            finalUrls.map((url, index) => ({
-              post_id: editingPost.id,
-              uploader_id: user.id,
-              image_url: url,
-              sort_order: index,
-            }))
-          );
-          if (imageInsertError) throw imageInsertError;
-        }
-      } catch (uploadError) {
-        console.error("post image upload error:", uploadError);
-        alert(`사진 업로드/저장에 실패했습니다.`);
-      }
-
-      setPostTitle("");
-      setPostContent("");
-      setPostImageFiles([]);
-      setPostImagePreviews([]);
-      setPostExistingImages([]);
-      setShowPostComposerModal(false);
-      setEditingPost(null);
-      await loadPosts(group.id);
-      return;
-    }
 
     let createdPostId: number | null = null;
     let { data: createdPost, error } = await supabase
@@ -2060,10 +1535,10 @@ export default function GroupDashboard() {
       const fallback = await supabase
         .from("group_posts")
         .insert({
-          group_id: group.id,
-          author_id: user.id,
-          post_type: postType,
-          content: merged,
+        group_id: group.id,
+        author_id: user.id,
+        post_type: postType,
+        content: merged,
         })
         .select("id")
         .single();
@@ -2080,10 +1555,9 @@ export default function GroupDashboard() {
       try {
         const uploadedUrls = await Promise.all(
           postImageFiles.map(async (file, index) => {
-            const resized = await resizeImageFile(file, 1080, 0.82);
-            const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
+            const safeName = sanitizeFileName(file.name || `image_${index + 1}.jpg`);
             const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-            return uploadFileToR2(key, resized, resized.type || "image/jpeg");
+            return uploadFileToR2(key, file, file.type || "image/jpeg");
           })
         );
 
@@ -2108,7 +1582,6 @@ export default function GroupDashboard() {
     setPostTitle("");
     setPostContent("");
     setPostImageFiles([]);
-    setPostExistingImages([]);
     setShowPostComposerModal(false);
     await loadPosts(group.id);
   };
@@ -2116,59 +1589,14 @@ export default function GroupDashboard() {
   const removePost = async (post: GroupPostRow) => {
     if (!group || !user) return;
     if (!(isManager || post.author_id === user.id)) return;
-    if (!confirm("이 게시글을 지울까요?")) return;
-
-    if (post.image_urls && post.image_urls.length > 0) {
-      for (const url of post.image_urls) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
-      }
-    }
+    if (!confirm("이 게시글을 삭제할까요?")) return;
 
     const { error } = await supabase.from("group_posts").delete().eq("id", post.id);
     if (error) {
-      alert("삭제 중 오류가 발생했습니다.");
+      alert("삭제에 실패했습니다.");
       return;
     }
     await loadPosts(group.id);
-  };
-
-  const togglePostLike = async (postId: number) => {
-    if (!group || !user) return;
-    const likes = postLikes[postId] || [];
-    const myLike = likes.find(l => l.user_id === user.id);
-
-    if (myLike) {
-      await supabase.from("group_post_likes").delete().eq("id", myLike.id);
-      setPostLikes(prev => ({ ...prev, [postId]: prev[postId].filter(l => l.id !== myLike.id) }));
-    } else {
-      const { data } = await supabase.from("group_post_likes").insert({ post_id: postId, user_id: user.id }).select().single();
-      if (data) {
-        setPostLikes(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
-      }
-    }
-  };
-
-  const addComment = async (postId: number) => {
-    if (!group || !user) return;
-    const text = commentDrafts[postId]?.trim();
-    if (!text) return;
-
-    const { data } = await supabase.from("group_post_comments").insert({ post_id: postId, user_id: user.id, content: text }).select().single();
-    if (data) {
-      setPostComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
-      setCommentDrafts(prev => ({ ...prev, [postId]: "" }));
-      // Ensure the user's own profile is in authorMap for immediate display
-      const myProfile = authorMap[user.id];
-      if (!myProfile && user.user_metadata) {
-        setAuthorMap(prev => ({ ...prev, [user.id]: { id: user.id, username: user.user_metadata.username || "", nickname: user.user_metadata.nickname || "", avatar_url: user.user_metadata.avatar_url || "" } }));
-      }
-    }
-  };
-
-  const deleteComment = async (postId: number, commentId: number) => {
-    if (!confirm("이 댓글을 삭제할까요?")) return;
-    await supabase.from("group_post_comments").delete().eq("id", commentId);
-    setPostComments(prev => ({ ...prev, [postId]: prev[postId].filter(c => c.id !== commentId) }));
   };
 
   const changeMemberRole = async (targetUserId: string, nextRole: "leader" | "member") => {
@@ -2185,7 +1613,7 @@ export default function GroupDashboard() {
       return;
     }
     await loadMembers(group.id, group.owner_id);
-    alert(nextRole === "leader" ? "리더로 변경했습니다." : "일반멤버로 변경했습니다.");
+    alert(nextRole === "leader" ? "리더로 변경했습니다." : "일반 멤버로 변경했습니다.");
   };
 
   const removeMember = async (targetUserId: string) => {
@@ -2262,73 +1690,72 @@ export default function GroupDashboard() {
     setGroup((prev) =>
       prev
         ? {
-          ...prev,
-          header_image_url: ensureHttpsUrl(row.header_image_url) ?? nextImage,
-          group_image: ensureHttpsUrl(row.group_image) ?? nextImage,
-          header_color: row.header_color || headerColorDraft || "#4A6741",
-        }
+            ...prev,
+            header_image_url: ensureHttpsUrl(row.header_image_url) ?? nextImage,
+            group_image: ensureHttpsUrl(row.group_image) ?? nextImage,
+            header_color: row.header_color || headerColorDraft || "#4A6741",
+          }
         : prev
     );
     setShowHeaderEditModal(false);
   };
 
-  const checkSlugDuplicate = async () => {
-    if (!groupEditSlug.trim() || !user || !group) return;
-    if (groupEditSlug === group.group_slug) {
-      setSlugCheckState("available");
-      return;
-    }
-    setSlugCheckState("checking");
-    const { data } = await supabase
-      .from("groups")
-      .select("id")
-      .eq("group_slug", groupEditSlug.trim())
-      .single();
+  const uploadGroupEditImage = async () => {
+    if (!group || !user || !groupEditImageFile) return;
+    setGroupEditImageUploading(true);
+    try {
+      const optimized = await resizeImageFile(groupEditImageFile, 1280, 0.84);
+      const safeName = sanitizeFileName(optimized.name || "group.jpg");
+      const key = `images/group/${group.id}/${user.id}/${Date.now()}_${safeName}`;
+      const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
+      if (!imageUrl) throw new Error("invalid image url");
 
-    if (data) {
-      setSlugCheckState("taken");
-    } else {
-      setSlugCheckState("available");
+      const { data, error: persistError } = await supabase.rpc("update_group_visual_settings", {
+        p_group_id: group.id,
+        p_group_image: imageUrl,
+        p_header_image_url: imageUrl,
+        p_header_color: headerColorDraft || "#4A6741",
+      });
+      if (persistError) throw persistError;
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row?.id) throw new Error("failed to persist group image");
+
+      setGroup((prev) =>
+        prev
+          ? {
+              ...prev,
+              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+              header_color: row.header_color || prev.header_color,
+            }
+          : prev
+      );
+      setHeaderImageDraft(imageUrl);
+      setGroupEditImageFile(null);
+      alert("대표 이미지를 업로드했습니다.");
+    } catch (error) {
+      console.error(error);
+      alert("대표 이미지 업로드에 실패했습니다.");
+    } finally {
+      setGroupEditImageUploading(false);
     }
   };
 
   const saveGroupBasicSettings = async () => {
-    if (!group || !user || !isManager) return;
+    if (!group || !isManager) return;
     const name = groupEditName.trim();
     const slug = groupEditSlug.trim().toLowerCase();
     const description = groupEditDescription.trim();
     const groupType = groupEditType.trim() || "etc";
-    let nextImageUrl = ensureHttpsUrl(group?.group_image || null);
+    const nextImageUrl = ensureHttpsUrl(group?.group_image || null);
 
     if (!name || !slug) {
       alert("모임 이름과 모임 아이디를 입력해주세요.");
       return;
     }
-    if (slug !== group.group_slug && slugCheckState !== "available") {
-      alert("아이디 중복 확인을 먼저 해주세요.");
-      return;
-    }
 
     setGroupEditSaving(true);
     try {
-      if (groupEditImageFile) {
-        setGroupEditImageUploading(true);
-        const optimized = await resizeImageFile(groupEditImageFile, 1280, 0.84);
-        const safeName = sanitizeFileName(optimized.name || "group.jpg");
-        const key = `images/group/${group.id}/${user.id}/${Date.now()}_${safeName}`;
-        const imageUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
-        if (!imageUrl) throw new Error("invalid image url");
-
-        nextImageUrl = imageUrl;
-        setHeaderImageDraft(imageUrl);
-        await supabase.rpc("update_group_visual_settings", {
-          p_group_id: group.id,
-          p_group_image: imageUrl,
-          p_header_image_url: imageUrl,
-          p_header_color: headerColorDraft || "#4A6741",
-        });
-      }
-
       const { data, error } = await supabase.rpc("update_group_basic_settings", {
         p_group_id: group.id,
         p_name: name,
@@ -2346,18 +1773,17 @@ export default function GroupDashboard() {
       setGroup((prev) =>
         prev
           ? {
-            ...prev,
-            name: row.name || name,
-            group_slug: row.group_slug || slug,
-            description: row.description ?? (description || null),
-            group_type: row.group_type || groupType,
-            group_image: ensureHttpsUrl(row.group_image) ?? (nextImageUrl || null),
-            password: row.password ?? (groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null),
-          }
+              ...prev,
+              name: row.name || name,
+              group_slug: row.group_slug || slug,
+              description: row.description ?? (description || null),
+              group_type: row.group_type || groupType,
+              group_image: ensureHttpsUrl(row.group_image) ?? (nextImageUrl || null),
+              password: row.password ?? (groupEditPassword.trim() ? groupEditPassword.trim() : prev.password || null),
+            }
           : prev
       );
       setGroupEditPassword("");
-      setGroupEditImageFile(null);
       alert("모임 설정을 저장했습니다.");
     } catch (error) {
       console.error(error);
@@ -2368,41 +1794,6 @@ export default function GroupDashboard() {
       }
     } finally {
       setGroupEditSaving(false);
-      setGroupEditImageUploading(false);
-    }
-  };
-
-  const resetGroupImage = async () => {
-    if (!group || !isManager) return;
-    if (!confirm("모임 대표 이미지를 초기화하시겠습니까?")) return;
-    try {
-      setGroupEditImageUploading(true);
-      const oldImages = [group.group_image, group.header_image_url].filter(Boolean) as string[];
-
-      const { error } = await supabase
-        .from("groups")
-        .update({
-          group_image: null,
-          header_image_url: null,
-          header_color: "#4A6741"
-        })
-        .eq("id", group.id);
-
-      if (error) throw error;
-
-      // 기존 이미지 R2에서 삭제
-      for (const url of oldImages) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
-      }
-
-      setGroup(prev => prev ? { ...prev, group_image: null, header_image_url: null, header_color: "#4A6741" } : prev);
-      setGroupEditImageFile(null);
-      alert("모임 대표 이미지가 초기화되었습니다.");
-    } catch (err) {
-      console.error(err);
-      alert("초기화에 실패했습니다.");
-    } finally {
-      setGroupEditImageUploading(false);
     }
   };
 
@@ -2429,11 +1820,11 @@ export default function GroupDashboard() {
       setGroup((prev) =>
         prev
           ? {
-            ...prev,
-            header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
-            group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
-            header_color: row.header_color || prev.header_color,
-          }
+              ...prev,
+              header_image_url: ensureHttpsUrl(row.header_image_url) ?? imageUrl,
+              group_image: ensureHttpsUrl(row.group_image) ?? imageUrl,
+              header_color: row.header_color || prev.header_color,
+            }
           : prev
       );
       setHeaderImageFile(null);
@@ -2542,7 +1933,7 @@ export default function GroupDashboard() {
       alert("관리자는 모임을 나갈 수 없습니다. 먼저 소유권을 이전하세요.");
       return;
     }
-    if (!confirm("모임을 탈퇴하시겠습니까?")) return;
+    if (!confirm("모임에서 나가시겠습니까?")) return;
 
     const { error } = await supabase.rpc("leave_group", {
       p_group_id: group.id,
@@ -2610,41 +2001,6 @@ export default function GroupDashboard() {
     }
   };
 
-  const topicsByAuthor = useMemo(() => {
-    const map = new Map<string, typeof groupPrayerTopics>();
-    groupPrayerTopics.forEach(topic => {
-      if (!map.has(topic.author_id)) map.set(topic.author_id, []);
-      map.get(topic.author_id)!.push(topic);
-    });
-    return Array.from(map.entries()).map(([userId, topics]) => ({
-      userId,
-      topics,
-      author: authorMap[userId] || { nickname: "이름 없음" }
-    }));
-  }, [groupPrayerTopics, authorMap]);
-
-  const prayersByTargetUser = useMemo(() => {
-    const map = new Map<string, typeof groupPrayers>();
-    groupPrayers.forEach(record => {
-      let targetUserId: string | null = null;
-      const userMatch = record.title?.match(/^\[user:([a-fA-F0-9-]+)\]/i);
-      if (userMatch) {
-        targetUserId = userMatch[1];
-      } else {
-        const match = record.title?.match(/^\[topic:(\d+)\]/i);
-        if (match) {
-          const topicId = parseInt(match[1]);
-          const t = groupPrayerTopics.find(x => x.id === topicId);
-          if (t) targetUserId = t.author_id;
-        }
-      }
-      if (targetUserId) {
-        if (!map.has(targetUserId)) map.set(targetUserId, []);
-        map.get(targetUserId)!.push(record);
-      }
-    });
-    return map;
-  }, [groupPrayers, groupPrayerTopics]);
 
   // 1. groupId 없으면 아무것도 렌더링하지 않음
   if (!groupId) return null;
@@ -2652,13 +2008,11 @@ export default function GroupDashboard() {
   // 2. authReady 또는 loading이 끝나기 전에는 무조건 스피너만 렌더링
   if (!authReady || loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center text-center gap-3 w-full">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
-          <p className="text-zinc-400 text-sm font-medium text-center">
-            모임 화면 불러오는 중...
-          </p>
-        </div>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center text-center gap-3 w-full">
+        <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
+        <p className="text-zinc-400 text-sm font-medium text-center">
+          모임 화면 불러오는 중...
+        </p>
       </div>
     );
   }
@@ -2669,9 +2023,9 @@ export default function GroupDashboard() {
   // 4. role이 guest일 때 가입 폼 렌더링 (단, loading/authReady 끝난 뒤에만)
   if (role === "guest") {
     return (
-      <div className="min-h-screen bg-[#F6F7F8] pb-10 text-base">
+      <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
         <div
-          className="pt-20 pb-10 min-h-[260px] flex flex-col justify-between"
+          className="pt-28 pb-8"
           style={{
             background:
               ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -2679,103 +2033,68 @@ export default function GroupDashboard() {
                 : `linear-gradient(135deg, ${group.header_color || "#4A6741"}, #1f2937)`,
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 w-full h-full flex flex-col justify-between flex-1">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => setLocation("/community?list=1")}
-                className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur shadow-sm hover:bg-white/30 transition-colors"
-              >
-                <ChevronLeft size={16} />
-              </button>
-            </div>
-            <div className="text-white mt-8 mb-4">
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
-                {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
-              </div>
-              <div className="mt-3 text-sm sm:text-sm text-white/90 flex flex-col gap-0 font-medium">
-                {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
-                <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-                <span>나의 등급 : 방문자</span>
-              </div>
+          <div className="max-w-2xl mx-auto px-4">
+            <button
+              onClick={() => setLocation("/community?list=1")}
+              className="w-6 h-6 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur pb-6"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div className="mt-8 text-white">
+              <div className="text-base font-bold">{group.name}</div>
+              <div className="text-sm text-white/80 mt-1.5">{group.group_slug ? `모임 아이디: ${group.group_slug}` : ""}</div>
             </div>
           </div>
         </div>
 
-        <main className="max-w-2xl mx-auto px-4 pt-6 pb-4 space-y-6">
-          {/* 모임 소개 섹션 (카드 스타일) */}
-          <div className="bg-white rounded-3xl shadow-xl p-6 border border-zinc-100">
-            <h2 className="text-base font-black text-[#4A6741] mb-6 flex items-center gap-2">
-              <Users size={16} /> 모임 소개
-            </h2>
-            <div className="text-sm text-zinc-700 leading-relaxed whitespace-pre-wrap">
+        <main className="max-w-2xl mx-auto px-4 -mt-6 space-y-3">
+          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
+            <div className="text-base text-zinc-600 whitespace-pre-wrap">
               {group.description?.trim() || "모임 소개가 아직 등록되지 않았습니다."}
             </div>
             {group.is_closed && (
-              <div className="mt-4 inline-flex items-center gap-2 text-sm px-3 py-2 rounded-xl bg-rose-50 text-rose-600 font-bold border border-rose-100">
-                <Lock size={14} /> 현재 폐쇄된 모임입니다.
+              <div className="mt-3 inline-flex items-center gap-2 text-base px-3 py-1.5 rounded-sm bg-rose-50 text-rose-700 font-bold">
+                <Lock size={13} /> 현재 폐쇄된 모임입니다.
               </div>
             )}
           </div>
 
-          {/* 가입 신청 섹션 (카드 스타일) */}
-          <div className="bg-white rounded-3xl shadow-xl p-6 border border-white/20">
-            <h2 className="text-base font-black text-[#4A6741] mb-6 flex items-center gap-2">
-              <SendHorizontal size={16} /> 가입 신청서 작성
-            </h2>
-
-            <div className="space-y-4">
-              {/* group.password 가 null 이거나 빈 문자열이 아니면(즉 비밀번호가 설정되어 있으면) 입력창 표시 */}
-              {group.password ? (
-                <div className="space-y-1.5">
-                  <label className="text-sm font-bold text-zinc-700 ml-1">모임 비밀번호</label>
-                  <input
-                    type="password"
-                    value={joinPassword}
-                    onChange={(e) => setJoinPassword(e.target.value)}
-                    className="w-full px-5 py-3.5 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
-                    placeholder="비밀번호를 입력하세요"
-                    disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
-                  />
-                </div>
-              ) : null}
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-bold text-zinc-700 ml-1">신청 메시지</label>
-                <textarea
-                  value={joinMessage}
-                  onChange={(e) => setJoinMessage(e.target.value)}
-                  className="w-full min-h-[120px] px-5 py-4 rounded-2xl bg-zinc-50 border border-zinc-100 text-sm focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all resize-none"
-                  placeholder="가입 승인에 필요한 내용을 입력해주세요 (선택)"
-                  disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              {!user ? (
-                <button
-                  onClick={() => setLocation("/auth")}
-                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-lg shadow-lg hover:bg-[#3d5535] transition-all"
-                >
-                  로그인 후 신청하기
-                </button>
-              ) : !!guestJoinPending ? (
-                <div className="p-4 bg-[#4A6741]/5 border border-[#4A6741]/10 rounded-2xl text-center">
-                  <div className="text-base text-[#4A6741] font-black">가입 신청 완료!</div>
-                  <div className="text-sm text-[#4A6741]/70 mt-1">관리자/리더의 승인을 기다리고 있습니다.</div>
-                </div>
-              ) : (
-                <button
-                  onClick={submitJoinRequest}
-                  disabled={!!joinSubmitting || !!group?.is_closed}
-                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-lg shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-50 inline-flex items-center justify-center gap-2 active:scale-[0.98]"
-                >
-                  <SendHorizontal size={18} />
-                  {joinSubmitting ? "신청 중..." : "가입 신청하기"}
-                </button>
-              )}
-            </div>
+          <div className="bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <h2 className="font-black text-zinc-900">가입 신청</h2>
+            <input
+              type="password"
+              value={joinPassword}
+              onChange={(e) => setJoinPassword(e.target.value)}
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="모임 가입 비밀번호"
+              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
+            />
+            <textarea
+              value={joinMessage}
+              onChange={(e) => setJoinMessage(e.target.value)}
+              className="w-full min-h-[96px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="가입 메시지 (선택)"
+              disabled={!!user === false || !!guestJoinPending || !!group?.is_closed}
+            />
+            {!user ? (
+              <button
+                onClick={() => setLocation("/login")}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold"
+              >
+                로그인 후 가입 신청
+              </button>
+            ) : !!guestJoinPending ? (
+              <div className="text-base text-emerald-700 font-bold">가입 신청이 접수되어 승인 대기 중입니다.</div>
+            ) : (
+              <button
+                onClick={submitJoinRequest}
+                disabled={!!joinSubmitting || !!group?.is_closed}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold disabled:opacity-60 inline-flex items-center justify-center gap-2"
+              >
+                <SendHorizontal size={15} />
+                {joinSubmitting ? "신청 중..." : "가입 신청 보내기"}
+              </button>
+            )}
           </div>
         </main>
       </div>
@@ -2785,74 +2104,8 @@ export default function GroupDashboard() {
   // 5. user 없으면 아무것도 렌더링하지 않음
   if (!user) return null;
 
-  const handleHeartPrayer = async (targetUserId: string) => {
-    if (!group || !user) return;
-    try {
-      const { error } = await supabase.from("group_prayer_records").insert({
-        group_id: group.id,
-        user_id: user.id,
-        source_type: "direct",
-        title: `[user:${targetUserId}] Amen`,
-        audio_url: "amen",
-        audio_duration: 0,
-      });
-      if (error) throw error;
-      await loadGroupPrayers(group.id);
-      if (window.navigator?.vibrate) window.navigator.vibrate([20, 50, 20]);
-    } catch (err) {
-      console.error(err);
-      alert("마음기도 저장에 실패했습니다.");
-    }
-  };
-
-  const startVoicePrayerForUser = (targetUserId: string) => {
-    setRecordTitle(`[user:${targetUserId}] 음성기도`);
-    setShowPrayerComposer(true);
-  };
-
-  const deleteAllMyPrayerTopics = async () => {
-    if (!confirm("정말 모든 기도제목을 삭제하시겠습니까? 등록된 기도제목 전체가 삭제됩니다.")) return;
-    try {
-      const { error } = await supabase.from("group_prayer_topics").delete().eq("author_id", user.id);
-      if (error) throw error;
-      if (group?.id) loadGroupPrayerTopics(group.id);
-    } catch (err) {
-      console.error(err);
-      alert("삭제에 실패했습니다.");
-    }
-  };
-
-  const deleteSingleTopic = async (topicId: number) => {
-    if (!confirm("이 기도제목을 삭제할까요?")) return;
-    try {
-      const { error } = await supabase.from("group_prayer_topics").delete().eq("id", topicId);
-      if (error) throw error;
-      if (group?.id) loadGroupPrayerTopics(group.id);
-    } catch (err) {
-      console.error(err);
-      alert("삭제에 실패했습니다.");
-    }
-  };
-
-  const editSingleTopic = async (topic: typeof groupPrayerTopics[0]) => {
-    const newContent = prompt("수정할 기도제목을 입력하세요.", topic.content);
-    if (newContent === null) return;
-    if (newContent.trim() === "") {
-      alert("기도제목을 입력해주세요.");
-      return;
-    }
-    try {
-      const { error } = await supabase.from("group_prayer_topics").update({ content: newContent.trim() }).eq("id", topic.id);
-      if (error) throw error;
-      if (group?.id) loadGroupPrayerTopics(group.id);
-    } catch (err) {
-      console.error(err);
-      alert("수정에 실패했습니다.");
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pb-12 text-base">
+    <div className="min-h-screen bg-[#F6F7F8] pb-28 text-base">
       <header
         className="relative overflow-hidden max-h-[320px] opacity-100 transition-all duration-250"
         style={{
@@ -2862,513 +2115,396 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-20 pb-10 min-h-[260px] flex flex-col justify-between h-full">
+        <div className="max-w-2xl mx-auto px-4 pt-24 pb-14 min-h-[260px] flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
-              className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+              className="w-9 h-9 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
             >
-              <ChevronLeft size={16} />
+              <ChevronLeft size={18} />
             </button>
-            {isManager && (
-              <button
-                onClick={() => setActiveTab("admin")}
-                className="w-8 h-8 rounded-full bg-transparent text-white font-bold inline-flex items-center justify-center gap-1.5 hover:bg-white/30 transition-colors"
-              >
-                <Settings size={16} />
-              </button>
-            )}
           </div>
 
-          <div className="text-white mt-8">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="text-2xl sm:text-2xl font-bold truncate leading-none py-1">{group.name}</div>
+          <div className="text-white">
+            <div className="text-2xl sm:text-3xl font-black truncate">{group.name}</div>
+            <div className="text-base text-white/90 mt-1 inline-flex items-center gap-2 flex-wrap">
+              <span>{group.group_slug ? `아이디: ${group.group_slug}` : ""}</span>
+              <span className="px-2 py-0.5 rounded-sm bg-white/20 font-bold">{toLabel(role)}</span>
               <button
                 onClick={() => setActiveTab("members")}
-                className="px-2.5 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
-                title="회원 조회"
+                className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
               >
-                <Users size={14} />
-                회원수 {members.length}명
+                <Users size={12} />
+                멤버
               </button>
-              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
-            </div>
-
-            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-1.5">
-              {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
-              <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-              <span>나의 등급 : {toLabel(role)}</span>
+              {isManager && (
+                <button
+                  onClick={() => setActiveTab("admin")}
+                  className="px-2 py-0.5 rounded-sm bg-white/20 font-bold inline-flex items-center gap-1"
+                >
+                  <Settings size={12} />
+                  관리
+                </button>
+              )}
+              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/70 font-bold">폐쇄됨</span>}
             </div>
           </div>
         </div>
       </header>
 
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all overflow-x-auto hide-scrollbar">
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all">
         <div className="w-full">
-          <nav className="flex items-center justify-center w-full max-w-xl mx-auto">
+          <nav className="flex items-center">
             {([
               ["faith", "신앙생활"],
               ["prayer", "중보기도"],
               ["social", "교제나눔"],
-              ["schedule", "모임일정"],
-            ] as Array<[TabKey, string]>)
-              .filter(([id]) => group.menu_settings?.[id as keyof typeof group.menu_settings] !== false)
-              .map(([id, label]) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveTab(id)}
-                  className={`flex-1 min-w-[4rem] py-3 text-base font-bold border-b-2 transition-colors ${activeTab === id
-                    ? "border-[#4A6741] bg-white text-[#4A6741]"
+            ] as Array<[TabKey, string]>).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setActiveTab(id)}
+                className={`flex-1 min-w-[6.5rem] py-3 text-base font-bold border-b-2 transition-colors ${
+                  activeTab === id
+                    ? "border-[#4A6741] text-zinc-900 bg-white"
                     : "border-transparent text-zinc-500 hover:text-zinc-700"
-                    }`}
-                >
-                  {label}
-                </button>
-              ))}
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </nav>
         </div>
       </div>
 
-      <main className="max-w-2xl mx-auto px-4 pt-4 space-y-4">
+      <main className="max-w-2xl mx-auto px-4 pt-10 space-y-4">
 
         {activeTab === "prayer" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <section className="relative">
-              <div className="space-y-4">
-                {topicsByAuthor.map(({ userId, topics, author }) => (
-                  <div key={userId} className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-2 px-5">
-                      {author.avatar_url ? (
-                        <img src={author.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="avatar" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
-                          <User size={18} />
-                        </div>
-                      )}
-                      <span className="font-bold text-zinc-900 text-[16px]">{author.nickname || author.username}</span>
-                    </div>
-
-                    <div className="space-y-4 pb-3 px-5">
-                      {/* 기도제목 리스트 렌더링 (단일 목록) */}
-                      <div className="space-y-2">
-                        {topics.map((topic) => (
-                          <div key={topic.id} className="flex gap-2 items-start text-sm">
-                            <span className="text-[#4A6741] shrink-0 mt-[3px]"><Check size={14} /></span>
-                            <div className="flex-1 font-bold text-zinc-700 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
-                          </div>
-                        ))}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-5">
+              <h2 className="font-black text-zinc-900 mb-3 flex items-center gap-2">
+                <MessageSquare size={18} className="text-[#4A6741]" />
+                모임원 기도제목
+              </h2>
+              <div className="space-y-2">
+                {groupPrayerTopics.map((topic) => {
+                  const author = authorMap[topic.author_id];
+                  const authorName = author?.nickname || author?.username || "모임원";
+                  return (
+                    <div key={topic.id} className="px-1 py-3 border-b border-zinc-200">
+                      <div className="text-base text-zinc-900 whitespace-pre-wrap">{topic.content}</div>
+                      <div className="text-base text-zinc-500 mt-2">
+                        {authorName} · {formatDateTime(topic.created_at)}
                       </div>
-
-                      {/* 기도 버튼 및 내 기도 관리 버튼 영역 */}
-                      <div className="flex items-center gap-2 mt-2 pt-3 border-t border-zinc-100 shrink-0">
-                        {(() => {
-                          const relatedPrayers = prayersByTargetUser.get(userId) || [];
-                          const heartCount = relatedPrayers.filter(p => p.audio_url === 'amen').length;
-                          const voicePrayers = relatedPrayers.filter(p => p.audio_url && p.audio_url !== 'amen')
-                            .filter(vp => vp.user_id === user.id || userId === user.id); // 오직 기도자/소유자만 필터링됨
-
-                          return (
-                            <>
-                              <button
-                                onClick={() => handleHeartPrayer(userId)}
-                                className="flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-xs font-bold transition-all active:scale-95"
-                              >
-                                <Heart size={12} fill="currentColor" className="opacity-80" /> 마음기도 {heartCount > 0 && <span>{heartCount}</span>}
-                              </button>
-                              <button
-                                onClick={() => startVoicePrayerForUser(userId)}
-                                className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
-                              >
-                                <Mic size={12} /> 음성기도
-                              </button>
-                              {userId === user.id && (
-                                <div className="flex items-center gap-1 opacity-60 ml-auto shrink-0">
-                                  <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
-                                  <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-
-                      {/* 음성 기도 목록 렌더링 (전체 묶음 기준) */}
-                      {(() => {
-                        const relatedPrayers = prayersByTargetUser.get(userId) || [];
-                        const voicePrayers = relatedPrayers.filter(p => p.audio_url && p.audio_url !== 'amen')
-                          .filter(vp => vp.user_id === user.id || userId === user.id);
-
-                        if (voicePrayers.length === 0) return null;
-                        return (
-                          <div className="mt-3 space-y-2">
-                            {voicePrayers.map(vp => {
-                              const prayingUser = authorMap[vp.user_id];
-                              const pname = prayingUser?.nickname || prayingUser?.username || "모임원";
-                              const canDelete = isManager || vp.user_id === user.id;
-
-                              return (
-                                <div key={vp.id} className="bg-white rounded-xl border border-zinc-100 p-2.5 shadow-sm">
-                                  <div className="flex justify-between items-center mb-1.5">
-                                    <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
-                                      <Mic size={12} /> {pname}
-                                    </div>
-                                    {canDelete && (
-                                      <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
-                                        <Trash2 size={12} />
-                                      </button>
-                                    )}
-                                  </div>
-                                  <audio controls className="w-full h-8" src={vp.audio_url} preload="none" />
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
                     </div>
-                  </div>
-                ))}
-
-                {topicsByAuthor.length === 0 && (
-                  <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center justify-center item-center">
-                    등록된 기도제목이 없습니다.
+                  );
+                })}
+                {groupPrayerTopics.length === 0 && (
+                  <div className="px-4 py-5 text-center text-base text-zinc-500">
+                    아직 등록된 기도제목이 없습니다.
                   </div>
                 )}
               </div>
-
-              <button
-                onClick={() => setShowPrayerTopicModal(true)}
-                className="fixed right-5 bottom-24 z-[90] w-14 h-14 bg-[#4A6741]/90 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
-                aria-label="내 기도제목 등록"
-              >
-                <HandHeart size={24} />
-              </button>
             </section>
+
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-6">
+              <div className="flex items-center justify-center gap-6">
+                <button
+                  onClick={() => setShowPrayerComposer(true)}
+                  className="w-28 h-28 rounded-full bg-[#4A6741] text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
+                >
+                  <Mic size={20} />
+                  <span className="text-base font-black">기도하기</span>
+                </button>
+                <button
+                  onClick={() => setShowPrayerTopicModal(true)}
+                  className="w-28 h-28 rounded-full bg-zinc-900 text-white shadow-lg inline-flex flex-col items-center justify-center gap-2"
+                >
+                  <Plus size={20} />
+                  <span className="text-base font-black">기도제목 등록</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+                <div className="py-3 text-sm text-zinc-500">모임 내부에서 기도를 녹음하고 저장할 수 있습니다.</div>
+              </div>
+            </section>
+
+            <div className="space-y-2">
+              <h3 className="font-black text-zinc-900 px-1">기도 저장 목록</h3>
+              {groupPrayers.map((record) => (
+                <div key={record.id} className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div>
+                      <div className="font-bold text-zinc-900">{record.title || "제목 없는 기도"}</div>
+                      <div className="text-base text-zinc-500 mt-1">{formatDateTime(record.created_at)}</div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`px-2 py-0.5 rounded-sm text-base font-bold ${
+                          record.source_type === "direct"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {record.source_type === "direct" ? "모임 직접" : "Prayer 연결"}
+                      </span>
+                      {(isManager || record.user_id === user.id) && (
+                        <button
+                          onClick={() => removeGroupPrayer(record)}
+                          className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <audio controls className="w-full" src={record.audio_url} preload="none" />
+                </div>
+              ))}
+
+              {groupPrayers.length === 0 && (
+                <div className="bg-[#F6F7F8] border-b border-zinc-200 px-4 py-5 text-base text-zinc-500 text-center">
+                  아직 모임 기도 기록이 없습니다.
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
         {activeTab === "faith" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 pb-0">
-
-            <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
-              <button onClick={() => setFaithCurrentDate(subWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
-              <span className="font-black text-xl tracking-tight">{getWeekKoreanLabel(faithCurrentDate)}</span>
-              <button onClick={() => setFaithCurrentDate(addWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight /></button>
-            </div>
-
-            {/* ── 주간 수행 현황 카드 ── */}
-            <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 overflow-hidden">
-              <div className="w-full">
-                <div className="w-full select-none pb-0">
-                  {/* 헤더 항목 */}
-                  <div className="flex items-center pt-1 pb-4 px-0 sm:px-2">
-                    <div className="shrink-0 w-16 sm:w-20" />
-                    {faithItemSlots.map((slot) => (
-                      <div key={`header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
-                        <span className="text-base sm:text-lg font-bold text-[#4A6741] leading-none">{slot.label}</span>
-                        {!slot.item && <span className="text-[0.7em] text-zinc-300 mt-1">미설정</span>}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* 날짜 행 */}
-                  <div className="space-y-0 px-0 sm:px-2 pt-2">
-                    {weekDates.map((date) => {
-                      const dt = parseISO(date);
-                      const isToday = isSameDay(dt, new Date());
-                      const isHoliday = KOREAN_HOLIDAYS[date];
-                      const isSunday = dt.getDay() === 0;
-                      const isSaturday = dt.getDay() === 6;
-                      const isRed = isSunday || isHoliday;
-                      return (
-                        <div key={date} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-[#4A6741]/20" : ""}`}>
-                          <div className="shrink-0 w-16 sm:w-20 flex flex-col items-center justify-center">
-                            <span className={`text-base base:text-sm font-bold leading-none ${isToday ? "text-[#4A6741]" : isRed ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-500"} text-center`}>
-                              {dt.getDate()}({dt.toLocaleDateString("ko-KR", { weekday: "short" })})
-                            </span>
-                            {isHoliday && <span className="text-[0.65em] leading-tight text-rose-500 font-bold max-w-full truncate px-0.5 mt-1" style={{ transform: "scale(0.95)" }}>{isHoliday}</span>}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <section className="bg-[#F6F7F8] px-1">
+              <div className="text-center text-[#4A6741] font-bold py-3 border-b border-zinc-200">{getTodayKoreanLabel()}</div>
+              <div className="py-3">
+                <div className="overflow-x-auto -mx-2 px-2">
+                  <div className="min-w-[560px]">
+                    {/* Days header row: Sun-Sat, today centered */}
+                    <div className="flex gap-2 justify-center items-end">
+                      {weekDates.map((date, idx) => {
+                        const dt = new Date(date);
+                        const isToday = date === new Date().toISOString().split("T")[0];
+                        return (
+                          <div
+                            key={date}
+                            className={`flex flex-col items-center justify-center w-14 p-1 ${isToday ? "ring-2 ring-[#4A6741] rounded-lg bg-white z-10" : ""}`}
+                          >
+                            <div className="text-sm font-bold">{dt.toLocaleDateString("ko-KR", { weekday: "short" })}</div>
+                            <div className="text-xs text-zinc-500 mt-1">{dt.getDate()}</div>
                           </div>
-                          {faithItemSlots.map((slot) => {
-                            const item = slot.item;
-                            const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
-                            const disabled = !item;
-                            const done = val > 0;
-                            return (
-                              <div key={`${slot.key}-${date}`} className="flex-1 flex justify-center px-1">
-                                <button
-                                  onClick={() => item && void handleFaithToggleForDate(item, date)}
-                                  disabled={disabled}
-                                  className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0
-                                       ${disabled
-                                      ? "opacity-25 cursor-not-allowed bg-zinc-50"
-                                      : done
-                                        ? "bg-[#4A6741]/90 text-white shadow-sm" // 배경을 진하게, 글자를 흰색으로 수정
-                                        : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
-                                    }`}
-                                >
-                                  <Check
-                                    size={20}
-                                    strokeWidth={done ? 4 : 2.5} // 완료 시 더 두껍게, 미완료 시 더 얇게 표현
-                                    className={done ? "opacity-100" : "opacity-40"} // 미완료 시 아이콘을 더 흐리게
-                                  />
-                                </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Faith items rows: fixed label, swipeable, today centered */}
+                    <div className="mt-3 space-y-2">
+                      {faithItemSlots.map((slot) => {
+                        const item = slot.item;
+                        return (
+                          <div key={slot.key} className="flex items-center gap-3">
+                            <div className="w-24 font-bold text-zinc-900 flex-shrink-0 text-right pr-2">{slot.label}</div>
+                            <div className="flex-1 overflow-x-auto -mx-2 px-2">
+                              <div className="flex gap-2 min-w-[560px]">
+                                {weekDates.map((date) => {
+                                  const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
+                                  const disabled = !item;
+                                  const isToday = date === new Date().toISOString().split("T")[0];
+                                  return (
+                                    <button
+                                      key={`${slot.key}-${date}`}
+                                      onClick={() => item && void handleFaithToggleForDate(item, date)}
+                                      disabled={disabled}
+                                      className={`h-12 w-14 rounded-lg flex items-center justify-center text-sm font-bold transition-colors border ${
+                                        disabled
+                                          ? "opacity-40 cursor-not-allowed bg-white border-zinc-100 text-zinc-300"
+                                          : val > 0
+                                          ? "bg-[#4A6741] text-white border-[#4A6741]"
+                                          : isToday
+                                          ? "bg-white border-[#4A6741] text-[#4A6741]"
+                                          : "bg-white border-zinc-200 text-[#4A6741]"
+                                      }`}
+                                    >
+                                      {val > 0 ? "완료" : "—"}
+                                    </button>
+                                  );
+                                })}
                               </div>
-                            );
-                          })}
-                        </div>
-                      )
-                    })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
-
               {faithItemSlots.some((slot) => !slot.item) && (
-                <div className="px-5 pb-4 text-xs text-zinc-400">
-                  ⚠ 일부 항목이 설정되지 않았습니다. 관리자/리더가 관리 메뉴에서 준비해주세요.
+                <div className="py-3 text-base text-zinc-500">
+                  일부 항목이 아직 설정되지 않았습니다. 관리자/리더가 관리 메뉴에서 항목을 준비해주세요.
                 </div>
               )}
-            </div>
+            </section>
 
-            {/* ── 관리자: 전체 멤버 현황 ── */}
             {isManager && (
-              <div className="space-y-4"> {/* 제목과 박스 사이 간격을 위해 감싸는 div 추가 */}
-
-                {/* 1. 주간 현황 제목 (아이콘 추가 버전) */}
-                <div className="px-1 pt-10">
-                  <div className="flex items-center gap-2 mb-1">
-                    {/* ChartBar 아이콘: 통계와 현황 느낌을 줍니다 */}
-                    <ChartBar className="text-[#4A6741]" size={20} strokeWidth={2.5} />
-
-                    <p className="text-lg lg:text-xl font-black text-[#4A6741] leading-none">
-                      주간 현황
-                    </p>
-                  </div>
+              <section className="bg-[#F6F7F8] border-t border-zinc-200 pt-4">
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200">
+                  <h3 className="font-black text-zinc-900 text-base">전체 멤버 오늘 현황</h3>
+                  <input
+                    type="date"
+                    value={faithBoardDate}
+                    onChange={(e) => setFaithBoardDate(e.target.value)}
+                    className="px-2 py-1 border border-zinc-200 text-base"
+                  />
                 </div>
-
-                {/* 실제 데이터 박스 */}
-                <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-                  {/* 기존에 제목이 있던 div(border-b)는 제거하거나 비워둡니다 */}
-
-                  {faithBoardLoading ? (
-                    <div className="py-10 text-sm text-zinc-400 text-center">현황 불러오는 중...</div>
-                  ) : faithBoardRows.length === 0 ? (
-                    <div className="py-10 text-sm text-zinc-400 text-center">조회된 기록이 없습니다.</div>
-                  ) : (
-                    <div className="w-full text-sm pb-4">
-
-                      {/* 2. 열 제목 (멤버, 성경, QT 등 헤더) */}
-                      <div className="flex items-center pt-6 pb-3 px-4 sm:px-8 bg-white">
-                        {/* '닉네임' 글자 크기: text-[13px] -> text-sm sm:text-base 등으로 수정 */}
-                        <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-300 text-sm sm:text-base text-center">닉네임</div>
-
-                        {faithItemSlots.filter((slot) => slot.item).map((slot) => (
-                          /* '성경, QT...' 글자 크기: text-[13px] -> text-sm sm:text-base 등으로 수정 */
-                          <div key={slot.key} className="flex-1 flex justify-center font-bold text-[#4A6741] text-base base:text-lg text-center">
-                            {slot.label}
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="space-y-0 px-4 sm:px-8">
-                        {faithBoardRows.map((row, idx) => (
-                          <div key={row.user_id} className={`flex items-center py-3 ${idx % 2 === 0 ? "bg-white" : "bg-zinc-50/20"}`}>
-
-                            {/* 3. 행 제목 (멤버 이름) */}
-                            {/* text-[13px] -> text-base sm:text-lg 등으로 수정 */}
-                            <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-700 text-base sm:text-lg text-center break-all flex items-center justify-center min-h-[44px] leading-tight px-1">{row.name}</div>
-
-                            {faithItemSlots.filter((slot) => slot.item).map((slot) => {
-                              const count = row.values[slot.item!.id] ?? 0;
-                              return (
-                                <div key={slot.key} className="flex-1 flex justify-center relative">
-                                  {/* 4. 기록 숫자 크기 */}
-                                  {/* text-[15px] -> text-lg sm:text-xl 등으로 수정 */}
-                                  {count > 0 ? (
-                                    <span className="inline-flex w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] bg-[#4A6741]/90 text-white shadow-sm font-black text-lg lg:text-xl flex items-center justify-center transition-all shrink-0">
-                                      {count}
+                {faithBoardLoading ? (
+                  <div className="py-6 text-base text-zinc-500 text-center">현황 불러오는 중...</div>
+                ) : faithBoardRows.length === 0 ? (
+                  <div className="py-6 text-base text-zinc-500 text-center">조회된 기록이 없습니다.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-base">
+                      <thead>
+                        <tr className="text-zinc-500 border-b border-zinc-200">
+                          <th className="text-left py-2 pr-3 whitespace-nowrap">멤버</th>
+                          {faithItemSlots
+                            .filter((slot) => slot.item)
+                            .map((slot) => (
+                              <th key={`head-${slot.key}`} className="text-left py-2 pr-3 whitespace-nowrap">
+                                {slot.label}
+                              </th>
+                            ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {faithBoardRows.map((row) => (
+                          <tr key={`board-${row.user_id}`} className="border-b border-zinc-100">
+                            <td className="py-2 pr-3 font-bold text-zinc-900 whitespace-nowrap">{row.name}</td>
+                            {faithItemSlots
+                              .filter((slot) => slot.item)
+                              .map((slot) => {
+                                const itemId = slot.item!.id;
+                                const done = (row.values[itemId] ?? 0) > 0;
+                                return (
+                                  <td key={`cell-${row.user_id}-${itemId}`} className="py-2 pr-3">
+                                    <span className={done ? "text-emerald-600 font-black" : "text-zinc-300 font-bold"}>
+                                      {done ? "✓" : "-"}
                                     </span>
-                                  ) : (
-                                    <span className="inline-flex w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] bg-zinc-50 border border-zinc-100/80 text-zinc-300 font-black text-base sm:text-lg flex items-center justify-center transition-all shrink-0">0</span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
+                                  </td>
+                                );
+                              })}
+                          </tr>
                         ))}
-
-                        {faithBoardRows.length > 0 && (
-                          <div className="flex items-center py-3 bg-[#f3f4f6] border-t border-zinc-200 mt-2 rounded-xl">
-                            <div className="shrink-0 w-16 sm:w-20 font-black text-[#4A6741] text-base sm:text-lg text-center flex items-center justify-center leading-tight px-1">합계</div>
-                            {faithItemSlots.filter((slot) => slot.item).map((slot) => {
-                              const sum = faithBoardRows.reduce((acc, row) => acc + (row.values[slot.item!.id] ?? 0), 0);
-                              return (
-                                <div key={`sum-${slot.key}`} className="flex-1 flex justify-center text-[#4A6741] font-black text-lg lg:text-xl">
-                                  {sum > 0 ? sum : <span className="text-zinc-400 font-bold text-base sm:text-lg">—</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
             )}
-
           </motion.div>
         )}
 
         {activeTab === "social" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <div className="grid gap-4">
-              {posts.map((post) => {
-                const author = authorMap[post.author_id];
-                const authorName = author?.nickname || author?.username || "이름 없음";
-                const canDelete = isManager || post.author_id === user.id;
-                const displayTitle = post.title?.trim() || "";
-                const isNotice = post.post_type === "notice";
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <div className="bg-[#F6F7F8]">
+              <div className="grid gap-4">
+                {posts.map((post) => {
+                  const author = authorMap[post.author_id];
+                  const authorName = author?.nickname || author?.username || "이름 없음";
+                  const canDelete = isManager || post.author_id === user.id;
+                  const displayTitle = post.title?.trim() || post.content.slice(0, 40) || "제목 없음";
+                  const isNotice = post.post_type === "notice";
 
-                return (
-                  <div
-                    key={post.id}
-                    className="bg-white rounded-2xl shadow-sm border border-zinc-100/60 flex flex-col py-5 px-0"
-                  >
-                    <div className="flex items-start justify-between mb-2 mx-4 border-b border-zinc-100 pb-3">
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          {isNotice && <span className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[11px] font-black rounded-sm tracking-tight">공지</span>}
-                          <h3 className="font-bold text-zinc-900 text-base leading-tight break-all">{displayTitle || "교제나눔"}</h3>
+                  return (
+                    <div
+                      key={post.id}
+                      className="rounded-lg bg-white shadow border border-zinc-100 p-4 flex flex-col gap-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
+                            <span className={`px-2 py-0.5 font-bold rounded ${isNotice ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600"}`}>{isNotice ? "공지" : "일반"}</span>
+                            <span className="truncate">{authorName}</span>
+                            <span>· {formatDateTime(post.created_at)}</span>
+                          </div>
+                          <div className="font-bold text-zinc-900 truncate text-base mb-1">{displayTitle}</div>
                         </div>
-                        <span className="text-xs text-zinc-400 font-medium">
-                          {authorName} · {formatDateTime(post.created_at).slice(0, 16).replace('T', ' ')}
-                        </span>
+                        {canDelete && (
+                          <button
+                            onClick={() => removePost(post)}
+                            className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
-
-                      {canDelete && (
-                        <div className="flex gap-1 shrink-0 text-zinc-400">
-                          {post.author_id === user.id && (
-                            <button onClick={() => { setEditingPost(post); setPostType(post.post_type); setPostTitle(post.title || ""); setPostContent(post.content || ""); setPostExistingImages(post.image_urls || []); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }} className="p-1.5 hover:text-[#4A6741] transition-colors"><Pencil size={15} /></button>
-                          )}
-                          <button onClick={() => removePost(post)} className="p-1.5 hover:text-rose-500 transition-colors"><Trash2 size={15} /></button>
+                      <div className="text-zinc-800 text-base whitespace-pre-wrap">
+                        {post.content}
+                      </div>
+                      {post.image_urls && post.image_urls.length > 0 && (
+                        <div className="mt-2">
+                          <div className="overflow-x-auto flex gap-2 touch-pan-x snap-x snap-mandatory">
+                            {post.image_urls.slice(0, 10).map((url, index) => (
+                              <div
+                                key={`post-image-${post.id}-${index}`}
+                                className="flex-shrink-0 w-[75vw] sm:w-[40vw] rounded-lg overflow-hidden bg-zinc-100 snap-center cursor-pointer"
+                                onClick={() => {
+                                  setModalImages(post.image_urls ?? []);
+                                  setModalIndex(index);
+                                  setShowImageModal(true);
+                                }}
+                              >
+                                <img src={url} alt={`post-${post.id}-${index}`} className="w-full h-56 object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 text-sm text-zinc-500">사진 {post.image_urls.length}장</div>
                         </div>
                       )}
                     </div>
-
-                    {post.content && (
-                      <div className="text-zinc-800 text-sm leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3 max-h-[300px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                        {post.content}
-                      </div>
-                    )}
-
-                    {post.image_urls && post.image_urls.length > 0 && (
-                      <PostImageCarousel
-                        urls={post.image_urls}
-                        onImageClick={(index) => {
-                          setModalImages(post.image_urls ?? []);
-                          setModalIndex(index);
-                          setShowImageModal(true);
-                        }}
-                      />
-                    )}
-
-                    {/* 좋아요 & 댓글 액션 */}
-                    <div className="mx-4 mt-2 pt-3 border-t border-zinc-100 flex items-center justify-between">
-                      <div className="flex space-x-4 shrink-0">
-                        <button onClick={() => togglePostLike(post.id)} className={`flex items-center gap-1.5 text-sm font-bold transition-colors ${postLikes[post.id]?.some(l => l.user_id === user.id) ? "text-rose-500" : "text-zinc-400 hover:text-rose-500"}`}>
-                          <Heart size={18} fill={postLikes[post.id]?.some(l => l.user_id === user.id) ? "currentColor" : "none"} />
-                          <span>{postLikes[post.id]?.length || 0}</span>
-                        </button>
-                        <button className="flex items-center gap-1.5 text-sm font-bold text-zinc-400 pointer-events-none">
-                          <MessageSquare size={18} />
-                          <span>{postComments[post.id]?.length || 0}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 댓글 목록 & 입력창 */}
-                    <div className="mx-4 mt-3 flex flex-col gap-2">
-                      {postComments[post.id]?.map((comment: any) => {
-                        const cAuthor = authorMap[comment.user_id];
-                        const cName = cAuthor?.nickname || cAuthor?.username || "모임원";
-                        const canDeleteComment = isManager || comment.user_id === user.id;
-                        return (
-                          <div key={comment.id} className="bg-zinc-50 rounded-lg p-3 text-sm">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-bold text-zinc-700">{cName}</span>
-                              {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><X size={14} /></button>}
-                            </div>
-                            <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center gap-2 mt-1 relative">
-                        <input
-                          type="text"
-                          value={commentDrafts[post.id] || ""}
-                          onChange={(e) => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => { if (e.key === 'Enter') addComment(post.id); }}
-                          placeholder="댓글 달기..."
-                          className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#4A6741] transition-colors"
-                        />
-                        <button disabled={!commentDrafts[post.id]?.trim()} onClick={() => addComment(post.id)} className="absolute right-1 w-8 h-8 rounded-full bg-[#4A6741] text-white flex items-center justify-center disabled:opacity-50 disabled:bg-zinc-300">
-                          <SendHorizontal size={14} className="ml-0.5" />
-                        </button>
-                      </div>
-                    </div>
+                  );
+                })}
+                {posts.length === 0 && (
+                  <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center border-b border-zinc-200">
+                    아직 게시글이 없습니다.
                   </div>
-                );
-              })}
-              {posts.length === 0 && (
-                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center justify-center item-center">
-                  아직 게시글이 없습니다.
-                </div>
-              )}
+                )}
+              </div>
             </div>
             <button
-              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setPostExistingImages([]); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }}
-              className="fixed right-5 bottom-24 z-[90] w-14 h-14 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
+              onClick={() => setShowPostComposerModal(true)}
+              className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
               aria-label="글 작성"
             >
-              <MessageSquare size={24} />
+              <MessageSquare size={22} />
             </button>
           </motion.div>
         )}
 
-        {activeTab === "schedule" && (
-          <GroupScheduleTab groupId={group.id} user={user} isManager={isManager} />
-        )}
-
         {activeTab === "members" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             {isManager && (
-              <div className="bg-[#F6F7F8] p-2 mb-20">
-                <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
-                  <Shield size={16} /> 가입 요청
+              <div className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
+                <h3 className="font-black text-zinc-900 mb-2 text-base flex items-center gap-2">
+                  <Shield size={14} /> 가입 요청
                 </h3>
                 {joinRequests.length === 0 ? (
-                  <div className="text-sm ml-7 item-center justify-center text-zinc-500">대기 중인 요청이 없습니다.</div>
+                  <div className="text-base text-zinc-500">대기 중인 요청이 없습니다.</div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {joinRequests.map((request) => (
-                      <div key={request.id} className="bg-white rounded-2xl p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200">
+                      <div key={request.id} className="bg-zinc-50 rounded-sm p-3">
                         <div className="text-base font-bold text-zinc-900">
                           {request.profile?.nickname || request.profile?.username || "이름 없음"}
                         </div>
-                        <div className="text-sm text-zinc-500 flex flex-col mt-1 gap-y-1">
-                          <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 일시 : {formatDateTime(request.created_at)}</div>
-                          {request.message && <div className="before:content-['|'] before:mr-2 before:text-zinc-300">신청 내용 : {request.message}</div>}
-                        </div>
-                        <div className="flex gap-2 mt-2">
+                        <div className="text-base text-zinc-500 mt-1">{formatDateTime(request.created_at)}</div>
+                        {request.message && <div className="text-base text-zinc-700 mt-2">{request.message}</div>}
+                        <div className="flex gap-2 mt-3">
                           <button
                             onClick={() => resolveJoinRequest(request.id, true)}
-                            className="px-4 py-1 rounded-full bg-[#4A6741]/90 text-white text-sm font-bold"
+                            className="px-3 py-2 rounded-sm bg-emerald-600 text-white text-base font-bold"
                           >
                             승인
                           </button>
                           <button
                             onClick={() => resolveJoinRequest(request.id, false)}
-                            className="px-4 py-1 rounded-full bg-zinc-200 text-zinc-700 text-sm font-bold"
+                            className="px-3 py-2 rounded-sm bg-zinc-200 text-zinc-700 text-base font-bold"
                           >
                             거절
                           </button>
@@ -3380,11 +2516,11 @@ export default function GroupDashboard() {
               </div>
             )}
 
-            <div className="bg-[#F6F7F8] p-2">
-              <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
-                <Users size={16} /> 회원 목록
+            <div className="bg-[#F6F7F8] border-b border-zinc-200 p-4">
+              <h3 className="font-black text-zinc-900 mb-3 text-base flex items-center gap-2">
+                <Users size={14} /> 멤버 목록
               </h3>
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {members.map((member) => {
                   const isOwner = member.role === "owner";
                   const canPromoteDemote = role === "owner" && !isOwner;
@@ -3394,61 +2530,43 @@ export default function GroupDashboard() {
                   return (
                     <div
                       key={`${member.user_id}-${member.id}`}
-                      className="bg-white rounded-2xl p-4 flex flex-col shadow-sm hover:shadow-md transition-shadow duration-200"
+                      className="bg-zinc-50 rounded-sm p-3 flex items-center justify-between gap-2"
                     >
-                      {/* 상단 라인: 이름 + 역할배지 + 버튼들 */}
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          {/* 이름 */}
-                          <div className="font-bold text-zinc-900">{name}</div>
-
-                          {/* 역할 배지 */}
-                          <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' ? 'bg-amber-100 text-amber-700' :
-                            member.role === 'leader' ? 'bg-blue-100 text-blue-700' :
-                              'bg-zinc-200 text-zinc-600'
-                            }`}>
-                            {toLabel(member.role)}
-                          </span>
-
-                          {/* 권한 변경 버튼을 이름 라인으로 이동 */}
-                          <div className="flex items-center gap-1.5 ml-1">
-                            {canPromoteDemote && member.role === "member" && (
-                              <button
-                                onClick={() => changeMemberRole(member.user_id, "leader")}
-                                className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
-                              >
-                                리더권한 부여
-                              </button>
-                            )}
-                            {canPromoteDemote && member.role === "leader" && (
-                              <button
-                                onClick={() => changeMemberRole(member.user_id, "member")}
-                                className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"
-                              >
-                                일반멤버 전환
-                              </button>
-                            )}
-                          </div>
+                      <div>
+                        <div className="font-bold text-zinc-900">{name}</div>
+                        <div className="text-xs text-zinc-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span>{toLabel(member.role)}</span>
+                          <span>아이디: {member.profile?.username || "-"}</span>
+                          <span>가입: {formatJoinedAt(member.joined_at)}</span>
                         </div>
+                      </div>
 
-                        {/* 강퇴 버튼 (맨 오른쪽 유지) */}
+                      <div className="flex items-center gap-2">
+                        {canPromoteDemote && member.role === "member" && (
+                          <button
+                            onClick={() => changeMemberRole(member.user_id, "leader")}
+                            className="px-2 py-1 rounded-sm bg-blue-100 text-blue-700 text-base font-bold"
+                          >
+                            리더 부여
+                          </button>
+                        )}
+                        {canPromoteDemote && member.role === "leader" && (
+                          <button
+                            onClick={() => changeMemberRole(member.user_id, "member")}
+                            className="px-2 py-1 rounded-sm bg-zinc-200 text-zinc-700 text-base font-bold"
+                          >
+                            일반멤버 전환
+                          </button>
+                        )}
                         {canKick && member.user_id !== user.id && (
                           <button
                             onClick={() => removeMember(member.user_id)}
-                            className="w-7 h-7 rounded-full bg-transparent text-rose-500 flex items-center justify-center"
+                            className="w-8 h-8 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center"
                             title="강퇴"
                           >
                             <UserMinus size={14} />
                           </button>
                         )}
-                      </div>
-
-                      {/* 하단 라인: 나머지 정보 */}
-                      <div className="text-sm text-zinc-500 mt-1 flex flex-col gap-y-1">
-                        <span className="before:content-['|'] before:mr-2 before:text-zinc-300">회원 아이디 : {member.profile?.username || "-"}</span>
-                        <span className="before:content-['|'] before:mr-2 before:text-zinc-300">
-                          가입 일시 : {formatJoinedAt(member.joined_at)}
-                        </span>
                       </div>
                     </div>
                   );
@@ -3459,850 +2577,673 @@ export default function GroupDashboard() {
             {(
               <button
                 onClick={() => setShowInviteModal(true)}
-                className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
+                className="fixed right-6 bottom-28 z-[120] w-14 h-14 rounded-full bg-[#4A6741] text-white shadow-2xl flex items-center justify-center"
                 aria-label="회원 초대"
               >
-                <UserPlus size={24} />
+                <UserPlus size={22} />
               </button>
             )}
 
-            <div className="bg-[#F6F7F8] p-2">
-              {role !== "owner" && (
-                <button
-                  onClick={leaveGroup}
-                  className="w-full py-3 rounded-2xl bg-white border border-rose-200 text-rose-600 font-bold text-base shadow-sm hover:shadow-md transition-all duration-200"
-                >
-                  모임 탈퇴하기
-                </button>
-              )}
-            </div>
+            {role !== "owner" && (
+              <button
+                onClick={leaveGroup}
+                className="w-full py-3 rounded-sm bg-white border border-rose-200 text-rose-600 font-bold text-base"
+              >
+                모임 나가기
+              </button>
+            )}
           </motion.div>
         )}
 
         {activeTab === "admin" && isManager && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 px-2 pb-6 mt-4">
-            {/* 관리자 서브 탭 메뉴 */}
-            <div className="flex bg-white rounded-2xl shadow-sm p-1">
-              <button
-                onClick={() => setAdminTab("info")}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "info" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
-                  }`}
-              >
-                기본 정보
-              </button>
-              <button
-                onClick={() => setAdminTab("menu")}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "menu" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
-                  }`}
-              >
-                메뉴 설정
-              </button>
-              <button
-                onClick={() => setAdminTab("manage")}
-                className={`flex-1 py-2.5 text-sm font-bold rounded-xl transition-all ${adminTab === "manage" ? "bg-[#4A6741] text-white shadow-sm" : "bg-transparent text-zinc-500 hover:bg-zinc-50"
-                  }`}
-              >
-                모임 관리
-              </button>
-            </div>
-
-            {/* 기본 정보 탭 */}
-            {adminTab === "info" && (
-              <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                <h3 className="font-black text-zinc-900 text-lg mb-2">모임 기본 정보</h3>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 이름</div>
-                  <input
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
-                    placeholder="모임 이름"
-                    value={groupEditName}
-                    onChange={(e) => setGroupEditName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 아이디</div>
-                  <div className="flex gap-2">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
+              <h3 className="font-black text-zinc-900 text-base">모임 기본 정보 수정</h3>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 이름</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 이름"
+                  value={groupEditName}
+                  onChange={(e) => setGroupEditName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 아이디</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 아이디"
+                  value={groupEditSlug}
+                  onChange={(e) => setGroupEditSlug(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 유형</div>
+                <select
+                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  value={groupEditType}
+                  onChange={(e) => setGroupEditType(e.target.value)}
+                >
+                  <option value="church">교회 모임</option>
+                  <option value="work_school">학교/직장 모임</option>
+                  <option value="family">가족 모임</option>
+                  <option value="etc">기타 모임</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 비밀번호</div>
+                <input
+                  className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="새 비밀번호(선택)"
+                  type="password"
+                  value={groupEditPassword}
+                  onChange={(e) => setGroupEditPassword(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-bold text-zinc-700">모임 소개</div>
+                <textarea
+                  className="w-full min-h-[100px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                  placeholder="모임 소개"
+                  value={groupEditDescription}
+                  onChange={(e) => setGroupEditDescription(e.target.value)}
+                />
+              </div>
+              <div className="rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-2">
+                <div className="text-base font-bold text-zinc-700">모임 대표 이미지</div>
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={13} />
+                    이미지 선택
                     <input
-                      className="flex-1 px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
-                      placeholder="모임 아이디"
-                      value={groupEditSlug}
-                      onChange={(e) => {
-                        setGroupEditSlug(e.target.value);
-                        setSlugCheckState("idle");
-                      }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setGroupEditImageFile(e.target.files?.[0] ?? null)}
                     />
-                    <button
-                      onClick={checkSlugDuplicate}
-                      className="px-4 py-2 bg-zinc-700 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 transition-colors whitespace-nowrap min-w-[80px]"
-                      type="button"
-                    >
-                      {slugCheckState === "checking" ? "확인중" : "중복확인"}
-                    </button>
-                  </div>
-                  {slugCheckState === "available" && <p className="text-sm text-emerald-600 ml-1">사용 가능한 모임 아이디입니다.</p>}
-                  {slugCheckState === "taken" && <p className="text-sm text-red-500 ml-1">이미 사용 중인 모임 아이디입니다.</p>}
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 유형</div>
-                  <select
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
-                    value={groupEditType}
-                    onChange={(e) => setGroupEditType(e.target.value)}
-                  >
-                    <option value="church">교회 모임</option>
-                    <option value="school">학교 모임</option>
-                    <option value="work">직장 모임</option>
-                    <option value="family">가족 모임</option>
-                    <option value="etc">기타 모임</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 비밀번호</div>
-                  <input
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all"
-                    placeholder="새 비밀번호(선택)"
-                    type="password"
-                    value={groupEditPassword}
-                    onChange={(e) => setGroupEditPassword(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 소개</div>
-                  <textarea
-                    className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-base focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none"
-                    placeholder="모임 소개"
-                    value={groupEditDescription}
-                    onChange={(e) => setGroupEditDescription(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="text-sm font-bold text-zinc-700 ml-1">모임 대표 이미지</div>
-                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-4 space-y-3">
-                    <div className="flex items-center gap-3">
-                      <label className="px-4 py-2.5 rounded-xl bg-zinc-900 text-white text-sm font-bold cursor-pointer hover:bg-zinc-800 transition-colors inline-flex items-center gap-2">
-                        <ImagePlus size={16} />
-                        이미지 선택
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleGroupImageSelect}
-                        />
-                      </label>
-                      <button onClick={resetGroupImage} disabled={groupEditImageUploading || groupEditSaving} className="px-4 py-2.5 rounded-xl bg-zinc-200 text-zinc-700 text-sm font-bold cursor-pointer hover:bg-zinc-300 transition-colors inline-flex items-center gap-2 shrink-0 disabled:opacity-50">
-                        초기화
-                      </button>
-                      {groupEditImageFile && <span className="text-sm text-zinc-600 truncate max-w-[150px]">{groupEditImageFile.name}</span>}
-                    </div>
-                    <div className="rounded-xl overflow-hidden border border-zinc-200 bg-white">
-                      <img
-                        src={groupEditImageFile ? URL.createObjectURL(groupEditImageFile) : (ensureHttpsUrl(group?.group_image) || headerImageDraft || "/default-group.png")}
-                        alt="group-image-preview"
-                        className="w-full h-32 object-cover"
-                      />
-                    </div>
-                  </div>
+                  </label>
+                  {groupEditImageFile && <span className="text-base text-zinc-600 truncate">{groupEditImageFile.name}</span>}
                 </div>
                 <button
-                  onClick={saveGroupBasicSettings}
-                  disabled={groupEditSaving || groupEditImageUploading || ((groupEditSlug !== (group?.group_slug ?? "")) && slugCheckState !== "available")}
-                  className="w-full py-4 mt-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-60 active:scale-[0.98]"
+                  onClick={uploadGroupEditImage}
+                  disabled={!groupEditImageFile || groupEditImageUploading}
+                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
                 >
-                  {(groupEditSaving || groupEditImageUploading) ? "업로드 및 저장 중..." : "모임 정보 저장"}
+                  {groupEditImageUploading ? "업로드 중..." : "대표 이미지 업로드"}
                 </button>
-              </motion.section>
-            )}
-
-            {/* 메뉴 설정 탭 */}
-            {adminTab === "menu" && (
-              <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                <h3 className="font-black text-zinc-900 text-lg mb-2">메뉴 설정</h3>
-                <p className="text-sm text-zinc-500 mb-4 px-1 leading-relaxed">
-                  모임원들에게 보여줄 메뉴들을 활성화 또는 비활성화 하세요. <br />최소 1개 이상의 메뉴는 활성화 상태를 유지해야 합니다.
-                </p>
-                <div className="space-y-3">
-                  {(["faith", "prayer", "social", "schedule"] as const).map(menuKey => {
-                    const toggleMenu = async () => {
-                      const cur = group.menu_settings ?? { faith: true, prayer: true, social: true, schedule: true };
-                      const newVal = !(cur[menuKey] ?? true);
-                      const enabledCount = Object.values(cur).filter(Boolean).length;
-                      if (!newVal && enabledCount <= 1) {
-                        alert("최소 1개 이상의 메뉴는 활성화해야 합니다.");
-                        return;
-                      }
-                      const newSettings = { ...cur, [menuKey]: newVal };
-                      const { error } = await supabase.from("groups").update({ menu_settings: newSettings }).eq("id", group.id);
-                      if (!error) {
-                        setGroup({ ...group, menu_settings: newSettings });
-                      } else {
-                        alert("설정 변경에 실패했습니다.");
-                      }
-                    };
-                    const isEnabled = group.menu_settings?.[menuKey] ?? true;
-                    const labelStr = menuKey === "faith" ? "신앙생활" : menuKey === "prayer" ? "중보기도" : menuKey === "social" ? "교제나눔" : "모임일정";
-                    return (
-                      <div key={menuKey} className="flex justify-between items-center p-4 rounded-2xl border border-zinc-100 bg-zinc-50/50">
-                        <span className="font-bold text-base text-zinc-900">{labelStr}</span>
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input type="checkbox" className="sr-only peer" checked={isEnabled} onChange={toggleMenu} />
-                          <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#4A6741]"></div>
-                        </label>
-                      </div>
-                    );
-                  })}
-                </div>
-              </motion.section>
-            )}
-
-            {/* 모임 관리 탭 (상위리더 등록, 하위모임 연결, 방 삭제) */}
-            {adminTab === "manage" && (
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-                <section className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Crown size={20} className="text-[#4A6741]" />
-                    <h3 className="font-black text-zinc-900 text-lg">상위 리더 등록</h3>
+                {(group?.group_image || headerImageDraft) && (
+                  <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
+                    <img
+                      src={ensureHttpsUrl(group?.group_image) || headerImageDraft}
+                      alt="group-image-preview"
+                      className="w-full h-28 object-cover"
+                    />
                   </div>
-                  <p className="text-sm text-zinc-500 leading-relaxed">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 함께 조회할 수 있습니다.</p>
-                  <select
-                    value={scopeLeaderUserId}
-                    onChange={(e) => setScopeLeaderUserId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
-                  >
-                    <option value="">멤버 선택</option>
-                    {members.map((member) => {
-                      const name = member.profile?.nickname || member.profile?.username || "이름 없음";
-                      return (
-                        <option key={member.user_id} value={member.user_id}>
-                          {name} ({toLabel(member.role)})
-                        </option>
-                      );
-                    })}
-                  </select>
-                  <button
-                    onClick={registerScopeLeader}
-                    disabled={!scopeLeaderUserId}
-                    className="w-full py-3 rounded-xl bg-zinc-900 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-                  >
-                    상위 리더 등록하기
-                  </button>
-                </section>
+                )}
+              </div>
+              <button
+                onClick={saveGroupBasicSettings}
+                disabled={groupEditSaving}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
+              >
+                {groupEditSaving ? "저장 중..." : "모임 설정 저장"}
+              </button>
+            </section>
 
-                <section className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                  <h3 className="font-black text-zinc-900 text-lg mb-2">하위 모임 연결</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">연결된 하위 모임들은 상위 리더 집계 범위에 포함되어 활동 내역이 그룹화됩니다.</p>
-                  <input
-                    value={childGroupCode}
-                    onChange={(e) => setChildGroupCode(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
-                    placeholder="하위 모임 아이디 입력"
-                  />
-                  <button
-                    onClick={linkChildGroup}
-                    disabled={linkingChildGroup || !childGroupCode.trim()}
-                    className="w-full py-3 rounded-xl bg-[#4A6741] text-white font-bold text-sm hover:bg-[#3d5535] disabled:opacity-50 transition-colors"
-                  >
-                    {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
-                  </button>
-                </section>
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
+              <h3 className="font-black text-zinc-900 text-base">신앙활동 항목 관리</h3>
+              <input
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="새 항목 이름"
+                value={newFaithName}
+                onChange={(e) => setNewFaithName(e.target.value)}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={newFaithType}
+                  onChange={(e) => setNewFaithType(e.target.value as FaithType)}
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                >
+                  <option value="check">체크형</option>
+                  <option value="count">횟수형</option>
+                  <option value="attendance">출석형</option>
+                </select>
+                <select
+                  value={newFaithSourceMode}
+                  onChange={(e) => {
+                    const next = e.target.value as FaithSourceMode;
+                    setNewFaithSourceMode(next);
+                    if (next === "manual") setNewFaithLinkedFeature("none");
+                    if (next !== "manual" && newFaithLinkedFeature === "none") setNewFaithLinkedFeature("qt");
+                  }}
+                  className="px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                >
+                  <option value="manual">직접 입력만</option>
+                  <option value="linked">외부 연결만</option>
+                  <option value="both">직접+외부연결</option>
+                </select>
+              </div>
+              {newFaithSourceMode !== "manual" && (
+                <select
+                  value={newFaithLinkedFeature}
+                  onChange={(e) => setNewFaithLinkedFeature(e.target.value as LinkedFeature)}
+                  className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                >
+                  <option value="qt">QT 연결</option>
+                  <option value="prayer">기도 연결</option>
+                  <option value="reading">성경읽기 연결</option>
+                </select>
+              )}
+              <button
+                onClick={addFaithItem}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base inline-flex items-center justify-center gap-1"
+              >
+                <Plus size={14} /> 항목 추가
+              </button>
+            </section>
 
-                <section className="bg-red-50 rounded-3xl shadow-sm p-5 space-y-4 border border-red-100">
-                  <h3 className="font-black text-rose-700 text-lg">모임 삭제 (Danger Zone)</h3>
-                  <p className="text-sm text-rose-600/80 font-medium">삭제된 모임 관련 데이터(게시글, 신앙활동, 사진 등)는 완벽히 제거되며 복구할 수 없습니다.</p>
-                  <button
-                    onClick={closeGroup}
-                    disabled={closingGroup || role !== "owner"}
-                    className="w-full py-3.5 rounded-2xl bg-rose-600 text-white font-black text-base shadow-lg hover:bg-rose-700 disabled:opacity-50 transition-all active:scale-[0.98]"
-                  >
-                    {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 영구 삭제하기"}
-                  </button>
-                </section>
-              </motion.div>
-            )}
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
+              <h3 className="font-black text-zinc-900 text-base inline-flex items-center gap-2">
+                <Crown size={14} />
+                모임 상위 리더 등록
+              </h3>
+              <select
+                value={scopeLeaderUserId}
+                onChange={(e) => setScopeLeaderUserId(e.target.value)}
+                className="w-full px-3 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              >
+                <option value="">멤버 선택</option>
+                {members.map((member) => {
+                  const name = member.profile?.nickname || member.profile?.username || "이름 없음";
+                  return (
+                    <option key={member.user_id} value={member.user_id}>
+                      {name} ({toLabel(member.role)})
+                    </option>
+                  );
+                })}
+              </select>
+              <button
+                onClick={registerScopeLeader}
+                disabled={!scopeLeaderUserId}
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-50"
+              >
+                상위 리더 등록
+              </button>
+              <p className="text-base text-zinc-500">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 조회할 수 있습니다.</p>
+            </section>
+
+            <section className="bg-[#F6F7F8] border-b border-zinc-200 p-4 space-y-2">
+              <h3 className="font-black text-zinc-900 text-base">하위 모임 연결</h3>
+              <input
+                value={childGroupCode}
+                onChange={(e) => setChildGroupCode(e.target.value)}
+                className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                placeholder="하위 모임 아이디 입력"
+              />
+              <button
+                onClick={linkChildGroup}
+                disabled={linkingChildGroup || !childGroupCode.trim()}
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base disabled:opacity-60"
+              >
+                {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
+              </button>
+              <p className="text-base text-zinc-500">여기서 연결된 하위 모임들은 상위 리더 집계 범위에 포함됩니다.</p>
+            </section>
+
+            <section className="bg-[#F6F7F8] border-b border-rose-200 p-4 space-y-3">
+              <h3 className="font-black text-rose-700 text-base">모임 완전 삭제</h3>
+              <p className="text-base text-zinc-600">삭제 시 모임과 관련된 데이터가 모두 제거되며 복구할 수 없습니다.</p>
+              <button
+                onClick={closeGroup}
+                disabled={closingGroup || role !== "owner"}
+                className="w-full py-3 rounded-sm bg-rose-600 text-white font-bold text-base disabled:opacity-60"
+              >
+                {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 삭제하기"}
+              </button>
+            </section>
           </motion.div>
         )}
       </main>
 
-      {
-        showPrayerLinkModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/40"
-              onClick={() => setShowPrayerLinkModal(false)}
-            />
-            <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
-                <button
-                  onClick={() => setShowPrayerLinkModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
-              </div>
+      {showPrayerLinkModal && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowPrayerLinkModal(false)}
+          />
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
+              <button
+                onClick={() => setShowPrayerLinkModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
 
-              <div className="space-y-2">
-                {personalPrayers.map((record) => (
-                  <div key={record.id} className="bg-zinc-50 rounded-sm p-3">
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <div className="font-bold text-base text-zinc-900">{record.title || "제목 없는 기도"}</div>
-                      <button
-                        onClick={() => linkPrayerToGroup(record)}
-                        className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold"
-                      >
-                        연결
-                      </button>
-                    </div>
-                    <div className="text-base text-zinc-500 mb-2">{formatDateTime(record.created_at)}</div>
-                    <audio controls className="w-full" src={record.audio_url} preload="none" />
+            <div className="space-y-2">
+              {personalPrayers.map((record) => (
+                <div key={record.id} className="bg-zinc-50 rounded-sm p-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="font-bold text-base text-zinc-900">{record.title || "제목 없는 기도"}</div>
+                    <button
+                      onClick={() => linkPrayerToGroup(record)}
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold"
+                    >
+                      연결
+                    </button>
                   </div>
-                ))}
+                  <div className="text-base text-zinc-500 mb-2">{formatDateTime(record.created_at)}</div>
+                  <audio controls className="w-full" src={record.audio_url} preload="none" />
+                </div>
+              ))}
 
-                {personalPrayers.length === 0 && (
-                  <div className="text-base text-zinc-500 text-center py-8">연결 가능한 개인 기도 기록이 없습니다.</div>
-                )}
-              </div>
+              {personalPrayers.length === 0 && (
+                <div className="text-base text-zinc-500 text-center py-8">연결 가능한 개인 기도 기록이 없습니다.</div>
+              )}
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {
-        showPrayerComposer && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[300] bg-zinc-900/95 flex flex-col items-center justify-center p-6"
-          >
-            <div className="w-full max-w-sm flex flex-col items-center">
-              <h3 className="font-black text-white text-xl mb-4">
-                기도하기
-              </h3>
+      {showPrayerComposer && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerComposer(false)} />
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-zinc-900">기도하기</h3>
+              <button
+                onClick={() => setShowPrayerComposer(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
 
-              {!isRecording && !recordedBlob && (
+            <input
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="기도 제목 (선택)"
+              value={recordTitle}
+              onChange={(e) => setRecordTitle(e.target.value)}
+            />
+
+            <div className="flex items-center justify-between text-base">
+              <span className="text-zinc-500">녹음 시간</span>
+              <span className="font-black text-zinc-900">
+                {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              {!isRecording ? (
                 <button
                   onClick={startRecording}
-                  className="w-24 h-24 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                  className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
                 >
-                  <Mic size={32} />
+                  <Mic size={16} /> 녹음 시작
                 </button>
-              )}
-
-              {isRecording && (
-                <div className="flex flex-col items-center mb-6">
-                  <motion.div
-                    animate={{ scale: [1, 1.1, 1] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="w-24 h-24 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-rose-500/50 shadow-lg mb-6"
-                  >
-                    <Mic size={32} />
-                  </motion.div>
-                  <div className="text-white text-2xl font-mono opacity-80 mb-6">
-                    {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, '0')}
-                  </div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={isPaused ? resumeRecording : pauseRecording}
-                      className="px-6 py-3 rounded-full bg-white/20 text-white font-bold flex items-center gap-2"
-                    >
-                      {isPaused ? <Play size={16} /> : <Pause size={16} />}
-                      {isPaused ? "이어서" : "일시정지"}
-                    </button>
-                    <button
-                      onClick={stopRecording}
-                      className="px-6 py-3 rounded-full bg-white/20 text-white font-bold flex items-center gap-2"
-                    >
-                      <Square size={16} /> 종료
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {recordPreviewUrl && (
-                <div className="w-full flex flex-col items-center mt-6 gap-6">
-                  <audio controls className="w-full max-w-xs" src={recordPreviewUrl} />
-                  <div className="flex w-full gap-3 justify-center text-white">
-                    <button
-                      onClick={saveDirectPrayer}
-                      disabled={savingPrayer}
-                      className="flex-1 py-3 rounded-full bg-[#4A6741] font-bold disabled:opacity-50 max-w-xs shadow-lg flex items-center justify-center gap-2"
-                    >
-                      {savingPrayer ? <Loader2 className="animate-spin" size={16} /> : <Mic size={16} />}
-                      {savingPrayer ? "저장 중..." : "기도 저장"}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <button
-                onClick={() => {
-                  setShowPrayerComposer(false);
-                  if (recordedBlob) URL.revokeObjectURL(recordPreviewUrl!);
-                  setRecordedBlob(null);
-                  setRecordPreviewUrl(null);
-                  setRecordingTime(0);
-                  if (isRecording) stopRecording();
-                }}
-                className="mt-12 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
-                title="닫기"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </motion.div>
-        )
-      }
-
-      {
-        showPrayerTopicModal && (
-          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-            <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0 animate-in slide-in-from-bottom-5">
-              <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100">
-                <h3 className="font-black text-zinc-900 text-lg">나의 기도제목 관리</h3>
-                <button onClick={() => setShowPrayerTopicModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto space-y-8 bg-zinc-50/50">
-                {/* 1. 내가 등록한 기도제목 리스트 (수정/삭제 가능) */}
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-zinc-700">등록된 내 기도제목</label>
-                  {groupPrayerTopics.filter(t => t.author_id === user.id).length === 0 ? (
-                    <div className="text-sm text-zinc-400 py-6 text-center bg-white rounded-xl border border-zinc-100">등록된 기도제목이 없습니다.</div>
-                  ) : (
-                    <div className="space-y-2">
-                      {groupPrayerTopics.filter(t => t.author_id === user.id).map(topic => (
-                        <div key={topic.id} className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-white rounded-xl p-3 border border-zinc-100 shadow-sm">
-                          <div className="text-sm font-medium text-zinc-800 break-all leading-snug flex-1">{topic.content}</div>
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto border-t sm:border-t-0 border-zinc-100 pt-2 sm:pt-0 mt-1 sm:mt-0 w-full sm:w-auto">
-                            <button onClick={() => editSingleTopic(topic)} className="flex-1 sm:flex-none px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center"><Pencil className="mr-1" size={12} />수정</button>
-                            <button onClick={() => deleteSingleTopic(topic.id)} className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center"><Trash2 className="mr-1" size={12} />삭제</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. 새 기도제목 입력 폼 */}
-                <div className="space-y-3">
-                  <label className="text-sm font-bold text-zinc-700 flex justify-between items-center">
-                    새 기도제목 추가
-                    <span className="text-xs font-medium text-zinc-400 font-normal hidden sm:inline">엔터(줄바꿈)로 여러 개 동시 등록 가능</span>
-                  </label>
-                  <textarea
-                    value={newPrayerTopic}
-                    onChange={(e) => setNewPrayerTopic(e.target.value)}
-                    className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-white border border-zinc-200 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none shadow-inner"
-                    placeholder="엔터를 치면 여러 기도제목을 한번에 등록할 수 있어요."
-                  />
-                  <button
-                    onClick={() => { addPrayerTopic(); }}
-                    disabled={!newPrayerTopic.trim()}
-                    className="w-full py-3.5 mt-2 rounded-xl bg-[#4A6741] text-white font-bold text-base shadow-sm disabled:opacity-50 transition-all hover:bg-[#3d5535] active:scale-[0.98]"
-                  >
-                    추가하기
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {
-        showImageModal && (
-          <div className="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center pointer-events-auto">
-            <div className="absolute top-4 right-4 z-[310]">
-              <button onClick={() => setShowImageModal(false)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
-                <X size={20} />
-              </button>
-            </div>
-            {modalImages.length > 1 && (
-              <div className="absolute top-6 flex w-full justify-center z-[310] pointer-events-none">
-                <span className="bg-black/60 text-white font-bold text-sm px-4 py-1.5 rounded-full drop-shadow">
-                  {modalIndex + 1} / {modalImages.length}
-                </span>
-              </div>
-            )}
-            <div className="w-full flex-1 flex items-center justify-center relative">
-              {modalImages.length > 1 && (
+              ) : (
                 <>
+                  {isPaused ? (
+                    <button
+                      onClick={resumeRecording}
+                      className="flex-1 py-3 rounded-sm bg-[#4A6741] text-white font-bold inline-flex items-center justify-center gap-2"
+                    >
+                      <Play size={16} /> 재개
+                    </button>
+                  ) : (
+                    <button
+                      onClick={pauseRecording}
+                      className="flex-1 py-3 rounded-sm bg-zinc-800 text-white font-bold inline-flex items-center justify-center gap-2"
+                    >
+                      <Pause size={16} /> 일시정지
+                    </button>
+                  )}
                   <button
-                    onClick={(e) => { e.stopPropagation(); setModalIndex(prev => prev > 0 ? prev - 1 : prev); }}
-                    className={`absolute left-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur z-[310] transition-colors ${modalIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/60'}`}
+                    onClick={stopRecording}
+                    className="px-4 py-3 rounded-sm bg-rose-600 text-white font-bold inline-flex items-center gap-2"
                   >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setModalIndex(prev => prev < modalImages.length - 1 ? prev + 1 : prev); }}
-                    className={`absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur z-[310] transition-colors ${modalIndex === modalImages.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/60'}`}
-                  >
-                    <ChevronRight size={24} />
+                    <Square size={16} /> 종료
                   </button>
                 </>
               )}
-              {modalImages[modalIndex] && (
-                <img src={modalImages[modalIndex]} alt="full" className="w-full h-full max-h-screen object-contain mx-auto" />
-              )}
             </div>
+
+            {recordPreviewUrl && (
+              <>
+                <audio controls className="w-full" src={recordPreviewUrl} />
+                <button
+                  onClick={saveDirectPrayer}
+                  disabled={savingPrayer}
+                  className="w-full py-3 rounded-sm bg-emerald-600 text-white font-bold disabled:opacity-60"
+                >
+                  {savingPrayer ? "저장 중..." : "모임 기도 저장"}
+                </button>
+              </>
+            )}
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {
-        showPostComposerModal && (
-          <div className="fixed inset-0 z-[220] p-0 sm:p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-            <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] mt-auto sm:mt-0">
-              <div className="flex flex-col flex-1 overflow-hidden">
-                <div className="flex items-center justify-between mb-4 shrink-0">
-                  <h3 className="font-black text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
-                  <button
-                    onClick={() => setShowPostComposerModal(false)}
-                    className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto space-y-4 pr-1 mb-4" style={{ scrollbarWidth: 'thin' }}>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setPostType("post")}
-                      className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                        }`}
-                    >
-                      일반글
-                    </button>
-                    <button
-                      onClick={() => setPostType("notice")}
-                      disabled={!isManager}
-                      className={`px-3 py-2 rounded-sm text-base font-bold ${postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
-                        } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                      공지
-                    </button>
-                  </div>
-
-                  <input
-                    value={postTitle}
-                    onChange={(e) => setPostTitle(e.target.value)}
-                    className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                    placeholder="제목"
-                  />
-                  <textarea
-                    value={postContent}
-                    onChange={(e) => setPostContent(e.target.value)}
-                    className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
-                    placeholder="모임 내부 공유 글을 작성하세요."
-                  />
-
-                  <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-base font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
-                      <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
-                        <ImagePlus size={13} />
-                        사진 선택
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => handlePostImageSelect(e.target.files)}
-                        />
-                      </label>
-                    </div>
-
-                    {(postExistingImages.length > 0 || postImagePreviews.length > 0) && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {postExistingImages.map((preview, index) => (
-                          <div key={`exist-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
-                            <img src={preview} alt={`exist-${index}`} className="w-full h-20 object-cover" />
-                            <button
-                              onClick={() => setPostExistingImages(prev => prev.filter((_, i) => i !== index))}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                        {postImagePreviews.map((preview, index) => (
-                          <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
-                            <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
-                            <button
-                              onClick={() => removePostImage(index)}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={addPost}
-                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all"
-                  >
-                    {editingPost ? "수정완료" : "등록완료"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
-
-      {
-        showInviteModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setShowInviteModal(false)}
-            />
-            <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-lg bg-white border border-zinc-100 p-6 space-y-4 rounded-3xl shadow-2xl"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-black text-zinc-900 text-lg">회원 초대</h3>
-                <button
-                  onClick={() => setShowInviteModal(false)}
-                  className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center hover:bg-zinc-200 transition-colors"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="rounded-2xl bg-zinc-50 p-5 space-y-4 text-sm border border-zinc-100/50">
-                <div className="flex flex-col gap-1">
-                  <div className="text-xs font-bold text-zinc-400">모임 정보</div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-zinc-900 text-base">{group.name}</span>
-                    <span className="text-zinc-400">|</span>
-                    <span className="text-zinc-600 font-medium">{group.group_slug || "-"}</span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="text-xs font-bold text-zinc-400">초대 링크</div>
-                  <div className="break-all font-bold text-[#4A6741] bg-white p-3 rounded-xl border border-zinc-100 select-all">
-                    {buildInviteUrl()}
-                  </div>
-                </div>
-
-                <p className="text-xs text-zinc-500 leading-relaxed font-medium">
-                  위 링크를 받은 사용자는 회원가입 후 즉시 모임에 자동 가입됩니다. <br />
-                  초대하고 싶은 분들께 공유해 보세요!
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-2.5 pt-2">
-                <button
-                  onClick={() => void shareInviteMessage()}
-                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
-                >
-                  <SendHorizontal size={18} />
-                  카카오톡으로 초대장 보내기
-                </button>
-                <button
-                  onClick={() => void copyInviteMessage()}
-                  className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-black text-base hover:bg-zinc-800 transition-all active:scale-[0.98]"
-                >
-                  초대장 복사하기
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )
-      }
-
-      {
-        showHeaderEditModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
-            <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-black text-zinc-900">헤더 설정</h3>
-                <button
-                  onClick={() => setShowHeaderEditModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <div>
-                <label className="text-base text-zinc-500">헤더 색상 팔레트</label>
-                <div className="grid grid-cols-8 gap-2 mt-2">
-                  {HEADER_PALETTE.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setHeaderColorDraft(color)}
-                      className={`w-8 h-8 rounded-full border-2 ${headerColorDraft === color ? "border-black scale-110" : "border-white"
-                        }`}
-                      style={{ backgroundColor: color }}
-                      title={color}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-base text-zinc-500">헤더 이미지 업로드</label>
-                <div className="mt-2 rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
-                      <ImagePlus size={13} />
-                      이미지 선택
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => setHeaderImageFile(e.target.files?.[0] ?? null)}
-                      />
-                    </label>
-                    {headerImageFile && <span className="text-base text-zinc-600 truncate">{headerImageFile.name}</span>}
-                  </div>
-                  <button
-                    onClick={uploadHeaderImage}
-                    disabled={!headerImageFile || headerImageUploading}
-                    className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
-                  >
-                    {headerImageUploading ? "업로드 중..." : "이미지 업로드"}
-                  </button>
-                  {headerImageDraft && (
-                    <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
-                      <img src={headerImageDraft} alt="header-preview" className="w-full h-28 object-cover" />
-                    </div>
-                  )}
-                </div>
-              </div>
+      {showPrayerTopicModal && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
+          <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-zinc-900">기도제목 등록</h3>
               <button
-                onClick={saveHeaderSettings}
-                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+                onClick={() => setShowPrayerTopicModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
               >
-                저장
+                <X size={14} />
+              </button>
+            </div>
+            <textarea
+              value={newPrayerTopic}
+              onChange={(e) => setNewPrayerTopic(e.target.value)}
+              className="w-full min-h-[120px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="모임원과 나눌 기도제목을 입력해주세요."
+            />
+            <button
+              onClick={addPrayerTopic}
+              disabled={!newPrayerTopic.trim()}
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base disabled:opacity-60"
+            >
+              등록하기
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showImageModal && (
+        <div className="fixed inset-0 z-[250] p-4 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowImageModal(false)} />
+          <div className="relative w-full max-w-3xl max-h-[80vh] bg-[#F6F7F8] border-b border-zinc-200 p-4 rounded">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm text-zinc-500">{modalIndex + 1} / {modalImages.length}</div>
+              <button onClick={() => setShowImageModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center">
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setModalIndex((i) => (modalImages.length ? (i - 1 + modalImages.length) % modalImages.length : 0))}
+                className="px-3 py-2 rounded-sm bg-zinc-100"
+                aria-label="prev"
+              >
+                <ChevronLeft />
+              </button>
+
+              <div className="flex-1">
+                {modalImages[modalIndex] ? (
+                  <img src={modalImages[modalIndex]} alt={`modal-${modalIndex}`} className="w-full max-h-[70vh] object-contain mx-auto" />
+                ) : null}
+              </div>
+
+              <button
+                onClick={() => setModalIndex((i) => (modalImages.length ? (i + 1) % modalImages.length : 0))}
+                className="px-3 py-2 rounded-sm bg-zinc-100"
+                aria-label="next"
+              >
+                <ChevronRight />
               </button>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {
-        showFaithLinkModal && selectedFaithItem && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
-            <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-black text-zinc-900">
-                  외부 활동 연결 - {selectedFaithItem.name}
-                </h3>
-                <button
-                  onClick={() => setShowFaithLinkModal(false)}
-                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
-                >
-                  <X size={14} />
-                </button>
+      {showPostComposerModal && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-zinc-900">글 작성</h3>
+              <button
+                onClick={() => setShowPostComposerModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPostType("post")}
+                className={`px-3 py-2 rounded-sm text-base font-bold ${
+                  postType === "post" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                }`}
+              >
+                일반글
+              </button>
+              <button
+                onClick={() => setPostType("notice")}
+                disabled={!isManager}
+                className={`px-3 py-2 rounded-sm text-base font-bold ${
+                  postType === "notice" ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-zinc-600"
+                } ${!isManager ? "opacity-50 cursor-not-allowed" : ""}`}
+              >
+                공지
+              </button>
+            </div>
+
+            <input
+              value={postTitle}
+              onChange={(e) => setPostTitle(e.target.value)}
+              className="w-full px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="제목"
+            />
+            <textarea
+              value={postContent}
+              onChange={(e) => setPostContent(e.target.value)}
+              className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+              placeholder="모임 내부 공유 글을 작성하세요."
+            />
+
+            <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-bold text-zinc-600">사진 첨부 (최대 10장)</span>
+                <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                  <ImagePlus size={13} />
+                  사진 선택
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handlePostImageSelect(e.target.files)}
+                  />
+                </label>
               </div>
 
-              <div className="space-y-2">
-                {availableActivities.map((activity) => (
-                  <div key={activity.id} className="bg-zinc-50 rounded-sm p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <div className="font-bold text-base text-zinc-900">{getActivityTitle(activity)}</div>
-                        <div className="text-base text-zinc-500 mt-1">{formatDateTime(activity.occurred_at)}</div>
-                      </div>
+              {postImagePreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2">
+                  {postImagePreviews.map((preview, index) => (
+                    <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
+                      <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
                       <button
-                        onClick={() => linkActivityToFaith(activity)}
-                        disabled={linkingActivityId === activity.id}
-                        className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold disabled:opacity-60"
+                        onClick={() => removePostImage(index)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
                       >
-                        {linkingActivityId === activity.id ? "연결 중..." : "연결"}
+                        <X size={12} />
                       </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
 
-                {availableActivities.length === 0 && (
-                  <div className="text-base text-zinc-500 text-center py-8">
-                    연결 가능한 외부 활동이 없습니다.
+            <button
+              onClick={addPost}
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+            >
+              글 등록
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showInviteModal && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowInviteModal(false)} />
+          <div className="relative w-full max-w-lg bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-zinc-900">회원 초대</h3>
+              <button
+                onClick={() => setShowInviteModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="rounded-sm bg-zinc-50 p-4 space-y-2 text-base">
+              <div>
+                <div className="text-base text-zinc-500">모임명</div>
+                <div className="font-bold text-zinc-900">{group.name}</div>
+              </div>
+              <div>
+                <div className="text-base text-zinc-500">모임 아이디</div>
+                <div className="font-bold text-zinc-900">{group.group_slug || "-"}</div>
+              </div>
+              <div>
+                <div className="text-base text-zinc-500">초대 링크</div>
+                <div className="break-all font-bold text-zinc-900">{buildInviteUrl()}</div>
+              </div>
+              <div className="text-base text-zinc-500">링크를 받은 사용자는 회원가입 후 즉시 모임에 자동 가입됩니다.</div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <button
+                onClick={() => void shareInviteMessage()}
+                className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+              >
+                카카오톡으로 초대장 보내기
+              </button>
+              <button
+                onClick={() => void copyInviteMessage()}
+                className="w-full py-3 rounded-sm bg-zinc-900 text-white font-bold text-base"
+              >
+                초대장 복사
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showHeaderEditModal && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
+          <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black text-zinc-900">헤더 설정</h3>
+              <button
+                onClick={() => setShowHeaderEditModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div>
+              <label className="text-base text-zinc-500">헤더 색상 팔레트</label>
+              <div className="grid grid-cols-8 gap-2 mt-2">
+                {HEADER_PALETTE.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => setHeaderColorDraft(color)}
+                    className={`w-8 h-8 rounded-full border-2 ${
+                      headerColorDraft === color ? "border-black scale-110" : "border-white"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    title={color}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-base text-zinc-500">헤더 이미지 업로드</label>
+              <div className="mt-2 rounded-sm border border-zinc-100 bg-zinc-50 p-3 space-y-3">
+                <div className="flex items-center gap-2">
+                  <label className="px-3 py-2 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                    <ImagePlus size={13} />
+                    이미지 선택
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => setHeaderImageFile(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {headerImageFile && <span className="text-base text-zinc-600 truncate">{headerImageFile.name}</span>}
+                </div>
+                <button
+                  onClick={uploadHeaderImage}
+                  disabled={!headerImageFile || headerImageUploading}
+                  className="w-full py-2.5 rounded-sm bg-zinc-900 text-white text-base font-bold disabled:opacity-60"
+                >
+                  {headerImageUploading ? "업로드 중..." : "이미지 업로드"}
+                </button>
+                {headerImageDraft && (
+                  <div className="rounded-sm overflow-hidden border border-zinc-200 bg-zinc-100">
+                    <img src={headerImageDraft} alt="header-preview" className="w-full h-28 object-cover" />
                   </div>
                 )}
               </div>
             </div>
+            <button
+              onClick={saveHeaderSettings}
+              className="w-full py-3 rounded-sm bg-[#4A6741] text-white font-bold text-base"
+            >
+              저장
+            </button>
           </div>
-        )
-      }
+        </div>
+      )}
 
-      {/* 이미지 크롭 모달 */}
-      {
-        cropModalOpen && cropImageSrc && (
-          <div className="fixed inset-0 z-[260] bg-black p-4 flex flex-col">
-            <div className="flex items-center justify-between pb-4">
-              <h3 className="font-black text-white text-lg">대표 이미지 설정</h3>
+      {showFaithLinkModal && selectedFaithItem && (
+        <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
+          <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-zinc-900">
+                외부 활동 연결 - {selectedFaithItem.name}
+              </h3>
               <button
-                onClick={() => {
-                  setCropModalOpen(false);
-                  setCropImageSrc(null);
-                  setGroupEditImageFile(null);
-                }}
-                className="w-8 h-8 rounded-full bg-zinc-800 text-white flex items-center justify-center hover:bg-zinc-700 transition"
+                onClick={() => setShowFaithLinkModal(false)}
+                className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
               >
-                <X size={16} />
+                <X size={14} />
               </button>
             </div>
 
-            <div className="relative flex-1 w-full bg-zinc-900 rounded-2xl overflow-hidden mt-2 mb-6">
-              <Cropper
-                image={cropImageSrc}
-                crop={crop}
-                zoom={zoom}
-                minZoom={0.1}
-                maxZoom={3}
-                restrictPosition={false}
-                aspect={16 / 9}
-                onCropChange={setCrop}
-                onCropComplete={onCropComplete}
-                onZoomChange={setZoom}
-                objectFit="vertical-cover"
-              />
-            </div>
+            <div className="space-y-2">
+              {availableActivities.map((activity) => (
+                <div key={activity.id} className="bg-zinc-50 rounded-sm p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <div className="font-bold text-base text-zinc-900">{getActivityTitle(activity)}</div>
+                      <div className="text-base text-zinc-500 mt-1">{formatDateTime(activity.occurred_at)}</div>
+                    </div>
+                    <button
+                      onClick={() => linkActivityToFaith(activity)}
+                      disabled={linkingActivityId === activity.id}
+                      className="px-3 py-1.5 rounded-sm bg-[#4A6741] text-white text-base font-bold disabled:opacity-60"
+                    >
+                      {linkingActivityId === activity.id ? "연결 중..." : "연결"}
+                    </button>
+                  </div>
+                </div>
+              ))}
 
-            <div className="bg-zinc-900 p-5 rounded-3xl space-y-4 mb-4">
-              <div className="px-2">
-                <label className="text-xs font-bold text-zinc-400 block mb-3">이미지 확대/축소</label>
-                <input
-                  type="range"
-                  value={zoom}
-                  min={0.1}
-                  max={3}
-                  step={0.1}
-                  aria-labelledby="Zoom"
-                  onChange={(e) => setZoom(Number(e.target.value))}
-                  className="w-full h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#4A6741]"
-                />
-              </div>
-              <button
-                onClick={processCrop}
-                className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
-              >
-                영역 선택 완료
-              </button>
+              {availableActivities.length === 0 && (
+                <div className="text-base text-zinc-500 text-center py-8">
+                  연결 가능한 외부 활동이 없습니다.
+                </div>
+              )}
             </div>
           </div>
-        )
-      }
-
-    </div >
+        </div>
+      )}
+    </div>
   );
 }
