@@ -631,8 +631,8 @@ export default function PrayerPage() {
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-6">
       <div className="flex items-center px-6 gap-2">
-        <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-        <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+        <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+        <h3 className="font-black text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.1}px` }}>
           함께 기도해요
         </h3>
       </div>
@@ -710,8 +710,8 @@ export default function PrayerPage() {
         {/* 나의 기도제목 */}
         <div className="mb-20">
           <div className="flex items-center mb-3">
-            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-70 ml-2" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+            <h3 className="font-black text-[#4A6741]/90 ml-2" style={{ fontSize: `${fontSize * 1.1}px` }}>
               기도 제목
             </h3>
             <div className="flex-1" />
@@ -731,9 +731,9 @@ export default function PrayerPage() {
             </button>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-1 max-w-md bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
             {myTopics.map((topic) => (
-              <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2 border-b border-zinc-50 last:border-none">
+              <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2">
                 {/* 1. 체크 아이콘: mt를 조절해서 텍스트 첫 줄 중앙에 맞춤 */}
                 <div className="flex-shrink-0 flex items-center h-6">
                   <Check size={16} className="text-[#4A6741]" />
@@ -772,13 +772,13 @@ export default function PrayerPage() {
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: 'auto', opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
-                  className="bg-white rounded-none p-4 space-y-1"
+                  className="bg-white rounded-2xl p-4 space-y-2"
                 >
                   <textarea
                     value={newTopic}
                     onChange={(e) => setNewTopic(e.target.value)}
                     placeholder="기도제목을 입력해주세요"
-                    className="w-full h-15 bg-zinc-50 rounded-none p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
+                    className="w-full h-15 bg-zinc-50 rounded-xl p-3 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none"
                     style={{ fontSize: `${fontSize * 0.85}px` }}
                     autoFocus
                   />
@@ -799,13 +799,13 @@ export default function PrayerPage() {
                           setNewTopic("");
                           setIsPublic(false);
                         }}
-                        className="px-4 py-2 rounded-none text-sm text-zinc-600 hover:bg-zinc-100"
+                        className="px-4 py-1 rounded-full text-sm font-medium text-zinc-600 bg-zinc-100 hover:bg-zinc-200"
                       >
                         취소
                       </button>
                       <button
                         onClick={handleAddTopic}
-                        className="px-4 py-2 rounded-none text-sm bg-[#4A6741] text-white font-medium"
+                        className="px-4 py-1 rounded-full text-sm bg-[#4A6741] text-white font-medium"
                       >
                         추가
                       </button>
@@ -821,9 +821,9 @@ export default function PrayerPage() {
         {prayerRecords.length > 0 && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-              <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
-                기도 기록
+              <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+              <h3 className="font-black text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                기도 보관함
               </h3>
               <div className="flex-1" />
               <button
@@ -846,11 +846,11 @@ export default function PrayerPage() {
                   return (
                     <div
                       key={record.id}
-                      className="bg-white rounded-none p-4 shadow-sm border border-zinc-100 flex items-center gap-3"
+                      className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100 flex items-center gap-3"
                     >
-                      <Heart size={22} className="text-[#4A6741] opacity-70 shrink-0" strokeWidth={1.5} />
+                      <Heart size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
                       <div className="flex-1 min-w-0">
-                        <p className="font-bold text-zinc-800" style={{ fontSize: `${fontSize * 0.95}px` }}>Amen</p>
+                        <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>마음으로 기도합니다. 아멘</p>
                         <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
                       </div>
                       <button
@@ -866,7 +866,7 @@ export default function PrayerPage() {
 
                 // ─── 음성 기도 레코드: 녹색 배경 ───
                 return (
-                  <div key={record.id} className="bg-[#eef5ec] rounded-none p-4 shadow-sm border border-[#4A6741]/10">
+                  <div key={record.id} className="bg-[#eef5ec] rounded-2xl p-4 shadow-sm border border-[#4A6741]/5">
                     {/* 제목/해시태그 */}
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-bold text-[#3a5331]" style={{ fontSize: `${fontSize * 0.90}px` }}>
@@ -916,7 +916,7 @@ export default function PrayerPage() {
                       </div>
                     </div>
                     {/* 날짜 + 삭제 */}
-                    <div className="flex items-center justify-between pt-2 border-t border-[#4A6741]/10 mt-1">
+                    <div className="flex items-center justify-between pt-0 border-t border-[#4A6741]/10 mt-1">
                       <span className="text-xs text-[#4A6741]/60">{formattedDate}</span>
                       <button
                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}

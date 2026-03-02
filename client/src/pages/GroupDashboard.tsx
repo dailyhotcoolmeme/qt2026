@@ -14,6 +14,7 @@ import {
   Lock,
   MessageSquare,
   Mic,
+  Dot,
   Pause,
   Play,
   HandHeart,
@@ -2933,7 +2934,7 @@ export default function GroupDashboard() {
               <div className="space-y-4">
                 {topicsByAuthor.map(({ userId, topics, author }) => (
                   <div key={userId} className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
-                    <div className="flex items-center gap-2 mb-2 px-5">
+                    <div className="flex items-center justify-between gap-2 mb-2 px-5 py-2 bg-[#F6F7F8] rounded-xl mx-3">
                       {author.avatar_url ? (
                         <img src={author.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="avatar" />
                       ) : (
@@ -2941,16 +2942,25 @@ export default function GroupDashboard() {
                           <User size={18} />
                         </div>
                       )}
-                      <span className="font-bold text-zinc-900 text-[16px]">{author.nickname || author.username}</span>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-bold text-zinc-900 text-base truncate">{author.nickname || author.username}</span>
+                        <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
+                      </div>
+                      {userId === user.id && (
+                        <div className="flex items-center gap-1 opacity-60 ml-auto shrink-0">
+                          <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
+                          <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-4 pb-3 px-5">
                       {/* 기도제목 리스트 렌더링 (단일 목록) */}
                       <div className="space-y-2">
                         {topics.map((topic) => (
-                          <div key={topic.id} className="flex gap-2 items-start text-sm">
-                            <span className="text-[#4A6741] shrink-0 mt-[3px]"><Check size={14} /></span>
-                            <div className="flex-1 font-bold text-zinc-700 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+                          <div key={topic.id} className="flex gap-0 items-start text-sm">
+                            <span className="text-[#4A6741] shrink-0 mt-[2px]"><Dot size={20} /></span>
+                            <div className="flex-1 font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
                           </div>
                         ))}
                       </div>
@@ -2960,9 +2970,6 @@ export default function GroupDashboard() {
                         {(() => {
                           const relatedPrayers = prayersByTargetUser.get(userId) || [];
                           const heartCount = relatedPrayers.filter(p => p.audio_url === 'amen').length;
-                          const voicePrayers = relatedPrayers.filter(p => p.audio_url && p.audio_url !== 'amen')
-                            .filter(vp => vp.user_id === user.id || userId === user.id); // 오직 기도자/소유자만 필터링됨
-
                           return (
                             <>
                               <button
@@ -2977,12 +2984,6 @@ export default function GroupDashboard() {
                               >
                                 <Mic size={12} /> 음성기도
                               </button>
-                              {userId === user.id && (
-                                <div className="flex items-center gap-1 opacity-60 ml-auto shrink-0">
-                                  <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
-                                  <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
-                                </div>
-                              )}
                             </>
                           );
                         })()}
@@ -3003,7 +3004,7 @@ export default function GroupDashboard() {
                               const canDelete = isManager || vp.user_id === user.id;
 
                               return (
-                                <div key={vp.id} className="bg-white rounded-xl border border-zinc-100 p-2.5 shadow-sm">
+                                <div key={vp.id} className="bg-[#F6F7F8] rounded-xl border border-zinc-100 p-2.5 shadow-sm">
                                   <div className="flex justify-between items-center mb-1.5">
                                     <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
                                       <Mic size={12} /> {pname}
@@ -3224,6 +3225,7 @@ export default function GroupDashboard() {
                 const canDelete = isManager || post.author_id === user.id;
                 const displayTitle = post.title?.trim() || "";
                 const isNotice = post.post_type === "notice";
+                const isCommentsOpen = !!expandedPosts[post.id];
 
                 return (
                   <div
@@ -3237,7 +3239,7 @@ export default function GroupDashboard() {
                           <h3 className="font-bold text-zinc-900 text-base leading-tight break-all">{displayTitle || "교제나눔"}</h3>
                         </div>
                         <span className="text-xs text-zinc-400 font-medium">
-                          {authorName} · {formatDateTime(post.created_at).slice(0, 16).replace('T', ' ')}
+                          {authorName} ㅣ {formatDateTime(post.created_at).slice(0, 17).replace('T', ' ')}
                         </span>
                       </div>
 
@@ -3275,7 +3277,10 @@ export default function GroupDashboard() {
                           <Heart size={18} fill={postLikes[post.id]?.some(l => l.user_id === user.id) ? "currentColor" : "none"} />
                           <span>{postLikes[post.id]?.length || 0}</span>
                         </button>
-                        <button className="flex items-center gap-1.5 text-sm font-bold text-zinc-400 pointer-events-none">
+                        <button
+                          onClick={() => setExpandedPosts((prev) => ({ ...prev, [post.id]: !prev[post.id] }))}
+                          className={`flex items-center gap-1.5 text-sm font-bold transition-colors ${isCommentsOpen ? "text-[#4A6741]" : "text-zinc-400 hover:text-zinc-600"}`}
+                        >
                           <MessageSquare size={18} />
                           <span>{postComments[post.id]?.length || 0}</span>
                         </button>
@@ -3283,6 +3288,7 @@ export default function GroupDashboard() {
                     </div>
 
                     {/* 댓글 목록 & 입력창 */}
+                    {isCommentsOpen && (
                     <div className="mx-4 mt-3 flex flex-col gap-2">
                       {postComments[post.id]?.map((comment: any) => {
                         const cAuthor = authorMap[comment.user_id];
@@ -3291,8 +3297,11 @@ export default function GroupDashboard() {
                         return (
                           <div key={comment.id} className="bg-zinc-50 rounded-lg p-3 text-sm">
                             <div className="flex justify-between items-start mb-1">
-                              <span className="font-bold text-zinc-700">{cName}</span>
-                              {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><X size={14} /></button>}
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="font-bold text-zinc-700 truncate">{cName}</span>
+                                <span className="text-[11px] text-zinc-400 shrink-0">{formatDateTime(comment.created_at).slice(0, 17).replace('T', ' ')}</span>
+                              </div>
+                              {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><Trash2 size={14} /></button>}
                             </div>
                             <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
                           </div>
@@ -3312,6 +3321,7 @@ export default function GroupDashboard() {
                         </button>
                       </div>
                     </div>
+                    )}
                   </div>
                 );
               })}
@@ -3772,7 +3782,7 @@ export default function GroupDashboard() {
           >
             <div className="w-full max-w-sm flex flex-col items-center">
               <h3 className="font-black text-white text-xl mb-4">
-                기도하기
+                중보 기도
               </h3>
 
               {!isRecording && !recordedBlob && (
@@ -3821,7 +3831,7 @@ export default function GroupDashboard() {
                     <button
                       onClick={saveDirectPrayer}
                       disabled={savingPrayer}
-                      className="flex-1 py-3 rounded-full bg-[#4A6741] font-bold disabled:opacity-50 max-w-xs shadow-lg flex items-center justify-center gap-2"
+                      className="flex-1 py-4 rounded-full bg-[#4A6741] font-bold disabled:opacity-50 max-w-xs shadow-lg flex items-center justify-center gap-2"
                     >
                       {savingPrayer ? <Loader2 className="animate-spin" size={16} /> : <Mic size={16} />}
                       {savingPrayer ? "저장 중..." : "기도 저장"}
