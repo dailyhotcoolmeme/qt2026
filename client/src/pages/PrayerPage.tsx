@@ -681,6 +681,8 @@ export default function PrayerPage() {
 
   const selectedDateRecords = prayerRecords.filter((record) => getRecordDateKey(record) === selectedDateKey);
 
+  const isToday = selectedDateKey === todayDateKey;
+
   const visibleMyTopics = myTopics.filter((topic) => {
     const createdDateKey = toLocalDateKey(topic.created_at) || selectedDateKey;
     const deletedDateKey = topic.is_public === null ? toLocalDateKey(topic.updated_at) : null;
@@ -803,22 +805,24 @@ export default function PrayerPage() {
 
         {prayerSubTab === 'topics' && (
           <div className="mb-10">
-            <div className="flex items-center justify-end mb-3">
-              <button
-                onClick={() => {
-                  if (!user) {
-                    setShowLoginModal(true);
-                    return;
-                  }
-                  setShowAddInput(true);
-                }}
-                className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
-                title="기도제목 추가"
-              >
-                <ClipboardPen size={12} />
-                <span>기도제목 추가</span>
-              </button>
-            </div>
+            {isToday && (
+              <div className="flex items-center justify-end mb-3">
+                <button
+                  onClick={() => {
+                    if (!user) {
+                      setShowLoginModal(true);
+                      return;
+                    }
+                    setShowAddInput(true);
+                  }}
+                  className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
+                  title="기도제목 추가"
+                >
+                  <ClipboardPen size={12} />
+                  <span>기도제목 추가</span>
+                </button>
+              </div>
+            )}
 
             <div className="space-y-1 max-w-md bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
               {visibleMyTopics.length === 0 && !showAddInput && (
@@ -899,14 +903,16 @@ export default function PrayerPage() {
 
         {prayerSubTab === 'archive' && (
           <div className="mb-10">
-            <div className="flex items-center justify-end mb-3">
-              <button
-                onClick={() => setShowGroupLinkModal(true)}
-                className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
-              >
-                <Share2 size={12} /> 모임에 연결
-              </button>
-            </div>
+            {isToday && (
+              <div className="flex items-center justify-end mb-3">
+                <button
+                  onClick={() => setShowGroupLinkModal(true)}
+                  className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
+                >
+                  <Share2 size={12} /> 모임에 연결
+                </button>
+              </div>
+            )}
 
             {selectedDateRecords.length === 0 ? (
               <div className="bg-white rounded-2xl border border-zinc-100 p-6 text-center text-sm text-zinc-400">저장된 기도 기록이 없습니다.</div>
