@@ -637,9 +637,9 @@ export default function PrayerPage() {
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-24 pb-6">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden pt-12 pb-3">
       {/* 중앙: Amen + 기도하기 버튼 */}
-      <div className="flex items-center justify-center gap-10 py-36">
+      <div className="flex items-center justify-center gap-10 py-16 mt-1 mb-2">
         <motion.button
           onClick={handleAmenClick}
           whileTap={{ scale: 0.95 }}
@@ -671,26 +671,23 @@ export default function PrayerPage() {
         <div className="mb-4 bg-white rounded-2xl border border-zinc-100 p-1 flex">
           <button
             onClick={() => setPrayerSubTab('topics')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${prayerSubTab === 'topics' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${prayerSubTab === 'topics' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
           >
+            <ClipboardPen size={15} />
             기도 제목
           </button>
           <button
             onClick={() => setPrayerSubTab('archive')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors ${prayerSubTab === 'archive' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${prayerSubTab === 'archive' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
           >
+            <Download size={15} />
             기도 보관함
           </button>
         </div>
 
         {prayerSubTab === 'topics' && (
           <div className="mb-10">
-            <div className="flex items-center mb-3">
-              <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
-              <h3 className="font-black text-[#4A6741]/90 ml-2" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                기도 제목
-              </h3>
-              <div className="flex-1" />
+            <div className="flex items-center justify-end mb-3">
               <button
                 onClick={() => {
                   if (!user) {
@@ -708,6 +705,14 @@ export default function PrayerPage() {
             </div>
 
             <div className="space-y-1 max-w-md bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
+              {myTopics.length === 0 && !showAddInput && (
+                <div className="px-3 py-6 text-center text-sm text-zinc-400">
+                  등록된 기도 제목이 없습니다.
+                  <br />
+                  기도 제목을 등록해 주세요.
+                </div>
+              )}
+
               {myTopics.map((topic) => (
                 <div key={topic.id} className="flex flex-row items-start gap-2 px-3 py-2">
                   <div className="flex-shrink-0 flex items-center h-6">
@@ -790,12 +795,7 @@ export default function PrayerPage() {
 
         {prayerSubTab === 'archive' && (
           <div className="mb-10">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
-              <h3 className="font-black text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                기도 보관함
-              </h3>
-              <div className="flex-1" />
+            <div className="flex items-center justify-end mb-3">
               <button
                 onClick={() => setShowGroupLinkModal(true)}
                 className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
@@ -840,7 +840,7 @@ export default function PrayerPage() {
 
                 // ─── 음성 기도 레코드: 녹색 배경 ───
                 return (
-                  <div key={record.id} className="bg-[#4A6741]/90 rounded-2xl p-4 shadow-sm border border-[#4A6741]/5">
+                  <div key={record.id} className="bg-[#4A6741]/10 rounded-2xl p-4 shadow-sm border border-[#4A6741]/5">
                     {/* 제목/해시태그 */}
                     <div className="flex items-center justify-between mb-1">
                       <h4 className="font-bold text-[#3a5331]" style={{ fontSize: `${fontSize * 0.90}px` }}>
@@ -910,7 +910,7 @@ export default function PrayerPage() {
 
         <div className="mb-2">
           <div className="flex items-center px-1 gap-2 mb-3">
-            <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+            <HandHeart size={16} className="text-[#4A6741]/90" />
             <h3 className="font-black text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.1}px` }}>
               함께 기도해요
             </h3>
@@ -919,26 +919,27 @@ export default function PrayerPage() {
           {publicTopics.length === 0 ? (
             <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6 text-center text-sm text-zinc-400">공개 기도제목이 없습니다.</div>
           ) : (
-            <div className="space-y-2">
-              {publicTopics.map((topic) => (
-                <div key={topic.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-start gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-zinc-700 font-bold whitespace-pre-wrap break-words" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                      {topic.topic_text}
-                    </p>
-                    <p className="text-xs text-zinc-400 mt-1">{publicTopicAuthors[topic.user_id] || '모임원'}</p>
-                  </div>
-                  <button
-                    onClick={() => handlePrayForTopic(topic.id)}
-                    className="flex items-center gap-1 text-[#4A6741] transition-all shrink-0"
-                    title="함께 기도하기"
-                  >
-                    <span className="bg-[#F0F8F0] rounded-full w-8 h-8 flex items-center justify-center shadow-sm hover:bg-[#e0eae0] hover:text-[#3a5331] transition-colors" style={{ boxShadow: '0 2px 8px rgba(74,103,65,0.08)' }}>
+            <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+              {publicTopics.map((topic, index) => (
+                <React.Fragment key={topic.id}>
+                  <div className="p-4 flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-zinc-700 font-bold whitespace-pre-wrap break-words" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                        {topic.topic_text}
+                      </p>
+                      <p className="text-xs text-zinc-400 mt-1">{publicTopicAuthors[topic.user_id] || '모임원'}</p>
+                    </div>
+                    <button
+                      onClick={() => handlePrayForTopic(topic.id)}
+                      className="flex items-center gap-1 text-[#4A6741] shrink-0 self-center"
+                      title="함께 기도하기"
+                    >
                       <HandHeart size={18} strokeWidth={1.0} />
-                    </span>
-                    <span className="text-sm font-bold opacity-70">{getPrayerCount(topic)}</span>
-                  </button>
-                </div>
+                      <span className="text-sm font-bold opacity-70">{getPrayerCount(topic)}</span>
+                    </button>
+                  </div>
+                  {index !== publicTopics.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
+                </React.Fragment>
               ))}
             </div>
           )}
