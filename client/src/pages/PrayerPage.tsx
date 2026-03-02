@@ -490,6 +490,63 @@ export default function PrayerPage() {
     }
   };
 
+  const handleShareRecordAudio = async (record: any) => {
+    if (!record?.audio_url || record.audio_url === "amen") return;
+
+    const title = record.title || "음성 기도";
+    const shareText = "기도 음성을 공유합니다.";
+
+    try {
+      if (navigator.share) {
+        try {
+          const response = await fetch(record.audio_url);
+          if (response.ok) {
+            const blob = await response.blob();
+            const extension = blob.type.includes("mpeg")
+              ? "mp3"
+              : blob.type.includes("ogg")
+                ? "ogg"
+                : "webm";
+            const file = new File([blob], `${title}.${extension}`, { type: blob.type || "audio/webm" });
+
+            if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title,
+                text: shareText,
+                files: [file],
+              });
+              return;
+            }
+          }
+        } catch (error) {
+          console.error("audio file share fallback:", error);
+        }
+
+        await navigator.share({
+          title,
+          text: shareText,
+          url: record.audio_url,
+        });
+        return;
+      }
+
+      await navigator.clipboard.writeText(record.audio_url);
+      alert("공유 링크를 복사했습니다.");
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
+      console.error("record share failed:", error);
+      alert("공유에 실패했습니다.");
+    }
+  };
+
+  const handleOpenGroupLinkModal = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setShowGroupLinkModal(true);
+  };
+
   // 닫기
   const handleClosePrayer = () => {
     // temp 파일 삭제 (저장 안 한 경우)
@@ -901,7 +958,7 @@ export default function PrayerPage() {
             {isToday && (
               <div className="flex items-center justify-end mb-3">
                 <button
-                  onClick={() => setShowGroupLinkModal(true)}
+                  onClick={handleOpenGroupLinkModal}
                   className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
                 >
                   <Share2 size={12} /> 모임에 연결
@@ -959,13 +1016,23 @@ export default function PrayerPage() {
                                   </div>
                                   <div className="flex items-center justify-between text-xs text-zinc-400 -mt-1.5">
                                     <span>{formattedDate}</span>
-                                    <button
-                                      onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
-                                      title="삭제"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => handleShareRecordAudio(record)}
+                                        className="h-7 px-2 flex items-center justify-center gap-1 rounded-full bg-[#4A6741]/10 text-[#4A6741] text-[11px] font-bold hover:bg-[#4A6741]/20 transition-colors"
+                                        title="카톡 공유"
+                                      >
+                                        <Share2 size={12} />
+                                        카톡공유
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+                                        className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
+                                        title="삭제"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
                                   </div>
                                   <div className="flex items-center gap-3 mt-2">
                                     <button

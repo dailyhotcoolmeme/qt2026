@@ -2564,16 +2564,17 @@ export default function GroupDashboard() {
     return `${window.location.origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
   };
 
-  const buildInviteMessage = () => {
+  const buildInviteMessage = (includeUrl = true) => {
     if (!group) return "";
     const groupCode = group.group_slug || "-";
     const inviteUrl = buildInviteUrl();
-    return [
+    const lines = [
       "myAmen(마이아멘)",
       `${group.name}(${groupCode})에서 당신을 초대했어요.`,
       "아래 링크에서 회원가입하면 바로 모임에 입장할 수 있어요.",
-      inviteUrl,
-    ].join("\n");
+    ];
+    if (includeUrl) lines.push(inviteUrl);
+    return lines.join("\n");
   };
 
   const copyInviteMessage = async () => {
@@ -2591,7 +2592,7 @@ export default function GroupDashboard() {
   const shareInviteMessage = async () => {
     if (!group) return;
     const inviteUrl = buildInviteUrl();
-    const text = buildInviteMessage();
+    const text = buildInviteMessage(false);
     try {
       if (navigator.share) {
         await navigator.share({
