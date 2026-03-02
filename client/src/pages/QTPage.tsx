@@ -1095,13 +1095,13 @@ export default function QTPage() {
       </div>
       {/* QT 묵상 질문 영역 */}
       {bibleData?.qt_question && (
-        <div className="w-full mt-8 mb-8 px-4">
+        <div className="w-full mt-8 mb-8 px-0">
 
           {/* 제목 */}
           <div className="flex items-center gap-2 mb-6">
-            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
+            <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
             <h4
-              className="font-bold text-[#4A6741] opacity-70"
+              className="font-black text-[#4A6741]/90"
               style={{ fontSize: `${fontSize * 1.0}px` }}
             >
               묵상 질문
@@ -1128,37 +1128,38 @@ export default function QTPage() {
                 }
 
                 return (
-                  <div key={index}>
+  <div key={index} className="flex flex-col"> {/* mb 제거: 아이템 자체 여백 없앰 */}
+    
+    {/* 1. 번호 + 설명 */}
+    <div 
+      className="px-2 text-zinc-700 flex items-start leading-[1.5] break-keep" 
+      style={{ fontSize: `${fontSize * 0.95}px` }}
+    >
+      <span className="text-zinc-700 min-w-[1.5rem] shrink-0">
+        {index + 1}.
+      </span>
+      <span className="text-zinc-700">
+        {description}
+      </span>
+    </div>
 
-                    {/* 번호 + 설명 */}
-                    <p
-                      className="leading-[1.8] break-keep"
-                      style={{ fontSize: `${fontSize * 0.95}px` }}
-                    >
-                      <span className="text-zinc-700 mr-1">
-                        {index + 1}.
-                      </span>
-                      <span className="text-zinc-700">
-                        {description}
-                      </span>
-                    </p>
+    {/* 2. 실제 질문 (밀착 정렬) */}
+    {question && (
+      <p
+        className="mt-1 text-zinc-700 leading-[1.5] break-keep ml-[1.5rem]"
+        style={{ fontSize: `${fontSize * 0.95}px` }}
+      >
+        {question}
+      </p>
+    )}
 
-                    {/* 실제 질문 */}
-                    {question && (
-                      <p
-                        className="mt-4 text-[#4A6741] font-semibold opacity-80 leading-[1.9] break-keep"
-                        style={{ fontSize: `${fontSize * 0.95}px` }}
-                      >
-                        {question}
-                      </p>
-                    )}
-
-                    {/* 마지막 제외 얇은 구분선 */}
-                    {index < arr.length - 1 && (
-                      <div className="w-full h-[1px] bg-zinc-200 mt-8" />
-                    )}
-                  </div>
-                );
+    {/* 3. 구분선: 마지막 제외, 위아래 간격을 my-4로 동일하게 설정 */}
+    {index < arr.length - 1 && (
+      <div className="w-full" /> 
+      /* my-3(12px) 혹은 my-2(8px)로 줄여서 선 위아래 공백을 일치시킴 */
+    )}
+  </div>
+);
               })}
           </div>
         </div>
@@ -1217,10 +1218,10 @@ export default function QTPage() {
 
       {/* 묵상 기록 목록 */}
       {meditationRecords.length > 0 && (
-        <div className="w-full max-w-md pt-10 px-4 mb-6">
+        <div className="w-full max-w-md pt-10 px-0 mb-6">
           <div className="flex items-center gap-2 mb-3">
-            <div className="w-1.5 h-4 bg-[#4A6741] rounded-full opacity-70" />
-            <h3 className="font-bold text-[#4A6741] opacity-70" style={{ fontSize: `${fontSize * 1.0}px` }}>
+            <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+            <h3 className="font-black text-medium text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.0}px` }}>
               묵상 기록
             </h3>
             <div className="flex-1" />
@@ -1240,7 +1241,7 @@ export default function QTPage() {
           </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
-              <div key={record.id} className="bg-white rounded-none p-4 shadow-sm border border-zinc-100">
+              <div key={record.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
                 {/* 텍스트 내용 */}
                 {record.meditation_text && (
                   <p className="text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap" style={{ fontSize: `${fontSize * 0.9}px` }}>
@@ -1250,7 +1251,7 @@ export default function QTPage() {
 
                 {/* 음성 재생 */}
                 {record.audio_url && (
-                  <div className="bg-[#4A6741]/5 rounded-none p-3 mb-2">
+                  <div className="bg-[#4A6741]/5 rounded-lg p-3 mb-2">
                     <div className="flex items-center gap-3 mb-2">
                       <button
                         onClick={() => playRecordAudio(record.audio_url, record.id)}
