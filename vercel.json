@@ -26,8 +26,8 @@
       "destination": "/api/audio/upload"
     },
     {
-      "source": "/api/file/upload",
-      "destination": "/api/file/upload"
+      "source": "/api/file/:action",
+      "destination": "/api/file/:action"
     },
     {
       "source": "/api/audio/delete",
