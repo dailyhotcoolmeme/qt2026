@@ -30,6 +30,7 @@ import { supabase } from "./lib/supabase";
 const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
 const GROUP_INVITE_QUERY_KEY = "invite_group";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const REGISTER_HASH_PATH = "#/register";
 
 function readInviteGroupIdFromUrl(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
@@ -101,16 +102,20 @@ export default function App() {
       if (!inviteGroupId) return;
       try {
         localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
+        // Legacy shared links may include "#/register?invite_group=...".
+        // Keep invite id in storage and normalize hash to "/register" to avoid route mismatch.
+        if (window.location.hash.startsWith("#/register?")) {
+          const clean = `${window.location.pathname}${window.location.search}${REGISTER_HASH_PATH}`;
+          window.history.replaceState(null, "", clean);
+        }
       } catch (error) {
         console.error("failed to persist invite group id:", error);
       }
     };
 
     const redirectToRegisterForInvite = (groupId: string) => {
-      const targetPath = `/register?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(groupId)}`;
-      const targetHash = `#${targetPath}`;
-      if (!window.location.hash.startsWith(targetHash)) {
-        window.location.href = `${window.location.origin}/#${targetPath}`;
+      if (!window.location.hash.startsWith(REGISTER_HASH_PATH)) {
+        window.location.href = `${window.location.origin}/${REGISTER_HASH_PATH}`;
       }
     };
 
