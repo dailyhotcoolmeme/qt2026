@@ -116,7 +116,6 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     username: "",
     email: "",
     nickname: "",
-    full_name: "",
     church: "",
     rank: "",
   });
@@ -149,7 +148,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     if (!user?.id) return;
     const { data } = await supabase
       .from("profiles")
-      .select("email,full_name")
+      .select("email")
       .eq("id", user.id)
       .single();
 
@@ -157,7 +156,6 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       setFormData((prev) => ({
         ...prev,
         email: data.email || "",
-        full_name: data.full_name || "",
       }));
       originalRef.current.email = data.email || "";
     }
@@ -255,7 +253,6 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
           username: formData.username,
           email: formData.email,
           nickname: formData.nickname,
-          full_name: formData.full_name,
           church: formData.church,
           rank: formData.rank,
           avatar_url: avatarUrl,
