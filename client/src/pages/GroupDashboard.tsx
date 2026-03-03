@@ -524,7 +524,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       {showModal && (
         <div className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
+          <div className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-zinc-800">{formType === "event" ? "모임 일정 등록" : "불가능한 일정 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
@@ -565,7 +565,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       {selectedDateEvents && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedDateEvents(null)}></div>
-          <div className="relative w-full max-w-sm bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 mb-2 border-b">
               <h3 className="font-black text-xl text-zinc-900">{format(parseISO(selectedDateEvents.dateStr), "M월 d일")} 일정</h3>
               <button onClick={() => setSelectedDateEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X size={16} /></button>

@@ -2549,7 +2549,7 @@ export default function ReadingPage() {
                           <div className="flex items-center gap-1">
                             {isStartChapter && <span className="text-[9px]">시작</span>}
                             <span>{ch}</span>
-                            {isEndChapter && <span className="text-[9px]">醫낅즺</span>}
+                            {isEndChapter && <span className="text-[9px]">종료</span>}
                           </div>
                           {user && hasBeenRead && !isDisabled && !isStartChapter && !isEndChapter && (
                             <span className="text-[9px] text-[#4A6741] font-bold">{readCount}회</span>
