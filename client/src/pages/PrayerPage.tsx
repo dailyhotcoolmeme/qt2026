@@ -1014,16 +1014,16 @@ export default function PrayerPage() {
                                       </div>
                                     )}
                                   </div>
-                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-1.5">
+                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-0.5">
                                     <span>{formattedDate}</span>
                                     <div className="flex items-center gap-1">
                                       <button
                                         onClick={() => handleShareRecordAudio(record)}
-                                        className="h-7 px-2 flex items-center justify-center gap-1 rounded-full bg-[#4A6741]/10 text-[#4A6741] text-[11px] font-bold hover:bg-[#4A6741]/20 transition-colors"
-                                        title="카톡 공유"
+                                        className="h-7 px-2 flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
+                                        title="공유"
                                       >
                                         <Share2 size={12} />
-                                        카톡공유
+                                        공유
                                       </button>
                                       <button
                                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}

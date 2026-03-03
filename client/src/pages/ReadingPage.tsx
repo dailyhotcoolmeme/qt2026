@@ -2247,7 +2247,7 @@ export default function ReadingPage() {
               onClick={() => void handleReadCancel()}
               className="px-3 py-1.5 text-xs font-bold text-rose-500 rounded-full transition-colors hover:bg-rose-100"
             >
-              읽기 취소
+              읽기완료 취소
             </button>
           </div>
           {currentDate.toDateString() === today.toDateString() && (
