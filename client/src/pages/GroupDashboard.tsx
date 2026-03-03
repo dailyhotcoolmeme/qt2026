@@ -1178,6 +1178,11 @@ export default function GroupDashboard() {
 
   const handleFaithToggleForDate = async (item: FaithItemRow, dateIso: string) => {
     if (!group || !user) return;
+    const todayLocalIso = format(new Date(), "yyyy-MM-dd");
+    if (dateIso > todayLocalIso) {
+      alert("미래 날짜는 입력할 수 없습니다.");
+      return;
+    }
     const current = (weeklyRecords[dateIso]?.[item.id] ?? 0) as number;
     const nextValue = current > 0 ? 0 : item.item_type === "count" ? current + 1 : 1;
 
@@ -1208,7 +1213,7 @@ export default function GroupDashboard() {
         if (error) throw error;
       }
       await loadWeeklyFaithRecords();
-      const todayIso = new Date().toISOString().split("T")[0];
+      const todayIso = format(new Date(), "yyyy-MM-dd");
       if (dateIso === todayIso) await loadFaith(group.id, user.id);
     } catch (error) {
       console.error("failed to toggle faith record:", error);
@@ -2646,6 +2651,11 @@ export default function GroupDashboard() {
     return map;
   }, [groupPrayers, groupPrayerTopics]);
 
+  const todayFaithDateIso = format(new Date(), "yyyy-MM-dd");
+  const currentFaithWeekStartMs = startOfWeek(new Date(), { weekStartsOn: 0 }).getTime();
+  const selectedFaithWeekStartMs = startOfWeek(faithCurrentDate, { weekStartsOn: 0 }).getTime();
+  const canMoveToNextFaithWeek = selectedFaithWeekStartMs < currentFaithWeekStartMs;
+
   // 1. groupId 없으면 아무것도 렌더링하지 않음
   if (!groupId) return null;
 
@@ -2808,10 +2818,23 @@ export default function GroupDashboard() {
     setShowPrayerComposer(true);
   };
 
-  const deleteAllMyPrayerTopics = async () => {
-    if (!confirm("정말 모든 기도제목을 삭제하시겠습니까? 등록된 기도제목 전체가 삭제됩니다.")) return;
+  const deleteAllPrayerTopicsByAuthor = async (authorId: string) => {
+    if (!group || !user) return;
+    const canDelete = isManager || authorId === user.id;
+    if (!canDelete) return;
+
+    const isMine = authorId === user.id;
+    const message = isMine
+      ? "정말 모든 기도제목을 삭제하시겠습니까? 등록된 기도제목 전체가 삭제됩니다."
+      : "해당 멤버의 기도제목을 모두 삭제할까요? 이미 모임을 나간 멤버의 기도제목도 삭제됩니다.";
+    if (!confirm(message)) return;
+
     try {
-      const { error } = await supabase.from("group_prayer_topics").delete().eq("author_id", user.id);
+      const { error } = await supabase
+        .from("group_prayer_topics")
+        .delete()
+        .eq("group_id", group.id)
+        .eq("author_id", authorId);
       if (error) throw error;
       if (group?.id) loadGroupPrayerTopics(group.id);
     } catch (err) {
@@ -2820,10 +2843,21 @@ export default function GroupDashboard() {
     }
   };
 
-  const deleteSingleTopic = async (topicId: number) => {
+  const deleteSingleTopic = async (topicId: number, authorId: string) => {
+    if (!group || !user) return;
+    const canDelete = isManager || authorId === user.id;
+    if (!canDelete) return;
     if (!confirm("이 기도제목을 삭제할까요?")) return;
     try {
-      const { error } = await supabase.from("group_prayer_topics").delete().eq("id", topicId);
+      let query = supabase
+        .from("group_prayer_topics")
+        .delete()
+        .eq("id", topicId)
+        .eq("group_id", group.id);
+      if (!isManager) {
+        query = query.eq("author_id", user.id);
+      }
+      const { error } = await query;
       if (error) throw error;
       if (group?.id) loadGroupPrayerTopics(group.id);
     } catch (err) {
@@ -2833,6 +2867,7 @@ export default function GroupDashboard() {
   };
 
   const editSingleTopic = async (topic: typeof groupPrayerTopics[0]) => {
+    if (!user || topic.author_id !== user.id) return;
     const newContent = prompt("수정할 기도제목을 입력하세요.", topic.content);
     if (newContent === null) return;
     if (newContent.trim() === "") {
@@ -2948,10 +2983,12 @@ export default function GroupDashboard() {
                         <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
                       </div>
                       <div className="flex items-center gap-1 opacity-60 shrink-0 min-w-[52px] justify-end">
-                        {userId === user.id && (
+                        {user && (isManager || userId === user.id) && (
                           <>
-                            <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
-                            <button onClick={() => deleteAllMyPrayerTopics()} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
+                            {userId === user.id && (
+                              <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
+                            )}
+                            <button onClick={() => void deleteAllPrayerTopicsByAuthor(userId)} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
                           </>
                         )}
                       </div>
@@ -2964,6 +3001,15 @@ export default function GroupDashboard() {
                           <div key={topic.id} className="flex gap-0 items-start text-sm">
                             <span className="text-[#4A6741] shrink-0 mt-[2px]"><Dot size={20} /></span>
                             <div className="flex-1 font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+                            {user && (isManager || topic.author_id === user.id) && (
+                              <button
+                                onClick={() => void deleteSingleTopic(topic.id, topic.author_id)}
+                                className="shrink-0 p-1 text-zinc-300 hover:text-rose-500 rounded-full"
+                                aria-label="기도제목 삭제"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -3053,7 +3099,16 @@ export default function GroupDashboard() {
             <div className="flex items-center justify-between text-zinc-900 bg-transparent p-4">
               <button onClick={() => setFaithCurrentDate(subWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronLeft /></button>
               <span className="font-black text-xl tracking-tight">{getWeekKoreanLabel(faithCurrentDate)}</span>
-              <button onClick={() => setFaithCurrentDate(addWeeks(faithCurrentDate, 1))} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><ChevronRight /></button>
+              <button
+                onClick={() => {
+                  if (!canMoveToNextFaithWeek) return;
+                  setFaithCurrentDate(addWeeks(faithCurrentDate, 1));
+                }}
+                disabled={!canMoveToNextFaithWeek}
+                className={`p-2 rounded-full transition-colors ${canMoveToNextFaithWeek ? "hover:bg-zinc-100" : "opacity-35 cursor-not-allowed"}`}
+              >
+                <ChevronRight />
+              </button>
             </div>
 
             {/* ── 주간 수행 현황 카드 ── */}
@@ -3076,6 +3131,7 @@ export default function GroupDashboard() {
                     {weekDates.map((date) => {
                       const dt = parseISO(date);
                       const isToday = isSameDay(dt, new Date());
+                      const isFutureDate = date > todayFaithDateIso;
                       const isHoliday = KOREAN_HOLIDAYS[date];
                       const isSunday = dt.getDay() === 0;
                       const isSaturday = dt.getDay() === 6;
@@ -3091,7 +3147,7 @@ export default function GroupDashboard() {
                           {faithItemSlots.map((slot) => {
                             const item = slot.item;
                             const val = (weeklyRecords[date]?.[item?.id ?? ""] ?? 0) as number;
-                            const disabled = !item;
+                            const disabled = !item || isFutureDate;
                             const done = val > 0;
                             return (
                               <div key={`${slot.key}-${date}`} className="flex-1 flex justify-center px-1">
@@ -3887,7 +3943,7 @@ export default function GroupDashboard() {
                           <div className="text-sm font-medium text-zinc-800 break-all leading-snug flex-1">{topic.content}</div>
                           <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto border-t sm:border-t-0 border-zinc-100 pt-2 sm:pt-0 mt-1 sm:mt-0 w-full sm:w-auto">
                             <button onClick={() => editSingleTopic(topic)} className="flex-1 sm:flex-none px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center"><Pencil className="mr-1" size={12} />수정</button>
-                            <button onClick={() => deleteSingleTopic(topic.id)} className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center"><Trash2 className="mr-1" size={12} />삭제</button>
+                            <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center"><Trash2 className="mr-1" size={12} />삭제</button>
                           </div>
                         </div>
                       ))}

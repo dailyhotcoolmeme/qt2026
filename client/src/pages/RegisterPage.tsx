@@ -332,11 +332,8 @@ export default function RegisterPage() {
         </button>
       </header>
 
-      {/* 硫붿씤 ?쒕뵫 ?곸뿭 */}
       <div className="flex-1 px-8 relative">
-        {/* '?ㅻⅤ瑜? ?④낵瑜??꾪븳 留덉뒪??諛곌꼍 ?덉씠??*/}
         <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#F8F8F8] via-[#F8F8F8]/90 to-transparent z-10 pointer-events-none" />
-
         <div className="mt-8 mb-14 text-center relative z-20">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
@@ -376,8 +373,16 @@ export default function RegisterPage() {
               {isAgreedAll && <Check size={14} className="text-white" strokeWidth={3} />}
             </div>
             <span className="text-[13px] font-bold text-zinc-500">
-              필수 <Link href="/terms/service"><a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">이용약관</a></Link> 및 <Link href="/terms/privacy"><a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">개인정보 처리방침</a></Link>에 동의합니다.
-            </span>
+  <span className="text-red-500 mr-1">(필수)</span>
+  <Link href="/terms/service">
+    <a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">이용약관</a>
+  </Link>
+  <span className="mx-1 text-zinc-500">및</span>
+  <Link href="/terms/privacy">
+    <a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">개인정보 처리방침</a>
+  </Link>
+  에 동의합니다.
+</span>
           </button>
         </div>
 
