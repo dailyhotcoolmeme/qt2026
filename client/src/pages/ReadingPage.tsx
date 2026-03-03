@@ -2155,14 +2155,14 @@ export default function ReadingPage() {
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <BookX size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  읽을 말씀이 없습니다
+                  읽은 말씀이 없습니다
                 </p>
               </div>
             ) : isLoadingVerse ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  읽을 말씀을 불러오는 중...
+                  읽은 말씀을 불러오는 중...
                 </p>
               </div>
             ) : (
