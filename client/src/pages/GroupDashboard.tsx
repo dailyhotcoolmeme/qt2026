@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -2566,7 +2566,7 @@ export default function GroupDashboard() {
 
   const buildInviteUrl = () => {
     if (!group?.id) return "";
-    return `${window.location.origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
+    return `${window.location.origin}/#/register?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
   };
 
   const buildInviteMessage = (includeUrl = true) => {
@@ -2596,14 +2596,12 @@ export default function GroupDashboard() {
 
   const shareInviteMessage = async () => {
     if (!group) return;
-    const inviteUrl = buildInviteUrl();
-    const text = buildInviteMessage(false);
+    const text = buildInviteMessage(true);
     try {
       if (navigator.share) {
         await navigator.share({
           title: `[마이아멘(myAmen) 모임 초대] 모임명 : ${group.name}`,
           text,
-          url: inviteUrl,
         });
         return;
       }

@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import confetti from 'canvas-confetti';
 import {
   Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark,
@@ -43,7 +43,7 @@ function toLocalDateKey(value?: string | null) {
 export default function ReadingPage() {
   const [location] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
-  // 荑쇰━?ㅽ듃留곸뿉 date媛 ?덉쑝硫??대떦 ?좎쭨濡??대룞
+
   useEffect(() => {
     if (!location) return;
     const query = location.split("?")[1];
@@ -70,7 +70,7 @@ export default function ReadingPage() {
   const handleDateChange = (selectedDate: Date) => {
     if (!isNaN(selectedDate.getTime())) {
       if (selectedDate > today) {
-        alert("?ㅻ뒛 ?댄썑??留먯?? 誘몃━ 蹂????놁뒿?덈떎.");
+        alert("오늘 이후의 말씀은 미리 볼 수 없습니다.");
         return;
       }
       setCurrentDate(selectedDate);
@@ -90,7 +90,7 @@ export default function ReadingPage() {
     return grouped;
   }, []);
 
-  // --- ?뵦 踰붿쐞 ?좏깮 ?꾩슜 ?곹깭 (蹂듦뎄 諛?媛뺥솕) ---
+
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<any>(null);
@@ -118,7 +118,7 @@ export default function ReadingPage() {
   const [currentVerseNumber, setCurrentVerseNumber] = useState<number | null>(null);
   const [autoFollowEnabled, setAutoFollowEnabled] = useState(true);
   const [isFromServer, setIsFromServer] = useState(false);
-  const [audioControlY, setAudioControlY] = useState(0); // ?ъ깮 ?앹뾽 Y ?꾩튂
+  const [audioControlY, setAudioControlY] = useState(0); // 재생 팝업 Y 위치
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
@@ -132,10 +132,10 @@ export default function ReadingPage() {
   const audioPlayingChapterIdxRef = useRef<number>(0);
   const audioObjectUrlRef = useRef<string | null>(null);
   const scrollResumeTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const currentPageIdxRef = useRef<number>(0);  // ?꾩옱 ?몃뜳?ㅻ? ref濡쒕룄 愿由?
+  const currentPageIdxRef = useRef<number>(0);  // 현재 인덱스를 ref로도 관리
   const previousDateRef = useRef<string>(new Date().toDateString());
 
-  // ?ъ깮 諛⑹떇 ?좏깮 諛??꾩껜 ?ъ깮 紐⑤뱶 愿???곹깭
+
   const [showPlayModePopup, setShowPlayModePopup] = useState(false);
   const [isContinuousPlayMode, setIsContinuousPlayMode] = useState(false);
   const nextChapterAudioCache = useRef<HTMLAudioElement | null>(null);
@@ -185,7 +185,7 @@ export default function ReadingPage() {
     currentPageIdxRef.current = currentPageIdx;
   }, [currentPageIdx]);
 
-  // bibleData 蹂寃???verseRefs 珥덇린??(?ㅽ겕濡??깊겕 ?섏젙)
+
   useEffect(() => {
     verseRefs.current = [];
   }, [bibleData]);
@@ -213,7 +213,7 @@ export default function ReadingPage() {
 
 
 
-  // ?ъ깮 ?앹뾽 ?쒕옒洹??몃뱾??
+
   const handleDragStart = (e: React.PointerEvent) => {
     setIsDragging(true);
     setDragStartY(e.clientY - audioControlY);
@@ -223,7 +223,7 @@ export default function ReadingPage() {
   const handleDragMove = (e: React.PointerEvent) => {
     if (!isDragging) return;
     const newY = e.clientY - dragStartY;
-    // ?붾㈃ 寃쎄퀎 泥댄겕 (?곷떒 80px, ?섎떒 200px ?ъ쑀)
+    // 화면 경계 체크 (상단 80px, 하단 200px 여유)
     const minY = -200;
     const maxY = window.innerHeight - 350;
     setAudioControlY(Math.max(minY, Math.min(newY, maxY)));
@@ -234,15 +234,15 @@ export default function ReadingPage() {
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   };
 
-  // 踰붿쐞 ?좏깮 紐⑤뱶濡쒕쭔 ?ъ슜
+  // 범위 선택 모드로만 사용
   useEffect(() => {
-    // ReadingPage??踰붿쐞 ?좏깮 ?꾩슜 ?섏씠吏
+
     if (rangePages.length === 0) {
       setBibleData(null);
     }
   }, []);
 
-  // ?뵦 踰붿쐞 ?좏깮 愿???곹깭
+
   type SelectionPhase = 'start' | 'end';
   const [selectionPhase, setSelectionPhase] = useState<SelectionPhase>('start');
   const [selectionStep, setSelectionStep] = useState<'testament' | 'book' | 'chapter'>('testament');
@@ -258,7 +258,7 @@ export default function ReadingPage() {
   const [readingProgress, setReadingProgress] = useState<Record<string, number>>({});
   const [bookOrderMap, setBookOrderMap] = useState<Record<string, number>>({});
 
-  // 梨??쒖꽌 留ㅽ븨 濡쒕뱶
+
   useEffect(() => {
     const loadBookOrders = async () => {
       const { data } = await supabase
@@ -276,31 +276,31 @@ export default function ReadingPage() {
     loadBookOrders();
   }, []);
 
-  // ?좎쭨蹂?留먯? 濡쒕뱶 (濡쒓렇?명븳 ?뚯썝??
+
   const loadDailyVerse = async (date: Date, options?: { forceTodayRestore?: boolean }) => {
-    // 濡쒓렇?명븯吏 ?딆븯?쇰㈃ ?ㅽ뻾 ????
+
     if (!user) return;
 
     const today = new Date();
     const isToday = date.toDateString() === today.toDateString();
     const forceTodayRestore = Boolean(options?.forceTodayRestore);
 
-    console.log('loadDailyVerse ?몄텧:', date.toISOString().split('T')[0], 'isToday:', isToday);
+    console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
 
-    // ?ㅻ뒛 ?좎쭨?닿퀬 rangePages媛 鍮꾩뼱?덉쑝硫?localStorage 蹂듭썝
+
     if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
       const savedPages = localStorage.getItem('reading_pages');
       const savedDate = localStorage.getItem('reading_date');
       const savedIdx = localStorage.getItem('reading_page_idx');
 
-      // ?좎쭨 ?뺤씤: ??λ맂 ?좎쭨媛 ?ㅻ뒛???꾨땲硫?臾댁떆
+
       const todayStr = today.toISOString().split('T')[0];
       if (savedPages && savedDate === todayStr) {
         try {
           const pages = JSON.parse(savedPages);
           const idx = Number(savedIdx) || 0;
 
-          console.log('localStorage 蹂듭썝:', pages.length, '?섏씠吏');
+          console.log('localStorage 복원:', pages.length, '페이지');
 
           setRangePages(pages);
           setCurrentPageIdx(idx);
@@ -309,11 +309,11 @@ export default function ReadingPage() {
           }
           return;
         } catch (e) {
-          console.error('蹂듭썝 ?ㅽ뙣:', e);
+          console.error('복원 실패:', e);
         }
       } else if (savedDate && savedDate !== todayStr) {
-        // ?좎쭨媛 ?ㅻⅤ硫?localStorage ??젣
-        console.log('localStorage ?좎쭨 遺덉씪移? ??젣');
+
+        console.log('localStorage 날짜 불일치, 삭제');
         localStorage.removeItem('reading_pages');
         localStorage.removeItem('reading_date');
         localStorage.removeItem('reading_page_idx');
@@ -329,10 +329,10 @@ export default function ReadingPage() {
       }
     }
 
-    // ?ㅻ뒛 ?좎쭨硫??꾨Т寃껊룄 ????(rangePages ?좎?)
+
     if (isToday) {
-      console.log('?ㅻ뒛 ?좎쭨, rangePages ?좎?');
-      // ?곹깭 珥덇린??
+      console.log('오늘 날짜, rangePages 유지');
+
       setIsLoadingVerse(false);
       if (rangePages.length === 0) {
         setNoReadingForDate(false);
@@ -340,14 +340,14 @@ export default function ReadingPage() {
       return;
     }
 
-    // 怨쇨굅 ?좎쭨留??쒕쾭?먯꽌 濡쒕뱶
-    console.log('怨쇨굅 ?좎쭨, ?쒕쾭?먯꽌 濡쒕뱶');
+
+    console.log('과거 날짜, 서버에서 로드');
     setIsLoadingVerse(true);
     setNoReadingForDate(false);
 
     const dateStr = date.toISOString().split('T')[0];
 
-    // ?대떦 ?좎쭨??紐⑤뱺 ?쎌? ?μ쓣 媛?몄샃?덈떎
+
     const { data: records, error } = await supabase
       .from('user_reading_records')
       .select('*')
@@ -356,10 +356,10 @@ export default function ReadingPage() {
       .order('updated_at', { ascending: true });
 
     if (records && records.length > 0) {
-      // 紐⑤뱺 ?쎌? ?μ쓣 rangePages濡?蹂??(?깃꼍 ?쒖꽌?濡??뺣젹)
+
       const pages = [];
 
-      // 癒쇱? bible_books?먯꽌 book_order瑜?媛?몄????뺣젹
+
       const bookOrders: Record<string, number> = {};
       for (const record of records) {
         if (!bookOrders[record.book_name]) {
@@ -375,7 +375,7 @@ export default function ReadingPage() {
         }
       }
 
-      // book_order濡??뺣젹
+
       const sortedRecords = [...records].sort((a, b) => {
         const orderA = bookOrders[a.book_name] || 0;
         const orderB = bookOrders[b.book_name] || 0;
@@ -384,14 +384,14 @@ export default function ReadingPage() {
       });
 
       for (const record of sortedRecords) {
-        // bible_books ?뺣낫 蹂꾨룄 議고쉶
+        // bible_books 정보 별도 조회
         const { data: bookInfo } = await supabase
           .from('bible_books')
           .select('*')
           .eq('book_name', record.book_name)
           .single();
 
-        // ??踰덊샇? ?④퍡 ?щ㎎??
+
         const { data: verses } = await supabase
           .from('bible_verses')
           .select('*')
@@ -437,16 +437,16 @@ export default function ReadingPage() {
       setNoReadingForDate(true);
       setIsLoadingVerse(false);
     } else {
-      console.error('留먯? 濡쒕뱶 ?ㅽ뙣:', error);
+      console.error('말씀 로드 실패:', error);
       setBibleData(null);
       setRangePages([]);
       setIsLoadingVerse(false);
     }
   };
 
-  // 濡쒓렇?명븳 ?뚯썝??寃쎌슦 ?좎쭨蹂?留먯? 濡쒕뱶
+
   useEffect(() => {
-    // 珥덇린???꾨즺 ?꾩뿉留??ㅽ뻾
+
     if (!isInitialized) return;
 
     const today = new Date();
@@ -456,7 +456,7 @@ export default function ReadingPage() {
     const wasToday = previousDateRef.current === todayKey;
     let forceTodayRestore = false;
 
-    // ?ㅻ뒛???꾨땶 寃쎌슦留??붾㈃ ?대━??
+
     if (!isToday) {
       setRangePages([]);
       setBibleData(null);
@@ -473,14 +473,14 @@ export default function ReadingPage() {
     }
   }, [user, currentDate, isInitialized]);
 
-  // 紐⑤떖???대┫ ???꾩껜 ?쎄린 ?대젰 濡쒕뱶
+
   useEffect(() => {
     if (isEditModalOpen && user) {
       loadAllReadingProgress();
     }
   }, [isEditModalOpen, user]);
 
-  // localStorage?먯꽌 ?곹깭 蹂듭썝
+  // localStorage에서 상태 복원
   useEffect(() => {
     const savedSelection = localStorage.getItem('reading_selection');
     const savedPages = localStorage.getItem('reading_pages');
@@ -493,11 +493,11 @@ export default function ReadingPage() {
         const selection = JSON.parse(savedSelection);
         setTempSelection(selection);
       } catch (e) {
-        console.error('?곹깭 蹂듭썝 ?ㅽ뙣:', e);
+        console.error('상태 복원 실패:', e);
       }
     }
 
-    // 蹂듭썝 ?꾨즺 ?쒖떆
+    // 복원 완료 표시
     if (savedPages && savedDate === todayStr) {
       try {
         const pages = JSON.parse(savedPages);
@@ -520,7 +520,7 @@ export default function ReadingPage() {
     setIsInitialized(true);
   }, []);
 
-  // ?곹깭 蹂寃???localStorage?????
+
   useEffect(() => {
     if (tempSelection.start_chapter > 0) {
       localStorage.setItem('reading_selection', JSON.stringify(tempSelection));
@@ -532,25 +532,25 @@ export default function ReadingPage() {
       const today = new Date();
       const isToday = currentDate.toDateString() === today.toDateString();
 
-      // ?ㅻ뒛 ?좎쭨???뚮쭔 localStorage?????
+
       if (isToday) {
         const todayStr = today.toISOString().split('T')[0];
         localStorage.setItem('reading_pages', JSON.stringify(rangePages));
         localStorage.setItem('reading_date', todayStr);
         localStorage.setItem('reading_page_idx', String(currentPageIdx));
-        console.log('localStorage ???', todayStr, rangePages.length, '?섏씠吏');
+        console.log('localStorage 저장:', todayStr, rangePages.length, "페이지");
       }
 
-      // 留덉?留??쎌? ?μ쑝濡??대룞 (理쒖큹 濡쒕뱶 ?쒖뿉留?
+
       if (user && bibleData === null) {
         loadLastReadChapter();
       }
     }
   }, [rangePages, currentPageIdx]);
 
-  // bibleData 蹂寃????쎄린 ?곹깭 ?뺤씤 諛?珥덇린??
+
   useEffect(() => {
-    // ?섏씠吏媛 蹂寃쎈릺硫??쎄린?꾨즺 ?곹깭瑜?珥덇린??(媛??μ씠 ?낅┰??
+
     setIsReadCompleted(false);
 
     if (bibleData && user) {
@@ -563,7 +563,7 @@ export default function ReadingPage() {
   const loadAllReadingProgress = async () => {
     if (!user) return;
 
-    // user_reading_records?먯꽌 紐⑤뱺 ?쎄린 湲곕줉 媛?몄삤湲?
+    // user_reading_records에서 모든 읽기 기록 가져오기
     const { data } = await supabase
       .from('user_reading_records')
       .select('book_name, chapter, read_count')
@@ -571,7 +571,7 @@ export default function ReadingPage() {
 
     if (!data) return;
 
-    // 媛?梨낆쓽 ?λ퀎 移댁슫??怨꾩궛
+
     const bookData: Record<string, { chapters: Set<number>; chapterCounts: Record<number, number> }> = {};
 
     data.forEach(record => {
@@ -585,7 +585,7 @@ export default function ReadingPage() {
       bookData[record.book_name].chapterCounts[record.chapter] = record.read_count;
     });
 
-    // 媛?梨낆쓽 ?꾩껜 ???섎? 媛?몄???吏꾪뻾瑜?怨꾩궛
+
     const progressMap: Record<string, number> = {};
 
     for (const bookName in bookData) {
@@ -599,13 +599,13 @@ export default function ReadingPage() {
         const totalChapters = Array.from(new Set(verses.map(v => v.chapter)));
         const completedChapters = bookData[bookName].chapters.size;
 
-        // 梨??꾩껜 吏꾪뻾瑜?(?뚯닽??1?먮━)
+
         const percentage = totalChapters.length > 0
           ? Math.round((completedChapters / totalChapters.length) * 1000) / 10
           : 0;
         progressMap[`${bookName}_total`] = percentage;
 
-        // 媛??λ퀎 ?쎌? ?잛닔?????
+
         totalChapters.forEach(ch => {
           const key = `${bookName}_${ch}`;
           progressMap[key] = bookData[bookName].chapterCounts[ch] || 0;
@@ -617,7 +617,7 @@ export default function ReadingPage() {
   };
 
   const loadChapters = async (book: string) => {
-    console.log('loadChapters ?몄텧??', book, 'selectionPhase:', selectionPhase);
+    console.log('loadChapters 호출:', book, 'selectionPhase:', selectionPhase);
 
     if (selectionPhase === 'start') {
       setTempSelection(p => ({ ...p, start_book: book }));
@@ -625,27 +625,27 @@ export default function ReadingPage() {
       setTempSelection(p => ({ ...p, end_book: book }));
     }
 
-    // lib/bibleData.ts?먯꽌 ?뺥솗??????媛?몄삤湲?
+
     const bookInfo = BOOK_CHAPTERS.find(b => b.name === book);
 
     console.log('bookInfo:', bookInfo);
 
     if (bookInfo && bookInfo.chapters) {
-      // 1遺??chapters源뚯? 諛곗뿴 ?앹꽦
+
       const chapters = Array.from({ length: bookInfo.chapters }, (_, i) => i + 1);
       setAvailableChapters(chapters);
 
       console.log("chapters loaded:", chapters.length);
 
-      // 癒쇱? ???좏깮 ?붾㈃?쇰줈 ?꾪솚
+
       setSelectionStep('chapter');
 
-      // 濡쒓렇???곹깭硫??쎄린 吏꾪뻾瑜?諛깃렇?쇱슫?쒕줈 遺덈윭?ㅺ린
+
       if (user) {
         loadReadingProgress(book, chapters);
       }
     } else {
-      console.error('梨??뺣낫瑜?李얠쓣 ???놁뒿?덈떎:', book);
+      console.error('책 정보를 찾을 수 없습니다:', book);
     }
   };
 
@@ -670,11 +670,11 @@ export default function ReadingPage() {
 
       chapters.forEach(ch => {
         const key = `${book}_${ch}`;
-        // ?쎌? ?잛닔 ???(???좏깮?먯꽌 ?ъ슜)
+
         progressMap[key] = chapterCounts[ch] || 0;
       });
 
-      // 沅??꾩껜 吏꾪뻾瑜?怨꾩궛 (?뚯닽??1?먮━源뚯?)
+
       const bookProgressPercentage = chapters.length > 0
         ? Math.round((uniqueCompletedChapters.length / chapters.length) * 1000) / 10
         : 0;
@@ -698,7 +698,7 @@ export default function ReadingPage() {
     const totalCount = data?.read_count || 0;
     setReadCount(totalCount);
 
-    // ?쎄린 ?꾨즺 ?곹깭 ?ㅼ젙 (??踰덉씠?쇰룄 ?쎌뿀?쇰㈃ true)
+
     setIsReadCompleted(totalCount > 0);
   };
 
@@ -726,20 +726,20 @@ export default function ReadingPage() {
   };
 
   const loadRangePagesWithSelection = async (selection: typeof tempSelection) => {
-    console.log('loadRangePagesWithSelection ?쒖옉:', selection);
+    console.log('loadRangePagesWithSelection 시작:', selection);
     setNoReadingForDate(false);
 
     if (!selection.start_book || !selection.start_chapter) {
-      alert('?쒖옉 踰붿쐞瑜??좏깮?댁＜?몄슂.');
+      alert('시작 범위를 선택해 주세요.');
       return;
     }
 
     if (!selection.end_book || !selection.end_chapter) {
-      alert('醫낅즺 踰붿쐞瑜??좏깮?댁＜?몄슂.');
+      alert('종료 범위를 선택해 주세요.');
       return;
     }
 
-    // 沅??쒖꽌 ?뺤씤 (?쒖옉 沅뚯씠 醫낅즺 沅뚮낫???ㅼ뿉 ?덉쑝硫??덈맖)
+
     const { data: startBookData } = await supabase
       .from('bible_books')
       .select('book_order')
@@ -753,13 +753,13 @@ export default function ReadingPage() {
       .maybeSingle();
 
     if (startBookData && endBookData && startBookData.book_order > endBookData.book_order) {
-      alert('?쒖옉 踰붿쐞媛 醫낅즺 踰붿쐞蹂대떎 ?ㅼ뿉 ?덉쓣 ???놁뒿?덈떎.');
+      alert('시작 범위가 종료 범위보다 뒤에 있을 수 없습니다.');
       return;
     }
 
     const pages: any[] = [];
 
-    // 媛숈? 沅뚯씤 寃쎌슦
+    // 같은 권인 경우
     if (selection.start_book === selection.end_book) {
       for (let ch = selection.start_chapter; ch <= selection.end_chapter; ch++) {
         const { data, error } = await supabase
@@ -769,10 +769,10 @@ export default function ReadingPage() {
           .eq('chapter', ch)
           .order('verse', { ascending: true });
 
-        console.log(`${selection.start_book} ${ch}???곗씠??`, data, error);
+        console.log(`${selection.start_book} ${ch} 데이터`, data, error);
 
         if (data && data.length > 0) {
-          // 媛??덉쓣 verse 踰덊샇? ?④퍡 ?щ㎎??
+
           const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
 
           pages.push({
@@ -786,7 +786,7 @@ export default function ReadingPage() {
         }
       }
     } else {
-      // ?ㅻⅨ 沅뚯씤 寃쎌슦 - ?쒖옉 沅뚮???醫낅즺 沅뚭퉴吏 紐⑤뱺 ??媛?몄삤湲?
+
       const { data: allBooks } = await supabase
         .from('bible_books')
         .select('*')
@@ -796,7 +796,7 @@ export default function ReadingPage() {
 
       if (allBooks) {
         for (const book of allBooks) {
-          // 媛?沅뚯쓽 紐⑤뱺 ??媛?몄삤湲?
+
           const { data: chapters } = await supabase
             .from('bible_verses')
             .select('chapter')
@@ -807,9 +807,9 @@ export default function ReadingPage() {
             const uniqueChapters = Array.from(new Set(chapters.map(c => c.chapter)));
 
             for (const ch of uniqueChapters) {
-              // ?쒖옉 沅뚯쓽 寃쎌슦 ?쒖옉 ?λ???
+              // 시작 권의 경우 시작 장부터
               if (book.book_name === selection.start_book && ch < selection.start_chapter) continue;
-              // 醫낅즺 沅뚯쓽 寃쎌슦 醫낅즺 ?κ퉴吏
+              // 종료 권의 경우 종료 장까지
               if (book.book_name === selection.end_book && ch > selection.end_chapter) continue;
 
               const { data, error } = await supabase
@@ -819,10 +819,10 @@ export default function ReadingPage() {
                 .eq('chapter', ch)
                 .order('verse', { ascending: true });
 
-              console.log(`${book.book_name} ${ch}???곗씠??`, data, error);
+              console.log(`${book.book_name} ${ch} 데이터`, data, error);
 
               if (data && data.length > 0) {
-                // 媛??덉쓣 verse 踰덊샇? ?④퍡 ?щ㎎??
+
                 const formattedContent = data.map(v => `${v.verse}. ${v.content}`).join('\n');
 
                 pages.push({
@@ -840,10 +840,10 @@ export default function ReadingPage() {
       }
     }
 
-    console.log('?앹꽦??pages:', pages);
+    console.log('생성된 pages:', pages);
 
     if (pages.length === 0) {
-      alert('?좏깮??踰붿쐞???깃꼍 ?곗씠?곕? 李얠쓣 ???놁뒿?덈떎. ?곗씠?곕쿋?댁뒪瑜??뺤씤?댁＜?몄슂.');
+      alert('선택한 범위의 성경 데이터를 찾을 수 없습니다. 데이터베이스를 확인해 주세요.');
       return;
     }
 
@@ -852,10 +852,10 @@ export default function ReadingPage() {
     setBibleData(pages[0]);
     setIsEditModalOpen(false);
 
-    // ?좎뒪??硫붿떆吏濡?踰붿쐞 ?덈궡
+
     const message = selection.start_book === selection.end_book
-      ? `${selection.start_book} ${selection.start_chapter}??~ ${selection.end_chapter}??留먯??낅땲??`
-      : `${selection.start_book} ${selection.start_chapter}??~ ${selection.end_book} ${selection.end_chapter}??留먯??낅땲??`;
+      ? `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_chapter}장 말씀입니다`
+      : `${selection.start_book} ${selection.start_chapter}장 ~ ${selection.end_book} ${selection.end_chapter}장 말씀입니다`;
 
     setRangeToastMessage(message);
     setShowRangeToast(true);
@@ -879,16 +879,16 @@ export default function ReadingPage() {
     audioRef.current = audio;
     audio.currentTime = startTime;
 
-    // ?꾩옱 ???곗씠??罹≪쿂 (?대줈?濡??명븳 stale state 諛⑹?)
+
     const currentChapterData = rangePages[currentIdx] || bibleData;
 
-    // ?쒕쾭 ?뚯씪????duration 諛?吏꾪뻾 ?곹깭 ?낅뜲?댄듃
+
     setIsFromServer(fromServer);
 
     audio.onloadedmetadata = () => {
       setDuration(audio.duration);
 
-      // ?꾩껜 ?ъ깮 紐⑤뱶?????ㅼ쓬 ??誘몃━ 濡쒕뱶
+
       if (isContinuous && rangePages.length > 0 && currentIdx < rangePages.length - 1) {
         const nextChapter = rangePages[currentIdx + 1];
         preloadNextChapterAudio(nextChapter);
@@ -898,7 +898,7 @@ export default function ReadingPage() {
     audio.ontimeupdate = () => {
       setCurrentTime(audio.currentTime);
 
-      // ?뚯꽦 ?깊겕: ?덈퀎 ?ㅽ겕濡?(?섏씠?쇱씠???쒓굅)
+
       if (verseRefs.current.length > 0 && audio.duration > 0) {
         const totalVerses = verseRefs.current.length;
         const estimatedVerseIndex = Math.floor((audio.currentTime / audio.duration) * totalVerses);
@@ -906,18 +906,18 @@ export default function ReadingPage() {
 
         if (clampedIndex !== currentVerseIndex && verseRefs.current[clampedIndex]) {
           setCurrentVerseIndex(clampedIndex);
-          // ?ㅽ겕濡ㅻ쭔 ?섑뻾 (?섏씠?쇱씠???쒓굅)
+
           verseRefs.current[clampedIndex]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
     };
 
     audio.onended = async () => {
-      // ?먮룞 ?쎄린 ?꾨즺 泥섎━ (?꾩껜 ?ъ깮 紐⑤뱶?먯꽌??議곗슜??泥섎━)
-      // ?꾩옱 ???곗씠?곕? ?꾨떖?섏뿬 ?щ컮瑜??μ뿉 湲곕줉
+
+
       await handleReadComplete(isContinuous, currentChapterData);
 
-      // ?꾩껜 ?ъ깮 紐⑤뱶?????ㅼ쓬 ?μ쑝濡??먮룞 ?대룞
+
       if (isContinuous && rangePages.length > 0 && currentIdx < rangePages.length - 1) {
         const nextIdx = currentIdx + 1;
         const nextChapterData = rangePages[nextIdx];
@@ -942,10 +942,10 @@ export default function ReadingPage() {
 
     setShowAudioControl(true);
     setIsPlaying(true);
-    // play()???ш린???몄텧?섏? ?딆쓬 - R2 ?뚯씪 loadeddata?먯꽌留??몄텧
+
     if (!fromServer) {
-      // TTS ?앹꽦???뚯씪留?利됱떆 ?ъ깮
-      audio.play().catch(e => console.log("?ъ깮 ?쒖옉 ?ㅻ쪟:", e));
+
+      audio.play().catch(e => console.log("재생 시작 오류:", e));
     }
   };
 
@@ -959,7 +959,7 @@ export default function ReadingPage() {
       return;
     }
 
-    // 2媛????댁긽?????ъ깮 諛⑹떇 ?좏깮 ?앹뾽
+
     if (!skipPopup && rangePages.length > 1) {
       setShowPlayModePopup(true);
       return;
@@ -979,28 +979,28 @@ export default function ReadingPage() {
       audioRef.current = null;
     }
 
-    // ?뚯씪 寃쎈줈 ?ㅼ젙 (reading ?대뜑)
+    // 파일 경로 설정 (reading 폴더)
     const bookOrder = bibleData.bible_books?.book_order || '0';
     const fileName = `reading/reading_b${bookOrder}_c${bibleData.chapter}_${targetVoice}.mp3`;
 
     try {
-      // 1. R2?먯꽌 ?뚯씪 吏곸젒 濡쒕뱶 ?쒕룄
+      // 1. R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
 
       let errorOccurred = false;
 
-      // 利됱떆 UI ?쒖떆
+      // 즉시 UI 표시
       audioRef.current = savedAudio;
       savedAudio.currentTime = lastTime;
       setShowAudioControl(true);
       setIsFromServer(true);
 
-      // ?ㅻ뵒???대깽???ㅼ젙
+
       savedAudio.onloadedmetadata = () => {
         if (!errorOccurred) {
           setDuration(savedAudio.duration);
-          // ?꾩껜 ?ъ깮 紐⑤뱶?????ㅼ쓬 ??誘몃━ 濡쒕뱶
+
           if (isContinuous && rangePages.length > 0 && currentPageIdx < rangePages.length - 1) {
             const nextChapter = rangePages[currentPageIdx + 1];
             preloadNextChapterAudio(nextChapter);
@@ -1011,7 +1011,7 @@ export default function ReadingPage() {
       savedAudio.ontimeupdate = () => {
         if (!errorOccurred) {
           setCurrentTime(savedAudio.currentTime);
-          // ?뚯꽦 ?깊겕: ?덈퀎 ?ㅽ겕濡?
+          // 음성 싱크: 절별 스크롤
           if (verseRefs.current.length > 0 && savedAudio.duration > 0) {
             const totalVerses = verseRefs.current.length;
             const estimatedVerseIndex = Math.floor((savedAudio.currentTime / savedAudio.duration) * totalVerses);
@@ -1049,13 +1049,13 @@ export default function ReadingPage() {
         }
       };
 
-      // ?먮윭 ?몃뱾???뺤쓽
+
       const errorHandler = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
-        console.log('[Audio] R2 ?뚯씪 ?놁쓬, TTS ?앹꽦 ?쒖옉');
+        console.log('[Audio] R2 파일 없음, TTS 생성 시작');
 
-        // UI ?④린怨??ㅻ뵒???뺣━
+
         setShowAudioControl(false);
         setIsPlaying(false);
         audioRef.current = null;
@@ -1063,48 +1063,48 @@ export default function ReadingPage() {
         savedAudio.ontimeupdate = null;
         savedAudio.onended = null;
 
-        // TTS ?앹꽦
+        // TTS 생성
         await generateAndUploadTTS();
       };
 
-      // ?뚯씪??濡쒕뱶?섎㈃ ?ъ깮 ?쒖옉
+
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
-          savedAudio.removeEventListener('error', errorHandler); // error 由ъ뒪???쒓굅
-          console.log('[Audio] R2 ?뚯씪 濡쒕뱶 ?깃났');
+          savedAudio.removeEventListener('error', errorHandler);
+          console.log('[Audio] R2 파일 로드 성공');
           setIsPlaying(true);
-          savedAudio.play().catch(e => console.log('?ъ깮 ?쒖옉 ?ㅻ쪟:', e));
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
 
-      // ?뚯씪???놁쑝硫?TTS ?앹꽦
+
       savedAudio.addEventListener('error', errorHandler, { once: true });
 
       return;
 
     } catch (error) {
-      console.error("Audio ?ъ깮 ?먮윭:", error);
+      console.error("Audio 재생 에러:", error);
       setIsPlaying(false);
     }
 
-    // TTS ?앹꽦 諛??낅줈???⑥닔
+
     async function generateAndUploadTTS() {
       try {
-        // 2. ?レ옄 蹂??諛??띿뒪???뺤젣
+
         const toKorNum = (num: number | string) => {
           const n = Number(num);
           if (isNaN(n)) return String(num);
           return String(n);
         };
 
-        // ??踰덊샇 ?쒓굅
+
         const mainContent = bibleData.content.replace(/\d+\.\s*/g, '');
         const unit = bibleData.bible_name === "시편" ? "편" : "장";
         const chapterKor = toKorNum(bibleData.chapter);
-        // ?쒖꽌 蹂寃? 梨??대쫫 + ??癒쇱?, 洹??ㅼ쓬 留먯? ?댁슜 ('留먯?' ?쒓굅)
+
         const textToSpeak = `${bibleData.bible_name} ${chapterKor}${unit}. ${mainContent}.`;
 
-        // 3. Azure API ?몄텧
+        // 3. Azure API 호출
         const AZURE_KEY = import.meta.env.VITE_AZURE_TTS_API_KEY;
         const AZURE_REGION = import.meta.env.VITE_AZURE_TTS_REGION;
         const azureVoice = targetVoice === 'F' ? "ko-KR-SoonBokNeural" : "ko-KR-BongJinNeural";
@@ -1125,16 +1125,16 @@ export default function ReadingPage() {
         `,
         });
 
-        if (!response.ok) throw new Error("API ?몄텧 ?ㅽ뙣");
+        if (!response.ok) throw new Error("API 호출 실패");
 
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         const ttsAudio = new Audio(audioUrl);
 
-        // 4. ?ㅻ뵒???ㅼ젙 諛??ъ깮
+
         setupAudioEvents(ttsAudio, lastTime, false, isContinuous, currentPageIdx);
 
-        // R2 ?낅줈??(諛깃렇?쇱슫??
+
         (async () => {
           try {
             console.log('[R2 Upload] Uploading:', fileName);
@@ -1146,21 +1146,21 @@ export default function ReadingPage() {
             });
             const { uploadUrl, publicUrl } = await urlRes.json();
 
-            // 2. 吏곸젒 R2???낅줈??
+
             await fetch(uploadUrl, {
               method: 'PUT',
               body: audioBlob,
               headers: { 'Content-Type': 'audio/mp3' }
             });
 
-            console.log('[R2 Upload] ??Success! URL:', publicUrl);
+            console.log('[R2 Upload] Success! URL:', publicUrl);
           } catch (error) {
-            console.error('[R2 Upload] ??Failed:', error);
+            console.error('[R2 Upload] Failed:', error);
           }
         })();
 
       } catch (error) {
-        console.error("Azure TTS ?먮윭:", error);
+        console.error("Azure TTS 에러:", error);
         setIsPlaying(false);
       }
     }
@@ -1471,19 +1471,19 @@ export default function ReadingPage() {
     }
 
     try {
-      // R2?먯꽌 ?뚯씪 吏곸젒 濡쒕뱶 ?쒕룄
+      // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const savedAudio = new Audio(publicUrl);
 
       let errorOccurred = false;
 
-      // 利됱떆 UI ?쒖떆
+      // 즉시 UI 표시
       audioRef.current = savedAudio;
       savedAudio.currentTime = 0;
       setShowAudioControl(true);
       setIsFromServer(true);
 
-      // ?ㅻ뵒???대깽???ㅼ젙
+
       savedAudio.onloadedmetadata = () => {
         if (!errorOccurred) {
           setDuration(savedAudio.duration);
@@ -1534,13 +1534,13 @@ export default function ReadingPage() {
         }
       };
 
-      // ?먮윭 ?몃뱾???뺤쓽
+
       const errorHandlerContinuous = async (e: Event) => {
         if (errorOccurred) return;
         errorOccurred = true;
-        console.log('[Audio Continuous] R2 ?뚯씪 ?놁쓬, TTS ?앹꽦 ?쒖옉');
+        console.log('[Audio Continuous] R2 파일 없음, TTS 생성 시작');
 
-        // UI ?④린怨??ㅻ뵒???뺣━
+
         setShowAudioControl(false);
         setIsPlaying(false);
         audioRef.current = null;
@@ -1548,34 +1548,34 @@ export default function ReadingPage() {
         savedAudio.ontimeupdate = null;
         savedAudio.onended = null;
 
-        // TTS ?앹꽦
+        // TTS 생성
         await generateContinuousTTS();
       };
 
-      // ?뚯씪??濡쒕뱶?섎㈃ ?ъ깮 ?쒖옉
+
       savedAudio.addEventListener('loadeddata', () => {
         if (!errorOccurred) {
-          savedAudio.removeEventListener('error', errorHandlerContinuous); // error 由ъ뒪???쒓굅
-          console.log('[Audio Continuous] R2 ?뚯씪 濡쒕뱶 ?깃났');
+          savedAudio.removeEventListener('error', errorHandlerContinuous);
+          console.log('[Audio Continuous] R2 파일 로드 성공');
           setIsPlaying(true);
-          savedAudio.play().catch(e => console.log('?ъ깮 ?쒖옉 ?ㅻ쪟:', e));
+          savedAudio.play().catch(e => console.log('재생 시작 오류:', e));
         }
       }, { once: true });
 
-      // ?뚯씪???놁쑝硫?TTS ?앹꽦
+
       savedAudio.addEventListener('error', errorHandlerContinuous, { once: true });
 
       return;
 
     } catch (error) {
-      console.error("Audio ?ъ깮 ?먮윭:", error);
+      console.error("Audio 재생 에러:", error);
       setIsPlaying(false);
       setIsContinuousPlayMode(false);
     }
 
     async function generateContinuousTTS() {
       try {
-        // ?쒕쾭???뚯씪???놁쑝硫?TTS API ?몄텧
+
         const toKorNum = (num: number | string) => {
           const n = Number(num);
           if (isNaN(n)) return String(num);
@@ -1620,7 +1620,7 @@ export default function ReadingPage() {
 
         setupAudioEvents(ttsAudio, 0, false, true, chapterIdx);
 
-        // R2 ?낅줈??(諛깃렇?쇱슫??
+
         (async () => {
           try {
             console.log('[R2 Upload - Continuous] Uploading:', fileName);
@@ -1637,9 +1637,9 @@ export default function ReadingPage() {
               headers: { 'Content-Type': 'audio/mp3' }
             });
 
-            console.log('[R2 Upload - Continuous] ??Success! URL:', publicUrl);
+            console.log('[R2 Upload - Continuous] Success! URL:', publicUrl);
           } catch (error) {
-            console.error('[R2 Upload - Continuous] ??Failed:', error);
+            console.error('[R2 Upload - Continuous] Failed:', error);
           }
         })();
 
@@ -1651,7 +1651,7 @@ export default function ReadingPage() {
     }
   };
 
-  // ?ㅼ쓬 ???ㅻ뵒??誘몃━ 濡쒕뱶
+
   const preloadNextChapterAudio = async (nextChapter: any) => {
     if (!nextChapter) return;
 
@@ -1660,7 +1660,7 @@ export default function ReadingPage() {
     const fileName = `reading/reading_b${bookOrder}_c${nextChapter.chapter}_${targetVoice}.mp3`;
 
     try {
-      // R2?먯꽌 ?뚯씪 吏곸젒 濡쒕뱶 ?쒕룄
+      // R2에서 파일 직접 로드 시도
       const publicUrl = `https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev/${fileName}`;
       const preloadAudio = new Audio(publicUrl);
       preloadAudio.preload = 'auto';
@@ -1671,34 +1671,34 @@ export default function ReadingPage() {
       preloadAudio.addEventListener('error', async () => {
         if (audioLoadFailed || audioLoaded) return;
         audioLoadFailed = true;
-        console.log('[Audio Preload] R2 ?뚯씪 ?놁쓬, TTS ?앹꽦 ?쒖옉');
+        console.log('[Audio Preload] R2 파일 없음, TTS 생성 시작');
 
-        // ?ㅽ뙣???ㅻ뵒???뺣━
+
         preloadAudio.pause();
         preloadAudio.src = '';
 
-        // TTS ?앹꽦
+        // TTS 생성
         await generatePreloadTTS();
       }, { once: true });
 
       preloadAudio.addEventListener('canplay', () => {
         if (audioLoadFailed) return;
         audioLoaded = true;
-        console.log('[Audio Preload] R2 ?뚯씪 濡쒕뱶 ?깃났');
+        console.log('[Audio Preload] R2 파일 로드 성공');
         nextChapterAudioCache.current = preloadAudio;
       }, { once: true });
 
-      // ?꾩떆濡?罹먯떆???좊떦 (canplay ?대깽?몄뿉???ы븷??
+
       nextChapterAudioCache.current = preloadAudio;
       return;
 
     } catch (error) {
-      console.error("?ㅼ쓬 ??誘몃━ 濡쒕뱶 ?ㅽ뙣:", error);
+      console.error("다음 장 미리 로드 실패:", error);
     }
 
     async function generatePreloadTTS() {
       try {
-        // ?쒕쾭???뚯씪???놁쑝硫?TTS API濡?誘몃━ ?앹꽦
+
         const toKorNum = (num: number | string) => {
           const n = Number(num);
           if (isNaN(n)) return String(num);
@@ -1730,14 +1730,14 @@ export default function ReadingPage() {
         `,
         });
 
-        if (!response.ok) throw new Error("API ?몄텧 ?ㅽ뙣");
+        if (!response.ok) throw new Error("API 호출 실패");
 
         const audioBlob = await response.blob();
         const audioUrl = URL.createObjectURL(audioBlob);
         nextChapterAudioCache.current = new Audio(audioUrl);
         nextChapterAudioCache.current.preload = 'auto';
 
-        // R2 ?낅줈??(諛깃렇?쇱슫??
+
         (async () => {
           try {
             console.log('[R2 Upload - Preload] Uploading:', fileName);
@@ -1754,14 +1754,14 @@ export default function ReadingPage() {
               headers: { 'Content-Type': 'audio/mp3' }
             });
 
-            console.log('[R2 Upload - Preload] ??Success! URL:', publicUrl);
+            console.log('[R2 Upload - Preload] Success! URL:', publicUrl);
           } catch (error) {
-            console.error('[R2 Upload - Preload] ??Failed:', error);
+            console.error('[R2 Upload - Preload] Failed:', error);
           }
         })();
 
       } catch (error) {
-        console.error("?ㅼ쓬 ??誘몃━ 濡쒕뱶 ?ㅽ뙣:", error);
+        console.error("다음 장 미리 로드 실패:", error);
       }
     }
   };
@@ -1770,11 +1770,11 @@ export default function ReadingPage() {
     if (bibleData) {
       navigator.clipboard.writeText(cleanContent(bibleData.content));
 
-      // ?좎뒪??耳쒓퀬 2珥????꾧린
+
       setShowCopyToast(true);
       setTimeout(() => setShowCopyToast(false), 2000);
 
-      // ?낇떛 諛섏쓳
+      // 햅틱 반응
       if (window.navigator?.vibrate) window.navigator.vibrate(20);
     }
   };
@@ -1785,7 +1785,7 @@ export default function ReadingPage() {
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const title = `${bibleData.bible_name} ${bibleData.chapter}${unit}`;
 
-    // ??踰덊샇 ?ы븿???꾩껜 ?댁슜
+
     const contentWithVerses = bibleData.content;
 
     const shareData = {
@@ -1799,16 +1799,16 @@ export default function ReadingPage() {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(window.location.href);
-        alert("留곹겕媛 ?대┰蹂대뱶??蹂듭궗?섏뿀?듬땲??");
+        alert("링크가 클립보드에 복사되었습니다.");
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
-        console.error("怨듭쑀 ?ㅽ뙣:", error);
+        console.error("공유 실패:", error);
       }
     }
   };
 
-  // ?쎄린 ?꾨즺 痍⑥냼
+  // 읽기 완료 취소
   const handleBookmark = async () => {
     if (!bibleData) return;
     if (!user?.id) {
@@ -1827,21 +1827,21 @@ export default function ReadingPage() {
 
     if (error) {
       if (error.code === "23505") {
-        alert("?대? ??λ맂 留먯??낅땲??");
+        alert("이미 저장한 말씀입니다.");
         return;
       }
-      alert("利먭꺼李얘린 ??μ뿉 ?ㅽ뙣?덉뒿?덈떎.");
+      alert("즐겨찾기 저장에 실패했습니다.");
       return;
     }
 
-    alert("湲곕줉?⑥뿉 ??λ릺?덉뒿?덈떎.");
+    alert("기록함에 저장되었습니다.");
   };
 
   const handleReadCancel = useCallback(async () => {
     if (!user || !bibleData) return;
 
     try {
-      // DB?먯꽌 read_count 1 媛먯냼 (理쒖냼 0)
+      // DB에서 read_count 1 감소 (최소 0)
       const { data: existing } = await supabase
         .from('user_reading_records')
         .select('read_count')
@@ -1854,7 +1854,7 @@ export default function ReadingPage() {
         const newCount = existing.read_count - 1;
 
         if (newCount === 0) {
-          // 0???섎㈃ ?덉퐫????젣
+
           await supabase
             .from('user_reading_records')
             .delete()
@@ -1874,20 +1874,20 @@ export default function ReadingPage() {
             .eq('chapter', bibleData.chapter);
         }
 
-        // 濡쒖뺄 ?곹깭 ?낅뜲?댄듃
+        // 로컬 상태 업데이트
         await checkCurrentChapterReadStatus();
 
-        // ?낇떛 ?쇰뱶諛?(痍⑥냼 ?⑦꽩 - 3踰?吏꾨룞)
+
         if (navigator.vibrate) {
           navigator.vibrate([100, 50, 100]);
         }
 
-        // 痍⑥냼 ?좎뒪???쒖떆
+
         setShowCancelToast(true);
         setTimeout(() => setShowCancelToast(false), 2000);
       }
     } catch (error) {
-      console.error('?쎄린 ?꾨즺 痍⑥냼 ?ㅽ뙣:', error);
+      console.error('읽기 완료 취소 실패:', error);
     }
   }, [user, bibleData]);
 
@@ -1923,17 +1923,17 @@ export default function ReadingPage() {
       if (error) throw error;
 
       closeReadingGroupLinkFlow();
-      alert("紐⑥엫 ?좎븰?앺솢???곌껐?섏뿀?듬땲??");
+      alert("모임 신앙활동에 연결했습니다.");
     } catch (error) {
       console.error("reading group link failed:", error);
-      alert("紐⑥엫 ?곌껐???ㅽ뙣?덉뒿?덈떎.");
+      alert("모임 연결에 실패했습니다.");
     } finally {
       setLinkingGroupId(null);
     }
   };
 
   const handleReadComplete = async (silent = false, chapterData = bibleData) => {
-    // 留먯????놁쑝硫??쎄린 ?꾨즺 遺덇?
+
     if (!chapterData) {
       if (!silent) {
         setShowWarningToast(true);
@@ -1942,7 +1942,7 @@ export default function ReadingPage() {
       return;
     }
 
-    // ??＝ ?④낵 (?꾩껜 ?ъ깮 紐⑤뱶媛 ?꾨땺 ?뚮쭔)
+    // 폭죽 효과 (전체 재생 모드가 아닐 때만)
     if (!silent) {
       confetti({
         particleCount: 100,
@@ -1951,24 +1951,24 @@ export default function ReadingPage() {
         colors: ['#f897c4', '#88B04B', '#FFD700']
       });
 
-      // ?낇떛 ?쇰뱶諛?(吏㏃? 吏꾨룞)
+
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
     }
 
-    // 濡쒓렇???뺤씤
-    // 鍮꾨줈洹몄씤 ?ъ슜?먮뒗 濡쒓렇??紐⑤떖 ?쒖떆
+
+
     if (!user) {
-      console.log('?ъ슜???놁쓬 - 濡쒓렇??紐⑤떖 ?쒖떆');
+      console.log('사용자 없음 - 로그인 모달 표시');
       if (!silent) {
-        // ??＝怨??숈떆??濡쒓렇???앹뾽 ?쒖떆
+
         setShowLoginModal(true);
       }
       return;
     }
 
-    // 濡쒓렇???곹깭硫??쎄린 ?꾨즺 湲곕줉 ???(梨????⑥쐞)
+
     if (chapterData) {
       try {
         const dateStr = currentDate.toISOString().split('T')[0];
@@ -1987,7 +1987,7 @@ export default function ReadingPage() {
           if (!Number.isNaN(endNum)) endVerse = endNum;
         }
 
-        // upsert ?ъ슜: ?덉쑝硫??낅뜲?댄듃, ?놁쑝硫??앹꽦
+
         const { data: existing } = await supabase
           .from('user_reading_records')
           .select('read_count')
@@ -2020,43 +2020,43 @@ export default function ReadingPage() {
           throw upsertError;
         }
 
-        // 吏꾪뻾瑜??낅뜲?댄듃
+
         const key = `${chapterData.bible_name}_${chapterData.chapter}`;
         setReadingProgress(prev => ({ ...prev, [key]: 100 }));
 
-        // ?쎄린 ?곹깭 ?ㅼ떆 ?뺤씤 (?잛닔 諛??곹깭 ?낅뜲?댄듃)
+
         await checkCurrentChapterReadStatus();
 
         if (!silent && savedRecord?.id) {
           await prepareReadingGroupLink(String(savedRecord.id), `${chapterData.bible_name} ${chapterData.chapter}장`);
         }
       } catch (error) {
-        console.error('?쎄린 ?꾨즺 ????ㅽ뙣:', error);
+        console.error('읽기 완료 저장 실패:', error);
       }
     }
   };
 
-  // 濡깊봽?덉뒪 ?대깽??由ъ뒪??(?곗튂 ?쒖옉 利됱떆 ?먰삎 吏꾪뻾 諛??쒖떆)
+
 
   const onDragEnd = (event: any, info: any) => {
-    if (info.offset.x > 100) { // ?댁쟾 ?좎쭨
+    if (info.offset.x > 100) { // 이전 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
-      // 怨쇨굅 ?좎쭨濡??대룞?섎㈃ 踰붿쐞 ?좏깮 ?댁젣
+
       setRangePages([]);
       setBibleData(null);
-      setNoReadingForDate(false); // 硫붿떆吏 源쒕컯??諛⑹?
+      setNoReadingForDate(false);
       setCurrentDate(d);
-    } else if (info.offset.x < -100) { // ?ㅼ쓬 ?좎쭨
+    } else if (info.offset.x < -100) { // 다음 날짜
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) {
         const isGoingToToday = d.toDateString() === today.toDateString();
-        // ?ㅻ뒛濡??뚯븘媛??寃??꾨땲硫?踰붿쐞 ?좏깮 ?댁젣
+
         if (!isGoingToToday) {
           setRangePages([]);
           setBibleData(null);
-          setNoReadingForDate(false); // 硫붿떆吏 源쒕컯??諛⑹?
+          setNoReadingForDate(false);
         }
         setCurrentDate(d);
       }
@@ -2123,12 +2123,12 @@ export default function ReadingPage() {
           >
             {bibleData ? (
               <>
-                {/* 異쒖쿂 ?곸뿭 - ?곷떒?쇰줈 ?대룞 */}
+                {/* 출처 영역 - 상단으로 이동 */}
                 <span className="self-center text-center font-bold text-[#4A6741] opacity-60 mb-6" style={{ fontSize: `${fontSize * 0.9}px` }}>
                   {bibleData.bible_name} {bibleData.chapter}{bibleData.bible_name === "시편" ? "편" : "장"} {bibleData.verse ? `${bibleData.verse}절` : ""}
                 </span>
 
-                {/* 留먯? 蹂몃Ц ?곸뿭 - ?믪씠 怨좎젙 諛??ㅽ겕濡?異붽? */}
+
                 <div
                   onWheel={markUserScroll}
                   onTouchMove={markUserScroll}
@@ -2155,22 +2155,22 @@ export default function ReadingPage() {
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <BookX size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  ?쎌? 留먯????놁뒿?덈떎
+                  읽을 말씀이 없습니다
                 </p>
               </div>
             ) : isLoadingVerse ? (
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <Loader2 size={48} className="text-zinc-200 animate-spin" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  ?쎌? 留먯? 遺덈윭?ㅻ뒗 以?..
+                  읽을 말씀을 불러오는 중...
                 </p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-full gap-3 w-full">
                 <NotebookPen size={48} className="text-zinc-200" strokeWidth={1.5} />
                 <p className="text-zinc-400 text-sm font-medium text-center">
-                  ?곗륫 ?곷떒 踰꾪듉???뚮윭<br />
-                  ?쎌쓣 踰붿쐞瑜??좏깮?댁＜?몄슂
+                  우측 상단 버튼을 눌러<br />
+                  읽을 범위를 선택해 주세요
                 </p>
               </div>
             )}
@@ -2182,13 +2182,13 @@ export default function ReadingPage() {
       <div className="flex items-center gap-8 mt-3 mb-14">
         <button onClick={() => handlePlayServerAudio()} className="flex flex-col items-center gap-1.5  text-[#4A6741]">
           <BookHeadphones size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>?뚯꽦 ?ъ깮</span>
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>음성 재생</span>
         </button>
         <button onClick={handleCopy} className="flex flex-col items-center gap-1.5 text-zinc-400">
-          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>留먯? 蹂듭궗</span>
+          <Copy size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
         <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
-        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>怨듭쑀</span></button>
+        <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
 
       <div className="flex items-center justify-center gap-8 pb-6">
@@ -2215,10 +2215,10 @@ export default function ReadingPage() {
               ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
           >
             <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
-            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>?쎄린?꾨즺</span>
+            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
             {user && readCount > 0 && (
               <span className="text-xs mt-0.5 opacity-80" style={{ fontSize: `${fontSize * 0.65}px` }}>
-                {readCount}??
+                {readCount}회
               </span>
             )}
           </motion.button>
@@ -2278,11 +2278,11 @@ export default function ReadingPage() {
               className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* ?좏깮 ?곹깭 ?쒖떆 諛??대┃ 媛?ν븳 ?몃뵒耳?댄꽣 */}
+
               <div className="flex flex-wrap items-center gap-2 mb-6">
-                {/* ?쒖옉 踰붿쐞 */}
+                {/* 시작 범위 */}
                 <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.625}px` }}>
-                  <span className="opacity-60">?쒖옉:</span>
+                  <span className="opacity-60">시작:</span>
                   {tempSelection.start_testament && (
                     <button
                       onClick={() => { setSelectionPhase('start'); setSelectionStep('testament'); }}
@@ -2293,7 +2293,7 @@ export default function ReadingPage() {
                   )}
                   {tempSelection.start_book && (
                     <>
-                      ??
+                      〉
                       <button
                         onClick={() => { setSelectionPhase('start'); setSelectionStep('book'); }}
                         className="underline underline-offset-2 hover:text-[#4A6741]"
@@ -2304,21 +2304,21 @@ export default function ReadingPage() {
                   )}
                   {tempSelection.start_chapter > 0 && (
                     <>
-                      ??
+                      〉
                       <button
                         onClick={() => { setSelectionPhase('start'); setSelectionStep('chapter'); loadChapters(tempSelection.start_book); }}
                         className="underline underline-offset-2 hover:text-[#4A6741]"
                       >
-                        {tempSelection.start_chapter}??
+                        {tempSelection.start_chapter}장
                       </button>
                     </>
                   )}
                 </div>
 
-                {/* 醫낅즺 踰붿쐞 */}
+                {/* 종료 범위 */}
                 {tempSelection.start_chapter > 0 && (
                   <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700" style={{ fontSize: `${fontSize * 0.625}px` }}>
-                    <span className="opacity-60">醫낅즺:</span>
+                    <span className="opacity-60">종료:</span>
                     {tempSelection.end_testament && (
                       <button
                         onClick={() => { setSelectionPhase('end'); setSelectionStep('testament'); }}
@@ -2329,7 +2329,7 @@ export default function ReadingPage() {
                     )}
                     {tempSelection.end_book && (
                       <>
-                        ??
+                        〉
                         <button
                           onClick={() => { setSelectionPhase('end'); setSelectionStep('book'); }}
                           className="underline underline-offset-2 hover:text-blue-700"
@@ -2340,19 +2340,19 @@ export default function ReadingPage() {
                     )}
                     {tempSelection.end_chapter > 0 && (
                       <>
-                        ??
+                        〉
                         <button
                           onClick={() => { setSelectionPhase('end'); setSelectionStep('chapter'); loadChapters(tempSelection.end_book); }}
                           className="underline underline-offset-2 hover:text-blue-700"
                         >
-                          {tempSelection.end_chapter}??
+                          {tempSelection.end_chapter}장
                         </button>
                       </>
                     )}
                   </div>
                 )}
 
-                {/* ?ㅼ떆 ?뺥븯湲?踰꾪듉 */}
+
                 {(tempSelection.start_chapter > 0 || tempSelection.end_chapter > 0) && (
                   <button
                     onClick={() => {
@@ -2369,7 +2369,7 @@ export default function ReadingPage() {
                       setRangePages([]);
                       setBibleData(null);
                       setAvailableChapters([]);
-                      // localStorage 珥덇린??
+                      // localStorage 초기화
                       localStorage.removeItem('reading_selection');
                       localStorage.removeItem('reading_pages');
                       localStorage.removeItem('reading_page_idx');
@@ -2377,12 +2377,12 @@ export default function ReadingPage() {
                     className="py-2 px-4 bg-red-50 text-red-600 rounded-full"
                     style={{ fontSize: `${fontSize * 0.625}px` }}
                   >
-                    ?ㅼ떆 ?뺥븯湲?
+                    다시 정하기
                   </button>
                 )}
               </div>
 
-              {/* ?④퀎蹂??쒕ぉ */}
+
               <h3 className="text-xl font-black mb-6 text-zinc-900">
                 {selectionPhase === 'start' && '시작 범위를 정해주세요'}
                 {selectionPhase === 'end' && '종료 범위를 정해주세요'}
@@ -2395,20 +2395,20 @@ export default function ReadingPage() {
               </h4>
 
               <div className="grid grid-cols-4 gap-2">
-                {/* ?좎빟/援ъ빟 ?좏깮 */}
+                {/* 신약/구약 선택 */}
                 {selectionStep === 'testament' &&
                   ['구약', '신약'].map(t => {
-                    // 援ъ빟/?좎빟 ?꾩껜 吏꾪뻾瑜?怨꾩궛 (紐⑤뱺 梨??ы븿)
+
                     const testamentBooks = BIBLE_BOOKS[t as '구약' | '신약'] || [];
                     let totalProgress = 0;
 
                     testamentBooks.forEach(book => {
                       const bookProgress = readingProgress[`${book}_total`];
-                      // ?쎄린 ?대젰???녿뒗 梨낆? 0%濡?怨꾩궛
+
                       totalProgress += (bookProgress || 0);
                     });
 
-                    // ?뚯닽??1?먮━源뚯? 怨꾩궛 (?꾩껜 梨??섎줈 ?섎닎)
+
                     const avgProgress = testamentBooks.length > 0
                       ? Math.round((totalProgress / testamentBooks.length) * 10) / 10
                       : 0;
@@ -2443,7 +2443,7 @@ export default function ReadingPage() {
                     );
                   })}
 
-                {/* 沅??좏깮 */}
+
                 {selectionStep === 'book' && (() => {
                   const testament = selectionPhase === 'start' ? tempSelection.start_testament : tempSelection.end_testament;
                   const startBookOrder = tempSelection.start_book ? bookOrderMap[tempSelection.start_book] : null;
@@ -2453,7 +2453,7 @@ export default function ReadingPage() {
                     const displayProgress = bookProgress !== undefined ? bookProgress : 0;
                     const hasProgress = displayProgress > 0;
 
-                    // 醫낅즺 踰붿쐞 ?좏깮 ???쒖옉 沅뚮낫???욎뿉 ?덈뒗 沅뚯? 鍮꾪솢?깊솕
+
                     const currentBookOrder = bookOrderMap[b];
                     const isDisabled = selectionPhase === 'end' && startBookOrder !== null &&
                       currentBookOrder < startBookOrder;
@@ -2484,7 +2484,7 @@ export default function ReadingPage() {
                   });
                 })()}
 
-                {/* ???좏깮 */}
+
                 {selectionStep === 'chapter' &&
                   availableChapters.map(ch => {
                     const currentBook = selectionPhase === 'start' ? tempSelection.start_book : tempSelection.end_book;
@@ -2492,12 +2492,12 @@ export default function ReadingPage() {
                     const readCount = readingProgress[progressKey] || 0;
                     const hasBeenRead = readCount > 0;
 
-                    // 醫낅즺 踰붿쐞 ?좏깮 ???쒖옉 ?λ낫???묒? ?μ? 鍮꾪솢?깊솕
+
                     const isDisabled = selectionPhase === 'end' &&
                       tempSelection.start_book === tempSelection.end_book &&
                       ch < tempSelection.start_chapter;
 
-                    // ?쒖옉/醫낅즺 ???쒖떆
+
                     const isStartChapter = tempSelection.start_book === currentBook && tempSelection.start_chapter === ch;
                     const isEndChapter = tempSelection.end_book === currentBook && tempSelection.end_chapter === ch;
                     const isInRange = tempSelection.start_book === currentBook &&
@@ -2515,16 +2515,16 @@ export default function ReadingPage() {
                             const updatedSelection = {
                               ...tempSelection,
                               start_chapter: ch,
-                              end_testament: tempSelection.start_testament, // 醫낅즺 踰붿쐞???숈씪?섍쾶 ?ㅼ젙
-                              end_book: tempSelection.start_book // 醫낅즺 梨낅룄 ?쒖옉 梨낃낵 ?숈씪?섍쾶 ?ㅼ젙
+                              end_testament: tempSelection.start_testament,
+                              end_book: tempSelection.start_book
                             };
                             setTempSelection(updatedSelection);
                             setSelectionPhase('end');
-                            // 醫낅즺 踰붿쐞??諛붾줈 ???좏깮?쇰줈 (媛숈? 梨낆씠誘濡?
-                            // ?ㅻⅨ 梨??좏깮?섎젮硫??ㅻ줈媛湲?媛??
+
+
                             loadChapters(tempSelection.start_book);
                           } else {
-                            // 醫낅즺 踰붿쐞 ?좏깮 ?꾨즺 -> ?뺤씤 紐⑤떖 ?쒖떆
+                            // 종료 범위 선택 완료 -> 확인 모달 표시
                             const updatedSelection = {
                               ...tempSelection,
                               end_chapter: ch
@@ -2547,7 +2547,7 @@ export default function ReadingPage() {
                       >
                         <div className="flex flex-col items-center gap-0.5">
                           <div className="flex items-center gap-1">
-                            {isStartChapter && <span className="text-[9px]">?쒖옉</span>}
+                            {isStartChapter && <span className="text-[9px]">시작</span>}
                             <span>{ch}</span>
                             {isEndChapter && <span className="text-[9px]">醫낅즺</span>}
                           </div>
@@ -2566,7 +2566,7 @@ export default function ReadingPage() {
                 onClick={() => setIsEditModalOpen(false)}
                 className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
               >
-                ?リ린
+                닫기
               </button>
             </motion.div>
           </motion.div>
@@ -2580,7 +2580,7 @@ export default function ReadingPage() {
         onSelectDate={handleDateChange}
         highlightedDateKeys={activityDateKeys}
         maxDate={today}
-        title="?듬룆 ?좎쭨 ?좏깮"
+        title="통독 날짜 선택"
       />
 
       <ActivityGroupLinkModal
@@ -2591,13 +2591,13 @@ export default function ReadingPage() {
         activityDate={currentDate}
       />
 
-      {/* 濡쒓렇??紐⑤떖 */}
+
       <LoginModal
         open={showLoginModal}
         onOpenChange={setShowLoginModal}
       />
 
-      {/* 留먯? 踰붿쐞 ?뺤씤 紐⑤떖 */}
+      {/* 말씀 범위 확인 모달 */}
       <AnimatePresence>
         {showConfirmModal && pendingSelection && (
           <motion.div
@@ -2614,18 +2614,18 @@ export default function ReadingPage() {
               className="bg-white rounded-2xl p-6 max-w-sm w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold mb-4 text-center">?좏깮?섏떊 留먯? 踰붿쐞</h3>
+              <h3 className="text-lg font-bold mb-4 text-center">선택하신 말씀 범위</h3>
               <div className="bg-zinc-50 rounded-xl p-4 mb-6 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">?쒖옉:</span>
+                  <span className="text-zinc-600">시작:</span>
                   <span className="font-bold">
-                    {pendingSelection.start_book} {pendingSelection.start_chapter}??
+                    {pendingSelection.start_book} {pendingSelection.start_chapter}장
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">醫낅즺:</span>
+                  <span className="text-zinc-600">종료:</span>
                   <span className="font-bold">
-                    {pendingSelection.end_book} {pendingSelection.end_chapter}??
+                    {pendingSelection.end_book} {pendingSelection.end_chapter}장
                   </span>
                 </div>
               </div>
@@ -2634,7 +2634,7 @@ export default function ReadingPage() {
                   onClick={() => setShowConfirmModal(false)}
                   className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold hover:bg-zinc-200 transition-colors"
                 >
-                  痍⑥냼
+                  취소
                 </button>
                 <button
                   onClick={() => {
@@ -2643,7 +2643,7 @@ export default function ReadingPage() {
                   }}
                   className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold hover:bg-[#3d5536] transition-colors"
                 >
-                  ?뺤씤
+                  확인
                 </button>
               </div>
             </motion.div>
@@ -2651,7 +2651,7 @@ export default function ReadingPage() {
         )}
       </AnimatePresence>
 
-      {/* ?ъ깮 諛⑹떇 ?좏깮 ?앹뾽 */}
+      {/* 재생 방식 선택 팝업 */}
       <AnimatePresence>
         {showPlayModePopup && (
           <motion.div
@@ -2669,7 +2669,7 @@ export default function ReadingPage() {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-xl font-black mb-4 text-zinc-900 text-center">
-                ?ъ깮 諛⑹떇???좏깮?댁＜?몄슂
+                재생 방식을 선택해 주세요
               </h3>
               <p className="text-sm text-zinc-500 mb-6 text-center">
                 {currentPageIdx === 0 ? `${rangePages.length}개의 말씀이 있습니다` : `현재 절 포함 ${rangePages.length - currentPageIdx}개의 말씀이 있습니다`}
@@ -2695,14 +2695,14 @@ export default function ReadingPage() {
                   }}
                   className="w-full py-4 bg-white border-2 border-[#4A6741] text-[#4A6741] rounded-2xl font-bold text-base hover:bg-green-50 transition-colors"
                 >
-                  ?꾩옱 ?λ쭔 ?ъ깮 (1?μ뵫)
+                  현재 장만 재생 (1장씩)
                 </button>
 
                 <button
                   onClick={() => setShowPlayModePopup(false)}
                   className="w-full py-3 text-zinc-400 font-medium text-sm"
                 >
-                  痍⑥냼
+                  취소
                 </button>
               </div>
             </motion.div>
@@ -2711,7 +2711,7 @@ export default function ReadingPage() {
       </AnimatePresence>
 
 
-      {/* 留먯? 蹂듭궗 ?좎뒪??*/}
+
       <AnimatePresence>
         {showCopyToast && (
           <motion.div
@@ -2722,12 +2722,12 @@ export default function ReadingPage() {
             className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium whitespace-nowrap"
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
-            留먯???蹂듭궗?섏뿀?듬땲??
+            말씀이 복사되었습니다
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 踰붿쐞 ?좏깮 ?꾨즺 ?좎뒪??*/}
+
       <AnimatePresence>
         {showRangeToast && (
           <motion.div
@@ -2743,7 +2743,7 @@ export default function ReadingPage() {
         )}
       </AnimatePresence>
 
-      {/* 濡쒓렇???덈궡 ?좎뒪??*/}
+
       <AnimatePresence>
         {showLoginAlert && (
           <motion.div
@@ -2754,12 +2754,12 @@ export default function ReadingPage() {
             className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
-            濡쒓렇?명븯?쒕㈃ ?쎌? 留먯???湲곕줉?섍퀬 愿由ы븷 ???덉뒿?덈떎!
+            로그인하면 읽은 말씀을 기록하고 관리할 수 있습니다!
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ?쎄린 ?꾨즺 痍⑥냼 ?좎뒪??(鍮④컙?? */}
+
       <AnimatePresence>
         {showCancelToast && (
           <motion.div
@@ -2770,12 +2770,12 @@ export default function ReadingPage() {
             className="fixed bottom-64 left-1/2 z-[200] bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
-            ?쎄린 ?꾨즺媛 痍⑥냼?섏뿀?듬땲??
+            읽기 완료가 취소되었습니다
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 寃쎄퀬 ?좎뒪??(鍮④컙?? */}
+
       <AnimatePresence>
         {showWarningToast && (
           <motion.div
@@ -2786,7 +2786,7 @@ export default function ReadingPage() {
             className="fixed bottom-36 left-1/2 z-[200] bg-red-500 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium text-center whitespace-nowrap"
             style={{ left: '50%', transform: 'translateX(-50%)' }}
           >
-            ?쎌쓣 留먯???癒쇱? ?뺥빐二쇱꽭??
+            읽을 말씀을 먼저 정해 주세요
           </motion.div>
         )}
       </AnimatePresence>
@@ -2813,3 +2813,5 @@ export default function ReadingPage() {
     </div>
   );
 }
+
+

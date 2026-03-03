@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck, Download, Share2, PlusSquare } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck, Share2, PlusSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -76,7 +76,9 @@ export function TopBar() {
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isStandaloneApp, setIsStandaloneApp] = useState(false);
   const [isIosDevice, setIsIosDevice] = useState(false);
+  const [isAndroidDevice, setIsAndroidDevice] = useState(false);
   const [showIosInstallGuide, setShowIosInstallGuide] = useState(false);
+  const [showAndroidInstallGuide, setShowAndroidInstallGuide] = useState(false);
   const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -172,6 +174,11 @@ export function TopBar() {
       } catch (error) {
         console.error("install prompt failed:", error);
       }
+      return;
+    }
+
+    if (isAndroidDevice) {
+      setShowAndroidInstallGuide(true);
       return;
     }
 
@@ -409,8 +416,10 @@ export function TopBar() {
 
   useEffect(() => {
     const ua = navigator.userAgent.toLowerCase();
-    const isIos = /iphone|ipad|ipod/.test(ua);
+    const isIos = /iphone|ipad|ipod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const isAndroid = /android/.test(ua);
     setIsIosDevice(isIos);
+    setIsAndroidDevice(isAndroid);
     setIsStandaloneApp(detectStandaloneApp());
 
     const handleBeforeInstallPrompt = (event: Event) => {
@@ -477,6 +486,15 @@ export function TopBar() {
               </AnimatePresence>
             </div>
           </button>
+
+          {!isStandaloneApp && (
+            <button
+              onClick={() => void handleInstallAppClick()}
+              className="ml-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-[#4A6741] hover:bg-[#4A6741]/10"
+            >
+              앱설치하기
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
@@ -608,17 +626,6 @@ export function TopBar() {
             <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
               <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록함" />
             </Link>
-
-            {!isStandaloneApp && (
-              <SidebarItem
-                icon={<Download className="h-5 w-5" />}
-                label="앱 설치하기"
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  void handleInstallAppClick();
-                }}
-              />
-            )}
 
             {isAuthenticated && (
               <SidebarItem
@@ -856,6 +863,49 @@ export function TopBar() {
 
               <button
                 onClick={() => setShowIosInstallGuide(false)}
+                className="mt-5 w-full rounded-xl bg-[#4A6741] py-3 font-bold text-white active:scale-95"
+              >
+                확인
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAndroidInstallGuide && (
+          <div className="fixed inset-0 z-[340] flex items-center justify-center p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowAndroidInstallGuide(false)}
+              className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="relative w-full max-w-[360px] rounded-[28px] bg-white p-5 shadow-2xl"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h4 className="font-black text-zinc-900" style={{ fontSize: `${fontSize}px` }}>안드로이드 앱 설치</h4>
+                <button
+                  onClick={() => setShowAndroidInstallGuide(false)}
+                  className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="space-y-3 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 text-sm text-zinc-700">
+                <p className="font-semibold">1. 브라우저 메뉴(⋮ 또는 ≡)를 열어주세요.</p>
+                <p className="font-semibold">2. "앱 설치" 또는 "홈 화면에 추가"를 선택하세요.</p>
+                <p className="text-xs text-zinc-500">삼성인터넷에서는 메뉴 위치가 기기마다 다를 수 있습니다.</p>
+              </div>
+
+              <button
+                onClick={() => setShowAndroidInstallGuide(false)}
                 className="mt-5 w-full rounded-xl bg-[#4A6741] py-3 font-bold text-white active:scale-95"
               >
                 확인

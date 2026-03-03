@@ -28,6 +28,7 @@ import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 
 const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
+const PENDING_GROUP_INVITE_REDIRECTED_KEY = "pending_group_invite_redirected";
 const GROUP_INVITE_QUERY_KEY = "invite_group";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REGISTER_HASH_PATH = "#/register";
@@ -54,7 +55,7 @@ function AppContent() {
       <AnimatePresence mode="wait">
         <Switch>
           <Route path="/terms/:type" component={TermsPage} />
-          {/* AuthPage 경로 확인: /auth 로 설정됨 */}
+          {/* Auth route */}
           <Route path="/auth" component={AuthPage} />
           <Route path="/register" component={RegisterPage} />
           <Route path="/find-account" component={FindAccountPage} />
@@ -102,6 +103,7 @@ export default function App() {
       if (!inviteGroupId) return;
       try {
         localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
+        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
         // Legacy shared links may include "#/register?invite_group=...".
         // Keep invite id in storage and normalize hash to "/register" to avoid route mismatch.
         if (window.location.hash.startsWith("#/register?")) {
@@ -121,7 +123,22 @@ export default function App() {
 
     const isAlreadyJoinedInviteError = (error: any) => {
       const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
-      return /already|duplicate|exists|이미|참여 중|가입.*되어/i.test(msg);
+      return /already|duplicate|exists|member|joined/i.test(msg);
+    };
+
+    const resolveJoinedGroupId = (rpcData: unknown, fallbackGroupId: string) => {
+      const direct = String(rpcData ?? "").trim();
+      if (UUID_REGEX.test(direct)) return direct;
+      if (rpcData && typeof rpcData === "object") {
+        const candidate = String(
+          (rpcData as any).group_id ??
+          (rpcData as any).id ??
+          (rpcData as any).groupId ??
+          ""
+        ).trim();
+        if (UUID_REGEX.test(candidate)) return candidate;
+      }
+      return fallbackGroupId;
     };
 
     const resolveSessionUserId = async (fallbackUserId?: string | null) => {
@@ -153,11 +170,24 @@ export default function App() {
       if (!pendingGroupId) return;
       if (!UUID_REGEX.test(pendingGroupId)) {
         localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
+        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
         return;
       }
 
       let userId = await resolveSessionUserId(sessionUserId || null);
       if (!userId) {
+        const isOAuthInProgress =
+          window.location.search.includes("code=") ||
+          window.location.search.includes("state=") ||
+          window.location.hash.includes("access_token") ||
+          window.location.hash.includes("provider_token");
+        if (isOAuthInProgress) return;
+
+        const inviteFromCurrentUrl = readInviteGroupIdFromUrl();
+        if (inviteFromCurrentUrl !== pendingGroupId) return;
+        const redirected = localStorage.getItem(PENDING_GROUP_INVITE_REDIRECTED_KEY) === "1";
+        if (redirected) return;
+        localStorage.setItem(PENDING_GROUP_INVITE_REDIRECTED_KEY, "1");
         redirectToRegisterForInvite();
         return;
       }
@@ -173,10 +203,11 @@ export default function App() {
           return;
         }
 
-        const joinedGroupId = String(data || pendingGroupId).trim();
+        const joinedGroupId = resolveJoinedGroupId(data, pendingGroupId);
         if (!UUID_REGEX.test(joinedGroupId)) return;
 
         localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
+        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
 
         const targetPath = `/group/${joinedGroupId}`;
         const targetHash = `#${targetPath}`;
@@ -202,18 +233,16 @@ export default function App() {
       const hash = window.location.hash || "";
       const search = window.location.search || "";
 
-      // 에러 케이스: Supabase가 에러와 함께 리다이렉트한 경우
       if (hash.includes("error") || search.includes("error=")) {
         const errorDesc = new URLSearchParams(search).get('error_description')
           || new URLSearchParams(hash.replace(/^#/, '')).get('error_description')
-          || '알 수 없는 오류가 발생했습니다.';
+          || "알 수 없는 오류가 발생했습니다.";
         console.error('[OAuth Error]', decodeURIComponent(errorDesc));
-        // URL 정리 후 auth 페이지로 이동
+
         window.history.replaceState(null, "", window.location.origin + '/');
         return;
       }
 
-      // 성공 케이스: access_token 또는 provider_token이 있는 경우
       if (hash.includes("access_token") || hash.includes("provider_token")) {
         try {
           // Prefer SDK helpers if available
@@ -297,8 +326,8 @@ export default function App() {
 
     persistPendingInviteFromUrl();
 
-    // OAuth 콜백 즉각 처리: ?code= URL에서 빈 해시 혹은 페이스북/카카오가 강제로 넣는 #_=_ 방지
-    // 리로드 없이 URL에 #/ 추가 → 라우터가 즉시 홈 화면(또는 원래 경로) 표시
+
+
     if (window.location.search.includes('code=')) {
       if (!window.location.hash || window.location.hash === '#_=_') {
         window.history.replaceState(
@@ -319,7 +348,7 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-        // OAuth 콜백 URL 정리: ?code= 가 있으면 returnTo 우선 처리
+
         if (window.location.search.includes('code=')) {
           const params = new URLSearchParams(window.location.search);
           const returnTo = params.get('returnTo') || localStorage.getItem('qt_return');
@@ -337,7 +366,7 @@ export default function App() {
               console.error('Failed to parse returnTo in SIGNED_IN:', e);
             }
           }
-          // returnTo 없으면 홈으로
+
           window.history.replaceState(null, '', window.location.origin + '/#/');
           window.dispatchEvent(new Event('hashchange'));
         }
@@ -359,3 +388,5 @@ export default function App() {
     </QueryClientProvider>
   );
 }
+
+

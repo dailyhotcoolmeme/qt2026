@@ -1,4 +1,4 @@
-﻿import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "../lib/supabase";
 import { useLocation, Link } from "wouter";
@@ -21,8 +21,7 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
-/** * 媛???④퀎 諛??띿뒪???곗씠??
- */
+/** 가입 관련 고정 텍스트 데이터 */
 const adjectives = ["새로운", "온유한", "지혜로운", "거룩한", "빛나는", "강건한"];
 const nouns = ["양", "증인", "제자", "파수꾼", "등불", "반석"];
 const ranks = ["성도", "교사", "청년", "집사", "권사", "장로", "전도사", "목사", "기타"];
@@ -63,7 +62,7 @@ export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
 
-  // React Hook Form 珥덇린??(紐⑤뱺 ?꾨뱶 紐낆떆)
+
   const { register, handleSubmit, setValue, watch, getValues, formState: { errors } } = useForm({
     mode: "onChange",
     defaultValues: {
@@ -82,18 +81,18 @@ export default function RegisterPage() {
     }
   });
 
-  // ?곹깭 愿由?
+  // 상태 관리
   const [step, setStep] = useState(1);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [isRankModalOpen, setIsRankModalOpen] = useState(false);
   const [showCustomRankInput, setShowCustomRankInput] = useState(false);
 
-  // 以묐났 ?뺤씤 ?곹깭 (none: 誘명솗?? success: ?뺤씤 ?꾨즺, error: ?ъ슜 遺덇?)
+  // 중복 확인 상태 (none: 미확인, success: 확인 완료, error: 사용 불가)
   const [usernameStatus, setUsernameStatus] = useState<'none' | 'success' | 'error'>('none');
   const [emailStatus, setEmailStatus] = useState<'none' | 'success' | 'error'>('none');
   const [nicknameStatus, setNicknameStatus] = useState<'none' | 'success' | 'error'>('success');
 
-  // 怨듯넻 紐⑤떖 ?곹깭
+  // 공통 모달 상태
   const [modal, setModal] = useState({
     show: false,
     title: "",
@@ -106,7 +105,7 @@ export default function RegisterPage() {
   const [showPw, setShowPw] = useState(false);
   const [isAgreedAll, setIsAgreedAll] = useState(false);
 
-  // ?ㅼ떆媛?媛?媛먯떆
+  // 실시간 입력값 감시
   const watchAll = watch();
   const isPasswordMatch = watchAll.passwordConfirm && watchAll.password === watchAll.passwordConfirm;
 
@@ -122,7 +121,8 @@ export default function RegisterPage() {
       return false;
     }
 
-    const joinedGroupId = String(joinedData || inviteGroupId).trim();
+    const joinedGroupIdCandidate = String(joinedData ?? "").trim();
+    const joinedGroupId = UUID_REGEX.test(joinedGroupIdCandidate) ? joinedGroupIdCandidate : inviteGroupId;
     if (!UUID_REGEX.test(joinedGroupId)) return false;
 
     try {
@@ -154,9 +154,7 @@ export default function RegisterPage() {
     };
   }, [joinInviteGroupAndRedirect]);
 
-  /**
-   * ?쒕뜡 ?됰꽕???앹꽦 ?⑥닔
-   */
+  /** 랜덤 닉네임 생성 */
   const generateNickname = useCallback(() => {
     const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
     const noun = nouns[Math.floor(Math.random() * nouns.length)];
@@ -166,18 +164,14 @@ export default function RegisterPage() {
     setNicknameStatus('success');
   }, [setValue]);
 
-  /**
-   * 諛뷀??쒗듃 ?ㅽ뵂 ???됰꽕???먮룞 ?앹꽦
-   */
+  /** 바텀시트 오픈 시 닉네임 자동 생성 */
   useEffect(() => {
     if (isPopupOpen && !getValues("nickname")) {
       generateNickname();
     }
   }, [isPopupOpen, generateNickname, getValues]);
 
-  /**
-   * ?낅젰媛?蹂寃???以묐났?뺤씤 ?곹깭 珥덇린??
-   */
+  /** 입력값 변경 시 중복확인 상태 초기화 */
   useEffect(() => {
     const subscription = watch((value, { name }) => {
       if (name === 'username') setUsernameStatus('none');
@@ -190,7 +184,7 @@ export default function RegisterPage() {
   }, [watch]);
 
   /**
-   * 以묐났 ?뺤씤 濡쒖쭅 (紐⑤떖 ?곕룞)
+   * 중복 확인 로직 (모달 연동)
    */
   const checkDuplicate = async (field: "username" | "nickname" | "email") => {
     const values = getValues();
@@ -253,9 +247,7 @@ export default function RegisterPage() {
     }
   };
 
-  /**
-   * 移댁뭅??媛???몃뱾??
-   */
+  /** 카카오 가입 핸들러 */
   const handleKakaoLogin = async () => {
     if (!isAgreedAll) {
       setModal({
@@ -278,9 +270,7 @@ export default function RegisterPage() {
     });
   };
 
-  /**
-   * 理쒖쥌 ???쒖텧 (?뚯썝媛??
-   */
+  /** 최종 폼 제출 (회원가입) */
   const onSubmit = async (data: any) => {
     if (usernameStatus !== 'success' || emailStatus !== 'success' || nicknameStatus !== 'success') {
       setModal({ show: true, title: "확인 필요", msg: "중복 확인이 완료되지 않은 항목이 있습니다.", type: "error" });
@@ -342,7 +332,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
-      {/* ?꾩뿭 ?ㅽ???二쇱엯 */}
+      {/* 전역 스타일 주입 */}
       <style dangerouslySetInnerHTML={{
         __html: `
         input:-webkit-autofill { -webkit-box-shadow: 0 0 0px 1000px white inset !important; -webkit-text-fill-color: #4A6741 !important; }
@@ -389,7 +379,7 @@ export default function RegisterPage() {
           </motion.div>
         </div>
 
-        {/* ?뚯뀥 媛??諛??쎄? ?숈쓽 */}
+        {/* 소셜 가입 및 약관 동의 */}
         <div className="space-y-6 mb-12 flex flex-col items-center relative z-20">
           <button
             onClick={handleKakaoLogin}
@@ -425,14 +415,14 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        {/* 援щ텇??*/}
+        {/* 구분선 */}
         <div className="flex items-center gap-4 mb-10 px-4 relative z-20">
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
           <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">OR</span>
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
         </div>
 
-        {/* ?쇰컲 媛??踰꾪듉 */}
+        {/* 일반 가입 버튼 */}
         <button
           onClick={() => setIsPopupOpen(true)}
           className="w-full h-[80px] bg-white border-2 border-zinc-100 text-zinc-900 font-bold rounded-[26px] shadow-sm flex flex-col items-center justify-center active:scale-[0.97] transition-all relative z-20"
@@ -442,7 +432,7 @@ export default function RegisterPage() {
         </button>
       </div>
 
-      {/* 媛???낅젰 諛뷀??쒗듃 (?꾩껜 ??린 湲덉?, ?곷떒 ?щ갚 ?좎?) */}
+      {/* 가입 입력 바텀시트 */}
       <AnimatePresence>
         {isPopupOpen && (
           <>
@@ -460,7 +450,7 @@ export default function RegisterPage() {
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[45px] z-[110] flex flex-col h-[92vh] shadow-2xl overflow-hidden"
             >
-              {/* 諛뷀??쒗듃 ?대? ?ㅻ뜑 */}
+              {/* 바텀시트 내부 헤더 */}
               <div className="px-10 pt-12 pb-6 bg-white flex justify-between items-start shrink-0">
                 <div className="flex flex-col gap-2">
                   <h2 className="font-black text-[#4A6741]" style={{ fontSize: `${fontSize * 1.4}px` }}>
@@ -479,11 +469,11 @@ export default function RegisterPage() {
                 </button>
               </div>
 
-              {/* ?낅젰 ???ㅽ겕濡??곸뿭 */}
+              {/* 입력 폼 스크롤 영역 */}
               <div className="flex-1 overflow-y-auto px-10 py-4 no-scrollbar pb-52">
                 {step === 1 ? (
                   <div className="space-y-2">
-                    {/* ?꾩씠???꾨뱶 */}
+                    {/* 아이디 필드 */}
                     <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center gap-3 w-32 shrink-0">
                         <User size={18} className="text-zinc-300" />
@@ -502,7 +492,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* ?대찓???꾨뱶 (以묐났?뺤씤 ?섎떒 諛곗튂) */}
+                    {/* 이메일 필드 (중복확인 하단 배치) */}
                     <div className="flex flex-col border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 w-32 shrink-0">
@@ -539,7 +529,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* 鍮꾨?踰덊샇 ?꾨뱶 */}
+                    {/* 비밀번호 필드 */}
                     <div className="flex flex-col border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center justify-between mb-5">
                         <div className="flex items-center gap-3 w-32 shrink-0">
@@ -578,7 +568,7 @@ export default function RegisterPage() {
                       </div>
                     </div>
 
-                    {/* ?됰꽕???꾨뱶 */}
+                    {/* 닉네임 필드 */}
                     <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center gap-3 w-32 shrink-0">
                         <RefreshCw size={18} className="text-zinc-300" />
@@ -606,7 +596,7 @@ export default function RegisterPage() {
                   </div>
                 ) : (
                   <div className="space-y-2 pt-4">
-                    {/* 蹂몃챸, ?꾪솕踰덊샇, 援먰쉶 ?낅젰 ?꾨뱶??*/}
+                    {/* 본명, 전화번호, 교회 입력 필드 */}
                     <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center gap-3 w-32 shrink-0">
                         <User size={18} className="text-zinc-200" />
@@ -631,7 +621,7 @@ export default function RegisterPage() {
                       <input {...register("church")} placeholder="출석 중인 교회 (선택)" />
                     </div>
 
-                    {/* 吏곷텇 ?좏깮 ?꾨뱶 */}
+                    {/* 직분 선택 필드 */}
                     <div className="flex flex-col border-b-2 border-zinc-50 py-7">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 w-32 shrink-0">
@@ -658,7 +648,7 @@ export default function RegisterPage() {
                       )}
                     </div>
 
-                    {/* ?섎떒 ?쎄? ?숈쓽 ?곸뿭 (諛뷀??쒗듃 ?대? 踰꾩쟾) */}
+                    {/* 하단 약관 동의 영역 (바텀시트 내부 버전) */}
                     <div className="pt-14 pb-4">
                       <button
                         type="button"
@@ -677,7 +667,7 @@ export default function RegisterPage() {
                 )}
               </div>
 
-              {/* ?섎떒 怨좎젙 ?≪뀡 踰꾪듉 (吏ㅻ┝ 諛⑹?: pb-24 ?곸슜 諛?shadow ?곷떒?쇰줈) */}
+
               <div className="absolute bottom-0 left-0 right-0 px-10 pt-8 pb-24 bg-white border-t border-zinc-50 z-[120] shadow-[0_-15px_30px_rgba(0,0,0,0.04)]">
                 {step === 1 ? (
                   <button
@@ -715,7 +705,7 @@ export default function RegisterPage() {
         )}
       </AnimatePresence>
 
-      {/* 以묐났 ?뺤씤 諛??뚮┝ ?앹뾽 (?ъ슜??吏???붿옄?? */}
+
       <AnimatePresence>
         {modal.show && (
           <div className="fixed inset-0 z-[400] flex items-center justify-center px-10 bg-black/60 backdrop-blur-[6px]">
@@ -748,7 +738,7 @@ export default function RegisterPage() {
         )}
       </AnimatePresence>
 
-      {/* 吏곷텇 ?좏깮 ?꾩슜 紐⑤떖 */}
+      {/* 직분 선택 전용 모달 */}
       <AnimatePresence>
         {isRankModalOpen && (
           <>
@@ -793,5 +783,6 @@ export default function RegisterPage() {
     </div>
   );
 }
+
 
 
