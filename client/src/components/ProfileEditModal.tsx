@@ -407,21 +407,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               </div>
             </div>
 
-            {/* 5. 본명 */}
-            <div>
-              <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
-                본명
-              </label>
-              <input
-                type="text"
-                value={formData.full_name}
-                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                className="w-full px-3 py-3 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#4A6741]"
-                style={{ fontSize: `${fontSize}px` }}
-              />
-            </div>
-
-            {/* 6. 섬기는 교회 */}
+            {/* 5. 섬기는 교회 */}
             <div>
               <label className="block text-zinc-600 font-bold mb-2" style={{ fontSize: `${fontSize - 2}px` }}>
                 섬기는 교회

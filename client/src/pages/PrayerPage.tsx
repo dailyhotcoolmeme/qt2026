@@ -1001,36 +1001,38 @@ export default function PrayerPage() {
                                 <Headphones size={22} className="text-[#4A6741]/90 shrink-0 mt-3" strokeWidth={1.5} />
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <div className="flex items-start justify-between gap-2">
-                                    <h4 className="font-bold text-[#4A6741]/90 break-words" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                                    <h4 className="font-bold text-[#4A6741]/90 break-words flex-1 min-w-0" style={{ fontSize: `${fontSize * 0.90}px` }}>
                                       {record.title || '음성 기도'}
                                     </h4>
-                                    {record.hashtags && record.hashtags.length > 0 && (
-                                      <div className="flex items-center gap-1 flex-shrink-0">
-                                        {record.hashtags.map((tag: string, idx: number) => (
-                                          <span key={idx} className="text-xs text-[#4A6741] bg-[#4A6741]/15 px-2 py-0.5 rounded-full">
-                                            #{tag}
-                                          </span>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-0.5">
-                                    <span>{formattedDate}</span>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        onClick={() => handleShareRecordAudio(record)}
-                                        className="h-7 px-2 flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
-                                        title="공유"
-                                      >
-                                        <Share2 size={12} />
-                                        공유
-                                      </button>
+                                    <div className="flex items-center gap-1.5 shrink-0 min-w-0 max-w-[55%]">
+                                      {record.hashtags && record.hashtags.length > 0 && (
+                                        <div className="flex items-center gap-1 min-w-0 overflow-hidden justify-end">
+                                          {record.hashtags.map((tag: string, idx: number) => (
+                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
+                                              #{tag}
+                                            </span>
+                                          ))}
+                                        </div>
+                                      )}
                                       <button
                                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}
                                         className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
                                         title="삭제"
                                       >
                                         <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-0.5">
+                                    <span>{formattedDate}</span>
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => handleShareRecordAudio(record)}
+                                        className="h-7 px-2.5 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
+                                        title="공유"
+                                      >
+                                        <Share2 size={12} />
+                                        공유
                                       </button>
                                     </div>
                                   </div>

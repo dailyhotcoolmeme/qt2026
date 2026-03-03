@@ -448,6 +448,15 @@ export default function RegisterPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 30, stiffness: 250 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 320 }}
+              dragElastic={{ top: 0, bottom: 0.22 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setIsPopupOpen(false);
+                }
+              }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[45px] z-[110] flex flex-col h-[92vh] shadow-2xl overflow-hidden"
             >
               {/* 바텀시트 내부 헤더 */}
@@ -750,6 +759,15 @@ export default function RegisterPage() {
             <motion.div
               initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 35, stiffness: 300 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 300 }}
+              dragElastic={{ top: 0, bottom: 0.22 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setIsRankModalOpen(false);
+                }
+              }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[50px] z-[310] px-10 pt-14 pb-24 shadow-2xl"
             >
               <div className="flex justify-between items-center mb-12 px-2">

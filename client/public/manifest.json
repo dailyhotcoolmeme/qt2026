@@ -1,11 +1,11 @@
 {
-  "short_name": "myAmen",
-  "name": "when words end, Amen",
+  "short_name": "마이아멘",
+  "name": "나의 신앙 기록 관리",
   "icons": [
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "256x256"
     },
     {
       "src": "icon-512.png",
@@ -15,6 +15,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#E8F5E9",
+  "background_color": "#E8F5E9"
 }
