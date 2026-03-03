@@ -1,0 +1,28 @@
+<svg width="720" height="480" viewBox="0 0 720 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="720" height="480" rx="28" fill="#F8FAF9"/>
+  <rect x="24" y="24" width="672" height="56" rx="16" fill="#EAF2EC"/>
+  <text x="44" y="60" fill="#2F4A38" font-size="24" font-family="Arial, sans-serif" font-weight="700">iPhone에서 앱 설치하기</text>
+
+  <rect x="40" y="108" width="300" height="328" rx="18" fill="white" stroke="#E5E7EB"/>
+  <text x="62" y="148" fill="#111827" font-size="22" font-family="Arial, sans-serif" font-weight="700">1. 공유 버튼 탭</text>
+  <rect x="62" y="168" width="256" height="222" rx="16" fill="#F5F7F6" stroke="#E5E7EB"/>
+  <rect x="84" y="196" width="212" height="36" rx="10" fill="#D9E7DD"/>
+  <text x="98" y="220" fill="#355443" font-size="18" font-family="Arial, sans-serif" font-weight="700">Safari 하단 메뉴</text>
+  <rect x="130" y="270" width="120" height="92" rx="14" fill="#FFFFFF" stroke="#CFE0D4"/>
+  <path d="M190 286V323" stroke="#4A6741" stroke-width="6" stroke-linecap="round"/>
+  <path d="M175 302L190 286L205 302" stroke="#4A6741" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="162" y="323" width="56" height="28" rx="8" stroke="#4A6741" stroke-width="5"/>
+  <text x="98" y="382" fill="#4B5563" font-size="16" font-family="Arial, sans-serif">사파리의 공유 아이콘을 누르세요</text>
+
+  <rect x="380" y="108" width="300" height="328" rx="18" fill="white" stroke="#E5E7EB"/>
+  <text x="402" y="148" fill="#111827" font-size="22" font-family="Arial, sans-serif" font-weight="700">2. 홈 화면에 추가</text>
+  <rect x="402" y="168" width="256" height="222" rx="16" fill="#F5F7F6" stroke="#E5E7EB"/>
+  <rect x="424" y="196" width="212" height="42" rx="10" fill="#FFFFFF" stroke="#D1D5DB"/>
+  <text x="444" y="223" fill="#374151" font-size="17" font-family="Arial, sans-serif">홈 화면에 추가</text>
+  <circle cx="444" cy="217" r="10" fill="#4A6741"/>
+  <path d="M444 210V224" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M437 217H451" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <rect x="476" y="266" width="108" height="108" rx="22" fill="#EAF2EC"/>
+  <image href="/favicon.png" x="504" y="294" width="52" height="52"/>
+  <text x="445" y="382" fill="#4B5563" font-size="16" font-family="Arial, sans-serif">추가 후 홈 화면 아이콘으로 실행</text>
+</svg>

@@ -53,6 +53,12 @@ function readInviteGroupIdFromUrl(): string | null {
 
   return null;
 }
+
+function isAlreadyJoinedInviteError(error: any) {
+  const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
+  return /already|duplicate|exists|이미|참여 중|가입.*되어/i.test(msg);
+}
+
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
@@ -103,6 +109,50 @@ export default function RegisterPage() {
   // ?ㅼ떆媛?媛?媛먯떆
   const watchAll = watch();
   const isPasswordMatch = watchAll.passwordConfirm && watchAll.password === watchAll.passwordConfirm;
+
+  const joinInviteGroupAndRedirect = useCallback(async (inviteGroupId: string) => {
+    if (!UUID_REGEX.test(inviteGroupId)) return false;
+
+    const { data: joinedData, error: joinError } = await supabase.rpc("join_group_by_invite_link", {
+      p_group_id: inviteGroupId,
+    });
+
+    if (joinError && !isAlreadyJoinedInviteError(joinError)) {
+      console.error("join invite after register failed:", joinError);
+      return false;
+    }
+
+    const joinedGroupId = String(joinedData || inviteGroupId).trim();
+    if (!UUID_REGEX.test(joinedGroupId)) return false;
+
+    try {
+      localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
+    } catch {
+      // ignore storage errors
+    }
+
+    window.location.href = `${window.location.origin}/#/group/${joinedGroupId}`;
+    return true;
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const handleSignedInInviteOnRegisterPage = async () => {
+      const inviteGroupId = readInviteGroupIdFromUrl();
+      if (!inviteGroupId) return;
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id ?? null;
+      if (!userId || !alive) return;
+
+      await joinInviteGroupAndRedirect(inviteGroupId);
+    };
+
+    void handleSignedInInviteOnRegisterPage();
+    return () => {
+      alive = false;
+    };
+  }, [joinInviteGroupAndRedirect]);
 
   /**
    * ?쒕뜡 ?됰꽕???앹꽦 ?⑥닔
@@ -216,10 +266,13 @@ export default function RegisterPage() {
       });
       return;
     }
+    const inviteGroupId = readInviteGroupIdFromUrl();
+    const inviteQuery = inviteGroupId ? `?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
+
     await supabase.auth.signInWithOAuth({
       provider: 'kakao',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        redirectTo: `${window.location.origin}/${inviteQuery}`,
         skipBrowserRedirect: false,
       }
     });
@@ -275,22 +328,8 @@ export default function RegisterPage() {
       }
 
       if (inviteGroupId && userId) {
-        const { data: joinedData, error: joinError } = await supabase.rpc("join_group_by_invite_link", {
-          p_group_id: inviteGroupId,
-        });
-
-        if (!joinError) {
-          const joinedGroupId = String(joinedData || inviteGroupId).trim();
-          if (UUID_REGEX.test(joinedGroupId)) {
-            try {
-              localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-            } catch {
-              // ignore storage errors
-            }
-            window.location.href = `${window.location.origin}/#/group/${joinedGroupId}`;
-            return;
-          }
-        }
+        const joined = await joinInviteGroupAndRedirect(inviteGroupId);
+        if (joined) return;
       }
 
       setModal({ show: true, title: "가입 완료", msg: "정상적으로 가입되었습니다! 환영합니다.", type: "success" });

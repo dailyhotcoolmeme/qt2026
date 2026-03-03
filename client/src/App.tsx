@@ -113,10 +113,30 @@ export default function App() {
       }
     };
 
-    const redirectToRegisterForInvite = (groupId: string) => {
+    const redirectToRegisterForInvite = () => {
       if (!window.location.hash.startsWith(REGISTER_HASH_PATH)) {
         window.location.href = `${window.location.origin}/${REGISTER_HASH_PATH}`;
       }
+    };
+
+    const isAlreadyJoinedInviteError = (error: any) => {
+      const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
+      return /already|duplicate|exists|이미|참여 중|가입.*되어/i.test(msg);
+    };
+
+    const resolveSessionUserId = async (fallbackUserId?: string | null) => {
+      if (fallbackUserId) return fallbackUserId;
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const sessionUserId = sessionData?.session?.user?.id ?? null;
+      if (sessionUserId) return sessionUserId;
+
+      const { data: userData, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("failed to resolve auth user:", error);
+        return null;
+      }
+      return userData?.user?.id ?? null;
     };
 
     const joinPendingInviteGroup = async (sessionUserId?: string | null) => {
@@ -136,13 +156,9 @@ export default function App() {
         return;
       }
 
-      let userId = sessionUserId || null;
+      let userId = await resolveSessionUserId(sessionUserId || null);
       if (!userId) {
-        const { data: sessionData } = await supabase.auth.getSession();
-        userId = sessionData?.session?.user?.id ?? null;
-      }
-      if (!userId) {
-        redirectToRegisterForInvite(pendingGroupId);
+        redirectToRegisterForInvite();
         return;
       }
 
@@ -152,7 +168,7 @@ export default function App() {
           p_group_id: pendingGroupId,
         });
 
-        if (error) {
+        if (error && !isAlreadyJoinedInviteError(error)) {
           console.error("join pending invite failed:", error);
           return;
         }

@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck, Download, Share2, PlusSquare } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -17,6 +17,11 @@ type TopNotificationItem = {
   groupId: string;
   targetPath: string;
   isRead: boolean;
+};
+
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
 function ensureHttpsUrl(url?: string | null) {
@@ -68,6 +73,10 @@ export function TopBar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [logoTextIndex, setLogoTextIndex] = useState(0);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isStandaloneApp, setIsStandaloneApp] = useState(false);
+  const [isIosDevice, setIsIosDevice] = useState(false);
+  const [showIosInstallGuide, setShowIosInstallGuide] = useState(false);
   const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -137,6 +146,36 @@ export function TopBar() {
 
   const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFontSize(Number(e.target.value));
+  };
+
+  const detectStandaloneApp = () => {
+    const isStandaloneDisplay = window.matchMedia("(display-mode: standalone)").matches;
+    const isStandaloneNavigator = Boolean((window.navigator as any).standalone);
+    return isStandaloneDisplay || isStandaloneNavigator;
+  };
+
+  const handleInstallAppClick = async () => {
+    if (isStandaloneApp) return;
+
+    if (isIosDevice) {
+      setShowIosInstallGuide(true);
+      return;
+    }
+
+    if (deferredInstallPrompt) {
+      try {
+        await deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if (choice.outcome === "accepted") {
+          setDeferredInstallPrompt(null);
+        }
+      } catch (error) {
+        console.error("install prompt failed:", error);
+      }
+      return;
+    }
+
+    alert("브라우저 메뉴에서 '홈 화면에 추가'를 선택해 앱을 설치해 주세요.");
   };
 
   const showSystemNotification = async (item: TopNotificationItem) => {
@@ -368,6 +407,47 @@ export function TopBar() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isIos = /iphone|ipad|ipod/.test(ua);
+    setIsIosDevice(isIos);
+    setIsStandaloneApp(detectStandaloneApp());
+
+    const handleBeforeInstallPrompt = (event: Event) => {
+      const installEvent = event as BeforeInstallPromptEvent;
+      installEvent.preventDefault?.();
+      setDeferredInstallPrompt(installEvent);
+    };
+
+    const handleAppInstalled = () => {
+      setDeferredInstallPrompt(null);
+      setIsStandaloneApp(true);
+    };
+
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    const handleDisplayModeChange = () => {
+      setIsStandaloneApp(detectStandaloneApp());
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
+    window.addEventListener("appinstalled", handleAppInstalled);
+    if (typeof mediaQuery.addEventListener === "function") {
+      mediaQuery.addEventListener("change", handleDisplayModeChange);
+    } else if (typeof mediaQuery.addListener === "function") {
+      mediaQuery.addListener(handleDisplayModeChange);
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt as EventListener);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+      if (typeof mediaQuery.removeEventListener === "function") {
+        mediaQuery.removeEventListener("change", handleDisplayModeChange);
+      } else if (typeof mediaQuery.removeListener === "function") {
+        mediaQuery.removeListener(handleDisplayModeChange);
+      }
+    };
+  }, []);
+
   return (
     <>
       <div className="fixed left-0 right-0 top-0 z-[150] flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm">
@@ -528,6 +608,17 @@ export function TopBar() {
             <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
               <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록함" />
             </Link>
+
+            {!isStandaloneApp && (
+              <SidebarItem
+                icon={<Download className="h-5 w-5" />}
+                label="앱 설치하기"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  void handleInstallAppClick();
+                }}
+              />
+            )}
 
             {isAuthenticated && (
               <SidebarItem
@@ -715,6 +806,60 @@ export function TopBar() {
                   {isDeleting ? "처리 중..." : "탈퇴하기"}
                 </button>
               </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showIosInstallGuide && (
+          <div className="fixed inset-0 z-[340] flex items-center justify-center p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowIosInstallGuide(false)}
+              className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              className="relative w-full max-w-[360px] rounded-[28px] bg-white p-5 shadow-2xl"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h4 className="font-black text-zinc-900" style={{ fontSize: `${fontSize}px` }}>iPhone 앱 설치</h4>
+                <button
+                  onClick={() => setShowIosInstallGuide(false)}
+                  className="rounded-full p-1.5 text-zinc-400 hover:bg-zinc-100"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <img
+                src="/ios-install-guide.svg"
+                alt="iPhone 홈 화면 추가 안내"
+                className="mb-4 w-full rounded-2xl border border-zinc-100"
+              />
+
+              <div className="space-y-2 text-sm text-zinc-700">
+                <p className="flex items-center gap-2 font-semibold">
+                  <Share2 className="h-4 w-4 text-[#4A6741]" />
+                  Safari 하단의 공유 버튼을 누르세요.
+                </p>
+                <p className="flex items-center gap-2 font-semibold">
+                  <PlusSquare className="h-4 w-4 text-[#4A6741]" />
+                  "홈 화면에 추가"를 선택하면 설치됩니다.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowIosInstallGuide(false)}
+                className="mt-5 w-full rounded-xl bg-[#4A6741] py-3 font-bold text-white active:scale-95"
+              >
+                확인
+              </button>
             </motion.div>
           </div>
         )}
