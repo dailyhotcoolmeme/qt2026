@@ -942,7 +942,7 @@ export default function PrayerPage() {
               <div className="flex items-center justify-end gap-2 mb-3">
                 <button
                   onClick={handleOpenTopicGroupLinkModal}
-                  className="px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-bold rounded-full hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shrink-0"
+                  className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5 shrink-0"
                   title="모임에 연결"
                 >
                   <Share2 size={12} />
