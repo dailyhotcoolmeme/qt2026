@@ -60,6 +60,12 @@ export default function PrayerPage() {
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [prayerSubTab, setPrayerSubTab] = useState<"topics" | "archive">("topics");
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [showTopicGroupLinkModal, setShowTopicGroupLinkModal] = useState(false);
+  const [topicGroupOptions, setTopicGroupOptions] = useState<{ id: string; name: string }[]>([]);
+  const [selectedTopicIds, setSelectedTopicIds] = useState<number[]>([]);
+  const [selectedTopicGroupIds, setSelectedTopicGroupIds] = useState<string[]>([]);
+  const [loadingTopicGroups, setLoadingTopicGroups] = useState(false);
+  const [linkingTopics, setLinkingTopics] = useState(false);
 
   // ref
   const todayRef = useRef(new Date());
@@ -547,6 +553,81 @@ export default function PrayerPage() {
     setShowGroupLinkModal(true);
   };
 
+  const handleOpenTopicGroupLinkModal = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    setShowTopicGroupLinkModal(true);
+  };
+
+  useEffect(() => {
+    const loadTopicGroupOptions = async () => {
+      if (!user || !showTopicGroupLinkModal) return;
+      setLoadingTopicGroups(true);
+      const { data } = await supabase
+        .from("group_members")
+        .select("group_id, groups(id, name, menu_settings)")
+        .eq("user_id", user.id);
+
+      const seen = new Set<string>();
+      const nextGroups: { id: string; name: string }[] = [];
+      (data || []).forEach((row: any) => {
+        const group = row.groups;
+        if (!group || seen.has(group.id)) return;
+        if (group.menu_settings && group.menu_settings.prayer === false) return;
+        seen.add(group.id);
+        nextGroups.push({ id: group.id, name: group.name });
+      });
+
+      setTopicGroupOptions(nextGroups);
+      setSelectedTopicIds([]);
+      setSelectedTopicGroupIds([]);
+      setLoadingTopicGroups(false);
+    };
+
+    if (showTopicGroupLinkModal) {
+      loadTopicGroupOptions();
+    }
+  }, [showTopicGroupLinkModal, user]);
+
+  const handleLinkTopicsToGroups = async () => {
+    if (!user) return;
+    if (selectedTopicIds.length === 0 || selectedTopicGroupIds.length === 0) return;
+    setLinkingTopics(true);
+
+    try {
+      const topicsToLink = visibleMyTopics.filter((topic) => selectedTopicIds.includes(topic.id));
+      for (const groupId of selectedTopicGroupIds) {
+        for (const topic of topicsToLink) {
+          const content = String(topic.topic_text || "").trim();
+          if (!content) continue;
+          const { error } = await supabase.from("group_prayer_topics").insert({
+            group_id: groupId,
+            author_id: user.id,
+            content,
+            is_active: true,
+          });
+          if (error) {
+            if (error.code === "42P01") {
+              alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
+              setLinkingTopics(false);
+              return;
+            }
+          }
+        }
+      }
+
+      alert("선택한 기도제목을 모임에 추가했습니다.");
+      setShowTopicGroupLinkModal(false);
+    } catch (error) {
+      console.error("기도제목 모임 연결 실패:", error);
+      alert("모임 연결에 실패했습니다.");
+    } finally {
+      setLinkingTopics(false);
+    }
+  };
+
   // 닫기
   const handleClosePrayer = () => {
     // temp 파일 삭제 (저장 안 한 경우)
@@ -858,7 +939,15 @@ export default function PrayerPage() {
         {prayerSubTab === 'topics' && (
           <div className="mb-10">
             {isToday && (
-              <div className="flex items-center justify-end mb-3">
+              <div className="flex items-center justify-end gap-2 mb-3">
+                <button
+                  onClick={handleOpenTopicGroupLinkModal}
+                  className="px-3 py-1.5 bg-zinc-100 text-zinc-600 text-xs font-bold rounded-full hover:bg-zinc-200 transition-colors flex items-center gap-1.5 shrink-0"
+                  title="모임에 연결"
+                >
+                  <Share2 size={12} />
+                  <span>모임에 연결</span>
+                </button>
                 <button
                   onClick={() => {
                     if (!user) {
@@ -1469,6 +1558,127 @@ export default function PrayerPage() {
           >
             복사되었습니다
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 기도제목 모임 연결 모달 */}
+      <AnimatePresence>
+        {showTopicGroupLinkModal && (
+          <div className="fixed inset-0 z-[320] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowTopicGroupLinkModal(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="relative w-full max-w-md bg-white rounded-[32px] p-6 shadow-2xl"
+            >
+              <div className="flex justify-between items-center mb-5">
+                <h3 className="text-xl font-black text-zinc-900 tracking-tight">모임에 연결</h3>
+                <button
+                  onClick={() => setShowTopicGroupLinkModal(false)}
+                  className="w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 text-zinc-500 hover:text-zinc-800 transition-colors"
+                >
+                  <X size={16} strokeWidth={3} />
+                </button>
+              </div>
+
+              {loadingTopicGroups ? (
+                <div className="py-10 text-center text-zinc-400 text-sm font-bold">불러오는 중...</div>
+              ) : (
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-500 mb-2">현재 기도제목</h4>
+                    {visibleMyTopics.length === 0 ? (
+                      <div className="bg-zinc-50 rounded-2xl p-4 text-center text-zinc-400 text-sm font-bold">
+                        등록된 기도제목이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1 pb-1">
+                        {visibleMyTopics.map((topic) => {
+                          const isSelected = selectedTopicIds.includes(topic.id);
+                          return (
+                            <button
+                              key={topic.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedTopicIds((prev) => prev.filter((id) => id !== topic.id));
+                                } else {
+                                  setSelectedTopicIds((prev) => [...prev, topic.id]);
+                                }
+                              }}
+                              className={`w-full text-left p-4 rounded-2xl border-2 transition-all ${isSelected ? "border-[#4A6741] bg-[#4A6741]/5" : "border-zinc-100 hover:border-zinc-200 bg-white"
+                                }`}
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <span className={`text-sm font-bold break-words ${isSelected ? "text-[#4A6741]" : "text-zinc-700"}`}>
+                                  {topic.topic_text}
+                                </span>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shrink-0 mt-0.5 ${isSelected ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-transparent"
+                                  }`}>
+                                  <Check size={14} strokeWidth={4} />
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <div>
+                    <h4 className="text-sm font-bold text-zinc-500 mb-2">연결할 모임 선택</h4>
+                    {topicGroupOptions.length === 0 ? (
+                      <div className="bg-zinc-50 rounded-2xl p-4 text-center text-zinc-400 text-sm font-bold">
+                        연결 가능한 모임이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[24vh] overflow-y-auto pr-1 pb-1">
+                        {topicGroupOptions.map((group) => {
+                          const isSelected = selectedTopicGroupIds.includes(group.id);
+                          return (
+                            <button
+                              key={group.id}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedTopicGroupIds((prev) => prev.filter((id) => id !== group.id));
+                                } else {
+                                  setSelectedTopicGroupIds((prev) => [...prev, group.id]);
+                                }
+                              }}
+                              className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${isSelected ? "border-[#4A6741] bg-[#4A6741]/5" : "border-zinc-100 hover:border-zinc-200 bg-white"
+                                }`}
+                            >
+                              <span className={`font-bold ${isSelected ? "text-[#4A6741]" : "text-zinc-700"}`}>
+                                {group.name}
+                              </span>
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors ${isSelected ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-transparent"
+                                }`}>
+                                <Check size={14} strokeWidth={4} />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={handleLinkTopicsToGroups}
+                    disabled={linkingTopics || selectedTopicIds.length === 0 || selectedTopicGroupIds.length === 0}
+                    className="w-full h-14 bg-[#4A6741] text-white rounded-2xl text-base font-black shadow-lg shadow-green-900/10 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
+                  >
+                    {linkingTopics ? "연결 중..." : "선택한 기도제목을 모임에 추가"}
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 
