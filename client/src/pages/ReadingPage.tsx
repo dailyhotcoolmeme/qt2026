@@ -278,6 +278,7 @@ export default function ReadingPage() {
     setSelectionStep('chapter');
     setTempSelection((prev) => ({
       ...prev,
+      start_chapter: 0,
       end_testament: prev.start_testament,
       end_book: prev.start_book,
       end_chapter: 0,
