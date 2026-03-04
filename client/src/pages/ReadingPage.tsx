@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect, useRef, useCallback } from "react";
-import confetti from 'canvas-confetti';
 import {
   Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Check, Calendar as CalendarIcon,
@@ -257,6 +256,22 @@ export default function ReadingPage() {
   const [availableChapters, setAvailableChapters] = useState<number[]>([]);
   const [readingProgress, setReadingProgress] = useState<Record<string, number>>({});
   const [bookOrderMap, setBookOrderMap] = useState<Record<string, number>>({});
+  const resetSelectionToStart = () => {
+    setSelectionPhase('start');
+    setSelectionStep('testament');
+    setAvailableChapters([]);
+    setPendingSelection(null);
+    setTempSelection((prev) => ({
+      ...prev,
+      end_testament: prev.start_testament,
+      end_book: prev.start_book,
+      end_chapter: 0,
+    }));
+  };
+  const handleCancelRangeConfirm = () => {
+    setShowConfirmModal(false);
+    resetSelectionToStart();
+  };
 
 
   useEffect(() => {
@@ -1942,19 +1957,8 @@ export default function ReadingPage() {
       return;
     }
 
-    // 폭죽 효과 (전체 재생 모드가 아닐 때만)
-    if (!silent) {
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.8 },
-        colors: ['#f897c4', '#88B04B', '#FFD700']
-      });
-
-
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-      }
+    if (!silent && navigator.vibrate) {
+      navigator.vibrate(50);
     }
 
 
@@ -2605,43 +2609,46 @@ export default function ReadingPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/40 z-[300] flex items-center justify-center p-4"
-            onClick={() => setShowConfirmModal(false)}
+            onClick={handleCancelRangeConfirm}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-sm w-full"
+              className="bg-white rounded-[32px] p-8 max-w-lg w-full shadow-2xl space-y-6 text-center"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-lg font-bold mb-4 text-center">선택하신 말씀 범위</h3>
-              <div className="bg-zinc-50 rounded-xl p-4 mb-6 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">시작:</span>
-                  <span className="font-bold">
+              <div className="space-y-2">
+                <h3 className="text-2xl font-black text-zinc-900">말씀 범위 확인</h3>
+                <p className="text-sm text-zinc-500">선택한 시작과 종료를 다시 한번 확인해주세요.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-5 bg-zinc-50 rounded-2xl p-5 text-left">
+                <div>
+                  <p className="text-xs text-zinc-500 mb-1">시작</p>
+                  <p className="text-lg font-bold text-zinc-900">
                     {pendingSelection.start_book} {pendingSelection.start_chapter}장
-                  </span>
+                  </p>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-600">종료:</span>
-                  <span className="font-bold">
+                <div>
+                  <p className="text-xs text-zinc-500 mb-1">종료</p>
+                  <p className="text-lg font-bold text-zinc-900">
                     {pendingSelection.end_book} {pendingSelection.end_chapter}장
-                  </span>
+                  </p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => setShowConfirmModal(false)}
-                  className="flex-1 py-3 rounded-xl bg-zinc-100 text-zinc-700 font-bold hover:bg-zinc-200 transition-colors"
+                  onClick={handleCancelRangeConfirm}
+                  className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-700 font-bold hover:bg-zinc-100 transition-colors"
                 >
-                  취소
+                  다시 선택
                 </button>
                 <button
                   onClick={() => {
                     loadRangePagesWithSelection(pendingSelection);
                     setShowConfirmModal(false);
                   }}
-                  className="flex-1 py-3 rounded-xl bg-[#4A6741] text-white font-bold hover:bg-[#3d5536] transition-colors"
+                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#4A6741] to-[#3d5536] text-white font-bold hover:from-[#3d5536] hover:to-[#4b8062] transition-colors"
                 >
                   확인
                 </button>
