@@ -156,7 +156,9 @@ export default function ReadingPage() {
         .eq("user_id", user.id);
 
       if (error) {
-        console.error("Error loading reading activity dates:", error);
+        if (!String((error as any)?.message || '').includes('AbortError')) {
+          console.error("Error loading reading activity dates:", error);
+        }
         return;
       }
 
@@ -269,8 +271,20 @@ export default function ReadingPage() {
     }));
   };
   const handleCancelRangeConfirm = () => {
+    // "다시 선택"은 장 선택 화면에서 시작 범위를 다시 고르는 상태여야 한다.
     setShowConfirmModal(false);
-    resetSelectionToStart();
+    setPendingSelection(null);
+    setSelectionPhase('start');
+    setSelectionStep('chapter');
+    setTempSelection((prev) => ({
+      ...prev,
+      end_testament: prev.start_testament,
+      end_book: prev.start_book,
+      end_chapter: 0,
+    }));
+    if (tempSelection.start_book) {
+      loadChapters(tempSelection.start_book, 'start');
+    }
   };
 
 
@@ -452,7 +466,9 @@ export default function ReadingPage() {
       setNoReadingForDate(true);
       setIsLoadingVerse(false);
     } else {
-      console.error('말씀 로드 실패:', error);
+      if (!String((error as any)?.message || '').includes('AbortError')) {
+        console.error('말씀 로드 실패:', error);
+      }
       setBibleData(null);
       setRangePages([]);
       setIsLoadingVerse(false);
@@ -631,10 +647,11 @@ export default function ReadingPage() {
     setReadingProgress(progressMap);
   };
 
-  const loadChapters = async (book: string) => {
-    console.log('loadChapters 호출:', book, 'selectionPhase:', selectionPhase);
+  const loadChapters = async (book: string, phaseOverride?: SelectionPhase) => {
+    const phase = phaseOverride ?? selectionPhase;
+    console.log('loadChapters 호출:', book, 'selectionPhase:', phase);
 
-    if (selectionPhase === 'start') {
+    if (phase === 'start') {
       setTempSelection(p => ({ ...p, start_book: book }));
     } else {
       setTempSelection(p => ({ ...p, end_book: book }));
@@ -784,7 +801,9 @@ export default function ReadingPage() {
           .eq('chapter', ch)
           .order('verse', { ascending: true });
 
-        console.log(`${selection.start_book} ${ch} 데이터`, data, error);
+        if (error && !String((error as any)?.message || '').includes('AbortError')) {
+          console.error(`${selection.start_book} ${ch} 데이터 로드 실패:`, error);
+        }
 
         if (data && data.length > 0) {
 
@@ -834,7 +853,9 @@ export default function ReadingPage() {
                 .eq('chapter', ch)
                 .order('verse', { ascending: true });
 
-              console.log(`${book.book_name} ${ch} 데이터`, data, error);
+              if (error && !String((error as any)?.message || '').includes('AbortError')) {
+                console.error(`${book.book_name} ${ch} 데이터 로드 실패:`, error);
+              }
 
               if (data && data.length > 0) {
 
@@ -1902,7 +1923,9 @@ export default function ReadingPage() {
         setTimeout(() => setShowCancelToast(false), 2000);
       }
     } catch (error) {
-      console.error('읽기 완료 취소 실패:', error);
+      if (!String((error as any)?.message || '').includes('AbortError')) {
+        console.error('읽기 완료 취소 실패:', error);
+      }
     }
   }, [user, bibleData]);
 
@@ -1940,7 +1963,9 @@ export default function ReadingPage() {
       closeReadingGroupLinkFlow();
       alert("모임 신앙활동에 연결했습니다.");
     } catch (error) {
-      console.error("reading group link failed:", error);
+      if (!String((error as any)?.message || '').includes('AbortError')) {
+        console.error("reading group link failed:", error);
+      }
       alert("모임 연결에 실패했습니다.");
     } finally {
       setLinkingGroupId(null);
@@ -2035,7 +2060,9 @@ export default function ReadingPage() {
           await prepareReadingGroupLink(String(savedRecord.id), `${chapterData.bible_name} ${chapterData.chapter}장`);
         }
       } catch (error) {
-        console.error('읽기 완료 저장 실패:', error);
+        if (!String((error as any)?.message || '').includes('AbortError')) {
+          console.error('읽기 완료 저장 실패:', error);
+        }
       }
     }
   };
@@ -2279,83 +2306,102 @@ export default function ReadingPage() {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
+              className="relative bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="absolute right-6 top-6 text-zinc-400 transition-colors hover:text-zinc-600"
+              >
+                <X size={24} />
+              </button>
 
-              <div className="flex flex-wrap items-center gap-2 mb-6">
-                {/* 시작 범위 */}
-                <div className="flex items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]" style={{ fontSize: `${fontSize * 0.625}px` }}>
-                  <span className="opacity-60">시작:</span>
-                  {tempSelection.start_testament && (
-                    <button
-                      onClick={() => { setSelectionPhase('start'); setSelectionStep('testament'); }}
-                      className="underline underline-offset-2 hover:text-[#4A6741]"
-                    >
-                      {tempSelection.start_testament}
-                    </button>
-                  )}
-                  {tempSelection.start_book && (
-                    <>
-                      〉
-                      <button
-                        onClick={() => { setSelectionPhase('start'); setSelectionStep('book'); }}
-                        className="underline underline-offset-2 hover:text-[#4A6741]"
-                      >
-                        {tempSelection.start_book}
-                      </button>
-                    </>
-                  )}
-                  {tempSelection.start_chapter > 0 && (
-                    <>
-                      〉
-                      <button
-                        onClick={() => { setSelectionPhase('start'); setSelectionStep('chapter'); loadChapters(tempSelection.start_book); }}
-                        className="underline underline-offset-2 hover:text-[#4A6741]"
-                      >
-                        {tempSelection.start_chapter}장
-                      </button>
-                    </>
-                  )}
-                </div>
-
-                {/* 종료 범위 */}
-                {tempSelection.start_chapter > 0 && (
-                  <div className="flex items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700" style={{ fontSize: `${fontSize * 0.625}px` }}>
-                    <span className="opacity-60">종료:</span>
-                    {tempSelection.end_testament && (
-                      <button
-                        onClick={() => { setSelectionPhase('end'); setSelectionStep('testament'); }}
-                        className="underline underline-offset-2 hover:text-blue-700"
-                      >
-                        {tempSelection.end_testament}
-                      </button>
-                    )}
-                    {tempSelection.end_book && (
+              <div className="flex items-stretch gap-3 mb-6 mt-6 pr-0">
+                <div className="flex min-w-0 flex-1 max-w-[90%] flex-col gap-2">
+                  {/* 시작 범위 */}
+                  <div
+                    className="flex flex-wrap items-center gap-1 bg-green-50 py-2 px-4 rounded-full font-bold text-[#4A6741]"
+                    style={{ fontSize: `${fontSize * 0.9}px` }}
+                  >
+                    <span className="opacity-60">시작 :</span>
+                    {tempSelection.start_testament ? (
                       <>
-                        〉
                         <button
-                          onClick={() => { setSelectionPhase('end'); setSelectionStep('book'); }}
-                          className="underline underline-offset-2 hover:text-blue-700"
+                          onClick={() => { setSelectionPhase('start'); setSelectionStep('testament'); }}
+                          className="underline underline-offset-2 hover:text-[#4A6741]"
                         >
-                          {tempSelection.end_book}
+                          {tempSelection.start_testament}
                         </button>
+                        {tempSelection.start_book && (
+                          <>
+                            <span className="mx-1">{'>'}</span>
+                            <button
+                              onClick={() => { setSelectionPhase('start'); setSelectionStep('book'); }}
+                              className="underline underline-offset-2 hover:text-[#4A6741]"
+                            >
+                              {tempSelection.start_book}
+                            </button>
+                          </>
+                        )}
+                        {tempSelection.start_chapter > 0 && (
+                          <>
+                            <span className="mx-1">{'>'}</span>
+                            <button
+                              onClick={() => { setSelectionPhase('start'); setSelectionStep('chapter'); loadChapters(tempSelection.start_book); }}
+                              className="underline underline-offset-2 hover:text-[#4A6741]"
+                            >
+                              {tempSelection.start_chapter}장
+                            </button>
+                          </>
+                        )}
                       </>
-                    )}
-                    {tempSelection.end_chapter > 0 && (
-                      <>
-                        〉
-                        <button
-                          onClick={() => { setSelectionPhase('end'); setSelectionStep('chapter'); loadChapters(tempSelection.end_book); }}
-                          className="underline underline-offset-2 hover:text-blue-700"
-                        >
-                          {tempSelection.end_chapter}장
-                        </button>
-                      </>
+                    ) : (
+                      <span className="text-zinc-400 font-medium">선택 안됨</span>
                     )}
                   </div>
-                )}
 
+                  {/* 종료 범위 */}
+                  <div
+                    className="flex flex-wrap items-center gap-1 bg-blue-50 py-2 px-4 rounded-full font-bold text-blue-700"
+                    style={{ fontSize: `${fontSize * 0.9}px` }}
+                  >
+                    <span className="opacity-60">종료 :</span>
+                    {tempSelection.end_testament ? (
+                      <>
+                        <button
+                          onClick={() => { setSelectionPhase('end'); setSelectionStep('testament'); }}
+                          className="underline underline-offset-2 hover:text-blue-700"
+                        >
+                          {tempSelection.end_testament}
+                        </button>
+                        {tempSelection.end_book && (
+                          <>
+                            <span className="mx-1">{'>'}</span>
+                            <button
+                              onClick={() => { setSelectionPhase('end'); setSelectionStep('book'); }}
+                              className="underline underline-offset-2 hover:text-blue-700"
+                            >
+                              {tempSelection.end_book}
+                            </button>
+                          </>
+                        )}
+                        {tempSelection.end_chapter > 0 && (
+                          <>
+                            <span className="mx-1">{'>'}</span>
+                            <button
+                              onClick={() => { setSelectionPhase('end'); setSelectionStep('chapter'); loadChapters(tempSelection.end_book); }}
+                              className="underline underline-offset-2 hover:text-blue-700"
+                            >
+                              {tempSelection.end_chapter}장
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-zinc-400 font-medium">선택 안됨</span>
+                    )}
+                  </div>
+                </div>
 
                 {(tempSelection.start_chapter > 0 || tempSelection.end_chapter > 0) && (
                   <button
@@ -2378,18 +2424,26 @@ export default function ReadingPage() {
                       localStorage.removeItem('reading_pages');
                       localStorage.removeItem('reading_page_idx');
                     }}
-                    className="py-2 px-4 bg-red-50 text-red-600 rounded-full"
-                    style={{ fontSize: `${fontSize * 0.625}px` }}
+                    className="self-stretch px-4 rounded-2xl bg-red-50 text-red-600 font-bold text-base flex items-center justify-center"
+                    style={{ fontSize: `${fontSize * 0.9}px` }}
                   >
-                    다시 정하기
+                    다시<br/> 선택하기
                   </button>
                 )}
               </div>
 
 
-              <h3 className="text-xl font-black mb-6 text-zinc-900">
-                {selectionPhase === 'start' && '시작 범위를 정해주세요'}
-                {selectionPhase === 'end' && '종료 범위를 정해주세요'}
+              <h3 className="text-xl font-semibold mb-6 text-zinc-500">
+                {selectionPhase === 'start' && (
+                  <span>
+                    <span className="text-[#4A6741] font-black underline underline-offset-4">시작</span> 범위를 정해주세요
+                  </span>
+                )}
+                {selectionPhase === 'end' && (
+                  <span>
+                    <span className="text-blue-700 font-black underline underline-offset-4">종료</span> 범위를 정해주세요
+                  </span>
+                )}
               </h3>
 
               <h4 className="text-sm font-bold mb-3 text-zinc-500">
@@ -2566,12 +2620,6 @@ export default function ReadingPage() {
                   })}
               </div>
 
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="w-full mt-8 py-4 text-zinc-400 font-bold text-sm"
-              >
-                닫기
-              </button>
             </motion.div>
           </motion.div>
         )}
@@ -2641,14 +2689,14 @@ export default function ReadingPage() {
                   onClick={handleCancelRangeConfirm}
                   className="flex-1 py-4 rounded-2xl border border-zinc-200 text-zinc-700 font-bold hover:bg-zinc-100 transition-colors"
                 >
-                  다시 선택
+                  닫기
                 </button>
                 <button
                   onClick={() => {
                     loadRangePagesWithSelection(pendingSelection);
                     setShowConfirmModal(false);
                   }}
-                  className="flex-1 py-4 rounded-2xl bg-gradient-to-r from-[#4A6741] to-[#3d5536] text-white font-bold hover:from-[#3d5536] hover:to-[#4b8062] transition-colors"
+                  className="flex-1 py-4 rounded-2xl bg-[#4A6741] text-white font-bold hover:bg-[#3d5635] transition-colors"
                 >
                   확인
                 </button>
