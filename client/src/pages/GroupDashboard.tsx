@@ -524,7 +524,22 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       {showModal && (
         <div className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
-          <div className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl animate-in slide-in-from-bottom-5 mt-auto sm:mt-0">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            drag="y"
+            dragDirectionLock
+            dragConstraints={{ top: 0, bottom: 240 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 90 || info.velocity.y > 700) {
+                setShowModal(false);
+              }
+            }}
+            className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl mt-auto sm:mt-0"
+          >
+            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-zinc-800">{formType === "event" ? "모임 일정 등록" : "불가능한 일정 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
@@ -558,7 +573,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
                 </button>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

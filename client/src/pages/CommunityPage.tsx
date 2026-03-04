@@ -706,7 +706,7 @@ export default function CommunityPage() {
 
       <AnimatePresence>
         {showSearchModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] p-4 flex items-center justify-center">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

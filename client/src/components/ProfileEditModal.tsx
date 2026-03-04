@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { X, Camera, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -281,11 +282,24 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       <div className="fixed inset-0 bg-black/40 z-[300] backdrop-blur-[2px]" onClick={onClose} />
 
       {/* 모달 컨테이너 */}
-      <div className="fixed inset-0 z-[310] flex items-center justify-center px-4 py-4 overflow-hidden">
-        <div
+      <div className="fixed inset-0 z-[310] flex items-end sm:items-center justify-center px-4 py-4 overflow-hidden">
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 20, opacity: 0 }}
+          drag="y"
+          dragDirectionLock
+          dragConstraints={{ top: 0, bottom: 240 }}
+          dragElastic={{ top: 0, bottom: 0.2 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 90 || info.velocity.y > 700) {
+              onClose();
+            }
+          }}
           className="bg-white rounded-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto overflow-x-hidden"
           style={{ maxWidth: "min(100%, 448px)" }}
         >
+          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
           {/* 헤더 */}
           <div className="sticky top-0 bg-white border-b px-4 py-4 flex items-center justify-between z-10">
             <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>
@@ -442,7 +456,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               {isLoading ? "저장 중..." : "저장"}
             </button>
           </form>
-        </div>
+        </motion.div>
       </div>
     </>
   );
