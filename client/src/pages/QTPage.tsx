@@ -1453,6 +1453,15 @@ export default function QTPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowWriteSheet(false);
+                }
+              }}
               className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
             >
               <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />

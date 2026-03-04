@@ -718,8 +718,18 @@ export default function CommunityPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowSearchModal(false);
+                }
+              }}
               className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base rounded-2xl shadow-2xl"
             >
+              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 검색</h3>
                 <button onClick={() => setShowSearchModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">
@@ -772,8 +782,18 @@ export default function CommunityPage() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowCreateModal(false);
+                }
+              }}
               className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base max-h-[88vh] overflow-y-auto rounded-3xl shadow-2xl"
             >
+              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 생성</h3>
                 <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">

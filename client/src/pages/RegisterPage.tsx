@@ -459,6 +459,7 @@ export default function RegisterPage() {
               }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[45px] z-[110] flex flex-col h-[92vh] shadow-2xl overflow-hidden"
             >
+              <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               {/* 바텀시트 내부 헤더 */}
               <div className="px-10 pt-12 pb-6 bg-white flex justify-between items-start shrink-0">
                 <div className="flex flex-col gap-2">
@@ -770,6 +771,7 @@ export default function RegisterPage() {
               }}
               className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[50px] z-[310] px-10 pt-14 pb-24 shadow-2xl"
             >
+              <div className="mx-auto -mt-6 mb-8 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex justify-between items-center mb-12 px-2">
                 <h3 className="font-black text-zinc-900 text-[24px]">직분을 선택해 주세요</h3>
                 <button onClick={() => setIsRankModalOpen(false)} className="bg-zinc-100 p-2.5 rounded-full text-zinc-400">

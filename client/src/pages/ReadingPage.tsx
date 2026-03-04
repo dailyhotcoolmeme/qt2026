@@ -2307,9 +2307,19 @@ export default function ReadingPage() {
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setIsEditModalOpen(false);
+                }
+              }}
               className="relative bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="mx-auto -mt-2 mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="absolute right-6 top-6 text-zinc-400 transition-colors hover:text-zinc-600"

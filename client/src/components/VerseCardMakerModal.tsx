@@ -532,8 +532,18 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
+            drag="y"
+            dragDirectionLock
+            dragConstraints={{ top: 0, bottom: 240 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 90 || info.velocity.y > 700) {
+                onClose();
+              }
+            }}
             className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6"
           >
+            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
             <div className="mb-1 flex items-center justify-between">
               <h3></h3>
               <button onClick={onClose} className="rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100">

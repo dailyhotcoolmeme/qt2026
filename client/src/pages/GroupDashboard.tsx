@@ -565,7 +565,22 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       {selectedDateEvents && (
         <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedDateEvents(null)}></div>
-          <div className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] overflow-y-auto">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 20, opacity: 0 }}
+            drag="y"
+            dragDirectionLock
+            dragConstraints={{ top: 0, bottom: 240 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 90 || info.velocity.y > 700) {
+                setSelectedDateEvents(null);
+              }
+            }}
+            className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto"
+          >
+            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
             <div className="flex items-center justify-between pb-3 mb-2 border-b">
               <h3 className="font-black text-xl text-zinc-900">{format(parseISO(selectedDateEvents.dateStr), "M월 d일")} 일정</h3>
               <button onClick={() => setSelectedDateEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X size={16} /></button>
@@ -612,7 +627,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
     </motion.div>
@@ -3792,7 +3807,22 @@ export default function GroupDashboard() {
               className="absolute inset-0 bg-black/40"
               onClick={() => setShowPrayerLinkModal(false)}
             />
-            <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowPrayerLinkModal(false);
+                }
+              }}
+              className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4"
+            >
+              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
                 <button
@@ -3824,7 +3854,7 @@ export default function GroupDashboard() {
                   <div className="text-base text-zinc-500 text-center py-8">연결 가능한 개인 기도 기록이 없습니다.</div>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
         )
       }
@@ -4019,7 +4049,22 @@ export default function GroupDashboard() {
         showPostComposerModal && (
           <div className="fixed inset-0 z-[220] p-0 sm:p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
-            <div className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 animate-in slide-in-from-bottom-5 max-h-[85vh] mt-auto sm:mt-0">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowPostComposerModal(false);
+                }
+              }}
+              className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
+            >
+              <div className="mx-auto -mt-2 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <h3 className="font-black text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
@@ -4115,7 +4160,7 @@ export default function GroupDashboard() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         )
       }
@@ -4134,8 +4179,18 @@ export default function GroupDashboard() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowInviteModal(false);
+                }
+              }}
               className="relative w-full max-w-lg bg-white border border-zinc-100 p-6 space-y-4 rounded-3xl shadow-2xl"
             >
+              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-black text-zinc-900 text-lg">회원 초대</h3>
                 <button
@@ -4193,7 +4248,22 @@ export default function GroupDashboard() {
         showHeaderEditModal && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
-            <div className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowHeaderEditModal(false);
+                }
+              }}
+              className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3"
+            >
+              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between">
                 <h3 className="font-black text-zinc-900">헤더 설정</h3>
                 <button
@@ -4255,7 +4325,7 @@ export default function GroupDashboard() {
               >
                 저장
               </button>
-            </div>
+            </motion.div>
           </div>
         )
       }
@@ -4264,7 +4334,22 @@ export default function GroupDashboard() {
         showFaithLinkModal && selectedFaithItem && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
-            <div className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowFaithLinkModal(false);
+                }
+              }}
+              className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4"
+            >
+              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-black text-zinc-900">
                   외부 활동 연결 - {selectedFaithItem.name}
@@ -4302,7 +4387,7 @@ export default function GroupDashboard() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           </div>
         )
       }

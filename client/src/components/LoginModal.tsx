@@ -71,6 +71,15 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            drag="y"
+            dragDirectionLock
+            dragConstraints={{ top: 0, bottom: 240 }}
+            dragElastic={{ top: 0, bottom: 0.2 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 90 || info.velocity.y > 700) {
+                onOpenChange(false);
+              }
+            }}
             className="fixed bottom-0 left-0 right-0 z-[401] max-h-[90vh] overflow-y-auto rounded-t-[40px] bg-white px-6 pb-12 pt-8 shadow-2xl"
           >
             <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
