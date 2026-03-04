@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { Download, Save, Share2, X } from "lucide-react";
 
 import imageCompression from "browser-image-compression";
@@ -181,6 +181,7 @@ async function shareDataUrl(dataUrl: string, title: string) {
 type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
+  const dragControls = useDragControls();
   const [mode, setMode] = useState<ThemeMode>("image");
   const [selectedId, setSelectedId] = useState<string>("i1");
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
@@ -533,6 +534,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
             drag="y"
+            dragControls={dragControls}
+            dragListener={false}
             dragDirectionLock
             dragConstraints={{ top: 0, bottom: 240 }}
             dragElastic={{ top: 0, bottom: 0.2 }}
@@ -543,7 +546,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             }}
             className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6"
           >
-            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+            <div
+              className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200"
+              onPointerDown={(e) => dragControls.start(e)}
+            />
             <div className="mb-1 flex items-center justify-between">
               <h3></h3>
               <button onClick={onClose} className="rounded-full p-1 bg-gray-200 text-zinc-500 hover:bg-zinc-100">

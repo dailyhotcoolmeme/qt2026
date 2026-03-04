@@ -679,7 +679,10 @@ export default function PrayerPage() {
     setPlayingRecordId(recordId);
 
     audio.addEventListener('loadedmetadata', () => {
-      setRecordDuration(prev => ({ ...prev, [recordId]: audio.duration }));
+      const duration = audio.duration;
+      if (Number.isFinite(duration) && duration > 0) {
+        setRecordDuration(prev => ({ ...prev, [recordId]: duration }));
+      }
     });
 
     audio.addEventListener('timeupdate', () => {
@@ -1066,6 +1069,10 @@ export default function PrayerPage() {
                         month: 'short', day: 'numeric',
                         hour: 'numeric', minute: '2-digit', hour12: true,
                       }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
+                      const rawDuration = recordDuration[record.id];
+                      const safeDuration = Number.isFinite(rawDuration) && rawDuration > 0
+                        ? rawDuration
+                        : (record.audio_duration || 0);
 
                       return (
                         <React.Fragment key={record.id}>
@@ -1140,19 +1147,19 @@ export default function PrayerPage() {
                                       <input
                                         type="range"
                                         min="0"
-                                        max={recordDuration[record.id] || 0}
+                                        max={safeDuration}
                                         value={recordCurrentTime[record.id] || 0}
                                         onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
                                         className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
                                         style={{
-                                          background: recordDuration[record.id] > 0
-                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / recordDuration[record.id]) * 100}%, #c8dfc4 100%)`
+                                          background: safeDuration > 0
+                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
                                             : '#c8dfc4',
                                         }}
                                       />
                                       <div className="flex justify-between text-xs text-[#4A6741]/70">
                                         <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-                                        <span>{Math.floor((recordDuration[record.id] || record.audio_duration) / 60)}:{String(Math.floor((recordDuration[record.id] || record.audio_duration) % 60)).padStart(2, '0')}</span>
+                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
                                       </div>
                                     </div>
                                   </div>

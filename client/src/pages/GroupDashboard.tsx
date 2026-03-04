@@ -3965,7 +3965,22 @@ export default function GroupDashboard() {
         showPrayerTopicModal && (
           <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
-            <div className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0 animate-in slide-in-from-bottom-5">
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 90 || info.velocity.y > 700) {
+                  setShowPrayerTopicModal(false);
+                }
+              }}
+              className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0"
+            >
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100">
                 <h3 className="font-black text-zinc-900 text-lg">나의 기도제목 관리</h3>
                 <button onClick={() => setShowPrayerTopicModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
@@ -4015,7 +4030,7 @@ export default function GroupDashboard() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
         )
       }

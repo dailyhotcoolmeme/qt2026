@@ -1466,17 +1466,10 @@ export default function QTPage() {
             >
               <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
 
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="font-medium text-zinc-700" style={{ fontSize: `${fontSize}px` }}>
+              <div className="flex items-center mb-6">
+                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
                   {editingRecord ? '묵상 기록 수정' : '묵상 기록'}
                 </h3>
-                <button
-                  onClick={editingRecord ? handleUpdateMeditation : handleSubmitMeditation}
-                  className="text-[#4A6741] font-bold"
-                  style={{ fontSize: `${fontSize}px` }}
-                >
-                  {editingRecord ? '저장' : '등록'}
-                </button>
               </div>
 
               {/* 텍스트 입력 영역 */}
@@ -1588,6 +1581,13 @@ export default function QTPage() {
                   </div>
                 ) : null}
               </div>
+
+              <button
+                onClick={editingRecord ? handleUpdateMeditation : handleSubmitMeditation}
+                className="w-full mt-6 py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
+              >
+                {editingRecord ? '저장' : '등록'}
+              </button>
             </motion.div>
           </>
         )}
