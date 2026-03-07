@@ -26,13 +26,27 @@ async function shareText(title: string, text: string) {
   return false;
 }
 
-function resolveBentoSpan(count: number, contentLen: number, idx: number): string {
-  const importance = count * 10 + Math.min(30, Math.floor(contentLen / 40));
-  if (importance >= 70) return "col-span-2 row-span-2";
-  if (importance >= 45) return idx % 2 === 0 ? "row-span-2" : "col-span-2";
-  if (idx % 9 === 0) return "col-span-2";
-  if (idx % 7 === 0) return "row-span-2";
-  return "col-span-1 row-span-1";
+function formatContentWithVerseNumbers(source: string | null, content: string): string {
+  const raw = String(content || "");
+  if (!raw) return "";
+
+  const s = String(source || "");
+  const shouldNumber = s === "qt" || s === "reading";
+  if (!shouldNumber) return raw;
+
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) return "";
+
+  const alreadyNumbered = lines.some((line) => /^\d+\.\s+/.test(line));
+  if (alreadyNumbered) return lines.join("\n");
+
+  // In QT/Reading content, original verse numbers were stripped when saving.
+  // Re-add simple 1..N numbering per line so users can read/share verse numbers.
+  return lines.map((line, idx) => `${idx + 1}. ${line}`).join("\n");
 }
 
 export default function FavoritesPage() {
@@ -109,7 +123,7 @@ export default function FavoritesPage() {
   }, [user?.id]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-5 pb-24 pt-24">
+    <div className="w-full px-5 pb-24 pt-24 sm:px-6 lg:px-10">
       {isLoading && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
           불러오는 중...
@@ -152,98 +166,108 @@ export default function FavoritesPage() {
           )}
 
           {!loading && !errorText && rows.length > 0 && (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 [grid-auto-flow:dense] auto-rows-[10.5rem] sm:auto-rows-[11.5rem]">
-              {rows.map((row, idx) => {
+            // Masonry (Pinterest-like): CSS columns + break-inside avoids equal heights.
+            <div className="[column-gap:16px] columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6">
+              {rows.map((row) => {
                 const verseRef = row.verse_ref || "";
                 const content = row.content || "";
-                const shareTextOnly = [verseRef, content].filter(Boolean).join("\n\n").trim();
+                const displayContent = formatContentWithVerseNumbers(row.source, content);
+                const shareTextOnly = [verseRef, displayContent].filter(Boolean).join("\n\n").trim();
                 const count = typeof row.favorite_count === "number" ? row.favorite_count : 1;
-                const spanClass = resolveBentoSpan(count, content.length, idx);
 
                 return (
-                  <div key={row.id} className={`relative flex flex-col rounded-2xl border border-zinc-100 bg-white p-3 ${spanClass}`}>
-                    <div className="absolute right-3 top-3 rounded-full bg-emerald-50 px-2 py-1 text-[12px] font-bold text-emerald-700">
-                      {count}
-                    </div>
-
-                    <div className="shrink-0 pr-10">
-                      <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.92}px` }}>
-                        {verseRef || "말씀"}
-                      </p>
-                    </div>
-
-                    <div className="mt-2 flex-1 overflow-y-auto pr-1">
-                      <p className="whitespace-pre-line text-zinc-700" style={{ fontSize: `${fontSize * 0.88}px`, lineHeight: 1.6 }}>
-                        {content || ""}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 flex shrink-0 items-center justify-end gap-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            await copyToClipboard(shareTextOnly || content || verseRef);
-                            alert("복사되었습니다.");
-                          } catch {
-                            alert("복사에 실패했습니다.");
-                          }
-                        }}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-600 transition-active active:scale-95"
-                        aria-label="복사"
-                        title="복사"
-                      >
-                        <Copy size={16} />
-                      </button>
-
-                      <button
-                        onClick={async () => {
-                          try {
-                            // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
-                            // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
-                            const shared = await shareText("마이아멘", shareTextOnly || content || verseRef);
-                            if (!shared) {
+                  <div
+                    key={row.id}
+                    className="group relative mb-3 inline-block w-full overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] ring-1 ring-zinc-100 [break-inside:avoid]"
+                  >
+                    <div className="p-4">
+                      <div className="absolute right-3 top-3 flex items-center gap-1">
+                        <button
+                          onClick={async () => {
+                            try {
                               await copyToClipboard(shareTextOnly || content || verseRef);
-                              alert("공유 기능이 없어 복사로 대체했습니다.");
+                              alert("복사되었습니다.");
+                            } catch {
+                              alert("복사에 실패했습니다.");
                             }
-                          } catch (e) {
-                            if (!(e instanceof Error && e.name === "AbortError")) {
-                              alert("공유에 실패했습니다.");
-                            }
-                          }
-                        }}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-[#4A6741] text-white transition-active active:scale-95"
-                        aria-label="공유"
-                        title="공유"
-                      >
-                        <Share2 size={16} />
-                      </button>
+                          }}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-zinc-500 opacity-80 transition-active active:scale-95 hover:opacity-100"
+                          aria-label="복사"
+                          title="복사"
+                        >
+                          <Copy size={14} />
+                        </button>
 
-                      <button
-                        onClick={async () => {
-                          if (!user?.id) return;
-                          const ok = window.confirm("즐겨찾기를 삭제할까요?");
-                          if (!ok) return;
-                          try {
-                            const { error } = await supabase
-                              .from("verse_bookmarks")
-                              .delete()
-                              .eq("id", row.id)
-                              .eq("user_id", user.id);
-                            if (error) {
-                              alert("삭제에 실패했습니다.");
-                              return;
+                        <button
+                          onClick={async () => {
+                            try {
+                              // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
+                              // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
+                              const shared = await shareText("마이아멘", shareTextOnly || content || verseRef);
+                              if (!shared) {
+                                await copyToClipboard(shareTextOnly || content || verseRef);
+                                alert("공유 기능이 없어 복사로 대체했습니다.");
+                              }
+                            } catch (e) {
+                              if (!(e instanceof Error && e.name === "AbortError")) {
+                                alert("공유에 실패했습니다.");
+                              }
                             }
-                            setRows((prev) => prev.filter((r) => r.id !== row.id));
-                          } catch {
-                            alert("삭제에 실패했습니다.");
-                          }
-                        }}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-600 transition-active active:scale-95"
-                        aria-label="삭제"
-                        title="삭제"
+                          }}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[#4A6741] opacity-80 transition-active active:scale-95 hover:opacity-100"
+                          aria-label="공유"
+                          title="공유"
+                        >
+                          <Share2 size={14} />
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            if (!user?.id) return;
+                            const ok = window.confirm("즐겨찾기를 삭제할까요?");
+                            if (!ok) return;
+                            try {
+                              const { error } = await supabase
+                                .from("verse_bookmarks")
+                                .delete()
+                                .eq("id", row.id)
+                                .eq("user_id", user.id);
+                              if (error) {
+                                alert("삭제에 실패했습니다.");
+                                return;
+                              }
+                              setRows((prev) => prev.filter((r) => r.id !== row.id));
+                            } catch {
+                              alert("삭제에 실패했습니다.");
+                            }
+                          }}
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-full text-rose-500 opacity-80 transition-active active:scale-95 hover:opacity-100"
+                          aria-label="삭제"
+                          title="삭제"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+
+                        <div
+                          className="inline-flex h-6 items-center justify-center rounded-full bg-emerald-50 px-2 text-[12px] font-black text-emerald-700"
+                          aria-label={`즐겨찾기 횟수 ${count}`}
+                        >
+                          {count}
+                        </div>
+                      </div>
+
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="pr-[160px] font-extrabold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
+                          {verseRef || "말씀"}
+                        </p>
+                      </div>
+
+                      <p
+                        className="mt-3 whitespace-pre-line text-zinc-700"
+                        style={{ fontSize: `${fontSize * 0.9}px`, lineHeight: 1.65 }}
                       >
-                        <Trash2 size={16} />
-                      </button>
+                        {displayContent || ""}
+                      </p>
                     </div>
                   </div>
                 );
