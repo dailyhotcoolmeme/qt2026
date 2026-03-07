@@ -21,6 +21,26 @@
 			},
 			"gallery": "https://api.mcp.github.com",
 			"version": "0.7.0"
+		},
+		"com.vercel/vercel-mcp": {
+			"type": "http",
+			"url": "https://mcp.vercel.com",
+			"gallery": "https://api.mcp.github.com",
+			"version": "0.0.3"
+		},
+		"io.github.github/github-mcp-server": {
+			"type": "stdio",
+			"command": "docker",
+			"args": [
+				"run",
+				"-i",
+				"--rm",
+				"-e",
+				"GITHUB_PERSONAL_ACCESS_TOKEN=${input:token}",
+				"ghcr.io/github/github-mcp-server:0.32.0"
+			],
+			"gallery": "https://api.mcp.github.com",
+			"version": "0.32.0"
 		}
 	},
 	"inputs": [
@@ -52,6 +72,12 @@
 			"id": "SUPABASE_ACCESS_TOKEN",
 			"type": "promptString",
 			"description": "Personal access token for Supabase API",
+			"password": true
+		},
+		{
+			"id": "token",
+			"type": "promptString",
+			"description": "",
 			"password": true
 		}
 	]

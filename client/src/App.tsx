@@ -144,16 +144,15 @@ export default function App() {
     const resolveSessionUserId = async (fallbackUserId?: string | null) => {
       if (fallbackUserId) return fallbackUserId;
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sessionUserId = sessionData?.session?.user?.id ?? null;
-      if (sessionUserId) return sessionUserId;
-
-      const { data: userData, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("failed to resolve auth user:", error);
+      try {
+        const { data: sessionData, error } = await supabase.auth.getSession();
+        if (error) return null;
+        return sessionData?.session?.user?.id ?? null;
+      } catch (error) {
+        // "no session" is a normal state for logged-out users; don't treat as a hard error.
+        console.warn("failed to resolve auth session:", error);
         return null;
       }
-      return userData?.user?.id ?? null;
     };
 
     const joinPendingInviteGroup = async (sessionUserId?: string | null) => {

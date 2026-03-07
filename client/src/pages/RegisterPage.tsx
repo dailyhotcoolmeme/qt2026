@@ -2,6 +2,8 @@ import React, { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "../lib/supabase";
 import { useLocation, Link } from "wouter";
+import { FcGoogle } from "react-icons/fc";
+import { FaApple } from "react-icons/fa";
 import {
   RefreshCw,
   ArrowLeft,
@@ -247,8 +249,7 @@ export default function RegisterPage() {
     }
   };
 
-  /** 카카오 가입 핸들러 */
-  const handleKakaoLogin = async () => {
+  const startOAuthSignUp = async (provider: "kakao" | "google" | "apple") => {
     if (!isAgreedAll) {
       setModal({
         show: true,
@@ -261,14 +262,38 @@ export default function RegisterPage() {
     const inviteGroupId = readInviteGroupIdFromUrl();
     const inviteQuery = inviteGroupId ? `?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
 
-    await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: {
-        redirectTo: `${window.location.origin}/${inviteQuery}`,
-        skipBrowserRedirect: false,
+    if (inviteGroupId) {
+      try {
+        localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
+      } catch {
+        // ignore storage errors
       }
-    });
+    }
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/${inviteQuery}`,
+          skipBrowserRedirect: false,
+        }
+      });
+      if (error) throw error;
+    } catch (e) {
+      console.error(`${provider} OAuth start error:`, e);
+      setModal({
+        show: true,
+        title: "오류 발생",
+        msg: "소셜 회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        type: "error"
+      });
+    }
   };
+
+  /** 소셜 가입 핸들러들 */
+  const handleKakaoLogin = () => startOAuthSignUp("kakao");
+  const handleGoogleLogin = () => startOAuthSignUp("google");
+  const handleAppleLogin = () => startOAuthSignUp("apple");
 
   /** 최종 폼 제출 (회원가입) */
   const onSubmit = async (data: any) => {
@@ -394,6 +419,22 @@ export default function RegisterPage() {
           </button>
 
           <button
+            onClick={handleGoogleLogin}
+            className="w-full h-16 bg-white border-2 border-zinc-200 text-zinc-900 font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
+          >
+            <FcGoogle size={24} />
+            구글로 가입하기
+          </button>
+
+          <button
+            onClick={handleAppleLogin}
+            className="w-full h-16 bg-black text-white font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
+          >
+            <FaApple size={22} />
+            애플로 가입하기
+          </button>
+
+          <button
             type="button"
             onClick={() => setIsAgreedAll(!isAgreedAll)}
             className="flex items-center justify-center gap-2 group"
@@ -415,14 +456,14 @@ export default function RegisterPage() {
           </button>
         </div>
 
-        {/* 구분선 */}
+        {/* 직접 정보 입력 가입(아이디/이메일)은 숨김 처리 */}
+        {/*
         <div className="flex items-center gap-4 mb-10 px-4 relative z-20">
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
           <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">OR</span>
           <div className="h-[1px] flex-1 bg-zinc-200"></div>
         </div>
 
-        {/* 일반 가입 버튼 */}
         <button
           onClick={() => setIsPopupOpen(true)}
           className="w-full h-[80px] bg-white border-2 border-zinc-100 text-zinc-900 font-bold rounded-[26px] shadow-sm flex flex-col items-center justify-center active:scale-[0.97] transition-all relative z-20"
@@ -430,6 +471,7 @@ export default function RegisterPage() {
           <span className="text-[17px]">직접 정보 입력해서 가입하기</span>
           <span className="text-[11px] text-zinc-400 font-medium mt-1">아이디, 이메일, 닉네임 직접 설정</span>
         </button>
+        */}
       </div>
 
       {/* 가입 입력 바텀시트 */}

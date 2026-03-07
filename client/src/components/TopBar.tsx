@@ -109,9 +109,19 @@ export function TopBar() {
       });
 
       if (!response.ok) {
-        const err = await response.json();
-        const detail = err.detail ? `\n상세: ${err.detail}` : "";
-        throw new Error((err.message || "회원탈퇴에 실패했습니다") + detail);
+        const raw = await response.text();
+        let err: any = null;
+        try {
+          err = raw ? JSON.parse(raw) : null;
+        } catch {
+          // ignore JSON parse errors
+        }
+        const message =
+          err?.message
+          ?? err?.error
+          ?? (raw ? raw : `회원탈퇴에 실패했습니다 (HTTP ${response.status})`);
+        const detail = err?.detail ? `\n상세: ${err.detail}` : "";
+        throw new Error(String(message) + detail);
       }
 
       await supabase.auth.signOut();

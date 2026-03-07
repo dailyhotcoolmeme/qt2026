@@ -6,6 +6,7 @@ import { supabase } from "../lib/supabase";
 import { useHashLocation } from "wouter/use-hash-location";
 import { Link } from "wouter";
 import { Eye, EyeOff, X, Check, Loader2 } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 
 function AuthPage() {
   const [location, setLocation] = useHashLocation();
@@ -30,13 +31,18 @@ function AuthPage() {
 
   // 인증 후 user 상태 갱신 + 로그인 감지 시 홈으로 이동
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ?? null);
-      if (data.user) {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        setUser(null);
+        return;
+      }
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser);
+      if (sessionUser) {
         // 이미 로그인된 상태로 auth 페이지에 진입하면 홈으로 이동
         window.location.replace(window.location.origin + '/#/');
       }
-    });
+    }).catch(() => setUser(null));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
@@ -47,20 +53,50 @@ function AuthPage() {
   }, []);
 
   // 카카오 로그인 로직
+  const getOAuthRedirectTo = () => {
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = params.get("returnTo");
+    if (!returnTo) return `${window.location.origin}/`;
+    try {
+      const decoded = decodeURIComponent(returnTo);
+      return `${window.location.origin}/?returnTo=${encodeURIComponent(decoded)}`;
+    } catch {
+      return `${window.location.origin}/?returnTo=${encodeURIComponent(returnTo)}`;
+    }
+  };
+
   const handleKakaoLogin = async () => {
     try {
       // returnTo: auth 페이지가 아닌 홈으로 설정
-      const redirectTo = `${window.location.origin}/`;
-      await supabase.auth.signInWithOAuth({
+      const redirectTo = getOAuthRedirectTo();
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
           redirectTo,
         },
       });
+      if (error) throw error;
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error("Kakao OAuth start error:", err);
       alert("카카오 로그인 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      const redirectTo = getOAuthRedirectTo();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+      if (error) throw error;
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error("Google OAuth start error:", err);
+      alert("구글 로그인 중 오류가 발생했습니다.");
     }
   };
 
@@ -120,6 +156,14 @@ function AuthPage() {
         >
           <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
           카카오로 로그인하기
+        </button>
+
+        <button
+          onClick={handleGoogleLogin}
+          className="w-full h-[64px] bg-white border-2 border-zinc-200 text-zinc-900 font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+        >
+          <FcGoogle size={24} />
+          구글로 로그인하기
         </button>
 
         <div className="flex items-center justify-center gap-5">

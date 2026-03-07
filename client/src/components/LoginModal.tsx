@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
 import { useLocation } from "wouter";
 import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
@@ -14,7 +15,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const { fontSize = 16 } = useDisplaySettings();
   const [, setLocation] = useLocation();
 
-  const handleKakaoLogin = () => {
+  const handleKakaoLogin = async () => {
     const targetReturnTo = returnTo || window.location.href;
     try {
       localStorage.setItem("qt_return", targetReturnTo);
@@ -28,17 +29,46 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     const encodedReturnTo = encodeURIComponent(targetReturnTo);
     const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
 
-    supabase.auth
-      .signInWithOAuth({
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "kakao",
         options: {
           redirectTo,
         },
-      })
-      .catch((error) => {
-        console.error("LoginModal kakao start error", error);
-        setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
       });
+      if (error) throw error;
+    } catch (error) {
+      console.error("LoginModal kakao start error", error);
+      setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    const targetReturnTo = returnTo || window.location.href;
+    try {
+      localStorage.setItem("qt_return", targetReturnTo);
+      if (targetReturnTo.includes("autoOpenWrite=true")) {
+        localStorage.setItem("qt_autoOpenWrite", "1");
+      }
+    } catch {
+      // ignore storage errors
+    }
+
+    const encodedReturnTo = encodeURIComponent(targetReturnTo);
+    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.error("LoginModal google start error", error);
+      setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
+    }
   };
 
   const handleEmailLogin = () => {
@@ -107,6 +137,14 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
               >
                 <img src="/kakao-login.png" className="h-6 w-6" alt="카카오" />
                 카카오로 로그인하기
+              </button>
+
+              <button
+                onClick={handleGoogleLogin}
+                className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-white border-2 border-zinc-200 font-bold text-zinc-900 shadow-sm transition-all active:scale-95"
+              >
+                <FcGoogle size={24} />
+                구글로 로그인하기
               </button>
 
               <div className="flex w-full items-center justify-center gap-3">

@@ -8,6 +8,16 @@ export default defineConfig({
       jsxRuntime: 'automatic', // React is not defined 에러 해결 핵심
     }),
   ],
+  server: {
+    // When running the client dev server on :5173, proxy API calls to the Express server on :5000.
+    // This avoids 404s from Vite and avoids CORS issues.
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:5000",
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

@@ -827,9 +827,19 @@ export default function GroupDashboard() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getSession().then(({ data, error }) => {
       if (!mounted) return;
-      setUser(data.user ? { id: data.user.id } : null);
+      if (error) {
+        setUser(null);
+        setAuthReady(true);
+        return;
+      }
+      const sessionUser = data.session?.user ?? null;
+      setUser(sessionUser ? { id: sessionUser.id } : null);
+      setAuthReady(true);
+    }).catch(() => {
+      if (!mounted) return;
+      setUser(null);
       setAuthReady(true);
     });
 
