@@ -3,6 +3,7 @@ import { Download, Share2, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { LoginModal } from "../components/LoginModal";
 
 type VerseCardRecord = {
   id: string;
@@ -99,8 +100,9 @@ async function shareDataUrl(dataUrl: string, title: string) {
 }
 
 export default function VerseCardsPage() {
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
   const { fontSize } = useDisplaySettings();
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [cards, setCards] = useState<VerseCardRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -111,9 +113,16 @@ export default function VerseCardsPage() {
     let alive = true;
 
     const run = async () => {
+      if (!user?.id) {
+        setCards([]);
+        setActiveCard(null);
+        setPendingDelete(null);
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const loaded = await loadVerseCards(user?.id ?? null);
+        const loaded = await loadVerseCards(user.id);
         if (!alive) return;
         const normalized = (loaded || [])
           .filter((c) => Boolean(c?.id && c?.imageDataUrl))
@@ -170,29 +179,41 @@ export default function VerseCardsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-6">
-      <div className="mb-4">
-        <h2 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.15}px` }}>
-          말씀카드
-        </h2>
-        <p className="mt-1 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
-          보관한 말씀카드를 확대해서 보고, 삭제할 수 있어요.
-        </p>
-      </div>
-
-      {loading && (
+    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-24">
+      {isLoading && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
           불러오는 중...
         </div>
       )}
 
-      {!loading && cards.length === 0 && (
+      {!isLoading && !user?.id && (
+        <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center">
+          <p className="text-zinc-500" style={{ fontSize: `${fontSize * 0.9}px` }}>
+            말씀카드를 보려면 로그인이 필요합니다.
+          </p>
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="mt-4 rounded-xl bg-[#4A6741] px-5 py-3 font-bold text-white transition-active active:scale-95"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            로그인
+          </button>
+        </div>
+      )}
+
+      {!isLoading && user?.id && loading && (
+        <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
+          불러오는 중...
+        </div>
+      )}
+
+      {!isLoading && user?.id && !loading && cards.length === 0 && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-500">
           보관한 말씀카드가 없습니다.
         </div>
       )}
 
-      {!loading && cards.length > 0 && (
+      {!isLoading && user?.id && !loading && cards.length > 0 && (
         <div className="grid grid-cols-2 gap-3">
           {cards.map((card) => (
             <div key={card.id} className="relative overflow-hidden rounded-xl border border-zinc-100 bg-white">
@@ -299,7 +320,8 @@ export default function VerseCardsPage() {
           </div>
         )}
       </AnimatePresence>
+
+      <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
     </div>
   );
 }
-

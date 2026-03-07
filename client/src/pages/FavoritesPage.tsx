@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Copy, Share2 } from "lucide-react";
+import { Copy, Share2, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -74,15 +74,7 @@ export default function FavoritesPage() {
   }, [user?.id]);
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-6">
-      <div className="mb-4">
-        <h2 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.15}px` }}>
-          즐겨찾기
-        </h2>
-        <p className="mt-1 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
-          저장한 말씀을 복사하거나 공유할 수 있어요.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-24">
 
       {isLoading && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
@@ -125,76 +117,108 @@ export default function FavoritesPage() {
             </div>
           )}
 
-          {!loading &&
-            rows.map((row) => {
-              const verseRef = row.verse_ref || "";
-              const content = row.content || "";
-              const text = [verseRef, content].filter(Boolean).join("\n\n").trim();
-              const createdLabel = row.created_at
-                ? new Date(row.created_at).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
-                : "";
+          {!loading && !errorText && rows.length > 0 && (
+            <div className="grid grid-cols-2 gap-3">
+              {rows.map((row) => {
+                const verseRef = row.verse_ref || "";
+                const content = row.content || "";
+                const shareTextOnly = [verseRef, content].filter(Boolean).join("\n\n").trim();
+                const createdLabel = row.created_at
+                  ? new Date(row.created_at).toLocaleString("ko-KR", { year: "numeric", month: "2-digit", day: "2-digit" })
+                  : "";
 
-              return (
-                <div key={row.id} className="rounded-xl border border-zinc-100 bg-white p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.95}px` }}>
+                return (
+                  <div key={row.id} className="flex h-[270px] flex-col rounded-xl border border-zinc-100 bg-white p-3">
+                    <div className="shrink-0">
+                      <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize * 0.92}px` }}>
                         {verseRef || "말씀"}
                       </p>
-                      <p
-                        className="mt-2 whitespace-pre-line text-zinc-700"
-                        style={{ fontSize: `${fontSize * 0.9}px`, lineHeight: 1.6 }}
-                      >
-                        {content}
-                      </p>
                       {createdLabel && (
-                        <p className="mt-2 text-zinc-400" style={{ fontSize: `${fontSize * 0.75}px` }}>
+                        <p className="mt-0.5 text-zinc-400" style={{ fontSize: `${fontSize * 0.72}px` }}>
                           {createdLabel}
                         </p>
                       )}
                     </div>
 
-                    <div className="flex flex-col gap-2">
+                    <div className="mt-2 flex-1 overflow-y-auto pr-1">
+                      <p className="whitespace-pre-line text-zinc-700" style={{ fontSize: `${fontSize * 0.88}px`, lineHeight: 1.6 }}>
+                        {content || ""}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 shrink-0">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await copyToClipboard(shareTextOnly || content || verseRef);
+                              alert("복사되었습니다.");
+                            } catch {
+                              alert("복사에 실패했습니다.");
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-600 transition-active active:scale-95"
+                          style={{ fontSize: `${fontSize * 0.85}px` }}
+                        >
+                          <Copy size={16} />
+                          복사
+                        </button>
+                        <button
+                          onClick={async () => {
+                            try {
+                              // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
+                              // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
+                              const shared = await shareText("마이아멘", shareTextOnly || content || verseRef);
+                              if (!shared) {
+                                await copyToClipboard(shareTextOnly || content || verseRef);
+                                alert("공유 기능이 없어 복사로 대체했습니다.");
+                              }
+                            } catch (e) {
+                              if (!(e instanceof Error && e.name === "AbortError")) {
+                                alert("공유에 실패했습니다.");
+                              }
+                            }
+                          }}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4A6741] px-3 py-2 text-white transition-active active:scale-95"
+                          style={{ fontSize: `${fontSize * 0.85}px` }}
+                        >
+                          <Share2 size={16} />
+                          공유
+                        </button>
+                      </div>
+
                       <button
                         onClick={async () => {
+                          if (!user?.id) return;
+                          const ok = window.confirm("즐겨찾기를 삭제할까요?");
+                          if (!ok) return;
                           try {
-                            await copyToClipboard(text || content || verseRef);
-                            alert("복사되었습니다.");
+                            const { error } = await supabase
+                              .from("verse_bookmarks")
+                              .delete()
+                              .eq("id", row.id)
+                              .eq("user_id", user.id);
+                            if (error) {
+                              alert("삭제에 실패했습니다.");
+                              return;
+                            }
+                            setRows((prev) => prev.filter((r) => r.id !== row.id));
                           } catch {
-                            alert("복사에 실패했습니다.");
+                            alert("삭제에 실패했습니다.");
                           }
                         }}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-zinc-600 transition-active active:scale-95"
+                        className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-rose-50 px-3 py-2 text-rose-600 transition-active active:scale-95"
                         style={{ fontSize: `${fontSize * 0.85}px` }}
                       >
-                        <Copy size={16} />
-                        복사
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const shared = await shareText(verseRef || "즐겨찾기", text || content || verseRef);
-                            if (!shared) {
-                              await copyToClipboard(text || content || verseRef);
-                              alert("공유 기능이 없어 복사로 대체했습니다.");
-                            }
-                          } catch (e) {
-                            if (!(e instanceof Error && e.name === "AbortError")) {
-                              alert("공유에 실패했습니다.");
-                            }
-                          }
-                        }}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#4A6741] px-3 py-2 text-white transition-active active:scale-95"
-                        style={{ fontSize: `${fontSize * 0.85}px` }}
-                      >
-                        <Share2 size={16} />
-                        공유
+                        <Trash2 size={16} />
+                        삭제
                       </button>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -202,4 +226,3 @@ export default function FavoritesPage() {
     </div>
   );
 }
-
