@@ -1,4 +1,3 @@
-import { createClient } from "@supabase/supabase-js";
 import {
   getCurrentUser,
   login,
@@ -9,21 +8,7 @@ import {
   subscribeAuthChange,
   type AuthUser,
 } from "./auth-client";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error("Missing Supabase environment variables");
-}
-
-const rawSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-    detectSessionInUrl: false,
-  },
-});
+import { rawSupabase } from "./legacy-supabase-client";
 
 function toSupabaseLikeUser(user: AuthUser | null) {
   if (!user) return null;

@@ -752,6 +752,7 @@ function getKakaoRedirectUri(request: Request, env: Env): string {
 async function createAuthUser(
   env: Env,
   input: {
+    id?: string | null;
     username: string;
     email: string;
     password?: string | null;
@@ -766,7 +767,7 @@ async function createAuthUser(
     phone?: string | null;
   },
 ): Promise<CurrentUser> {
-  const userId = crypto.randomUUID();
+  const userId = String(input.id || "").trim() || crypto.randomUUID();
   const createdAt = nowIso();
   const salt = input.password ? generateSalt() : null;
   const passwordHash = input.password && salt ? await hashPassword(input.password, salt) : null;
@@ -1007,6 +1008,92 @@ function getSupabaseServiceKey(env: Env): string {
   const service = String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
   if (!service) throw new Error("Missing env SUPABASE_SERVICE_ROLE_KEY");
   return service;
+}
+
+function hasSupabaseAdminSync(env: Env): boolean {
+  return Boolean(String(env.SUPABASE_URL || "").trim() && String(env.SUPABASE_SERVICE_ROLE_KEY || "").trim());
+}
+
+async function createSupabaseShadowUser(
+  env: Env,
+  input: {
+    email: string;
+    password: string;
+    user_metadata?: JsonRecord | null;
+  },
+): Promise<string | null> {
+  if (!hasSupabaseAdminSync(env)) return null;
+
+  const response = await supabaseServiceFetch(env, "auth/v1/admin/users", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+      email_confirm: true,
+      user_metadata: input.user_metadata ?? {},
+    }),
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error(`legacy auth create failed (${response.status}): ${raw.slice(0, 300)}`);
+  }
+
+  const payload = (await response.json()) as JsonRecord;
+  const nestedUser =
+    payload.user && typeof payload.user === "object" ? (payload.user as JsonRecord) : null;
+  const userId = String(nestedUser?.id || payload.id || "").trim();
+  if (!userId) {
+    throw new Error("legacy auth create failed: missing user id");
+  }
+  return userId;
+}
+
+async function updateSupabaseShadowUser(
+  env: Env,
+  userId: string,
+  updates: {
+    email?: string;
+    password?: string;
+    user_metadata?: JsonRecord | null;
+  },
+): Promise<void> {
+  if (!hasSupabaseAdminSync(env) || !userId) return;
+
+  const payload: JsonRecord = {};
+  if (updates.email !== undefined) payload.email = updates.email;
+  if (updates.password !== undefined) payload.password = updates.password;
+  if (updates.user_metadata !== undefined) payload.user_metadata = updates.user_metadata;
+  if (Object.keys(payload).length === 0) return;
+
+  const response = await supabaseServiceFetch(env, `auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const raw = await response.text();
+    throw new Error(`legacy auth update failed (${response.status}): ${raw.slice(0, 300)}`);
+  }
+}
+
+async function deleteSupabaseShadowUser(env: Env, userId: string): Promise<void> {
+  if (!hasSupabaseAdminSync(env) || !userId) return;
+
+  const response = await supabaseServiceFetch(env, `auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok && response.status !== 404) {
+    const raw = await response.text();
+    throw new Error(`legacy auth delete failed (${response.status}): ${raw.slice(0, 300)}`);
+  }
 }
 
 async function supabaseServiceFetch(
@@ -1601,6 +1688,7 @@ async function handleAuthRegister(request: Request, env: Env): Promise<Response>
   const ageGroup = normalizeOptional(body?.age_group);
   const fullName = normalizeOptional(body?.full_name);
   const phone = normalizeOptional(body?.phone);
+  let shadowUserId: string | null = null;
 
   try {
     validateUsername(username);
@@ -1618,7 +1706,23 @@ async function handleAuthRegister(request: Request, env: Env): Promise<Response>
       return fail(request, env, 409, "nickname already exists");
     }
 
+    if (hasSupabaseAdminSync(env)) {
+      shadowUserId = await createSupabaseShadowUser(env, {
+        email,
+        password,
+        user_metadata: {
+          username,
+          nickname,
+          full_name: fullName,
+          church_name: church,
+          rank,
+          phone,
+        },
+      });
+    }
+
     const user = await createAuthUser(env, {
+      id: shadowUserId,
       username,
       email,
       password,
@@ -1636,6 +1740,13 @@ async function handleAuthRegister(request: Request, env: Env): Promise<Response>
       "Set-Cookie": session.setCookie,
     });
   } catch (error) {
+    if (shadowUserId) {
+      try {
+        await deleteSupabaseShadowUser(env, shadowUserId);
+      } catch {
+        // ignore shadow cleanup failures
+      }
+    }
     return fail(request, env, 400, "register failed", normalizeErrorMessage(error));
   }
 }
@@ -1735,6 +1846,14 @@ async function handleAuthResetPassword(request: Request, env: Env): Promise<Resp
         .bind(row.id, hash, salt, nowIso()),
       requireD1(env).prepare("DELETE FROM auth_sessions WHERE user_id = ?1").bind(row.id),
     ]);
+
+    try {
+      await updateSupabaseShadowUser(env, row.id, {
+        password: newPassword,
+      });
+    } catch (shadowError) {
+      console.error("legacy auth password sync failed", shadowError);
+    }
 
     const session = await createSession(env, request, row.id);
     const user = await getUserById(env, row.id);
@@ -1924,6 +2043,23 @@ async function handleUserProfileUpdate(request: Request, env: Env): Promise<Resp
         .bind(user.id, nextUsername, nextEmail, nextNickname, nextAvatarUrl, nextChurch, nextRank, nextAgeGroup, updatedAt),
     ]);
 
+    try {
+      await updateSupabaseShadowUser(env, user.id, {
+        email: nextEmail,
+        user_metadata: {
+          username: nextUsername,
+          nickname: nextNickname,
+          full_name: nextFullName,
+          church_name: nextChurch,
+          rank: nextRank,
+          phone: nextPhone,
+          avatar_url: nextAvatarUrl,
+        },
+      });
+    } catch (shadowError) {
+      console.error("legacy auth profile sync failed", shadowError);
+    }
+
     return ok(request, env, await getUserById(env, user.id));
   } catch (error) {
     return fail(request, env, 400, "profile update failed", normalizeErrorMessage(error));
@@ -1943,6 +2079,12 @@ async function handleUserDelete(request: Request, env: Env): Promise<Response> {
     await deleteFromTableIfExists(env, "auth_sessions", "user_id = ?1", [user.id]);
     await deleteFromTableIfExists(env, "profiles", "id = ?1", [user.id]);
     await deleteFromTableIfExists(env, "auth_users", "id = ?1", [user.id]);
+
+    try {
+      await deleteSupabaseShadowUser(env, user.id);
+    } catch (shadowError) {
+      console.error("legacy auth delete sync failed", shadowError);
+    }
 
     return ok(request, env, { success: true }, 200, {
       "Set-Cookie": clearSessionCookie(request, env),

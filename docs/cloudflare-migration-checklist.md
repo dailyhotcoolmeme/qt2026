@@ -25,7 +25,8 @@
 This repository is now in a safe staged migration state:
 
 - Runtime/API hosting can move from Vercel to Cloudflare Worker now.
-- Auth can move off Supabase now.
+- User-facing auth can move off Supabase now.
+- Local email/password accounts are shadow-synced to Supabase during the transition so legacy direct data access keeps working.
 - R2 stays in place and is used by the Worker.
 - D1 now stores Worker-managed auth/session/push/notification data.
 - Supabase is still required for screens that still call `supabase.from(...)` and `supabase.rpc(...)` directly.
@@ -97,12 +98,13 @@ Do not shut down Supabase yet until those direct client calls are migrated.
 ## 6) Supabase Tasks
 
 1. Keep Supabase running for now.
-2. Existing Supabase auth users can be ignored or deleted. Auth is now D1-backed.
-3. Keep the public data tables and RPCs alive until client-side direct usage is removed.
-4. Export backups before each cut step.
+2. Existing old Supabase auth users can be ignored or deleted.
+3. New local email/password users are shadow-synced to Supabase during the transition.
+4. Keep the public data tables and RPCs alive until client-side direct usage is removed.
+5. Export backups before each cut step.
    - Public tables
    - RPC definitions you still depend on
-5. After the remaining `supabase.from/rpc` usage is removed:
+6. After the remaining `supabase.from/rpc` usage is removed:
    - rotate keys
    - remove `VITE_SUPABASE_*` from Pages
    - remove Worker fallback envs

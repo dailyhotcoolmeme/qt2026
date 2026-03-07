@@ -9,7 +9,8 @@ This repository is now aligned to:
 - D1 for custom auth, sessions, notifications, push subscription records, and bible audio metadata
 - R2 for existing file storage
 
-Supabase auth is removed from the application flow.
+Supabase auth is removed from the user-facing application flow.
+Local email/password auth now also syncs a shadow Supabase session so the remaining direct `supabase.from(...)` and `supabase.rpc(...)` calls can keep working during the staged migration.
 
 Supabase is still temporarily required for the parts of the client that still call `supabase.from(...)` and `supabase.rpc(...)` directly. That means this migration is safe for deployment/runtime cutover and auth cutover, but it is not yet a full data-layer migration away from Supabase.
 
@@ -52,6 +53,7 @@ Supabase is still temporarily required for the parts of the client that still ca
   - `POST /api/push/unsubscribe`
   - `POST /api/push/send`
 - Frontend auth pages and modals now use the Worker auth API.
+- Local email/password register/login also sync a shadow Supabase auth user with the same user id for legacy client-side data access.
 - `wrangler.api.toml` is the single Worker config entrypoint.
 
 ## Cloudflare Setup
@@ -112,12 +114,12 @@ Recommended runtime vars/secrets:
 - `OPENAI_API_KEY`
 - `PUSH_SERVER_KEY`
 
-Optional temporary fallback only for `bible_audio_metadata`:
+Required while any direct client-side Supabase data access still remains:
 
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-If you import audio metadata into D1 before cutover, you do not need that fallback.
+If you later migrate all remaining direct client queries off Supabase, these can be removed.
 
 ### 5. Kakao Developer Console
 
@@ -147,7 +149,7 @@ Pages environment variables:
 - `VITE_R2_PUBLIC_URL=...`
 - `VITE_VAPID_PUBLIC_KEY=...` if push is used
 
-`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` must stay for now because non-auth app data is still read directly from Supabase in several screens.
+`VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` must stay for now because non-auth app data is still read directly from Supabase in several screens, and local email/password auth currently bootstraps a legacy Supabase session for that compatibility path.
 
 ## Audio Metadata Move
 
@@ -214,7 +216,7 @@ The workflow already deploys:
 
 1. Leave the project alive for now.
 2. Keep `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Pages until the remaining direct client queries are migrated.
-3. You can ignore existing Supabase auth users and start fresh because auth is now D1-backed.
+3. Existing old Supabase auth users can be ignored. New local email/password users will be shadow-synced automatically during the transition.
 4. After all direct `supabase.from/rpc` usage is removed from the client, then remove Supabase from runtime.
 
 ### Cloudflare
@@ -238,6 +240,7 @@ The workflow already deploys:
 
 - Group invite auto-join after signup is intentionally disabled until the group backend is migrated off Supabase RPC.
 - Community/group/prayer/reading data still include direct Supabase client access.
+- Kakao login is D1-backed, but full legacy data-session parity for every remaining direct Supabase path still needs more migration work.
 - Because of that, this is not the last migration step if your goal is a full D1-only application backend.
 
 ## Rollback

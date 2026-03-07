@@ -1,3 +1,5 @@
+import { signInLegacySupabase, signOutLegacySupabase } from "./legacy-supabase-client";
+
 export interface AuthUser {
   id: string;
   email: string;
@@ -71,6 +73,14 @@ export async function login(payload: { identifier: string; password: string }): 
     },
     body: JSON.stringify(payload),
   });
+  try {
+    await signInLegacySupabase(data.user.email, payload.password);
+  } catch (error) {
+    await requestJson<{ success: true }>("/api/auth/logout", {
+      method: "POST",
+    }).catch(() => undefined);
+    throw error instanceof Error ? error : new Error(String(error));
+  }
   emitAuthChanged();
   return data.user;
 }
@@ -93,6 +103,16 @@ export async function registerUser(payload: {
     },
     body: JSON.stringify(payload),
   });
+  try {
+    await signInLegacySupabase(data.user.email, payload.password);
+  } catch (error) {
+    await requestJson<{ success: true }>("/api/auth/logout", {
+      method: "POST",
+    }).catch(() => undefined);
+    throw error instanceof Error
+      ? new Error(`회원가입은 완료되었지만 데이터 세션 연결에 실패했습니다. 다시 로그인해 주세요. (${error.message})`)
+      : new Error("회원가입은 완료되었지만 데이터 세션 연결에 실패했습니다. 다시 로그인해 주세요.");
+  }
   emitAuthChanged();
   return data.user;
 }
@@ -101,6 +121,7 @@ export async function logout(): Promise<void> {
   await requestJson<{ success: true }>("/api/auth/logout", {
     method: "POST",
   });
+  await signOutLegacySupabase();
   emitAuthChanged();
 }
 
@@ -108,6 +129,7 @@ export async function deleteAccount(): Promise<void> {
   await requestJson<{ success: true }>("/api/user/delete", {
     method: "DELETE",
   });
+  await signOutLegacySupabase();
   emitAuthChanged();
 }
 
@@ -145,6 +167,11 @@ export async function resetPassword(payload: {
     },
     body: JSON.stringify(payload),
   });
+  try {
+    await signInLegacySupabase(data.user.email, payload.newPassword);
+  } catch {
+    // ignore legacy session sync errors here; next explicit login will retry
+  }
   emitAuthChanged();
   return data.user;
 }

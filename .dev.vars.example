@@ -17,6 +17,6 @@ NAVER_TTS_VOLUME="0"
 OPENAI_API_KEY="OPTIONAL_OPENAI_API_KEY"
 PUSH_SERVER_KEY="OPTIONAL_SERVER_SIDE_PUSH_KEY"
 
-# Temporary fallback only while bible audio metadata still mirrors Supabase.
+# Required while legacy client-side Supabase data access still remains.
 SUPABASE_URL=""
 SUPABASE_SERVICE_ROLE_KEY=""
