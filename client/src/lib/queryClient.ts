@@ -7,22 +7,6 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-const apiBaseRaw = String(import.meta.env.VITE_API_BASE_URL || "").trim();
-const apiOrigin = (() => {
-  if (!apiBaseRaw || typeof window === "undefined") return null;
-  try {
-    return new URL(apiBaseRaw).origin;
-  } catch {
-    return null;
-  }
-})();
-
-function requestCredentialsFor(url: string): RequestCredentials {
-  if (!url.startsWith("/api/")) return "include";
-  if (!apiOrigin || typeof window === "undefined") return "include";
-  return "include";
-}
-
 export async function apiRequest(
   method: string,
   url: string,
@@ -32,7 +16,7 @@ export async function apiRequest(
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
     body: data ? JSON.stringify(data) : undefined,
-    credentials: requestCredentialsFor(url),
+    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -45,9 +29,8 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = queryKey.join("/") as string;
-    const res = await fetch(url, {
-      credentials: requestCredentialsFor(url),
+    const res = await fetch(queryKey.join("/") as string, {
+      credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

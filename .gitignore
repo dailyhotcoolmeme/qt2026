@@ -5,8 +5,6 @@ client/.env
 client/.env.local
 .env
 .env.local
-.dev.vars
-cloudflare/d1/seed/
 
 node_modules
 dist

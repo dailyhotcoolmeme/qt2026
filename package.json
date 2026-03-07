@@ -6,13 +6,7 @@
     "dev": "tsx watch server/index.ts",
     "build": "cd client && npm install && npm run build && cd .. && node copy-dist.js",
     "build:client": "cd client && npm install && npm run build",
-    "build:pages": "cd client && npm install && npm run build",
     "copy:dist": "node copy-dist.js",
-    "dev:worker": "npx wrangler dev --config wrangler.api.toml",
-    "deploy:worker": "npx wrangler deploy --config wrangler.api.toml",
-    "d1:migrate:local": "npx wrangler d1 migrations apply qt2026-d1 --local --config wrangler.api.toml",
-    "d1:migrate:remote": "npx wrangler d1 migrations apply qt2026-d1 --remote --config wrangler.api.toml",
-    "cf:d1:export-audio": "node scripts/export-bible-audio-metadata-for-d1.mjs",
     "bible:audio:genesis1": "node scripts/generate-bible-audio-genesis1.js",
     "bible:audio:ot": "node scripts/generate-bible-audio-batch.js"
   },

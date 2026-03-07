@@ -23,10 +23,6 @@ type JoinedGroup = {
   role: MemberRole;
 };
 
-type SessionUser = {
-  id: string;
-};
-
 type PendingJoinRequest = {
   id: string;
   group_id: string;
@@ -133,15 +129,13 @@ export default function CommunityPage() {
   }, [location]);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }: { data: { user: SessionUser | null } }) => {
+    supabase.auth.getUser().then(({ data }) => {
       setUser(data.user ?? null);
       setIsInitialLoading(false); // 최초 로딩 끝
     });
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: { user: SessionUser | null } | null) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      },
-    );
+    });
     return () => listener.subscription.unsubscribe();
   }, []);
 

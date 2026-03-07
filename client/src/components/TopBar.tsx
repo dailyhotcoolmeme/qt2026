@@ -1,25 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Menu,
-  X,
-  User,
-  Type,
-  LogOut,
-  UserX,
-  Bell,
-  FileSearch,
-  CheckCheck,
-  ChevronRight,
-  Lock,
-} from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useLocation } from "wouter";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { ProfileEditModal } from "./ProfileEditModal";
 import { LoginModal } from "./LoginModal";
+import { Link, useLocation } from "wouter";
 import { supabase } from "../lib/supabase";
-import { deleteAccount as deleteAccountRequest } from "../lib/auth-client";
 
 type TopNotificationItem = {
   id: string;
@@ -31,7 +18,6 @@ type TopNotificationItem = {
   targetPath: string;
   isRead: boolean;
 };
-
 function ensureHttpsUrl(url?: string | null) {
   if (!url) return "";
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
@@ -61,32 +47,10 @@ function urlBase64ToUint8Array(base64String: string) {
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
 
-  for (let i = 0; i < rawData.length; i += 1) {
+  for (let i = 0; i < rawData.length; ++i) {
     outputArray[i] = rawData.charCodeAt(i);
   }
   return outputArray;
-}
-
-function SidebarItem({
-  icon,
-  label,
-  onClick,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50"
-    >
-      <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">{icon}</div>
-      <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">{label}</span>
-      <ChevronRight className="ml-auto h-4 w-4 text-zinc-300" />
-    </button>
-  );
 }
 
 export function TopBar() {
@@ -103,7 +67,7 @@ export function TopBar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [logoTextIndex, setLogoTextIndex] = useState(0);
-  const logoTexts = ["myAmen", "마이아멘"];
+  const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
   const { user, logout, isAuthenticated } = useAuth();
@@ -113,6 +77,8 @@ export function TopBar() {
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
   const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").trim();
+
+  const handleLogout = () => setShowLogoutConfirm(true);
 
   const handleLoginClick = () => {
     setIsMenuOpen(false);
@@ -130,27 +96,46 @@ export function TopBar() {
     if (isDeleting) return;
     setIsDeleting(true);
     try {
-      await deleteAccountRequest();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("세션이 없습니다");
+
+      const response = await fetch("/api/user/delete", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        const detail = err.detail ? `\n상세: ${err.detail}` : "";
+        throw new Error((err.message || "회원탈퇴에 실패했습니다") + detail);
+      }
+
+      await supabase.auth.signOut();
       setShowDeleteConfirm(false);
       setIsMenuOpen(false);
 
+      // 탈퇴 토스트 표시 → 1.4초 후 exit 애니메이션 → 홈 이동
       setShowDeleteToast(true);
       setTimeout(() => {
-        setShowDeleteToast(false);
+        setShowDeleteToast(false); // exit 애니메이션 트리거
         setTimeout(() => {
           window.location.replace(window.location.origin + "/#/");
         }, 500);
       }, 1400);
     } catch (error) {
-      console.error("account delete failed:", error);
-      alert(error instanceof Error ? error.message : "회원탈퇴에 실패했습니다.");
+      console.error("회원탈퇴 오류:", error);
+      alert(error instanceof Error ? error.message : "회원탈퇴에 실패했습니다");
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const handleFontSizeChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setFontSize(Number(event.target.value));
+  const handleFontSizeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFontSize(Number(e.target.value));
   };
 
   const showSystemNotification = async (item: TopNotificationItem) => {
@@ -175,6 +160,11 @@ export function TopBar() {
     });
   };
 
+  const getAccessToken = async () => {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token || null;
+  };
+
   const syncPushSubscription = async (force = false) => {
     if (!isAuthenticated || !user?.id || !vapidPublicKey) return;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
@@ -193,10 +183,14 @@ export function TopBar() {
         });
       }
 
+      const token = await getAccessToken();
+      if (!token) return;
+
       const response = await fetch("/api/push/subscribe", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ subscription: subscription.toJSON() }),
       });
@@ -216,14 +210,19 @@ export function TopBar() {
     }
 
     try {
-      const response = await fetch("/api/notifications?limit=80");
-      if (!response.ok) {
-        console.error("notification fetch failed:", await response.text());
+      const { data: rows, error } = await supabase
+        .from("app_notifications")
+        .select("id,notification_type,title,message,target_path,payload,is_read,created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(80);
+
+      if (error) {
+        console.error("notification fetch failed:", error);
         return;
       }
 
-      const rows = (await response.json()) as Array<any>;
-      const allItems: TopNotificationItem[] = rows.map((row) => {
+      const allItems: TopNotificationItem[] = ((rows ?? []) as Array<any>).map((row) => {
         const payload = row.payload && typeof row.payload === "object" ? row.payload : {};
         const groupId = String(payload?.groupId || "");
         const targetPathRaw = String(row.target_path || "/");
@@ -284,47 +283,34 @@ export function TopBar() {
       void fetchNotifications();
     }, 30000);
 
+    const channel = supabase
+      .channel(`app_notifications_${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "app_notifications", filter: `user_id=eq.${user.id}` },
+        () => {
+          void fetchNotifications();
+        }
+      )
+      .subscribe();
+
     return () => {
       window.clearInterval(timer);
+      void supabase.removeChannel(channel);
     };
   }, [isAuthenticated, user?.id]);
-
-  useEffect(() => {
-    if (!isAuthenticated || !user?.id) {
-      setOwnedGroupCount(0);
-      return;
-    }
-
-    void supabase
-      .from("groups")
-      .select("*", { count: "exact", head: true })
-      .eq("owner_id", user.id)
-      .then((result: { count: number | null }) => {
-        setOwnedGroupCount(Number(result.count || 0));
-      })
-      .catch(() => setOwnedGroupCount(0));
-  }, [isAuthenticated, user?.id]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLogoTextIndex((prev) => (prev + 1) % logoTexts.length);
-    }, 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const markAsRead = async (id: string) => {
     if (!user?.id) return;
     setNotifications((prev) => prev.map((item) => (item.id === id ? { ...item, isRead: true } : item)));
     setUnreadCount((prev) => Math.max(0, prev - 1));
-    const response = await fetch("/api/notifications/read", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ id }),
-    });
-    if (!response.ok) {
-      console.error("markAsRead failed:", await response.text());
+    const { error } = await supabase
+      .from("app_notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("user_id", user.id);
+    if (error) {
+      console.error("markAsRead failed:", error);
     }
   };
 
@@ -334,18 +320,20 @@ export function TopBar() {
     if (unreadIds.length === 0) return;
     setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
     setUnreadCount(0);
-    const response = await fetch("/api/notifications/read-all", {
-      method: "POST",
-    });
-    if (!response.ok) {
-      console.error("markAllAsRead failed:", await response.text());
+    const { error } = await supabase
+      .from("app_notifications")
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .in("id", unreadIds);
+    if (error) {
+      console.error("markAllAsRead failed:", error);
     }
   };
 
   const handleNotificationClick = (item: TopNotificationItem) => {
     void markAsRead(item.id);
     setShowNotificationPanel(false);
-    if (item.type === "join_pending" && item.groupId) {
+    if (item.type === "join_pending") {
       window.location.hash = `#/group/${item.groupId}?tab=members`;
       return;
     }
@@ -358,12 +346,7 @@ export function TopBar() {
     if (nextOpen) {
       void markAllAsRead();
     }
-    if (!("Notification" in window)) {
-      return;
-    }
-
-    const permissionBefore = Notification.permission;
-    if (permissionBefore === "default") {
+    if ("Notification" in window && Notification.permission === "default") {
       try {
         await Notification.requestPermission();
         if (Notification.permission === "granted") {
@@ -372,10 +355,17 @@ export function TopBar() {
       } catch {
         // ignore
       }
-    } else if (permissionBefore === "granted") {
+    } else if (Notification.permission === "granted") {
       await syncPushSubscription(false);
     }
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogoTextIndex((prev) => (prev + 1) % logoTexts.length);
+    }, 10000); // <-- 이 숫자(ms 단위)를 수정하시면 됩니다. (1000 = 1초)
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <>
@@ -385,9 +375,13 @@ export function TopBar() {
             <Menu className="h-6 w-6 text-zinc-700" />
           </button>
 
-          <button onClick={() => setLocation("/")} className="flex items-center gap-1.5 p-0 text-[#4A6741]" aria-label="홈으로 이동">
-            <img src="/favicon.png" alt="logo" className="h-6 w-6 object-contain" />
-            <div className="relative flex h-[18px] w-[95px] items-center">
+          <button
+            onClick={() => setLocation("/")}
+            className="flex items-center gap-1.5 text-[#4A6741] p-0" /* p-0으로 기본 패딩 제거 */
+            aria-label="홈으로 이동"
+          >
+            <img src="/favicon.png" alt="logo" className="w-6 h-6 object-contain" />
+            <div className="relative h-[18px] w-[95px] flex items-center">
               <AnimatePresence mode="wait">
                 <motion.span
                   key={logoTexts[logoTextIndex]}
@@ -395,30 +389,28 @@ export function TopBar() {
                   animate={{ y: 0, opacity: 1 }}
                   exit={{ y: -10, opacity: 0 }}
                   transition={{ duration: 0.3 }}
-                  className="absolute whitespace-nowrap text-[18px] font-black leading-none tracking-tighter"
+                  className="absolute text-[18px] font-black tracking-tighter leading-none whitespace-nowrap"
                 >
                   {logoTexts[logoTextIndex]}
                 </motion.span>
               </AnimatePresence>
             </div>
           </button>
+
         </div>
 
         <div className="flex items-center gap-1">
           <Link href="/search">
-            <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="검색">
+            <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
               <FileSearch className="h-5 w-5" />
             </button>
           </Link>
-
           <button
-            onClick={() => setShowFontSizeSlider((prev) => !prev)}
+            onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
             className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
-            aria-label="글자 크기"
           >
             <Type className="h-5 w-5" />
           </button>
-
           <button
             onClick={handleOpenNotifications}
             className={`relative rounded-full p-2 transition-colors ${showNotificationPanel ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
@@ -426,274 +418,318 @@ export function TopBar() {
           >
             <Bell className="h-5 w-5" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+              <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
                 {unreadCount > 99 ? "99+" : unreadCount}
               </span>
             )}
           </button>
         </div>
+
+        {showFontSizeSlider && <div className="fixed inset-0 z-[155]" onClick={() => setShowFontSizeSlider(false)} />}
+
+        {showFontSizeSlider && (
+          <div className="animate-in slide-in-from-top-2 absolute right-4 top-16 z-[160] w-60 rounded-2xl border border-zinc-100 bg-white p-5 shadow-2xl duration-200 fade-in">
+            <div className="relative px-1 pb-2 pt-7">
+              <div className="absolute left-0 right-0 top-0 flex justify-between px-1">
+                {[14, 16, 18, 20, 22, 24].map((step) => (
+                  <span key={step} className={`w-4 text-center text-[10px] font-bold transition-colors ${fontSize === step ? "text-[#4A6741]" : "text-zinc-300"}`}>
+                    {step}
+                  </span>
+                ))}
+              </div>
+
+              <div className="relative flex h-6 items-center">
+                <div className="absolute left-0 right-0 flex justify-between px-[6px]">
+                  {[14, 16, 18, 20, 22, 24].map((step) => (
+                    <div key={step} className={`h-1 w-1 rounded-full transition-all ${fontSize === step ? "scale-[1.8] bg-[#4A6741]" : "bg-zinc-200"}`} />
+                  ))}
+                </div>
+                <input type="range" min="14" max="24" step="2" value={fontSize} onChange={handleFontSizeChange} className="z-10 h-1 w-full cursor-pointer appearance-none bg-transparent accent-[#4A6741]" />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {showFontSizeSlider && (
-        <>
-          <div className="fixed inset-0 z-[155]" onClick={() => setShowFontSizeSlider(false)} />
-          <div className="fixed right-4 top-[68px] z-[160] w-[220px] rounded-2xl border bg-white p-4 shadow-xl">
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-zinc-700">글자 크기</span>
-              <span className="text-sm font-bold text-[#4A6741]">{fontSize}px</span>
-            </div>
-            <input
-              type="range"
-              min={12}
-              max={28}
-              step={1}
-              value={fontSize}
-              onChange={handleFontSizeChange}
-              className="w-full accent-[#4A6741]"
-            />
+      {showNotificationPanel && <div className="fixed inset-0 z-[161]" onClick={() => setShowNotificationPanel(false)} />}
+      {showNotificationPanel && (
+        <div className="fixed right-4 top-16 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
+            <h4 className="text-sm font-bold text-zinc-900">알림</h4>
+            <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
+              <CheckCheck size={13} />
+              모두 읽음
+            </button>
           </div>
-        </>
+          <div className="max-h-[56vh] overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-6 text-sm text-zinc-500 text-center">새 알림이 없습니다.</div>
+            ) : (
+              notifications.map((item) => {
+                const isUnread = !item.isRead;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item)}
+                    className={`w-full border-b border-zinc-100 px-4 py-3 text-left hover:bg-zinc-50 ${isUnread ? "bg-emerald-50/40" : "bg-white"}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-zinc-900 line-clamp-1">{item.title}</p>
+                      {isUnread && <span className="h-2 w-2 rounded-full bg-emerald-500" />}
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-600 line-clamp-2">{item.message}</p>
+                    <p className="mt-1 text-[11px] text-zinc-400">{new Date(item.createdAt).toLocaleString("ko-KR")}</p>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
 
-      {showNotificationPanel && (
-        <>
-          <div className="fixed inset-0 z-[155]" onClick={() => setShowNotificationPanel(false)} />
-          <div className="fixed right-4 top-[68px] z-[160] w-[320px] max-w-[calc(100vw-2rem)] rounded-2xl border bg-white p-3 shadow-xl">
-            <div className="mb-2 flex items-center justify-between px-1">
-              <div>
-                <p className="text-sm font-black text-zinc-900">알림</p>
-                <p className="text-xs text-zinc-400">{unreadCount}개의 읽지 않은 알림</p>
-              </div>
-              <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
-                <CheckCheck className="h-4 w-4" />
-                모두 읽음
+      {isMenuOpen && <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
+
+      <div className={`fixed left-0 top-0 z-[210] h-full w-[280px] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        <div className="flex h-full flex-col overflow-y-auto p-6">
+          <div className="mb-8 pt-2">
+            <div className="mb-4 flex items-start justify-between">
+              {user?.avatar_url ? (
+                <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
+                  <User className="h-8 w-8 text-zinc-400" />
+                </div>
+              )}
+              <button onClick={() => setIsMenuOpen(false)} className="rounded-full p-1 transition-colors hover:bg-zinc-50">
+                <X className="h-6 w-6 text-zinc-300" />
               </button>
             </div>
 
-            <div className="max-h-[360px] space-y-2 overflow-y-auto">
-              {notifications.length === 0 && (
-                <div className="rounded-xl bg-zinc-50 px-4 py-6 text-center text-sm font-medium text-zinc-400">
-                  새로운 알림이 없습니다.
-                </div>
+            <div className="space-y-0.5">
+              <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+                {user?.nickname || "비로그인 상태"}
+              </p>
+              {user?.church && (
+                <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
+                  {user.church}
+                </p>
               )}
-              {notifications.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => handleNotificationClick(item)}
-                  className={`w-full rounded-xl border p-3 text-left transition-colors ${item.isRead ? "border-zinc-100 bg-white" : "border-green-100 bg-green-50/70"}`}
-                >
-                  <div className="mb-1 flex items-start justify-between gap-2">
-                    <p className="text-sm font-bold text-zinc-900">{item.title}</p>
-                    {!item.isRead && <span className="mt-1 h-2 w-2 rounded-full bg-[#4A6741]" />}
-                  </div>
-                  <p className="text-sm leading-relaxed text-zinc-600">{item.message}</p>
-                  <p className="mt-2 text-[11px] text-zinc-400">{new Date(item.createdAt).toLocaleString()}</p>
-                </button>
-              ))}
+              {user?.rank && (
+                <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
+                  {user.rank}
+                </p>
+              )}
             </div>
+
+
           </div>
-        </>
-      )}
 
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]"
-              onClick={() => setIsMenuOpen(false)}
-            />
+          <nav className="flex flex-col gap-1">
+            <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
+              <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록함" />
+            </Link>
 
-            <motion.div
-              initial={{ x: -24, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -24, opacity: 0 }}
-              className="fixed left-0 top-0 z-[210] h-full w-[280px] bg-white shadow-2xl"
-            >
-              <div className="flex h-full flex-col overflow-y-auto p-6">
-                <div className="mb-8 pt-2">
-                  <div className="mb-4 flex items-start justify-between">
-                    {user?.avatar_url ? (
-                      <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
-                    ) : (
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
-                        <User className="h-8 w-8 text-zinc-400" />
-                      </div>
-                    )}
-                    <button onClick={() => setIsMenuOpen(false)} className="rounded-full p-1 transition-colors hover:bg-zinc-50">
-                      <X className="h-6 w-6 text-zinc-300" />
-                    </button>
+            {isAuthenticated && (
+              <SidebarItem
+                icon={<User className="h-5 w-5" />}
+                label="프로필 수정"
+                onClick={() => {
+                  setIsProfileModalOpen(true);
+                  setIsMenuOpen(false);
+                }}
+              />
+            )}
+
+            {!isAuthenticated && (
+              <div className="mt-2 flex flex-col gap-2">
+                <button onClick={handleLoginClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+                  <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
+                    <User className="h-5 w-5" />
                   </div>
-
-                  <div className="space-y-0.5">
-                    <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
-                      {user?.nickname || "로그인이 필요합니다"}
-                    </p>
-                    {user?.church && (
-                      <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                        {user.church}
-                      </p>
-                    )}
-                    {user?.rank && (
-                      <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
-                        {user.rank}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <nav className="flex flex-col gap-1">
-                  <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
-                    <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록" />
-                  </Link>
-
-                  {isAuthenticated && (
-                    <SidebarItem
-                      icon={<User className="h-5 w-5" />}
-                      label="프로필 관리"
-                      onClick={() => {
-                        setIsProfileModalOpen(true);
-                        setIsMenuOpen(false);
-                      }}
-                    />
-                  )}
-
-                  {isAuthenticated && (
-                    <Link href="/leadership" onClick={() => setIsMenuOpen(false)}>
-                      <SidebarItem
-                        icon={<Lock className="h-5 w-5" />}
-                        label={ownedGroupCount > 0 ? `리더십 (${ownedGroupCount})` : "리더십"}
-                      />
-                    </Link>
-                  )}
-
-                  {!isAuthenticated && (
-                    <div className="mt-2 flex flex-col gap-2">
-                      <button onClick={handleLoginClick} className="rounded-xl bg-[#4A6741] px-4 py-3 text-sm font-bold text-white">
-                        로그인
-                      </button>
-                      <button
-                        onClick={() => {
-                          setIsMenuOpen(false);
-                          setLocation("/register");
-                        }}
-                        className="rounded-xl border px-4 py-3 text-sm font-bold text-zinc-700"
-                      >
-                        회원가입
-                      </button>
+                  <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">로그인</span>
+                </button>
+                <Link href="/register" onClick={() => setIsMenuOpen(false)}>
+                  <button className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+                    <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
+                      <User className="h-5 w-5" />
                     </div>
-                  )}
-                </nav>
+                    <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">회원가입</span>
+                  </button>
+                </Link>
 
-                <div className="mt-auto space-y-2 pt-6">
-                  {isAuthenticated && (
-                    <>
-                      <button
-                        onClick={() => setShowLogoutConfirm(true)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        로그아웃
-                      </button>
-                      <button
-                        onClick={() => setShowDeleteConfirm(true)}
-                        className="flex w-full items-center gap-3 rounded-xl border border-rose-200 px-4 py-3 text-sm font-semibold text-rose-600"
-                      >
-                        <UserX className="h-5 w-5" />
-                        회원탈퇴
-                      </button>
-                    </>
-                  )}
-                </div>
+
               </div>
+            )}
+
+            {isAuthenticated && (
+              <button onClick={handleLogout} className="group mt-2 flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-red-600 transition-colors hover:bg-red-50">
+                <div className="text-red-400 transition-colors group-hover:text-red-600">
+                  <LogOut className="h-5 w-5" />
+                </div>
+                <span className="text-[14px] font-semibold transition-colors group-hover:text-red-700">로그아웃</span>
+              </button>
+            )}
+          </nav>
+
+          <div className="mt-auto pt-4 border-t border-zinc-100 space-y-1">
+            {isAuthenticated && (
+              <button
+                onClick={async () => {
+                  setIsMenuOpen(false);
+                  // 소유한 그룹 수 조회
+                  if (user?.id) {
+                    const { count } = await supabase
+                      .from("groups")
+                      .select("id", { count: "exact", head: true })
+                      .eq("owner_id", user.id);
+                    setOwnedGroupCount(count ?? 0);
+                  }
+                  setShowDeleteConfirm(true);
+                }}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                <UserX className="h-3.5 w-3.5" />
+                <span>회원탈퇴</span>
+              </button>
+            )}
+            <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED</p>
+          </div>
+        </div>
+      </div>
+
+      <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* 회원탈퇴 완료 토스트 - 화면 정중앙, 빨간색, 스르르 fade out */}
+      <AnimatePresence>
+        {showDeleteToast && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center pointer-events-none">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85 }}
+              transition={{ duration: 0.35 }}
+              className="rounded-full bg-red-500 px-10 py-4 text-base font-bold text-white shadow-2xl"
+            >
+              탈퇴처리되었습니다
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
       <AnimatePresence>
         {showLogoutConfirm && (
-          <>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] bg-black/40"
               onClick={() => setShowLogoutConfirm(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="fixed inset-x-4 top-1/2 z-[310] mx-auto w-full max-w-sm -translate-y-1/2 rounded-3xl bg-white p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
             >
-              <p className="mb-2 text-lg font-black text-zinc-900">로그아웃할까요?</p>
-              <p className="mb-6 text-sm leading-relaxed text-zinc-500">현재 세션이 종료됩니다.</p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 rounded-2xl border px-4 py-3 font-semibold text-zinc-700">
+              <h4 className="mb-2 font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+                로그아웃 하시겠습니까?
+              </h4>
+              <p className="mb-6 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                현재 세션이 종료됩니다.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 transition-active active:scale-95"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
                   취소
                 </button>
-                <button onClick={confirmLogout} className="flex-1 rounded-2xl bg-[#4A6741] px-4 py-3 font-semibold text-white">
+                <button
+                  onClick={confirmLogout}
+                  className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white shadow-lg shadow-red-200 transition-active active:scale-95"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
                   로그아웃
                 </button>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
+      {/* 회원탈퇴 확인 모달 */}
       <AnimatePresence>
         {showDeleteConfirm && (
-          <>
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[300] bg-black/40"
-              onClick={() => setShowDeleteConfirm(false)}
+              onClick={() => !isDeleting && setShowDeleteConfirm(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-[2px]"
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="fixed inset-x-4 top-1/2 z-[310] mx-auto w-full max-w-sm -translate-y-1/2 rounded-3xl bg-white p-6 shadow-2xl"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[300px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
             >
-              <p className="mb-2 text-lg font-black text-zinc-900">계정을 삭제할까요?</p>
-              <p className="mb-6 text-sm leading-relaxed text-zinc-500">이 작업은 되돌릴 수 없습니다.</p>
-              <div className="flex gap-2">
-                <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 rounded-2xl border px-4 py-3 font-semibold text-zinc-700">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-100">
+                <UserX className="h-7 w-7 text-rose-500" />
+              </div>
+              <h4 className="mb-2 font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+                회원탈퇴
+              </h4>
+              <p className="mb-1 text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                탈퇴하면 모든 데이터가
+              </p>
+              <p className={`font-semibold text-rose-500 ${ownedGroupCount > 0 ? 'mb-2' : 'mb-6'}`} style={{ fontSize: `${fontSize * 0.85}px` }}>
+                영구적으로 삭제됩니다.
+              </p>
+              {ownedGroupCount > 0 && (
+                <div className="mb-6 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-left">
+                  <p className="font-bold text-rose-600 text-[13px]">⚠️ 소유한 모임 {ownedGroupCount}개 포함</p>
+                  <p className="text-rose-500 text-[12px] mt-0.5">탈퇴 시 내가 만든 모임과 모임의 모든 게시물, 기도 제목 등이 함께 삭제됩니다.</p>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 transition-active active:scale-95 disabled:opacity-50"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
+                >
                   취소
                 </button>
                 <button
                   onClick={handleDeleteAccount}
                   disabled={isDeleting}
-                  className="flex-1 rounded-2xl bg-rose-500 px-4 py-3 font-semibold text-white"
+                  className="flex-1 rounded-xl bg-rose-500 py-3 font-bold text-white shadow-lg shadow-rose-200 transition-active active:scale-95 disabled:opacity-70"
+                  style={{ fontSize: `${fontSize * 0.9}px` }}
                 >
-                  {isDeleting ? "삭제 중..." : "계정 삭제"}
+                  {isDeleting ? "처리 중..." : "탈퇴하기"}
                 </button>
               </div>
             </motion.div>
-          </>
+          </div>
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
-        {showDeleteToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            className="fixed bottom-24 left-1/2 z-[320] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 rounded-2xl bg-zinc-900 px-4 py-3 text-center text-sm font-semibold text-white shadow-xl"
-          >
-            계정이 삭제되었습니다.
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
       <LoginModal open={showLoginModal} onOpenChange={setShowLoginModal} />
     </>
+  );
+}
+
+function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+  return (
+    <button onClick={onClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+      <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">{icon}</div>
+      <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">{label}</span>
+    </button>
   );
 }

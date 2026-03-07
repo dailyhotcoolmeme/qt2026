@@ -70,15 +70,6 @@ type GroupRow = {
   menu_settings?: { faith?: boolean; prayer?: boolean; social?: boolean; schedule?: boolean; };
 };
 
-type SessionUser = {
-  id: string;
-  user_metadata?: {
-    username?: string | null;
-    nickname?: string | null;
-    avatar_url?: string | null;
-  };
-};
-
 type GroupPrayerRecord = {
   id: number;
   group_id: string;
@@ -705,7 +696,7 @@ export default function GroupDashboard() {
   const [location, setLocation] = useLocation();
 
   const [authReady, setAuthReady] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
   const [activeTab, setActiveTab] = useState<TabKey>((initialTab as TabKey) || "faith");
@@ -836,18 +827,16 @@ export default function GroupDashboard() {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getUser().then(({ data }: { data: { user: SessionUser | null } }) => {
+    supabase.auth.getUser().then(({ data }) => {
       if (!mounted) return;
-      setUser(data.user ?? null);
+      setUser(data.user ? { id: data.user.id } : null);
       setAuthReady(true);
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event: string, session: { user: SessionUser | null } | null) => {
-        setUser(session?.user ?? null);
-        setAuthReady(true);
-      },
-    );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ? { id: session.user.id } : null);
+      setAuthReady(true);
+    });
 
     return () => {
       mounted = false;
@@ -2206,9 +2195,8 @@ export default function GroupDashboard() {
       setCommentDrafts(prev => ({ ...prev, [postId]: "" }));
       // Ensure the user's own profile is in authorMap for immediate display
       const myProfile = authorMap[user.id];
-      const userMeta = user.user_metadata;
-      if (!myProfile && userMeta) {
-        setAuthorMap(prev => ({ ...prev, [user.id]: { id: user.id, username: userMeta.username || "", nickname: userMeta.nickname || "", avatar_url: userMeta.avatar_url || "" } }));
+      if (!myProfile && user.user_metadata) {
+        setAuthorMap(prev => ({ ...prev, [user.id]: { id: user.id, username: user.user_metadata.username || "", nickname: user.user_metadata.nickname || "", avatar_url: user.user_metadata.avatar_url || "" } }));
       }
     }
   };

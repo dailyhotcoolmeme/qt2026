@@ -1,8 +1,8 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useLocation } from "wouter";
+import { supabase } from "../lib/supabase";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
-import { startKakaoLogin } from "../lib/auth-client";
 
 interface LoginModalProps {
   open: boolean;
@@ -14,10 +14,8 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const { fontSize = 16 } = useDisplaySettings();
   const [, setLocation] = useLocation();
 
-  const resolveReturnTo = () => returnTo || window.location.href;
-
   const handleKakaoLogin = () => {
-    const targetReturnTo = resolveReturnTo();
+    const targetReturnTo = returnTo || window.location.href;
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {
@@ -27,11 +25,24 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
       // ignore storage errors
     }
 
-    startKakaoLogin(targetReturnTo);
+    const encodedReturnTo = encodeURIComponent(targetReturnTo);
+    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
+
+    supabase.auth
+      .signInWithOAuth({
+        provider: "kakao",
+        options: {
+          redirectTo,
+        },
+      })
+      .catch((error) => {
+        console.error("LoginModal kakao start error", error);
+        setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
+      });
   };
 
   const handleEmailLogin = () => {
-    const targetReturnTo = resolveReturnTo();
+    const targetReturnTo = returnTo || window.location.href;
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {
