@@ -216,11 +216,11 @@ export default function DailyWordPage() {
         alert("이미 저장된 말씀입니다.");
         return;
       }
-      alert("기록함 저장에 실패했습니다.");
+      alert("즐겨찾기 저장에 실패했습니다.");
       return;
     }
 
-    alert("기록함에 보관되었습니다.");
+    alert("즐겨찾기에 저장되었습니다.");
   };
 
   const handleOpenCardMaker = () => {
@@ -352,7 +352,7 @@ export default function DailyWordPage() {
         </button>
         <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400">
           <Bookmark size={22} strokeWidth={1.5} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span>
+          <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>즐겨찾기</span>
         </button>
         <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 transition-transform active:scale-95">
           <Share2 size={22} strokeWidth={1.5} />

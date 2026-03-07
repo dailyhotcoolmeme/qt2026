@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, Lock, LogOut, UserX, Bell, FileSearch, CheckCheck } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, FileSearch, CheckCheck, Image, Bookmark } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -519,6 +519,11 @@ export function TopBar() {
               <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
                 {user?.nickname || "비로그인 상태"}
               </p>
+              {user?.username && (
+                <p className="text-zinc-500" style={{ fontSize: `${Math.max(10, fontSize - 3)}px` }}>
+                  아이디 : {user.username}
+                </p>
+              )}
               {user?.church && (
                 <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
                   {user.church}
@@ -535,8 +540,11 @@ export function TopBar() {
           </div>
 
           <nav className="flex flex-col gap-1">
-            <Link href="/archive" onClick={() => setIsMenuOpen(false)}>
-              <SidebarItem icon={<Lock className="h-5 w-5" />} label="내 기록함" />
+            <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
+              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드" />
+            </Link>
+            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
+              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기" />
             </Link>
 
             {isAuthenticated && (

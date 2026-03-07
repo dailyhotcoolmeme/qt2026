@@ -14,6 +14,8 @@ import CommunityPage from "./pages/CommunityPage";
 import GroupDashboard from "./pages/GroupDashboard";
 import LeadershipPage from "./pages/LeadershipPage";
 import ArchivePage from "./pages/ArchivePage";
+import VerseCardsPage from "./pages/VerseCardsPage";
+import FavoritesPage from "./pages/FavoritesPage";
 import BibleViewPage from "./pages/BibleViewPage";
 import AuthPage from "./pages/AuthPage";
 import FindAccountPage from "./pages/FindAccountPage";
@@ -73,6 +75,8 @@ function AppContent() {
                   <Route path="/group/:id" component={GroupDashboard} />
                   <Route path="/leadership" component={LeadershipPage} />
                   <Route path="/archive" component={ArchivePage} />
+                  <Route path="/verse-cards" component={VerseCardsPage} />
+                  <Route path="/favorites" component={FavoritesPage} />
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
                   <Route path="/record/:id" component={RecordDetailPage} />
                   <Route path="/search" component={SearchPage} />

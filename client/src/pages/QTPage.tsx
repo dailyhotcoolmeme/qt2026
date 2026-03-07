@@ -787,11 +787,11 @@ export default function QTPage() {
         alert("이미 저장한 말씀입니다.");
         return;
       }
-      alert("기록함 저장에 실패했습니다.");
+      alert("즐겨찾기 저장에 실패했습니다.");
       return;
     }
 
-    alert("기록함에 저장되었습니다.");
+    alert("즐겨찾기에 저장되었습니다.");
   };
 
   // 1. 재생/일시정지 토글
@@ -1136,7 +1136,7 @@ export default function QTPage() {
           <Copy size={22} strokeWidth={1.5} />
           <span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>말씀 복사</span>
         </button>
-        <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>기록함</span></button>
+        <button onClick={handleBookmark} className="flex flex-col items-center gap-1.5 text-zinc-400"><Bookmark size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>즐겨찾기</span></button>
         <button onClick={handleShare} className="flex flex-col items-center gap-1.5 text-zinc-400 active:scale-95 transition-transform"><Share2 size={22} strokeWidth={1.5} /><span className="font-medium" style={{ fontSize: `${fontSize * 0.75}px` }}>공유</span></button>
       </div>
       {/* QT 묵상 질문 영역 */}
