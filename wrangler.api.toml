@@ -1,0 +1,21 @@
+name = "qt2026-api"
+main = "workers/api/src/index.ts"
+compatibility_date = "2026-03-07"
+
+[observability.logs]
+enabled = true
+
+[vars]
+CARD_BACKGROUND_BASE_URL = "https://audio.myamen.co.kr/card-backgrounds"
+CORS_ALLOW_ORIGIN = "*"
+FRONTEND_BASE_URL = "https://REPLACE_WITH_PAGES_DOMAIN"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "qt2026-d1"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "cloudflare/d1/migrations"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "REPLACE_WITH_R2_BUCKET_NAME"

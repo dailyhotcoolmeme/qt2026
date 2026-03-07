@@ -1,34 +1,44 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
-import { supabase } from "../lib/supabase";
-import { useLocation, Link } from "wouter";
-import {
-  RefreshCw,
-  ArrowLeft,
-  Check,
-  Eye,
-  EyeOff,
-  Loader2,
-  X,
-  ChevronRight,
-  User,
-  Mail,
-  Lock,
-  Smartphone,
-  Church,
-  Award
-} from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
+import { ArrowLeft, Check, Eye, EyeOff, Loader2, RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { checkAvailability, registerUser, startKakaoLogin } from "../lib/auth-client";
 
-/** 가입 관련 고정 텍스트 데이터 */
-const adjectives = ["새로운", "온유한", "지혜로운", "거룩한", "빛나는", "강건한"];
-const nouns = ["양", "증인", "제자", "파수꾼", "등불", "반석"];
-const ranks = ["성도", "교사", "청년", "집사", "권사", "장로", "전도사", "목사", "기타"];
-const emailDomains = ["naver.com", "gmail.com", "daum.net", "hanmail.net", "kakao.com", "직접 입력"];
+type FormValues = {
+  username: string;
+  email: string;
+  password: string;
+  passwordConfirm: string;
+  nickname: string;
+  fullName: string;
+  phone: string;
+  church: string;
+  rank: string;
+  ageGroup: string;
+  agreeRequired: boolean;
+};
+
+type CheckState = "idle" | "checking" | "available" | "taken";
+
 const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
 const GROUP_INVITE_QUERY_KEY = "invite_group";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const AGE_GROUP_OPTIONS = [
+  { value: "", label: "연령대 선택(선택)" },
+  { value: "10s", label: "10대" },
+  { value: "20s", label: "20대" },
+  { value: "30s", label: "30대" },
+  { value: "40s", label: "40대" },
+  { value: "50s", label: "50대" },
+  { value: "60_plus", label: "60대 이상" },
+];
+
+const NICKNAME_ADJECTIVES = ["은혜로운", "평안한", "성실한", "지혜로운", "단단한", "기쁜"];
+const NICKNAME_NOUNS = ["제자", "순례자", "기도자", "청지기", "증인", "예배자"];
 
 function readInviteGroupIdFromUrl(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
@@ -47,29 +57,99 @@ function readInviteGroupIdFromUrl(): string | null {
     const fromStorage = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
     if (UUID_REGEX.test(fromStorage)) return fromStorage;
   } catch {
-    // ignore storage errors
+    // ignore
   }
 
   return null;
 }
 
-function isAlreadyJoinedInviteError(error: any) {
-  const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
-  return /already|duplicate|exists|이미|참여 중|가입.*되어/i.test(msg);
+function makeRandomNickname(): string {
+  const adjective = NICKNAME_ADJECTIVES[Math.floor(Math.random() * NICKNAME_ADJECTIVES.length)];
+  const noun = NICKNAME_NOUNS[Math.floor(Math.random() * NICKNAME_NOUNS.length)];
+  const suffix = Math.floor(Math.random() * 900 + 100);
+  return `${adjective}${noun}${suffix}`;
+}
+
+function validateUsername(value: string): string | null {
+  if (!value) return "아이디를 입력해 주세요.";
+  if (!/^[a-z0-9][a-z0-9._-]{3,31}$/.test(value)) {
+    return "아이디는 4-32자, 영문 소문자/숫자/./_/- 만 사용할 수 있습니다.";
+  }
+  return null;
+}
+
+function validateEmail(value: string): string | null {
+  if (!value) return "이메일을 입력해 주세요.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    return "올바른 이메일 형식이 아닙니다.";
+  }
+  return null;
+}
+
+function validatePassword(value: string): string | null {
+  if (!value) return "비밀번호를 입력해 주세요.";
+  if (value.length < 8) return "비밀번호는 8자 이상이어야 합니다.";
+  return null;
+}
+
+function validateNickname(value: string): string | null {
+  if (!value) return "닉네임을 입력해 주세요.";
+  if (value.length < 2 || value.length > 40) return "닉네임은 2-40자 사이여야 합니다.";
+  return null;
+}
+
+function normalizeErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return "회원가입 중 오류가 발생했습니다.";
+
+  const message = error.message || "";
+  if (message.includes("username already exists")) return "이미 사용 중인 아이디입니다.";
+  if (message.includes("email already exists")) return "이미 사용 중인 이메일입니다.";
+  if (message.includes("nickname already exists")) return "이미 사용 중인 닉네임입니다.";
+  if (message.includes("username must be")) return "아이디 형식을 다시 확인해 주세요.";
+  if (message.includes("invalid email")) return "이메일 형식을 다시 확인해 주세요.";
+  if (message.includes("password must be")) return "비밀번호는 8자 이상이어야 합니다.";
+  if (message.includes("nickname must be")) return "닉네임 형식을 다시 확인해 주세요.";
+  return message;
+}
+
+function checkButtonClass(state: CheckState): string {
+  if (state === "available") return "bg-[#4A6741] text-white";
+  if (state === "taken") return "bg-rose-100 text-rose-600";
+  return "bg-zinc-100 text-zinc-700";
+}
+
+function checkButtonLabel(state: CheckState): string {
+  if (state === "checking") return "확인중";
+  if (state === "available") return "사용가능";
+  if (state === "taken") return "사용중";
+  return "중복확인";
 }
 
 export default function RegisterPage() {
-  const [, setLocation] = useLocation();
+  const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
+  const [usernameCheck, setUsernameCheck] = useState<CheckState>("idle");
+  const [emailCheck, setEmailCheck] = useState<CheckState>("idle");
+  const [nicknameCheck, setNicknameCheck] = useState<CheckState>("idle");
+  const [submitError, setSubmitError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const inviteGroupId = useMemo(() => readInviteGroupIdFromUrl(), []);
 
-  const { register, handleSubmit, setValue, watch, getValues, formState: { errors } } = useForm({
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    getValues,
+    watch,
+    formState: { errors },
+  } = useForm<FormValues>({
     mode: "onChange",
     defaultValues: {
       username: "",
-      emailId: "",
-      emailDomain: "naver.com",
-      customDomain: "",
+      email: "",
       password: "",
       passwordConfirm: "",
       nickname: "",
@@ -77,732 +157,506 @@ export default function RegisterPage() {
       phone: "",
       church: "",
       rank: "",
-      customRank: ""
-    }
+      ageGroup: "",
+      agreeRequired: false,
+    },
   });
 
-  // 상태 관리
-  const [step, setStep] = useState(1);
-  const [isPopupOpen, setIsPopupOpen] = useState(false);
-  const [isRankModalOpen, setIsRankModalOpen] = useState(false);
-  const [showCustomRankInput, setShowCustomRankInput] = useState(false);
-
-  // 중복 확인 상태 (none: 미확인, success: 확인 완료, error: 사용 불가)
-  const [usernameStatus, setUsernameStatus] = useState<'none' | 'success' | 'error'>('none');
-  const [emailStatus, setEmailStatus] = useState<'none' | 'success' | 'error'>('none');
-  const [nicknameStatus, setNicknameStatus] = useState<'none' | 'success' | 'error'>('success');
-
-  // 공통 모달 상태
-  const [modal, setModal] = useState({
-    show: false,
-    title: "",
-    msg: "",
-    type: "error" as "error" | "success"
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCustomDomain, setShowCustomDomain] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [isAgreedAll, setIsAgreedAll] = useState(false);
-
-  // 실시간 입력값 감시
-  const watchAll = watch();
-  const isPasswordMatch = watchAll.passwordConfirm && watchAll.password === watchAll.passwordConfirm;
-
-  const joinInviteGroupAndRedirect = useCallback(async (inviteGroupId: string) => {
-    if (!UUID_REGEX.test(inviteGroupId)) return false;
-
-    const { data: joinedData, error: joinError } = await supabase.rpc("join_group_by_invite_link", {
-      p_group_id: inviteGroupId,
-    });
-
-    if (joinError && !isAlreadyJoinedInviteError(joinError)) {
-      console.error("join invite after register failed:", joinError);
-      return false;
-    }
-
-    const joinedGroupIdCandidate = String(joinedData ?? "").trim();
-    const joinedGroupId = UUID_REGEX.test(joinedGroupIdCandidate) ? joinedGroupIdCandidate : inviteGroupId;
-    if (!UUID_REGEX.test(joinedGroupId)) return false;
-
-    try {
-      localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-    } catch {
-      // ignore storage errors
-    }
-
-    window.location.href = `${window.location.origin}/#/group/${joinedGroupId}`;
-    return true;
-  }, []);
+  const usernameValue = watch("username");
+  const emailValue = watch("email");
+  const nicknameValue = watch("nickname");
+  const passwordValue = watch("password");
+  const passwordConfirmValue = watch("passwordConfirm");
+  const agreeRequired = watch("agreeRequired");
+  const isPasswordMatched = passwordConfirmValue.length > 0 && passwordValue === passwordConfirmValue;
+  const usernameValidationMessage = usernameValue ? validateUsername(usernameValue) : null;
+  const emailValidationMessage = emailValue ? validateEmail(emailValue) : null;
+  const passwordValidationMessage = passwordValue ? validatePassword(passwordValue) : null;
+  const nicknameValidationMessage = nicknameValue ? validateNickname(nicknameValue) : null;
 
   useEffect(() => {
-    let alive = true;
-    const handleSignedInInviteOnRegisterPage = async () => {
-      const inviteGroupId = readInviteGroupIdFromUrl();
-      if (!inviteGroupId) return;
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData?.session?.user?.id ?? null;
-      if (!userId || !alive) return;
-
-      await joinInviteGroupAndRedirect(inviteGroupId);
-    };
-
-    void handleSignedInInviteOnRegisterPage();
-    return () => {
-      alive = false;
-    };
-  }, [joinInviteGroupAndRedirect]);
-
-  /** 랜덤 닉네임 생성 */
-  const generateNickname = useCallback(() => {
-    const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const noun = nouns[Math.floor(Math.random() * nouns.length)];
-    const num = Math.floor(Math.random() * 899 + 100);
-    const nick = `${adj}${noun}${num}`;
-    setValue("nickname", nick);
-    setNicknameStatus('success');
-  }, [setValue]);
-
-  /** 바텀시트 오픈 시 닉네임 자동 생성 */
-  useEffect(() => {
-    if (isPopupOpen && !getValues("nickname")) {
-      generateNickname();
+    if (!getValues("nickname")) {
+      setValue("nickname", makeRandomNickname(), { shouldDirty: true });
+      setNicknameCheck("idle");
     }
-  }, [isPopupOpen, generateNickname, getValues]);
+  }, [getValues, setValue]);
 
-  /** 입력값 변경 시 중복확인 상태 초기화 */
   useEffect(() => {
-    const subscription = watch((value, { name }) => {
-      if (name === 'username') setUsernameStatus('none');
-      if (name === 'nickname') setNicknameStatus('none');
-      if (name === 'emailId' || name === 'emailDomain' || name === 'customDomain') {
-        setEmailStatus('none');
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, [watch]);
+    setUsernameCheck("idle");
+  }, [usernameValue]);
 
-  /**
-   * 중복 확인 로직 (모달 연동)
-   */
-  const checkDuplicate = async (field: "username" | "nickname" | "email") => {
-    const values = getValues();
+  useEffect(() => {
+    setEmailCheck("idle");
+  }, [emailValue]);
+
+  useEffect(() => {
+    setNicknameCheck("idle");
+  }, [nicknameValue]);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+    setLocation("/auth");
+  };
+
+  const generateNickname = () => {
+    setValue("nickname", makeRandomNickname(), { shouldDirty: true, shouldValidate: true });
+    setNicknameCheck("idle");
+  };
+
+  const handleAvailabilityCheck = async (field: "username" | "email" | "nickname") => {
+    const currentValues = getValues();
     let value = "";
+    let errorMessage: string | null = null;
+    let setState: React.Dispatch<React.SetStateAction<CheckState>>;
 
-    if (field === "username") value = values.username?.trim();
-    if (field === "nickname") value = values.nickname?.trim();
-    if (field === "email") {
-      const domain = showCustomDomain ? values.customDomain : values.emailDomain;
-      value = `${values.emailId}@${domain}`;
+    if (field === "username") {
+      value = String(currentValues.username || "").trim().toLowerCase();
+      errorMessage = validateUsername(value);
+      setState = setUsernameCheck;
+    } else if (field === "email") {
+      value = String(currentValues.email || "").trim().toLowerCase();
+      errorMessage = validateEmail(value);
+      setState = setEmailCheck;
+    } else {
+      value = String(currentValues.nickname || "").trim();
+      errorMessage = validateNickname(value);
+      setState = setNicknameCheck;
     }
 
-    if (!value || (field === "email" && !values.emailId)) {
-      setModal({
-        show: true,
-        title: "입력 안내",
-        msg: "중복 확인할 정보를 먼저 입력해 주세요.",
-        type: "error"
-      });
+    if (errorMessage) {
+      setSubmitError(errorMessage);
+      setState("idle");
       return;
     }
+
+    setSubmitError("");
+    setState("checking");
 
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq(field, value)
-        .maybeSingle();
-
-      if (error) throw error;
-
-      if (data) {
-        setModal({
-          show: true,
-          title: "중복 확인",
-          msg: "이미 등록된 정보입니다. 다른 값을 입력해 주세요.",
-          type: "error"
-        });
-        if (field === "username") setUsernameStatus('error');
-        if (field === "nickname") setNicknameStatus('error');
-        if (field === "email") setEmailStatus('error');
-      } else {
-        setModal({
-          show: true,
-          title: "중복 확인",
-          msg: "사용 가능한 정보입니다.",
-          type: "success"
-        });
-        if (field === "username") setUsernameStatus('success');
-        if (field === "nickname") setNicknameStatus('success');
-        if (field === "email") setEmailStatus('success');
+      const available = await checkAvailability(field, value);
+      setState(available ? "available" : "taken");
+      if (!available) {
+        setSubmitError(
+          field === "username"
+            ? "이미 사용 중인 아이디입니다."
+            : field === "email"
+              ? "이미 사용 중인 이메일입니다."
+              : "이미 사용 중인 닉네임입니다.",
+        );
       }
-    } catch (e) {
-      setModal({
-        show: true,
-        title: "오류 발생",
-        msg: "서버 통신 중 문제가 발생했습니다.",
-        type: "error"
-      });
+    } catch (error) {
+      setState("idle");
+      setSubmitError(normalizeErrorMessage(error));
     }
   };
 
-  /** 카카오 가입 핸들러 */
-  const handleKakaoLogin = async () => {
-    if (!isAgreedAll) {
-      setModal({
-        show: true,
-        title: "약관 동의",
-        msg: "필수 이용약관에 동의해야 시작할 수 있습니다.",
-        type: "error"
-      });
+  const handleKakaoSignup = () => {
+    if (!agreeRequired) {
+      setSubmitError("이용약관과 개인정보 처리방침에 동의해 주세요.");
       return;
     }
-    const inviteGroupId = readInviteGroupIdFromUrl();
-    const inviteQuery = inviteGroupId ? `?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
 
-    await supabase.auth.signInWithOAuth({
-      provider: 'kakao',
-      options: {
-        redirectTo: `${window.location.origin}/${inviteQuery}`,
-        skipBrowserRedirect: false,
+    if (inviteGroupId) {
+      try {
+        localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
+      } catch {
+        // ignore
       }
-    });
+    }
+
+    startKakaoLogin(window.location.href);
   };
 
-  /** 최종 폼 제출 (회원가입) */
-  const onSubmit = async (data: any) => {
-    if (usernameStatus !== 'success' || emailStatus !== 'success' || nicknameStatus !== 'success') {
-      setModal({ show: true, title: "확인 필요", msg: "중복 확인이 완료되지 않은 항목이 있습니다.", type: "error" });
+  const onSubmit = async (values: FormValues) => {
+    const username = values.username.trim().toLowerCase();
+    const email = values.email.trim().toLowerCase();
+    const password = values.password;
+    const nickname = values.nickname.trim();
+    const fullName = values.fullName.trim();
+    const phone = values.phone.trim();
+    const church = values.church.trim();
+    const rank = values.rank.trim();
+    const ageGroup = values.ageGroup.trim();
+
+    const localError =
+      validateUsername(username) ||
+      validateEmail(email) ||
+      validatePassword(password) ||
+      validateNickname(nickname);
+
+    if (localError) {
+      setSubmitError(localError);
+      return;
+    }
+
+    if (password !== values.passwordConfirm) {
+      setSubmitError("비밀번호 확인이 일치하지 않습니다.");
+      return;
+    }
+
+    if (!values.agreeRequired) {
+      setSubmitError("이용약관과 개인정보 처리방침에 동의해 주세요.");
+      return;
+    }
+
+    if (usernameCheck !== "available") {
+      setSubmitError("아이디 중복확인을 완료해 주세요.");
+      return;
+    }
+
+    if (emailCheck !== "available") {
+      setSubmitError("이메일 중복확인을 완료해 주세요.");
+      return;
+    }
+
+    if (nicknameCheck !== "available") {
+      setSubmitError("닉네임 중복확인을 완료해 주세요.");
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitError("");
+
     try {
-      const finalEmail = `${data.emailId}@${showCustomDomain ? data.customDomain : data.emailDomain}`;
-      const { data: signUpData, error } = await supabase.auth.signUp({
-        email: finalEmail,
-        password: data.password,
-        options: {
-          data: {
-            username: data.username,
-            nickname: data.nickname,
-            full_name: data.fullName,
-            phone: data.phone,
-            church_name: data.church,
-            rank: data.rank === "기타" ? data.customRank : data.rank
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      const inviteGroupId = readInviteGroupIdFromUrl();
       if (inviteGroupId) {
         try {
           localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
         } catch {
-          // ignore storage errors
+          // ignore
         }
       }
 
-      let userId = signUpData.user?.id ?? signUpData.session?.user?.id ?? null;
-      if (!userId) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: finalEmail,
-          password: data.password,
-        });
-        if (!signInError) {
-          userId = signInData.user?.id ?? null;
-        }
-      }
+      await registerUser({
+        username,
+        email,
+        password,
+        nickname,
+        full_name: fullName || undefined,
+        phone: phone || undefined,
+        church: church || undefined,
+        rank: rank || undefined,
+        age_group: ageGroup || undefined,
+      });
 
-      if (inviteGroupId && userId) {
-        const joined = await joinInviteGroupAndRedirect(inviteGroupId);
-        if (joined) return;
-      }
-
-      setModal({ show: true, title: "가입 완료", msg: "정상적으로 가입되었습니다! 환영합니다.", type: "success" });
-    } catch (error: any) {
-      setModal({ show: true, title: "가입 실패", msg: error.message, type: "error" });
-    } finally {
+      window.location.replace(`${window.location.origin}/#/`);
+    } catch (error) {
+      setSubmitError(normalizeErrorMessage(error));
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full bg-[#F8F8F8] flex flex-col relative text-left overflow-x-hidden">
-      {/* 전역 스타일 주입 */}
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        input:-webkit-autofill { -webkit-box-shadow: 0 0 0px 1000px white inset !important; -webkit-text-fill-color: #4A6741 !important; }
-        input { background-color: transparent !important; color: #4A6741 !important; outline: none; border: none; font-weight: 700; width: 100%; font-size: 16px; }
-        select { appearance: none; background: transparent; border: none; outline: none; font-weight: 700; color: #4A6741; cursor: pointer; width: 100%; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .mask-fade-top {
-          mask-image: linear-gradient(to bottom, black 0%, black 70%, transparent 100%);
-          -webkit-mask-image: linear-gradient(to bottom, black 0%, black 70%, transparent 100%);
-        }
-      `}} />
-
-      {/* ?ㅻ뜑 諛?*/}
-      <header className="px-6 pt-16 pb-6 relative z-30">
-        <button
-          onClick={() => {
-            if (window.history.length > 1) {
-              window.history.back();
-            } else {
-              setLocation("/");
-            }
-          }}
-          className="p-2 -ml-2 text-zinc-400 hover:text-zinc-600 transition-all active:scale-90"
-        >
-          <ArrowLeft size={28} />
-        </button>
-      </header>
-
-      <div className="flex-1 px-8 relative">
-        <div className="absolute top-0 left-0 right-0 h-40 bg-gradient-to-b from-[#F8F8F8] via-[#F8F8F8]/90 to-transparent z-10 pointer-events-none" />
-        <div className="mt-8 mb-14 text-center relative z-20">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <h1 className="font-black text-zinc-900 leading-[1.45]" style={{ fontSize: `${fontSize * 1.25}px` }}>
-              3초만에 가입하고
-              <br />
-              <span className="text-[#4A6741]" style={{ fontSize: `${fontSize * 1.65}px` }}>
-                신앙 기록을 보관하세요
-              </span>
-            </h1>
-          </motion.div>
-        </div>
-
-        {/* 소셜 가입 및 약관 동의 */}
-        <div className="space-y-6 mb-12 flex flex-col items-center relative z-20">
-          <button
-            onClick={handleKakaoLogin}
-            className="w-full h-16 bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
-          >
-            <img
-              src="/kakao-login.png"
-              className="w-6 h-6"
-              alt="카카오"
-            />
-            카카오로 3초만에 가입하기
-          </button>
-
+    <div className="min-h-screen bg-[#F8F8F8] px-6 pb-16 pt-12 text-left">
+      <div className="mx-auto w-full max-w-md">
+        <header className="mb-8 flex items-center justify-between">
           <button
             type="button"
-            onClick={() => setIsAgreedAll(!isAgreedAll)}
-            className="flex items-center justify-center gap-2 group"
+            onClick={handleBack}
+            className="-ml-2 rounded-full p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
+            aria-label="뒤로가기"
           >
-            <div className={`w-5 h-5 rounded flex items-center justify-center transition-all ${isAgreedAll ? 'bg-[#4A6741] border-[#4A6741]' : 'border-2 border-zinc-200 bg-white'}`}>
-              {isAgreedAll && <Check size={14} className="text-white" strokeWidth={3} />}
+            <ArrowLeft size={24} />
+          </button>
+        </header>
+
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="mb-8"
+        >
+          <p className="text-sm font-semibold tracking-[0.18em] text-[#4A6741]">CREATE ACCOUNT</p>
+          <h1 className="mt-3 font-black leading-[1.25] text-zinc-900" style={{ fontSize: `${fontSize * 1.7}px` }}>
+            Cloudflare 인증으로
+            <br />
+            새 계정을 만듭니다
+          </h1>
+          <p className="mt-4 break-keep text-zinc-500" style={{ fontSize: `${fontSize * 0.95}px` }}>
+            아이디, 이메일, 닉네임은 가입 전에 중복확인을 완료해야 합니다.
+          </p>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05, duration: 0.35 }}
+          className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-sm"
+        >
+          <button
+            type="button"
+            onClick={handleKakaoSignup}
+            className="flex h-[58px] w-full items-center justify-center gap-3 rounded-[20px] bg-[#FEE500] font-bold text-[#3C1E1E] transition-transform active:scale-[0.98]"
+          >
+            <img src="/kakao-login.png" alt="카카오" className="h-5 w-5" />
+            카카오로 바로 시작하기
+          </button>
+
+          <div className="my-5 flex items-center gap-3">
+            <div className="h-px flex-1 bg-zinc-200" />
+            <span className="text-xs font-semibold tracking-[0.18em] text-zinc-400">OR</span>
+            <div className="h-px flex-1 bg-zinc-200" />
+          </div>
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">아이디</label>
+              <div className="flex gap-2">
+                <input
+                  {...register("username", {
+                    required: "아이디를 입력해 주세요.",
+                    setValueAs: (value) => String(value || "").trim().toLowerCase(),
+                  })}
+                  autoComplete="username"
+                  placeholder="영문 소문자, 숫자, . _ -"
+                  className="min-w-0 flex-1 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleAvailabilityCheck("username")}
+                  disabled={usernameCheck === "checking"}
+                  className={`w-[92px] shrink-0 rounded-2xl px-3 text-xs font-bold transition-colors ${checkButtonClass(usernameCheck)}`}
+                >
+                  {usernameCheck === "checking" ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : checkButtonLabel(usernameCheck)}
+                </button>
+              </div>
+              {(errors.username?.message || usernameValidationMessage) && (
+                <p className="text-xs font-medium text-rose-500">
+                  {errors.username?.message || usernameValidationMessage}
+                </p>
+              )}
             </div>
-            <span className="text-[13px] font-bold text-zinc-500">
-  <span className="text-red-500 mr-1">(필수)</span>
-  <Link href="/terms/service">
-    <a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">이용약관</a>
-  </Link>
-  <span className="mx-1 text-zinc-500">및</span>
-  <Link href="/terms/privacy">
-    <a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">개인정보 처리방침</a>
-  </Link>
-  에 동의합니다.
-</span>
+
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">이메일</label>
+              <div className="flex gap-2">
+                <input
+                  {...register("email", {
+                    required: "이메일을 입력해 주세요.",
+                    setValueAs: (value) => String(value || "").trim().toLowerCase(),
+                  })}
+                  autoComplete="email"
+                  placeholder="name@example.com"
+                  className="min-w-0 flex-1 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+                <button
+                  type="button"
+                  onClick={() => void handleAvailabilityCheck("email")}
+                  disabled={emailCheck === "checking"}
+                  className={`w-[92px] shrink-0 rounded-2xl px-3 text-xs font-bold transition-colors ${checkButtonClass(emailCheck)}`}
+                >
+                  {emailCheck === "checking" ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : checkButtonLabel(emailCheck)}
+                </button>
+              </div>
+              {(errors.email?.message || emailValidationMessage) && (
+                <p className="text-xs font-medium text-rose-500">{errors.email?.message || emailValidationMessage}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">비밀번호</label>
+              <div className="relative">
+                <input
+                  {...register("password", {
+                    required: "비밀번호를 입력해 주세요.",
+                  })}
+                  autoComplete="new-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="8자 이상 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 pr-12 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-zinc-400"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {(errors.password?.message || passwordValidationMessage) && (
+                <p className="text-xs font-medium text-rose-500">
+                  {errors.password?.message || passwordValidationMessage}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">비밀번호 확인</label>
+              <div className="relative">
+                <input
+                  {...register("passwordConfirm", {
+                    required: "비밀번호 확인을 입력해 주세요.",
+                  })}
+                  autoComplete="new-password"
+                  type={showPasswordConfirm ? "text" : "password"}
+                  placeholder="비밀번호를 한 번 더 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 pr-12 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordConfirm((prev) => !prev)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-zinc-400"
+                >
+                  {showPasswordConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+              {passwordConfirmValue.length > 0 && (
+                <p className={`text-xs font-medium ${isPasswordMatched ? "text-[#4A6741]" : "text-rose-500"}`}>
+                  {isPasswordMatched ? "비밀번호가 일치합니다." : "비밀번호 확인이 일치하지 않습니다."}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">닉네임</label>
+              <div className="flex gap-2">
+                <div className="relative min-w-0 flex-1">
+                  <input
+                    {...register("nickname", {
+                      required: "닉네임을 입력해 주세요.",
+                    })}
+                    placeholder="앱에서 보이는 이름"
+                    className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 pr-12 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateNickname}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-2 text-[#4A6741]"
+                    aria-label="닉네임 새로 생성"
+                  >
+                    <RefreshCw size={16} />
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleAvailabilityCheck("nickname")}
+                  disabled={nicknameCheck === "checking"}
+                  className={`w-[92px] shrink-0 rounded-2xl px-3 text-xs font-bold transition-colors ${checkButtonClass(nicknameCheck)}`}
+                >
+                  {nicknameCheck === "checking" ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : checkButtonLabel(nicknameCheck)}
+                </button>
+              </div>
+              {(errors.nickname?.message || nicknameValidationMessage) && (
+                <p className="text-xs font-medium text-rose-500">
+                  {errors.nickname?.message || nicknameValidationMessage}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-bold text-zinc-700">이름</label>
+                <input
+                  {...register("fullName")}
+                  autoComplete="name"
+                  placeholder="선택 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-bold text-zinc-700">연락처</label>
+                <input
+                  {...register("phone")}
+                  autoComplete="tel"
+                  placeholder="선택 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-bold text-zinc-700">교회</label>
+                <input
+                  {...register("church")}
+                  placeholder="선택 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-[13px] font-bold text-zinc-700">직분</label>
+                <input
+                  {...register("rank")}
+                  placeholder="선택 입력"
+                  className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-[13px] font-bold text-zinc-700">연령대</label>
+              <select
+                {...register("ageGroup")}
+                className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3.5 font-semibold text-zinc-900 outline-none transition-colors focus:border-[#4A6741]"
+              >
+                {AGE_GROUP_OPTIONS.map((option) => (
+                  <option key={option.value || "empty"} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <label className="flex items-start gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+              <input
+                {...register("agreeRequired")}
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-zinc-300 text-[#4A6741] focus:ring-[#4A6741]"
+              />
+              <span className="text-sm leading-relaxed text-zinc-600">
+                <span className="font-bold text-zinc-800">필수 동의</span>
+                {" "}
+                <span className="underline underline-offset-4">
+                  <Link href="/terms/service">이용약관</Link>
+                </span>
+                {" "}
+                및
+                {" "}
+                <span className="underline underline-offset-4">
+                  <Link href="/terms/privacy">개인정보 처리방침</Link>
+                </span>
+                에 동의합니다.
+              </span>
+            </label>
+
+            {submitError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-600">
+                {submitError}
+              </div>
+            )}
+
+            {inviteGroupId && (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                초대 링크를 통해 들어왔습니다. 가입 후 초대 정보는 브라우저에 유지됩니다.
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex h-[58px] w-full items-center justify-center rounded-[20px] bg-[#4A6741] font-black text-white shadow-lg shadow-green-100 transition-transform disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.98]"
+            >
+              {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : "회원가입"}
+            </button>
+          </form>
+        </motion.section>
+
+        <div className="mt-6 flex items-center justify-center gap-2 text-sm text-zinc-500">
+          <span>이미 계정이 있나요?</span>
+          <button type="button" onClick={() => setLocation("/auth")} className="font-bold text-[#4A6741]">
+            로그인으로 이동
           </button>
         </div>
 
-        {/* 구분선 */}
-        <div className="flex items-center gap-4 mb-10 px-4 relative z-20">
-          <div className="h-[1px] flex-1 bg-zinc-200"></div>
-          <span className="text-zinc-400 font-bold text-[10px] uppercase tracking-[0.2em]">OR</span>
-          <div className="h-[1px] flex-1 bg-zinc-200"></div>
+        <div className="mt-3 flex items-center justify-center gap-2 text-sm text-zinc-400">
+          {agreeRequired && <Check size={14} className="text-[#4A6741]" />}
+          <span>가입 시 약관 동의 정보는 Cloudflare D1에 기록됩니다.</span>
         </div>
-
-        {/* 일반 가입 버튼 */}
-        <button
-          onClick={() => setIsPopupOpen(true)}
-          className="w-full h-[80px] bg-white border-2 border-zinc-100 text-zinc-900 font-bold rounded-[26px] shadow-sm flex flex-col items-center justify-center active:scale-[0.97] transition-all relative z-20"
-        >
-          <span className="text-[17px]">직접 정보 입력해서 가입하기</span>
-          <span className="text-[11px] text-zinc-400 font-medium mt-1">아이디, 이메일, 닉네임 직접 설정</span>
-        </button>
       </div>
-
-      {/* 가입 입력 바텀시트 */}
-      <AnimatePresence>
-        {isPopupOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsPopupOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[100] backdrop-blur-[4px]"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 30, stiffness: 250 }}
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 320 }}
-              dragElastic={{ top: 0, bottom: 0.22 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setIsPopupOpen(false);
-                }
-              }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[45px] z-[110] flex flex-col h-[92vh] shadow-2xl overflow-hidden"
-            >
-              <div className="mx-auto mt-4 h-1.5 w-12 rounded-full bg-zinc-200" />
-              {/* 바텀시트 내부 헤더 */}
-              <div className="px-10 pt-12 pb-6 bg-white flex justify-between items-start shrink-0">
-                <div className="flex flex-col gap-2">
-                  <h2 className="font-black text-[#4A6741]" style={{ fontSize: `${fontSize * 1.4}px` }}>
-                    {step === 1 ? "필수 정보 입력" : "추가 정보 입력"}
-                  </h2>
-                  <div className="flex gap-2">
-                    <div className={`h-1.5 rounded-full transition-all duration-500 ${step === 1 ? 'w-12 bg-[#4A6741]' : 'w-3 bg-zinc-100'}`} />
-                    <div className={`h-1.5 rounded-full transition-all duration-500 ${step === 2 ? 'w-12 bg-[#4A6741]' : 'w-3 bg-zinc-100'}`} />
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsPopupOpen(false)}
-                  className="bg-zinc-50 p-3 rounded-full text-zinc-300 hover:text-zinc-500 transition-colors"
-                >
-                  <X size={28} />
-                </button>
-              </div>
-
-              {/* 입력 폼 스크롤 영역 */}
-              <div className="flex-1 overflow-y-auto px-10 py-4 no-scrollbar pb-52">
-                {step === 1 ? (
-                  <div className="space-y-2">
-                    {/* 아이디 필드 */}
-                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center gap-3 w-32 shrink-0">
-                        <User size={18} className="text-zinc-300" />
-                        <span className="font-bold text-zinc-400">아이디</span>
-                      </div>
-                      <div className="flex-1 flex items-center gap-2">
-                        <input {...register("username")} placeholder="아이디 입력" />
-                        <button
-                          type="button"
-                          onClick={() => checkDuplicate("username")}
-                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${usernameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
-                            }`}
-                        >
-                          {usernameStatus === 'success' ? '확인 완료' : usernameStatus === 'error' ? '사용 불가' : '중복확인'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 이메일 필드 (중복확인 하단 배치) */}
-                    <div className="flex flex-col border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 w-32 shrink-0">
-                          <Mail size={18} className="text-zinc-300" />
-                          <span className="font-bold text-zinc-400">이메일</span>
-                        </div>
-                        <div className="flex-1 flex items-center gap-1.5">
-                          <input {...register("emailId")} className="!w-24 shrink-0" placeholder="이메일" />
-                          <span className="text-zinc-300 font-black">@</span>
-                          <div className="flex-1 min-w-0">
-                            {showCustomDomain ? (
-                              <input {...register("customDomain")} autoFocus placeholder="직접 입력" />
-                            ) : (
-                              <select
-                                {...register("emailDomain")}
-                                className="truncate"
-                                onChange={(e) => { if (e.target.value === "직접 입력") setShowCustomDomain(true); }}
-                              >
-                                {emailDomains.map(d => <option key={d} value={d}>{d}</option>)}
-                              </select>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex justify-end mt-4">
-                        <button
-                          type="button"
-                          onClick={() => checkDuplicate("email")}
-                          className={`px-7 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${emailStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white active:scale-95'
-                            }`}
-                        >
-                          {emailStatus === 'success' ? '확인 완료' : emailStatus === 'error' ? '사용 불가' : '중복확인'}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 비밀번호 필드 */}
-                    <div className="flex flex-col border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center justify-between mb-5">
-                        <div className="flex items-center gap-3 w-32 shrink-0">
-                          <Lock size={18} className="text-zinc-300" />
-                          <span className="font-bold text-zinc-400">비밀번호</span>
-                        </div>
-                        <div className="flex-1 flex items-center gap-2">
-                          <input
-                            {...register("password")}
-                            type={showPw ? "text" : "password"}
-                            placeholder="8자리 이상 입력"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPw(!showPw)}
-                            className="text-zinc-300 p-1 active:scale-90"
-                          >
-                            {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-                          </button>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-zinc-400 shrink-0 w-32 pl-[30px]">확인</span>
-                        <input
-                          {...register("passwordConfirm")}
-                          type={showPw ? "text" : "password"}
-                          placeholder="비밀번호 재입력"
-                        />
-                      </div>
-                      <div className="pl-32 mt-3">
-                        {watchAll.passwordConfirm && (
-                          <p className={`text-[12px] font-bold ${isPasswordMatch ? 'text-[#4A6741]' : 'text-red-500'}`}>
-                            {isPasswordMatch ? "비밀번호가 일치합니다." : "비밀번호가 일치하지 않습니다."}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 닉네임 필드 */}
-                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center gap-3 w-32 shrink-0">
-                        <RefreshCw size={18} className="text-zinc-300" />
-                        <span className="font-bold text-zinc-400">닉네임</span>
-                        <button
-                          type="button"
-                          onClick={generateNickname}
-                          className="text-[#4A6741] p-1.5 bg-zinc-50 rounded-full active:rotate-180 transition-transform duration-500"
-                        >
-                          <RefreshCw size={12} />
-                        </button>
-                      </div>
-                      <div className="flex-1 flex items-center gap-2">
-                        <input {...register("nickname")} />
-                        <button
-                          type="button"
-                          onClick={() => checkDuplicate("nickname")}
-                          className={`shrink-0 px-4 py-2.5 rounded-xl font-bold text-[12px] transition-all duration-300 ${nicknameStatus === 'success' ? 'bg-[#4A6741] text-white' : 'bg-zinc-900 text-white'
-                            }`}
-                        >
-                          {nicknameStatus === 'success' ? '확인 완료' : nicknameStatus === 'error' ? '사용 불가' : '중복확인'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2 pt-4">
-                    {/* 본명, 전화번호, 교회 입력 필드 */}
-                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center gap-3 w-32 shrink-0">
-                        <User size={18} className="text-zinc-200" />
-                        <span className="font-bold text-zinc-400">본명</span>
-                      </div>
-                      <input {...register("fullName")} placeholder="이름을 입력해 주세요 (선택)" />
-                    </div>
-
-                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center gap-3 w-32 shrink-0">
-                        <Smartphone size={18} className="text-zinc-200" />
-                        <span className="font-bold text-zinc-400">전화번호</span>
-                      </div>
-                      <input {...register("phone")} placeholder="010-0000-0000 (선택)" />
-                    </div>
-
-                    <div className="flex items-center justify-between border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center gap-3 w-32 shrink-0">
-                        <Church size={18} className="text-zinc-200" />
-                        <span className="font-bold text-zinc-400">소속 교회</span>
-                      </div>
-                      <input {...register("church")} placeholder="출석 중인 교회 (선택)" />
-                    </div>
-
-                    {/* 직분 선택 필드 */}
-                    <div className="flex flex-col border-b-2 border-zinc-50 py-7">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 w-32 shrink-0">
-                          <Award size={18} className="text-zinc-200" />
-                          <span className="font-bold text-zinc-400">직분</span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setIsRankModalOpen(true)}
-                          className="flex-1 text-left font-bold text-[#4A6741] flex items-center justify-between"
-                        >
-                          {watch("rank") || "직분을 선택해 주세요"}
-                          <ChevronRight size={22} className="text-zinc-200" />
-                        </button>
-                      </div>
-                      {showCustomRankInput && (
-                        <div className="mt-6 pl-32 animate-in fade-in slide-in-from-top-2">
-                          <input
-                            {...register("customRank")}
-                            placeholder="직접 입력"
-                            className="border-b border-zinc-200 py-2"
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 하단 약관 동의 영역 (바텀시트 내부 버전) */}
-                    <div className="pt-14 pb-4">
-                      <button
-                        type="button"
-                        onClick={() => setIsAgreedAll(!isAgreedAll)}
-                        className="flex items-center justify-center gap-4 w-full py-6 bg-zinc-50 rounded-[28px] group transition-all active:bg-zinc-100"
-                      >
-                        <div className={`w-6 h-6 rounded flex items-center justify-center transition-all ${isAgreedAll ? 'bg-[#4A6741]' : 'border-2 border-zinc-300 bg-white'}`}>
-                          {isAgreedAll && <Check size={16} className="text-white" strokeWidth={3} />}
-                        </div>
-                        <span className="font-bold text-zinc-500 text-[15px]">
-                          필수 <Link href="/terms/service"><a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">이용약관</a></Link> 및 <Link href="/terms/privacy"><a className="underline decoration-zinc-300 underline-offset-4 font-bold text-zinc-600 hover:text-[#4A6741]">개인정보 처리방침</a></Link>에 동의
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-
-              <div className="absolute bottom-0 left-0 right-0 px-10 pt-8 pb-24 bg-white border-t border-zinc-50 z-[120] shadow-[0_-15px_30px_rgba(0,0,0,0.04)]">
-                {step === 1 ? (
-                  <button
-                    onClick={() => {
-                      if (usernameStatus === 'success' && emailStatus === 'success' && nicknameStatus === 'success' && isPasswordMatch) {
-                        setStep(2);
-                      } else {
-                        setModal({ show: true, title: "입력 확인", msg: "중복 확인 및 비밀번호 일치 여부를 확인해 주세요.", type: "error" });
-                      }
-                    }}
-                    className="w-full h-[72px] bg-zinc-900 text-white rounded-[28px] font-black text-[19px] shadow-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
-                  >
-                    다음 단계로 넘어가기<ChevronRight size={22} />
-                  </button>
-                ) : (
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setStep(1)}
-                      className="w-32 h-[72px] bg-zinc-100 text-zinc-400 rounded-[28px] font-bold text-[18px] active:scale-[0.98] transition-all"
-                    >
-                      이전
-                    </button>
-                    <button
-                      onClick={handleSubmit(onSubmit)}
-                      disabled={isSubmitting}
-                      className="flex-1 h-[72px] bg-[#4A6741] text-white rounded-[28px] font-black text-[19px] shadow-xl flex items-center justify-center active:scale-[0.98] transition-all disabled:bg-zinc-200"
-                    >
-                      {isSubmitting ? <Loader2 className="animate-spin" /> : "가입 완료하기"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-
-      <AnimatePresence>
-        {modal.show && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center px-10 bg-black/60 backdrop-blur-[6px]">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[40px] w-full max-w-sm p-12 text-center shadow-2xl relative overflow-hidden"
-            >
-              {modal.type === 'success' && <div className="absolute top-0 left-0 right-0 h-2.5 bg-[#4A6741]" />}
-              <div className={`w-24 h-24 rounded-full mx-auto mb-10 flex items-center justify-center ${modal.type === 'success' ? 'bg-[#4A6741]/10 text-[#4A6741]' : 'bg-red-50 text-red-500'
-                }`}>
-                {modal.type === 'success' ? <Check size={48} strokeWidth={3} /> : <X size={48} strokeWidth={3} />}
-              </div>
-              <h3 className="font-black text-[24px] mb-5 text-zinc-900">{modal.title}</h3>
-              <p className="text-zinc-500 mb-12 font-bold text-[17px] leading-relaxed break-keep">
-                {modal.msg}
-              </p>
-              <button
-                onClick={() => {
-                  setModal({ ...modal, show: false });
-                  if (modal.type === 'success' && modal.title === '가입 완료') setLocation("/");
-                }}
-                className="w-full py-6 bg-zinc-900 text-white rounded-[24px] font-black text-[18px] shadow-lg active:scale-[0.96] transition-all"
-              >
-                확인
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* 직분 선택 전용 모달 */}
-      <AnimatePresence>
-        {isRankModalOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsRankModalOpen(false)}
-              className="fixed inset-0 bg-black/50 z-[300]"
-            />
-            <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 35, stiffness: 300 }}
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 300 }}
-              dragElastic={{ top: 0, bottom: 0.22 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setIsRankModalOpen(false);
-                }
-              }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[50px] z-[310] px-10 pt-14 pb-24 shadow-2xl"
-            >
-              <div className="mx-auto -mt-6 mb-8 h-1.5 w-12 rounded-full bg-zinc-200" />
-              <div className="flex justify-between items-center mb-12 px-2">
-                <h3 className="font-black text-zinc-900 text-[24px]">직분을 선택해 주세요</h3>
-                <button onClick={() => setIsRankModalOpen(false)} className="bg-zinc-100 p-2.5 rounded-full text-zinc-400">
-                  <X size={28} />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                {ranks.map(r => (
-                  <button
-                    key={r}
-                    onClick={() => {
-                      setValue("rank", r);
-                      setShowCustomRankInput(r === "기타");
-                      setIsRankModalOpen(false);
-                    }}
-                    className={`py-6 rounded-[24px] border-2 font-black text-[16px] transition-all duration-300 ${watch("rank") === r
-                      ? 'border-[#4A6741] bg-[#4A6741] text-white shadow-lg'
-                      : 'border-zinc-50 bg-zinc-50 text-zinc-400 active:border-zinc-200'
-                      }`}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
-
-
-

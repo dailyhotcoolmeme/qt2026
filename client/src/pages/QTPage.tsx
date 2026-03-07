@@ -1728,7 +1728,7 @@ export default function QTPage() {
       <ActivityGroupLinkModal
         open={showGroupLinkModal}
         onOpenChange={setShowGroupLinkModal}
-        user={user}
+        user={user ?? null}
         activityType="qt"
         activityDate={currentDate}
       />

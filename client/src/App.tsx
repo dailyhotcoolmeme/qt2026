@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence } from "framer-motion";
 import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
 import { DisplaySettingsProvider } from "./components/DisplaySettingsProvider";
@@ -20,18 +21,14 @@ import FindAccountPage from "./pages/FindAccountPage";
 import UpdatePasswordPage from "./pages/UpdatePasswordPage";
 import RegisterPage from "./pages/RegisterPage";
 import TermsPage from "./pages/TermsPage";
-import NotFound from "./pages/not-found";
 import PrayerPage from "./pages/PrayerPage";
 import RecordDetailPage from "./pages/RecordDetailPage";
-import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
-import { supabase } from "./lib/supabase";
+import NotFound from "./pages/not-found";
 
 const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
-const PENDING_GROUP_INVITE_REDIRECTED_KEY = "pending_group_invite_redirected";
 const GROUP_INVITE_QUERY_KEY = "invite_group";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REGISTER_HASH_PATH = "#/register";
 
 function readInviteGroupIdFromUrl(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
@@ -55,7 +52,6 @@ function AppContent() {
       <AnimatePresence mode="wait">
         <Switch>
           <Route path="/terms/:type" component={TermsPage} />
-          {/* Auth route */}
           <Route path="/auth" component={AuthPage} />
           <Route path="/register" component={RegisterPage} />
           <Route path="/find-account" component={FindAccountPage} />
@@ -63,7 +59,7 @@ function AppContent() {
           <Route>
             <Layout>
               <TopBar />
-              <main className="flex-1 overflow-y-auto no-scrollbar">
+              <main className="no-scrollbar flex-1 overflow-y-auto">
                 <Switch>
                   <Route path="/" component={DailyWordPage} />
                   <Route path="/qt" component={QTPage} />
@@ -90,294 +86,30 @@ function AppContent() {
 
 export default function App() {
   useEffect(() => {
-    let inviteJoinInFlight = false;
-
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
         console.error("Service Worker registration failed:", err);
       });
     }
 
-    const persistPendingInviteFromUrl = () => {
-      const inviteGroupId = readInviteGroupIdFromUrl();
-      if (!inviteGroupId) return;
+    const inviteGroupId = readInviteGroupIdFromUrl();
+    if (inviteGroupId) {
       try {
         localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
-        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
-        // Legacy shared links may include "#/register?invite_group=...".
-        // Keep invite id in storage and normalize hash to "/register" to avoid route mismatch.
-        if (window.location.hash.startsWith("#/register?")) {
-          const clean = `${window.location.pathname}${window.location.search}${REGISTER_HASH_PATH}`;
-          window.history.replaceState(null, "", clean);
-        }
       } catch (error) {
         console.error("failed to persist invite group id:", error);
       }
-    };
-
-    const redirectToRegisterForInvite = () => {
-      if (!window.location.hash.startsWith(REGISTER_HASH_PATH)) {
-        window.location.href = `${window.location.origin}/${REGISTER_HASH_PATH}`;
-      }
-    };
-
-    const isAlreadyJoinedInviteError = (error: any) => {
-      const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
-      return /already|duplicate|exists|member|joined/i.test(msg);
-    };
-
-    const resolveJoinedGroupId = (rpcData: unknown, fallbackGroupId: string) => {
-      const direct = String(rpcData ?? "").trim();
-      if (UUID_REGEX.test(direct)) return direct;
-      if (rpcData && typeof rpcData === "object") {
-        const candidate = String(
-          (rpcData as any).group_id ??
-          (rpcData as any).id ??
-          (rpcData as any).groupId ??
-          ""
-        ).trim();
-        if (UUID_REGEX.test(candidate)) return candidate;
-      }
-      return fallbackGroupId;
-    };
-
-    const resolveSessionUserId = async (fallbackUserId?: string | null) => {
-      if (fallbackUserId) return fallbackUserId;
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const sessionUserId = sessionData?.session?.user?.id ?? null;
-      if (sessionUserId) return sessionUserId;
-
-      const { data: userData, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error("failed to resolve auth user:", error);
-        return null;
-      }
-      return userData?.user?.id ?? null;
-    };
-
-    const joinPendingInviteGroup = async (sessionUserId?: string | null) => {
-      if (inviteJoinInFlight) return;
-
-      let pendingGroupId = "";
-      try {
-        pendingGroupId = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
-      } catch (error) {
-        console.error("failed to read pending invite:", error);
-        return;
-      }
-
-      if (!pendingGroupId) return;
-      if (!UUID_REGEX.test(pendingGroupId)) {
-        localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
-        return;
-      }
-
-      let userId = await resolveSessionUserId(sessionUserId || null);
-      if (!userId) {
-        const isOAuthInProgress =
-          window.location.search.includes("code=") ||
-          window.location.search.includes("state=") ||
-          window.location.hash.includes("access_token") ||
-          window.location.hash.includes("provider_token");
-        if (isOAuthInProgress) return;
-
-        const inviteFromCurrentUrl = readInviteGroupIdFromUrl();
-        if (inviteFromCurrentUrl !== pendingGroupId) return;
-        const redirected = localStorage.getItem(PENDING_GROUP_INVITE_REDIRECTED_KEY) === "1";
-        if (redirected) return;
-        localStorage.setItem(PENDING_GROUP_INVITE_REDIRECTED_KEY, "1");
-        redirectToRegisterForInvite();
-        return;
-      }
-
-      inviteJoinInFlight = true;
-      try {
-        const { data, error } = await supabase.rpc("join_group_by_invite_link", {
-          p_group_id: pendingGroupId,
-        });
-
-        if (error && !isAlreadyJoinedInviteError(error)) {
-          console.error("join pending invite failed:", error);
-          return;
-        }
-
-        const joinedGroupId = resolveJoinedGroupId(data, pendingGroupId);
-        if (!UUID_REGEX.test(joinedGroupId)) return;
-
-        localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
-
-        const targetPath = `/group/${joinedGroupId}`;
-        const targetHash = `#${targetPath}`;
-        if (!window.location.hash.startsWith(targetHash)) {
-          window.location.href = `${window.location.origin}/#${targetPath}`;
-        }
-      } finally {
-        inviteJoinInFlight = false;
-      }
-    };
-
-    const fixKakaoHash = () => {
-      const href = window.location.href;
-      if (href.includes("/#/#")) {
-        const newHref = href.replace("/#/#", "/#/");
-        window.history.replaceState(null, "", newHref);
-        setTimeout(() => window.location.reload(), 300);
-      }
-    };
-
-    // Handle Supabase OAuth responses that return tokens in the URL hash
-    const handleSupabaseHash = async () => {
-      const hash = window.location.hash || "";
-      const search = window.location.search || "";
-
-      if (hash.includes("error") || search.includes("error=")) {
-        const errorDesc = new URLSearchParams(search).get('error_description')
-          || new URLSearchParams(hash.replace(/^#/, '')).get('error_description')
-          || "알 수 없는 오류가 발생했습니다.";
-        console.error('[OAuth Error]', decodeURIComponent(errorDesc));
-
-        window.history.replaceState(null, "", window.location.origin + '/');
-        return;
-      }
-
-      if (hash.includes("access_token") || hash.includes("provider_token")) {
-        try {
-          // Prefer SDK helpers if available
-          const authAny: any = supabase.auth as any;
-          if (typeof authAny.getSessionFromUrl === "function") {
-            await authAny.getSessionFromUrl();
-          }
-        } catch (e) {
-          console.error("Error handling Supabase auth hash:", e);
-        }
-
-        // Give SDK a moment to process the session before checking returnTo
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // If a returnTo query param was preserved, use it. Otherwise try localStorage fallback.
-        const params = new URLSearchParams(window.location.search);
-        const returnTo = params.get("returnTo");
-        if (returnTo) {
-          try {
-            const decoded = decodeURIComponent(returnTo);
-            window.location.href = decoded;
-          } catch (e) {
-            console.error("Failed to decode returnTo:", e);
-            const clean = window.location.origin + window.location.pathname;
-            window.history.replaceState(null, "", clean);
-          }
-        } else {
-          try {
-            const stored = localStorage.getItem('qt_return');
-            if (stored) {
-              localStorage.removeItem('qt_return');
-              localStorage.removeItem('qt_autoOpenWrite');
-              window.location.href = stored;
-              return;
-            }
-          } catch (e) {
-            // ignore storage errors
-          }
-          // Remove fragment while preserving path and search
-          const clean = window.location.origin + window.location.pathname + window.location.search;
-          window.history.replaceState(null, "", clean);
-        }
-      }
-    };
-
-    const syncAgreements = async () => {
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-      if (sessionErr) {
-        // eslint-disable-next-line no-console
-        console.warn('syncAgreements: getSession error', sessionErr);
-        return;
-      }
-      const user = sessionData?.session?.user;
-      if (!user?.id) return;
-
-      const { data: existing, error: selectErr } = await supabase
-        .from('user_terms_agreements')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (selectErr) {
-        // eslint-disable-next-line no-console
-        console.warn('syncAgreements: select error', selectErr);
-        return;
-      }
-
-      if (!existing || existing.length === 0) {
-        const { error: insErr } = await supabase.from('user_terms_agreements').insert([
-          { user_id: user.id, term_type: 'service', term_version: 'v1.0' },
-          { user_id: user.id, term_type: 'privacy', term_version: 'v1.0' }
-        ]);
-
-        if (insErr) {
-          // eslint-disable-next-line no-console
-          console.warn('syncAgreements: insert error', insErr);
-          return;
-        }
-      }
-    };
-
-    persistPendingInviteFromUrl();
-
-
-
-    if (window.location.search.includes('code=')) {
-      if (!window.location.hash || window.location.hash === '#_=_') {
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}#/`
-        );
-        window.dispatchEvent(new Event('hashchange'));
-      }
     }
 
-    // Process OAuth hash and returnTo FIRST, before any other async operations
-    handleSupabaseHash();
-    // Then check and sync agreements after hash is cleared
-    fixKakaoHash();
-    syncAgreements();
-    void joinPendingInviteGroup();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-
-        if (window.location.search.includes('code=')) {
-          const params = new URLSearchParams(window.location.search);
-          const returnTo = params.get('returnTo') || localStorage.getItem('qt_return');
-          if (returnTo) {
-            try {
-              const decoded = decodeURIComponent(returnTo);
-              syncAgreements();
-              void joinPendingInviteGroup(session?.user?.id ?? null);
-              localStorage.removeItem('qt_return');
-              const parsedUrl = new URL(decoded);
-              window.history.replaceState(null, '', parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
-              window.dispatchEvent(new Event('hashchange'));
-              return;
-            } catch (e) {
-              console.error('Failed to parse returnTo in SIGNED_IN:', e);
-            }
-          }
-
-          window.history.replaceState(null, '', window.location.origin + '/#/');
-          window.dispatchEvent(new Event('hashchange'));
-        }
-        syncAgreements();
-        void joinPendingInviteGroup(session?.user?.id ?? null);
+    try {
+      const storedReturnTo = localStorage.getItem("qt_return");
+      if (storedReturnTo && window.location.href === storedReturnTo) {
+        localStorage.removeItem("qt_return");
+        localStorage.removeItem("qt_autoOpenWrite");
       }
-    });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    } catch {
+      // ignore storage errors
+    }
   }, []);
 
   return (
@@ -388,5 +120,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
-

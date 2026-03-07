@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { X, Camera, Loader2 } from "lucide-react";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
-import { supabase } from "../lib/supabase";
+import { checkAvailability, emitAuthChanged } from "../lib/auth-client";
 import { uploadFileToR2 } from "../utils/upload";
 
 interface ProfileEditModalProps {
@@ -91,18 +91,20 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     if (!user?.id) return;
     setIsResettingAvatar(true);
     try {
-      // DB에서 avatar_url NULL 처리
-      const { error } = await supabase
-        .from("profiles")
-        .update({ avatar_url: null })
-        .eq("id", user.id);
-      if (error) throw error;
+      const response = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ avatar_url: null }),
+      });
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
       await deleteAvatarFromR2(formData.avatar_url);
-
       setAvatarPreview(null);
       setAvatarFile(null);
       setFormData((prev) => ({ ...prev, avatar_url: "" }));
+      emitAuthChanged();
       alert("프로필 사진이 초기화되었습니다.");
     } catch (e) {
       console.error("avatar reset failed", e);
@@ -111,7 +113,6 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       setIsResettingAvatar(false);
     }
   };
-
   const [formData, setFormData] = useState({
     avatar_url: "",
     username: "",
@@ -147,21 +148,16 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
   const loadProfileData = async () => {
     if (!user?.id) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("id", user.id)
-      .single();
+    const response = await fetch("/api/user/profile");
+    if (!response.ok) return;
 
-    if (data) {
-      setFormData((prev) => ({
-        ...prev,
-        email: data.email || "",
-      }));
-      originalRef.current.email = data.email || "";
-    }
+    const data = (await response.json()) as { email?: string };
+    setFormData((prev) => ({
+      ...prev,
+      email: data.email || "",
+    }));
+    originalRef.current.email = data.email || "";
   };
-
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -192,18 +188,19 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       return;
     }
 
-    // 원본 값과 같으면 바로 통과
     if (normalized === (originalRef.current[field] || "")) {
       setter("available");
       return;
     }
 
     setter("checking");
-    const { data } = await supabase.from("profiles").select("id").eq(field, normalized).maybeSingle();
-    if (!data || data.id === user?.id) setter("available");
-    else setter("taken");
+    try {
+      const available = await checkAvailability(field, normalized);
+      setter(available ? "available" : "taken");
+    } catch {
+      setter("idle");
+    }
   };
-
   const statusText = (state: CheckState) => {
     if (state === "available") return "확인완료";
     if (state === "taken") return "사용중";
@@ -222,8 +219,6 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     if (!user?.id) return;
 
     const orig = originalRef.current;
-
-    // 변경된 필드만 중복확인 필요 (변경 없으면 자동 통과)
     const usernameChanged = formData.username !== orig.username;
     const emailChanged = formData.email !== orig.email;
 
@@ -248,32 +243,35 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
         if (uploaded) avatarUrl = uploaded;
       }
 
-      const { error: profileError } = await supabase
-        .from("profiles")
-        .update({
+      const response = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           username: formData.username,
           email: formData.email,
           nickname: formData.nickname,
           church: formData.church,
           rank: formData.rank,
           avatar_url: avatarUrl,
-        })
-        .eq("id", user.id);
+        }),
+      });
 
-      if (profileError) throw profileError;
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
 
-
-
+      emitAuthChanged();
       alert("프로필이 업데이트되었습니다.");
       window.location.reload();
     } catch (error) {
       console.error(error);
-      alert("프로필 업데이트 중 오류가 발생했습니다.");
+      alert(error instanceof Error ? error.message : "프로필 업데이트 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
     }
   };
-
   if (!isOpen) return null;
 
   return (
@@ -461,3 +459,4 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     </>
   );
 }
+
