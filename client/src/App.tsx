@@ -242,6 +242,58 @@ export default function App() {
         return;
       }
 
+      // PKCE code flow (e.g. Google): exchange `?code=...` for a session.
+      if (search.includes("code=")) {
+        try {
+          const authAny: any = supabase.auth as any;
+          if (typeof authAny.exchangeCodeForSession === "function") {
+            const { error } = await authAny.exchangeCodeForSession(window.location.href);
+            if (error) throw error;
+          } else if (typeof authAny.getSessionFromUrl === "function") {
+            // Fallback for older SDK builds.
+            const { error } = await authAny.getSessionFromUrl();
+            if (error) throw error;
+          }
+        } catch (e) {
+          console.error("Error exchanging OAuth code for session:", e);
+          // Don't hard-crash; user can retry login.
+        }
+
+        // Give SDK a moment to persist the session before checking returnTo.
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Preserve returnTo behavior for code flow too.
+        const params = new URLSearchParams(window.location.search);
+        const returnTo = params.get("returnTo");
+        if (returnTo) {
+          try {
+            const decoded = decodeURIComponent(returnTo);
+            window.location.href = decoded;
+            return;
+          } catch (e) {
+            console.error("Failed to decode returnTo:", e);
+          }
+        }
+
+        try {
+          const stored = localStorage.getItem('qt_return');
+          if (stored) {
+            localStorage.removeItem('qt_return');
+            localStorage.removeItem('qt_autoOpenWrite');
+            window.location.href = stored;
+            return;
+          }
+        } catch {
+          // ignore storage errors
+        }
+
+        // Remove code params while preserving hash routing.
+        const clean = window.location.origin + "/#/";
+        window.history.replaceState(null, "", clean);
+        window.dispatchEvent(new Event('hashchange'));
+        return;
+      }
+
       if (hash.includes("access_token") || hash.includes("provider_token")) {
         try {
           // Prefer SDK helpers if available

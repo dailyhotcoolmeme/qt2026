@@ -70,38 +70,38 @@ async function fetchUser(): Promise<User | null> {
     console.warn("profiles 테이블 조회 실패, user_metadata 사용:", e);
   }
 
-  // 카카오 로그인 시 username prefix(user_→myamen_) 및 avatar 자동 동기화
-  const isKakao = data.user.app_metadata?.provider === 'kakao';
-  if (isKakao) {
-    const updates: { username?: string; avatar_url?: string } = {};
-    const isProfileMissing = !profile;
+  // 가입/로그인 시 profiles.username 이 user_ 로 생성되는 경우가 있어 myamen_ 로 보정한다.
+  // 기존에 user_ 를 쓰던 계정도 로그인 시 자동으로 통일된다.
+  const provider = String(data.user.app_metadata?.provider || "").toLowerCase();
 
-    // 1. username prefix: user_ → myamen_
-    const rawUsername = profile?.username ?? null;
-    if (rawUsername?.startsWith('user_')) {
-      updates.username = `myamen_${rawUsername.slice(5)}`;
-    }
+  const updates: { username?: string; avatar_url?: string } = {};
+  const rawUsername = profile?.username ?? null;
+  if (rawUsername?.startsWith("user_")) {
+    updates.username = `myamen_${rawUsername.slice(5)}`;
+  }
 
-    // 2. 프로필 사진 동기화 (프로필 레코드가 없을 때만)
-    // avatar_url이 null인 경우는 사용자가 의도적으로 초기화한 상태일 수 있으므로 덮어쓰지 않음
-    if (isProfileMissing) {
-      const meta = data.user.user_metadata as Record<string, unknown>;
-      const kakaoAvatar =
-        (typeof meta?.avatar_url === 'string' ? meta.avatar_url : null)
-        ?? (typeof meta?.picture === 'string' ? meta.picture : null)
-        ?? null;
-      if (kakaoAvatar) updates.avatar_url = kakaoAvatar;
-    }
+  // 카카오 로그인 시 avatar 자동 동기화 (프로필 레코드가 없을 때만)
+  // avatar_url이 null인 경우는 사용자가 의도적으로 초기화한 상태일 수 있으므로 덮어쓰지 않음
+  const isKakao = provider === "kakao";
+  if (isKakao && !profile) {
+    const meta = data.user.user_metadata as Record<string, unknown>;
+    const kakaoAvatar =
+      (typeof meta?.avatar_url === "string" ? meta.avatar_url : null)
+      ?? (typeof meta?.picture === "string" ? meta.picture : null)
+      ?? null;
+    if (kakaoAvatar) updates.avatar_url = kakaoAvatar;
+  }
 
-    if (Object.keys(updates).length > 0) {
-      const { data: synced } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', data.user.id)
-        .select('nickname, username, church, rank, age_group, avatar_url')
-        .maybeSingle();
-      if (synced) profile = synced;
-    }
+  if (Object.keys(updates).length > 0) {
+    // profile row가 이미 있으면 update, 없으면 사용자의 id로 upsert 시도
+    const mutation = profile ? supabase.from("profiles").update(updates).eq("id", data.user.id)
+      : supabase.from("profiles").upsert({ id: data.user.id, ...updates }, { onConflict: "id" });
+
+    const { data: synced } = await mutation
+      .select("nickname, username, church, rank, age_group, avatar_url")
+      .maybeSingle();
+
+    if (synced) profile = synced;
   }
 
   return {
