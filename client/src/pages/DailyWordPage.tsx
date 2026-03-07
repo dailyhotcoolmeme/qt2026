@@ -181,7 +181,12 @@ export default function DailyWordPage() {
     const verseRef = bibleData ? `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절` : "";
     const body = bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해 보세요.";
     const text = [verseRef, body, "마이아멘(myAmen)"].filter(Boolean).join("\n\n");
-    const url = window.location.href;
+    // 카톡 공유 시 `/#/` 해시 라우팅이 붙지 않도록 origin만 공유한다.
+    // 또한 localhost는 카카오가 접근 불가하므로 배포 도메인으로 고정한다(개발환경 공유 테스트용).
+    const url =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? "https://www.myamen.co.kr"
+        : window.location.origin;
     const shareData = { text, url };
 
     try {

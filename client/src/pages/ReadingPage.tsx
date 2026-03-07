@@ -1826,7 +1826,12 @@ export default function ReadingPage() {
 
     const contentWithVerses = bibleData.content;
     const text = `${title}\n\n${contentWithVerses}\n\n마이아멘(myAmen)`;
-    const url = window.location.href;
+    // 카톡 공유 시 `/#/` 해시 라우팅이 붙지 않도록 origin만 공유한다.
+    // 또한 localhost는 카카오가 접근 불가하므로 배포 도메인으로 고정한다(개발환경 공유 테스트용).
+    const url =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+        ? "https://www.myamen.co.kr"
+        : window.location.origin;
 
     const shareData = {
       text,

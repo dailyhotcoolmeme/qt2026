@@ -18,10 +18,11 @@ async function copyToClipboard(text: string) {
   await navigator.clipboard.writeText(text);
 }
 
-async function shareText(title: string | null | undefined, text: string) {
+async function shareText(title: string | null | undefined, text: string, url?: string) {
   if (navigator.share) {
     const payload: any = { text };
     if (title) payload.title = title;
+    if (url) payload.url = url;
     await navigator.share(payload);
     return true;
   }
@@ -206,9 +207,13 @@ export default function FavoritesPage() {
                             try {
                               // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
                               // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
-                              const shared = await shareText(null, brandedShareText || shareTextOnly || content || verseRef);
+                              const shareUrl =
+                                window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
+                                  ? "https://www.myamen.co.kr"
+                                  : window.location.origin;
+                              const shared = await shareText(null, brandedShareText || shareTextOnly || content || verseRef, shareUrl);
                               if (!shared) {
-                                await copyToClipboard(brandedShareText || shareTextOnly || content || verseRef);
+                                await copyToClipboard(`${brandedShareText || shareTextOnly || content || verseRef}\n\n${shareUrl}`);
                                 alert("공유 기능이 없어 복사로 대체했습니다.");
                               }
                             } catch (e) {
