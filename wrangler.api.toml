@@ -7,7 +7,7 @@ enabled = true
 
 [vars]
 CARD_BACKGROUND_BASE_URL = "https://audio.myamen.co.kr/card-backgrounds"
-CORS_ALLOW_ORIGIN = "*"
+CORS_ALLOW_ORIGIN = "https://REPLACE_WITH_PAGES_DOMAIN"
 FRONTEND_BASE_URL = "https://REPLACE_WITH_PAGES_DOMAIN"
 
 [[d1_databases]]
