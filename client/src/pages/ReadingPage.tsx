@@ -1825,19 +1825,20 @@ export default function ReadingPage() {
 
 
     const contentWithVerses = bibleData.content;
+    const text = `${title}\n\n${contentWithVerses}\n\n마이아멘(myAmen)`;
+    const url = window.location.href;
 
     const shareData = {
-      title: title,
-      text: `${title}\n\n${contentWithVerses}`,
-      url: window.location.href,
+      text,
+      url,
     };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(window.location.href);
-        alert("링크가 클립보드에 복사되었습니다.");
+        await navigator.clipboard.writeText(`${text}\n\n${url}`);
+        alert("공유 문구를 클립보드에 복사했습니다.");
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {

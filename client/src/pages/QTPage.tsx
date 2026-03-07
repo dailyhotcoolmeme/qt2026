@@ -745,11 +745,14 @@ export default function QTPage() {
       ? `${window.location.origin}/?date=${shareDate}#/qt`
       : window.location.href;
 
+    const verseRef = bibleData
+      ? `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`
+      : "";
+    const body = bibleData?.content ? cleanContent(bibleData.content) : '말씀을 공유해요.';
+    const text = [verseRef, body, "마이아멘(myAmen)"].filter(Boolean).join("\n\n");
+
     const shareData = {
-      title: '성경 말씀',
-      text: bibleData?.content
-        ? cleanContent(bibleData.content)
-        : '말씀을 공유해요.',
+      text,
       url: shareUrl,
     };
 
@@ -757,8 +760,8 @@ export default function QTPage() {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("링크가 클립보드에 복사되었습니다.");
+        await navigator.clipboard.writeText(`${text}\n\n${shareUrl}`);
+        alert("공유 문구를 클립보드에 복사했습니다.");
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {

@@ -177,15 +177,19 @@ export default function DailyWordPage() {
   };
 
   const handleShare = async () => {
-    const text = bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해 보세요.";
-    const shareData = { title: "오늘의 말씀", text, url: window.location.href };
+    const unit = bibleData?.bible_name === "시편" ? "편" : "장";
+    const verseRef = bibleData ? `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절` : "";
+    const body = bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해 보세요.";
+    const text = [verseRef, body, "마이아멘(myAmen)"].filter(Boolean).join("\n\n");
+    const url = window.location.href;
+    const shareData = { text, url };
 
     try {
       if (navigator.share) {
         await navigator.share(shareData);
       } else {
-        await navigator.clipboard.writeText(window.location.href);
-        alert("링크를 클립보드에 복사했습니다.");
+        await navigator.clipboard.writeText(`${text}\n\n${url}`);
+        alert("공유 문구를 클립보드에 복사했습니다.");
       }
     } catch (error) {
       if (!(error instanceof Error && error.name === "AbortError")) {

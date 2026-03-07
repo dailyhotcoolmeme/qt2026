@@ -18,9 +18,11 @@ async function copyToClipboard(text: string) {
   await navigator.clipboard.writeText(text);
 }
 
-async function shareText(title: string, text: string) {
+async function shareText(title: string | null | undefined, text: string) {
   if (navigator.share) {
-    await navigator.share({ title, text });
+    const payload: any = { text };
+    if (title) payload.title = title;
+    await navigator.share(payload);
     return true;
   }
   return false;
@@ -173,6 +175,7 @@ export default function FavoritesPage() {
                 const content = row.content || "";
                 const displayContent = formatContentWithVerseNumbers(row.source, content);
                 const shareTextOnly = [verseRef, displayContent].filter(Boolean).join("\n\n").trim();
+                const brandedShareText = `${shareTextOnly}\n\n마이아멘(myAmen)`.trim();
                 const count = typeof row.favorite_count === "number" ? row.favorite_count : 1;
 
                 return (
@@ -203,9 +206,9 @@ export default function FavoritesPage() {
                             try {
                               // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
                               // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
-                              const shared = await shareText("마이아멘", shareTextOnly || content || verseRef);
+                              const shared = await shareText(null, brandedShareText || shareTextOnly || content || verseRef);
                               if (!shared) {
-                                await copyToClipboard(shareTextOnly || content || verseRef);
+                                await copyToClipboard(brandedShareText || shareTextOnly || content || verseRef);
                                 alert("공유 기능이 없어 복사로 대체했습니다.");
                               }
                             } catch (e) {
