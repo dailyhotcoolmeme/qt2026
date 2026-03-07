@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import { incrementVerseBookmark } from "../utils/verseBookmarks";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 
 import { useAuth } from "../hooks/use-auth";
@@ -774,24 +775,27 @@ export default function QTPage() {
     }
 
     const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
-    const { error } = await supabase.from("verse_bookmarks").insert({
-      user_id: user.id,
-      source: "qt",
-      verse_ref: verseRef,
-      content: cleanContent(bibleData.content),
-      memo: null,
-    });
+    try {
+      const { count } = await incrementVerseBookmark({
+        userId: user.id,
+        source: "qt",
+        verseRef,
+        content: cleanContent(bibleData.content),
+        memo: null,
+      });
 
-    if (error) {
-      if (error.code === "23505") {
+      if (typeof count === "number") {
+        alert(`즐겨찾기 ${count}회`);
+      } else {
+        alert("즐겨찾기에 저장되었습니다.");
+      }
+    } catch (error: any) {
+      if (error?.code === "23505") {
         alert("이미 저장한 말씀입니다.");
         return;
       }
       alert("즐겨찾기 저장에 실패했습니다.");
-      return;
     }
-
-    alert("즐겨찾기에 저장되었습니다.");
   };
 
   // 1. 재생/일시정지 토글

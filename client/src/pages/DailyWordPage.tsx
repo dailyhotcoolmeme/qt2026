@@ -2,6 +2,7 @@
 import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, ImagePlus as ImageIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import { incrementVerseBookmark } from "../utils/verseBookmarks";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
@@ -203,24 +204,28 @@ export default function DailyWordPage() {
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절`;
 
-    const { error } = await supabase.from("verse_bookmarks").insert({
-      user_id: user.id,
-      source: "daily_word",
-      verse_ref: verseRef,
-      content: cleanContent(bibleData.content),
-      memo: null,
-    });
+    try {
+      const { count } = await incrementVerseBookmark({
+        userId: user.id,
+        source: "daily_word",
+        verseRef,
+        content: cleanContent(bibleData.content),
+        memo: null,
+      });
 
-    if (error) {
-      if (error.code === "23505") {
+      if (typeof count === "number") {
+        alert(`즐겨찾기 ${count}회`);
+      } else {
+        // DB가 아직 카운트 컬럼을 갖고 있지 않은 경우
+        alert("즐겨찾기에 저장되었습니다.");
+      }
+    } catch (error: any) {
+      if (error?.code === "23505") {
         alert("이미 저장된 말씀입니다.");
         return;
       }
       alert("즐겨찾기 저장에 실패했습니다.");
-      return;
     }
-
-    alert("즐겨찾기에 저장되었습니다.");
   };
 
   const handleOpenCardMaker = () => {
