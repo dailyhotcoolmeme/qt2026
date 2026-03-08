@@ -5,6 +5,8 @@ import { Download, Save, Share2, X } from "lucide-react";
 import imageCompression from "browser-image-compression";
 import { uploadFileToR2 } from "../utils/upload";
 import { supabase } from "../lib/supabase";
+import { getPublicWebOrigin, isNativeApp, resolveApiUrl, resolveAppUrl } from "../lib/appUrl";
+import { saveImageDataUrl, shareImageDataUrl } from "../lib/nativeFileShare";
 
 type Props = {
   open: boolean;
@@ -45,7 +47,7 @@ const COLOR_PRESETS: ThemePreset[] = [
   { id: "c12", mode: "color", bg: "linear-gradient(135deg,#f7fee7 0%,#d9f99d 100%)", textColor: "#365314", subColor: "#3f6212" },
 ];
 
-const DEFAULT_IMAGE_URLS = Array.from({ length: 12 }, (_, idx) => `/api/card-backgrounds/bg${idx + 1}.jpg`);
+const DEFAULT_IMAGE_URLS = Array.from({ length: 12 }, (_, idx) => resolveApiUrl(`/api/card-backgrounds/bg${idx + 1}.jpg`));
 
 function resolveImagePresets(): ThemePreset[] {
   // Workaround for Vite env typing issues in some setups
@@ -66,13 +68,15 @@ function resolveImagePresets(): ThemePreset[] {
 
 function toProxyUrl(url: string): string {
   if (!url) return url;
-  if (url.startsWith("/api/")) return url;
+  if (url.startsWith("/api/")) return resolveApiUrl(url);
   try {
     const parsed = new URL(url, window.location.origin);
-    if (parsed.origin === window.location.origin) return parsed.pathname + parsed.search;
-    return `/api/proxy-image?url=${encodeURIComponent(parsed.toString())}`;
+    if (parsed.origin === window.location.origin || parsed.origin === getPublicWebOrigin()) {
+      return parsed.toString();
+    }
+    return resolveApiUrl(`/api/proxy-image?url=${encodeURIComponent(parsed.toString())}`);
   } catch {
-    return url;
+    return resolveAppUrl(url);
   }
 }
 
@@ -166,6 +170,10 @@ async function downloadDataUrl(dataUrl: string, fileName: string) {
 }
 
 async function shareDataUrl(dataUrl: string, title: string) {
+  if (isNativeApp()) {
+    return shareImageDataUrl(dataUrl, "verse-card.png", "말씀 카드", title);
+  }
+
   const file = await dataUrlToFile(dataUrl, "verse-card.jpg");
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     await navigator.share({
@@ -176,6 +184,27 @@ async function shareDataUrl(dataUrl: string, title: string) {
     return true;
   }
   return false;
+}
+
+async function loadCanvasImage(src: string) {
+  const response = await fetch(src);
+  if (!response.ok) {
+    throw new Error(`image fetch failed: ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const nextImage = new Image();
+    nextImage.onload = () => resolve(nextImage);
+    nextImage.onerror = () => reject(new Error("image load failed"));
+    nextImage.src = objectUrl;
+  });
+
+  return {
+    image,
+    cleanup: () => URL.revokeObjectURL(objectUrl),
+  };
 }
 
 type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
@@ -352,16 +381,11 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     if (currentPreset.mode === "image") {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = toProxyUrl(currentPreset.bg);
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve();
-        img.onerror = () => reject();
-      });
+      const loadedImage = await loadCanvasImage(toProxyUrl(currentPreset.bg));
       ctx.globalAlpha = IMAGE_OPACITY;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(loadedImage.image, 0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
+      loadedImage.cleanup();
     } else {
       const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       const colors = currentPreset.bg.match(/#[0-9a-fA-F]{3,8}/g) || ["#ffffff", "#f4f4f5"];
@@ -430,8 +454,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       if (!canvas) return;
       const blob: Blob | null = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 1));
       if (!blob) return;
+      const dataUrl = canvas.toDataURL("image/png", 1);
 
-      if (
+      if (shareMode && isNativeApp()) {
+        await shareImageDataUrl(dataUrl, "verse-card.png", "말씀 카드", title);
+      } else if (!shareMode && isNativeApp()) {
+        await saveImageDataUrl(dataUrl, "verse-card.png");
+        alert("말씀 카드를 저장했습니다.");
+      } else if (
         shareMode &&
         navigator.canShare &&
         navigator.canShare({ files: [new File([blob], "verse-card.png", { type: "image/png" })] })
@@ -484,6 +514,11 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const saveRecordToPhone = async (record: SavedCard) => {
     try {
+      if (isNativeApp()) {
+        await saveImageDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+        alert("말씀 카드를 저장했습니다.");
+        return;
+      }
       await downloadDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
     } catch (error) {
       console.error("download saved card failed:", error);

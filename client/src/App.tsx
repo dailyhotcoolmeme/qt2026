@@ -1,6 +1,8 @@
 import React, { useEffect } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
+import { App as CapacitorApp } from "@capacitor/app";
+import { Browser } from "@capacitor/browser";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
@@ -28,12 +30,46 @@ import RecordDetailPage from "./pages/RecordDetailPage";
 import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
+import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
 
 const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
 const PENDING_GROUP_INVITE_REDIRECTED_KEY = "pending_group_invite_redirected";
 const GROUP_INVITE_QUERY_KEY = "invite_group";
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const REGISTER_HASH_PATH = "#/register";
+const NATIVE_OAUTH_CALLBACK_PREFIX = "com.myamen.app://auth/callback";
+const NATIVE_OAUTH_BRIDGE_QUERY_KEY = "native_oauth";
+
+function coerceReturnToInAppUrl(rawReturnTo?: string | null) {
+  const appOrigin = getBrowserOrigin();
+  const fallback = `${appOrigin}/#/`;
+  if (!rawReturnTo) return fallback;
+
+  const value = String(rawReturnTo);
+  if (value.startsWith("/#/")) return `${appOrigin}${value}`;
+  if (value.startsWith("#/")) return `${appOrigin}/${value}`;
+
+  try {
+    const url = new URL(value);
+    if (url.hash && url.hash.startsWith("#/")) {
+      return `${appOrigin}/${url.hash}`;
+    }
+    if (isKnownAppOrigin(url.origin)) {
+      return `${appOrigin}${url.pathname}${url.search}${url.hash}`;
+    }
+  } catch {
+    // ignore parse errors
+  }
+
+  return fallback;
+}
+
+function buildNativeCallbackUrlFromBrowserLocation(rawUrl: string) {
+  const currentUrl = new URL(rawUrl);
+  currentUrl.searchParams.delete(NATIVE_OAUTH_BRIDGE_QUERY_KEY);
+  const nextSearch = currentUrl.searchParams.toString();
+  return `${NATIVE_OAUTH_CALLBACK_PREFIX}${nextSearch ? `?${nextSearch}` : ""}${currentUrl.hash || ""}`;
+}
 
 function readInviteGroupIdFromUrl(): string | null {
   const searchParams = new URLSearchParams(window.location.search);
@@ -95,6 +131,39 @@ function AppContent() {
 export default function App() {
   useEffect(() => {
     let inviteJoinInFlight = false;
+    let nativeUrlOpenListener: { remove: () => Promise<void> } | null = null;
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      if (!isNativeApp() || typeof input !== "string") {
+        return originalFetch(input, init);
+      }
+
+      if (input.startsWith("/api/") || input.startsWith("/uploads/")) {
+        return originalFetch(resolveAppUrl(input), init);
+      }
+
+      return originalFetch(input, init);
+    }) as typeof window.fetch;
+
+    const shouldBridgeNativeOAuthFromBrowser = () => {
+      if (isNativeApp()) return false;
+      const search = window.location.search || "";
+      const hash = window.location.hash || "";
+      if (!search.includes(`${NATIVE_OAUTH_BRIDGE_QUERY_KEY}=1`)) return false;
+      return (
+        search.includes("code=") ||
+        search.includes("error=") ||
+        hash.includes("access_token") ||
+        hash.includes("provider_token") ||
+        hash.includes("error")
+      );
+    };
+
+    if (shouldBridgeNativeOAuthFromBrowser()) {
+      window.location.replace(buildNativeCallbackUrlFromBrowserLocation(window.location.href));
+      return;
+    }
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch((err) => {
@@ -121,7 +190,7 @@ export default function App() {
 
     const redirectToRegisterForInvite = () => {
       if (!window.location.hash.startsWith(REGISTER_HASH_PATH)) {
-        window.location.href = `${window.location.origin}/${REGISTER_HASH_PATH}`;
+        window.location.href = `${getBrowserOrigin()}/${REGISTER_HASH_PATH}`;
       }
     };
 
@@ -215,7 +284,7 @@ export default function App() {
         const targetPath = `/group/${joinedGroupId}`;
         const targetHash = `#${targetPath}`;
         if (!window.location.hash.startsWith(targetHash)) {
-          window.location.href = `${window.location.origin}/#${targetPath}`;
+          window.location.href = `${getBrowserOrigin()}/#${targetPath}`;
         }
       } finally {
         inviteJoinInFlight = false;
@@ -231,6 +300,33 @@ export default function App() {
       }
     };
 
+    const safeDecodeURIComponent = (value?: string | null) => {
+      if (!value) return "";
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    };
+
+    const consumeStoredReturnTo = () => {
+      try {
+        const stored = localStorage.getItem("qt_return");
+        localStorage.removeItem("qt_return");
+        localStorage.removeItem("qt_autoOpenWrite");
+        return stored || "";
+      } catch {
+        return "";
+      }
+    };
+
+    const navigateAfterOAuth = (rawReturnTo?: string | null) => {
+      const fromQuery = safeDecodeURIComponent(rawReturnTo);
+      const fromStorage = consumeStoredReturnTo();
+      const target = fromQuery || fromStorage || `${getBrowserOrigin()}/#/`;
+      window.location.href = coerceReturnToInAppUrl(target);
+    };
+
     // Handle Supabase OAuth responses that return tokens in the URL hash
     const handleSupabaseHash = async () => {
       const hash = window.location.hash || "";
@@ -242,7 +338,7 @@ export default function App() {
           || "알 수 없는 오류가 발생했습니다.";
         console.error('[OAuth Error]', decodeURIComponent(errorDesc));
 
-        window.history.replaceState(null, "", window.location.origin + '/');
+        window.history.replaceState(null, "", getBrowserOrigin() + '/');
         return;
       }
 
@@ -272,7 +368,7 @@ export default function App() {
         if (returnTo) {
           try {
             const decoded = decodeURIComponent(returnTo);
-            window.location.href = decoded;
+            window.location.href = coerceReturnToInAppUrl(decoded);
             return;
           } catch (e) {
             console.error("Failed to decode returnTo:", e);
@@ -284,7 +380,7 @@ export default function App() {
           if (stored) {
             localStorage.removeItem('qt_return');
             localStorage.removeItem('qt_autoOpenWrite');
-            window.location.href = stored;
+            window.location.href = coerceReturnToInAppUrl(stored);
             return;
           }
         } catch {
@@ -292,7 +388,7 @@ export default function App() {
         }
 
         // Remove code params while preserving hash routing.
-        const clean = window.location.origin + "/#/";
+        const clean = getBrowserOrigin() + "/#/";
         window.history.replaceState(null, "", clean);
         window.dispatchEvent(new Event('hashchange'));
         return;
@@ -318,10 +414,10 @@ export default function App() {
         if (returnTo) {
           try {
             const decoded = decodeURIComponent(returnTo);
-            window.location.href = decoded;
+            window.location.href = coerceReturnToInAppUrl(decoded);
           } catch (e) {
             console.error("Failed to decode returnTo:", e);
-            const clean = window.location.origin + window.location.pathname;
+            const clean = getBrowserOrigin() + window.location.pathname;
             window.history.replaceState(null, "", clean);
           }
         } else {
@@ -330,17 +426,58 @@ export default function App() {
             if (stored) {
               localStorage.removeItem('qt_return');
               localStorage.removeItem('qt_autoOpenWrite');
-              window.location.href = stored;
+              window.location.href = coerceReturnToInAppUrl(stored);
               return;
             }
           } catch (e) {
             // ignore storage errors
           }
           // Remove fragment while preserving path and search
-          const clean = window.location.origin + window.location.pathname + window.location.search;
+          const clean = getBrowserOrigin() + window.location.pathname + window.location.search;
           window.history.replaceState(null, "", clean);
         }
       }
+    };
+
+    const handleNativeOAuthCallback = async (incomingUrl: string) => {
+      if (!incomingUrl || !incomingUrl.startsWith(NATIVE_OAUTH_CALLBACK_PREFIX)) return;
+
+      try {
+        const authAny: any = supabase.auth as any;
+        if (incomingUrl.includes("code=")) {
+          if (typeof authAny.exchangeCodeForSession === "function") {
+            const { error } = await authAny.exchangeCodeForSession(incomingUrl);
+            if (error) throw error;
+          }
+        } else if (incomingUrl.includes("access_token")) {
+          const hash = incomingUrl.split("#")[1] || "";
+          const hashParams = new URLSearchParams(hash);
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          if (accessToken && refreshToken) {
+            const { error } = await supabase.auth.setSession({
+              access_token: accessToken,
+              refresh_token: refreshToken,
+            });
+            if (error) throw error;
+          }
+        }
+      } catch (error) {
+        console.error("native OAuth callback handling failed:", error);
+      }
+
+      try {
+        await Browser.close();
+      } catch {
+        // ignore close errors
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      await syncAgreements();
+      await joinPendingInviteGroup();
+
+      const callbackUrl = new URL(incomingUrl);
+      navigateAfterOAuth(callbackUrl.searchParams.get("returnTo"));
     };
 
     const syncAgreements = async () => {
@@ -394,11 +531,31 @@ export default function App() {
       }
     }
 
+    if (isNativeApp()) {
+      const setupNativeOAuthBridge = async () => {
+        try {
+          const launch = await CapacitorApp.getLaunchUrl();
+          if (launch?.url) {
+            await handleNativeOAuthCallback(launch.url);
+          }
+        } catch (error) {
+          console.error("failed to read native launch url:", error);
+        }
+
+        nativeUrlOpenListener = await CapacitorApp.addListener("appUrlOpen", ({ url }) => {
+          if (!url) return;
+          void handleNativeOAuthCallback(url);
+        });
+      };
+
+      void setupNativeOAuthBridge();
+    }
+
     // Process OAuth hash and returnTo FIRST, before any other async operations
-    handleSupabaseHash();
+    void handleSupabaseHash();
     // Then check and sync agreements after hash is cleared
     fixKakaoHash();
-    syncAgreements();
+    void syncAgreements();
     void joinPendingInviteGroup();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
@@ -413,16 +570,14 @@ export default function App() {
               syncAgreements();
               void joinPendingInviteGroup(session?.user?.id ?? null);
               localStorage.removeItem('qt_return');
-              const parsedUrl = new URL(decoded);
-              window.history.replaceState(null, '', parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
-              window.dispatchEvent(new Event('hashchange'));
+              window.location.href = coerceReturnToInAppUrl(decoded);
               return;
             } catch (e) {
               console.error('Failed to parse returnTo in SIGNED_IN:', e);
             }
           }
 
-          window.history.replaceState(null, '', window.location.origin + '/#/');
+          window.history.replaceState(null, '', getBrowserOrigin() + '/#/');
           window.dispatchEvent(new Event('hashchange'));
         }
         syncAgreements();
@@ -431,7 +586,11 @@ export default function App() {
     });
 
     return () => {
+      window.fetch = originalFetch;
       authListener.subscription.unsubscribe();
+      if (nativeUrlOpenListener) {
+        void nativeUrlOpenListener.remove();
+      }
     };
   }, []);
 

@@ -577,7 +577,7 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#F5F6F7] pt-20 pb-10 px-4 text-sm flex flex-col">
+    <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
       <div className="max-w-2xl mx-auto space-y-4 flex-1 flex flex-col w-full">
         {hasLeadershipScope && (
           <div className="flex justify-end">

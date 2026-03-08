@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { LoginModal } from "../components/LoginModal";
+import { shareContent } from "../lib/nativeShare";
 
 type VerseBookmarkRow = {
   id: string;
@@ -19,14 +20,12 @@ async function copyToClipboard(text: string) {
 }
 
 async function shareText(title: string | null | undefined, text: string, url?: string) {
-  if (navigator.share) {
-    const payload: any = { text };
-    if (title) payload.title = title;
-    if (url) payload.url = url;
-    await navigator.share(payload);
-    return true;
-  }
-  return false;
+  return shareContent({
+    title: title || undefined,
+    text,
+    url,
+    dialogTitle: "공유",
+  });
 }
 
 function formatContentWithVerseNumbers(source: string | null, content: string): string {
@@ -126,7 +125,7 @@ export default function FavoritesPage() {
   }, [user?.id]);
 
   return (
-    <div className="w-full px-5 pb-24 pt-24 sm:px-6 lg:px-10">
+    <div className="w-full px-5 pb-24 pt-[var(--app-page-top)] sm:px-6 lg:px-10">
       {isLoading && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
           불러오는 중...

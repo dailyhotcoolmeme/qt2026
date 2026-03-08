@@ -23,6 +23,7 @@ import {
 } from "../lib/bibleAudio";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
+import { shareContent } from "../lib/nativeShare";
 
 import { useLocation } from "wouter";
 
@@ -1839,9 +1840,8 @@ export default function ReadingPage() {
     };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
+      const shared = await shareContent(shareData);
+      if (!shared) {
         await navigator.clipboard.writeText(`${text}\n\n${url}`);
         alert("공유 문구를 클립보드에 복사했습니다.");
       }
@@ -2106,7 +2106,7 @@ export default function ReadingPage() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
+    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-[var(--app-page-top)] pb-4 px-4">
       <header className="text-center mb-3 flex flex-col items-center w-full relative">
         <p className="font-bold text-gray-400 tracking-[0.2em] mb-1" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, FileSearch, CheckCheck, Image, Bookmark } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, FileSearch, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -7,6 +7,9 @@ import { ProfileEditModal } from "./ProfileEditModal";
 import { LoginModal } from "./LoginModal";
 import { Link, useLocation } from "wouter";
 import { supabase } from "../lib/supabase";
+import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
+import { defaultNotificationSettings, isNotificationTypeEnabled, loadNotificationSettings, saveNotificationSettings, type NotificationSettings } from "../lib/notificationPreferences";
+import { ensureNativePushListeners, getLatestNativePushToken, getNotificationPermissionState, registerForNativePush, requestNotificationPermission } from "../lib/pushNotifications";
 
 type TopNotificationItem = {
   id: string;
@@ -63,10 +66,14 @@ export function TopBar() {
   const [ownedGroupCount, setOwnedGroupCount] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [logoTextIndex, setLogoTextIndex] = useState(0);
+  const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
+  const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
+  const [isPushSyncing, setIsPushSyncing] = useState(false);
   const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -77,6 +84,23 @@ export function TopBar() {
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
   const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").trim();
+
+  const syncPermissionState = async () => {
+    try {
+      const permission = await getNotificationPermissionState();
+      setNotificationPermission(permission);
+      return permission;
+    } catch {
+      setNotificationPermission("denied");
+      return "denied";
+    }
+  };
+
+  const handlePushOpenTarget = (targetPath: string) => {
+    if (!targetPath) return;
+    setShowNotificationPanel(false);
+    setLocation(targetPath);
+  };
 
   const handleLogout = () => setShowLogoutConfirm(true);
 
@@ -100,7 +124,7 @@ export function TopBar() {
       const token = data.session?.access_token;
       if (!token) throw new Error("세션이 없습니다");
 
-      const response = await fetch("/api/user/delete", {
+      const response = await fetch(resolveApiUrl("/api/user/delete"), {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -149,6 +173,8 @@ export function TopBar() {
   };
 
   const showSystemNotification = async (item: TopNotificationItem) => {
+    if (!isNotificationTypeEnabled(notificationSettings, item.type)) return;
+    if (isNativeApp()) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;
     const url = `${window.location.origin}/#${item.targetPath}`;
 
@@ -175,12 +201,98 @@ export function TopBar() {
     return data.session?.access_token || null;
   };
 
-  const syncPushSubscription = async (force = false) => {
-    if (!isAuthenticated || !user?.id || !vapidPublicKey) return;
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
-    if (Notification.permission !== "granted") return;
+  const unsubscribePushSubscription = async () => {
+    const token = await getAccessToken();
+    if (!token) return;
 
-    const cacheKey = `${user.id}:${Notification.permission}:${vapidPublicKey}`;
+    try {
+      if (isNativeApp()) {
+        const nativeToken = getLatestNativePushToken();
+        if (!nativeToken) return;
+
+        await fetch(resolveApiUrl("/api/push/unsubscribe"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            channel: "fcm",
+            token: nativeToken,
+          }),
+        });
+        return;
+      }
+
+      if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+      const reg = await navigator.serviceWorker.ready;
+      const subscription = await reg.pushManager.getSubscription();
+      if (!subscription) return;
+
+      await fetch(resolveApiUrl("/api/push/unsubscribe"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          channel: "webpush",
+          endpoint: subscription.endpoint,
+        }),
+      });
+    } catch (error) {
+      console.error("push unsubscribe failed:", error);
+    }
+  };
+
+  const syncPushSubscription = async (force = false) => {
+    if (!isAuthenticated || !user?.id || !notificationSettings.pushEnabled) return;
+
+    const permission = await syncPermissionState();
+    if (permission !== "granted") return;
+
+    const token = await getAccessToken();
+    if (!token) return;
+
+    if (isNativeApp()) {
+      const cacheKey = `${user.id}:${permission}:native`;
+      if (!force && pushSyncedKeyRef.current === cacheKey) return;
+
+      try {
+        setIsPushSyncing(true);
+        await ensureNativePushListeners(handlePushOpenTarget, () => {
+          void fetchNotifications();
+        });
+        const nativeToken = await registerForNativePush();
+        if (!nativeToken) return;
+
+        const response = await fetch(resolveApiUrl("/api/push/subscribe"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            channel: "fcm",
+            token: nativeToken,
+            platform: "android",
+          }),
+        });
+
+        if (!response.ok) return;
+        pushSyncedKeyRef.current = cacheKey;
+      } catch (error) {
+        console.error("native push sync failed:", error);
+      } finally {
+        setIsPushSyncing(false);
+      }
+      return;
+    }
+
+    if (!vapidPublicKey) return;
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+
+    const cacheKey = `${user.id}:${permission}:${vapidPublicKey}`;
     if (!force && pushSyncedKeyRef.current === cacheKey) return;
 
     try {
@@ -193,22 +305,22 @@ export function TopBar() {
         });
       }
 
-      const token = await getAccessToken();
-      if (!token) return;
-
-      const response = await fetch("/api/push/subscribe", {
+      const response = await fetch(resolveApiUrl("/api/push/subscribe"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ subscription: subscription.toJSON() }),
+        body: JSON.stringify({
+          channel: "webpush",
+          subscription: subscription.toJSON(),
+        }),
       });
 
       if (!response.ok) return;
       pushSyncedKeyRef.current = cacheKey;
     } catch (error) {
-      console.error("push subscription sync failed:", error);
+      console.error("web push sync failed:", error);
     }
   };
 
@@ -254,11 +366,12 @@ export function TopBar() {
         };
       });
 
-      setNotifications(allItems);
-      const unread = allItems.filter((item) => !item.isRead);
+      const visibleItems = allItems.filter((item) => isNotificationTypeEnabled(notificationSettings, item.type));
+      setNotifications(visibleItems);
+      const unread = visibleItems.filter((item) => !item.isRead);
       setUnreadCount(unread.length);
 
-      if (Notification.permission === "granted") {
+      if (!isNativeApp() && Notification.permission === "granted") {
         const pushed = pushedIdsRef.current;
         unread.forEach((item) => {
           if (!pushed.has(item.id)) {
@@ -278,12 +391,27 @@ export function TopBar() {
   }, [pushedKey]);
 
   useEffect(() => {
+    void syncPermissionState();
+  }, []);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setNotificationSettings(defaultNotificationSettings);
+      return;
+    }
+
+    loadNotificationSettings(user.id)
+      .then(setNotificationSettings)
+      .catch(() => setNotificationSettings(defaultNotificationSettings));
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!isAuthenticated || !user?.id) {
       pushSyncedKeyRef.current = "";
       return;
     }
     void syncPushSubscription(false);
-  }, [isAuthenticated, user?.id, vapidPublicKey]);
+  }, [isAuthenticated, user?.id, vapidPublicKey, notificationSettings.pushEnabled]);
 
   useEffect(() => {
     void fetchNotifications();
@@ -308,7 +436,7 @@ export function TopBar() {
       window.clearInterval(timer);
       void supabase.removeChannel(channel);
     };
-  }, [isAuthenticated, user?.id]);
+  }, [isAuthenticated, user?.id, notificationSettings]);
 
   const markAsRead = async (id: string) => {
     if (!user?.id) return;
@@ -356,17 +484,36 @@ export function TopBar() {
     if (nextOpen) {
       void markAllAsRead();
     }
-    if ("Notification" in window && Notification.permission === "default") {
-      try {
-        await Notification.requestPermission();
-        if (Notification.permission === "granted") {
+    if (notificationPermission === "prompt") {
+      const permission = await requestNotificationPermission();
+      setNotificationPermission(permission);
+      if (permission === "granted") {
+        await syncPushSubscription(true);
+      }
+    } else if (notificationPermission === "granted") {
+      await syncPushSubscription(false);
+    }
+  };
+
+  const handleNotificationSettingChange = async (key: keyof NotificationSettings, value: boolean) => {
+    const next = { ...notificationSettings, [key]: value };
+    setNotificationSettings(next);
+    const saved = await saveNotificationSettings(user?.id, next);
+    if (!saved) {
+      console.warn("notification settings save fallback: local only");
+    }
+
+    if (key === "pushEnabled") {
+      if (!value) {
+        pushSyncedKeyRef.current = "";
+        await unsubscribePushSubscription();
+      } else {
+        const permission = await requestNotificationPermission();
+        setNotificationPermission(permission);
+        if (permission === "granted") {
           await syncPushSubscription(true);
         }
-      } catch {
-        // ignore
       }
-    } else if (Notification.permission === "granted") {
-      await syncPushSubscription(false);
     }
   };
 
@@ -379,8 +526,12 @@ export function TopBar() {
 
   return (
     <>
-      <div className="fixed left-0 right-0 top-0 z-[150] flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm">
-        <div className="flex items-center gap-1">
+      <div
+        className="fixed left-0 right-0 top-0 z-[150] border-b bg-white shadow-sm"
+        style={{ paddingTop: "var(--safe-top-inset)" }}
+      >
+        <div className="flex h-16 items-center justify-between px-4">
+          <div className="flex items-center gap-1">
           <button onClick={() => setIsMenuOpen(true)} className="-ml-2 rounded-full p-2 transition-colors hover:bg-zinc-100">
             <Menu className="h-6 w-6 text-zinc-700" />
           </button>
@@ -407,38 +558,42 @@ export function TopBar() {
             </div>
           </button>
 
-        </div>
+          </div>
 
-        <div className="flex items-center gap-1">
-          <Link href="/search">
-            <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
-              <FileSearch className="h-5 w-5" />
+          <div className="flex items-center gap-1">
+            <Link href="/search">
+              <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
+                <FileSearch className="h-5 w-5" />
+              </button>
+            </Link>
+            <button
+              onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
+              className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
+            >
+              <Type className="h-5 w-5" />
             </button>
-          </Link>
-          <button
-            onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
-            className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
-          >
-            <Type className="h-5 w-5" />
-          </button>
-          <button
-            onClick={handleOpenNotifications}
-            className={`relative rounded-full p-2 transition-colors ${showNotificationPanel ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
-            aria-label="알림"
-          >
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
-                {unreadCount > 99 ? "99+" : unreadCount}
-              </span>
-            )}
-          </button>
+            <button
+              onClick={handleOpenNotifications}
+              className={`relative rounded-full p-2 transition-colors ${showNotificationPanel ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
+              aria-label="알림"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span className="absolute -right-0.5 -top-0.5 min-w-[18px] h-[18px] rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center px-1">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {showFontSizeSlider && <div className="fixed inset-0 z-[155]" onClick={() => setShowFontSizeSlider(false)} />}
 
         {showFontSizeSlider && (
-          <div className="animate-in slide-in-from-top-2 absolute right-4 top-16 z-[160] w-60 rounded-2xl border border-zinc-100 bg-white p-5 shadow-2xl duration-200 fade-in">
+          <div
+            className="animate-in slide-in-from-top-2 absolute right-4 z-[160] w-60 rounded-2xl border border-zinc-100 bg-white p-5 shadow-2xl duration-200 fade-in"
+            style={{ top: "calc(64px + var(--safe-top-inset))" }}
+          >
             <div className="relative px-1 pb-2 pt-7">
               <div className="absolute left-0 right-0 top-0 flex justify-between px-1">
                 {[14, 16, 18, 20, 22, 24].map((step) => (
@@ -463,7 +618,10 @@ export function TopBar() {
 
       {showNotificationPanel && <div className="fixed inset-0 z-[161]" onClick={() => setShowNotificationPanel(false)} />}
       {showNotificationPanel && (
-        <div className="fixed right-4 top-16 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl">
+        <div
+          className="fixed right-4 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+          style={{ top: "calc(64px + var(--safe-top-inset))" }}
+        >
           <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
             <h4 className="text-sm font-bold text-zinc-900">알림</h4>
             <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
@@ -496,6 +654,83 @@ export function TopBar() {
           </div>
         </div>
       )}
+
+      <AnimatePresence>
+        {showNotificationSettings && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+              onClick={() => setShowNotificationSettings(false)}
+            />
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative w-full max-w-[360px] rounded-[28px] bg-white p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-start justify-between">
+                <div>
+                  <h4 className="text-lg font-bold text-zinc-900">알림 설정</h4>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {isNativeApp() ? "앱 푸시와 앱 내 알림을 관리합니다." : "웹 푸시와 앱 내 알림을 관리합니다."}
+                  </p>
+                </div>
+                <button onClick={() => setShowNotificationSettings(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                  <Smartphone className="h-4 w-4" />
+                  <span>{isNativeApp() ? "앱 푸시 상태" : "브라우저 알림 상태"}</span>
+                </div>
+                <p className="mt-2 text-sm text-zinc-500">
+                  {notificationPermission === "granted"
+                    ? "알림 권한이 허용되어 있습니다."
+                    : notificationPermission === "denied"
+                      ? "알림 권한이 거부되어 있습니다. 기기 설정에서 다시 허용해 주세요."
+                      : "알림 권한이 아직 요청되지 않았습니다."}
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <NotificationToggle
+                  label="전체 푸시 알림"
+                  description="기기 푸시와 앱 내 알림을 함께 켭니다."
+                  checked={notificationSettings.pushEnabled}
+                  disabled={isPushSyncing}
+                  onChange={(value) => void handleNotificationSettingChange("pushEnabled", value)}
+                />
+                <NotificationToggle
+                  label="모임 활동 알림"
+                  description="가입 승인, 가입 요청, 모임 관련 알림을 받습니다."
+                  checked={notificationSettings.groupActivityEnabled}
+                  disabled={!notificationSettings.pushEnabled}
+                  onChange={(value) => void handleNotificationSettingChange("groupActivityEnabled", value)}
+                />
+                <NotificationToggle
+                  label="시스템 알림"
+                  description="공지와 일반 시스템 알림을 받습니다."
+                  checked={notificationSettings.systemEnabled}
+                  disabled={!notificationSettings.pushEnabled}
+                  onChange={(value) => void handleNotificationSettingChange("systemEnabled", value)}
+                />
+              </div>
+
+              {isPushSyncing && (
+                <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>푸시 등록을 동기화하는 중입니다.</span>
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {isMenuOpen && <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
 
@@ -546,6 +781,14 @@ export function TopBar() {
             <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
               <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기" />
             </Link>
+            <SidebarItem
+              icon={<Settings className="h-5 w-5" />}
+              label="알림 설정"
+              onClick={() => {
+                setShowNotificationSettings(true);
+                setIsMenuOpen(false);
+              }}
+            />
 
             {isAuthenticated && (
               <SidebarItem
@@ -749,5 +992,38 @@ function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: s
       <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">{icon}</div>
       <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">{label}</span>
     </button>
+  );
+}
+
+function NotificationToggle({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <div className={`flex items-start justify-between gap-3 rounded-2xl border border-zinc-100 px-4 py-3 ${disabled ? "bg-zinc-50/70 opacity-70" : "bg-white"}`}>
+      <div>
+        <p className="text-sm font-semibold text-zinc-900">{label}</p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">{description}</p>
+      </div>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative mt-0.5 h-7 w-12 rounded-full transition-colors ${checked ? "bg-[#4A6741]" : "bg-zinc-200"} ${disabled ? "cursor-not-allowed" : ""}`}
+      >
+        <span
+          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`}
+        />
+      </button>
+    </div>
   );
 }

@@ -7,6 +7,9 @@ import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
+import { shareContent } from "../lib/nativeShare";
+import { isNativeApp } from "../lib/appUrl";
+import { shareBlobFile } from "../lib/nativeFileShare";
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
@@ -480,6 +483,21 @@ export default function PrayerPage() {
     if (!audioBlob) return;
 
     try {
+      if (isNativeApp()) {
+        await shareBlobFile(audioBlob, "prayer.webm", "기도 녹음", "나의 기도를 공유합니다");
+        return;
+      }
+
+      if (tempAudioUrl) {
+        const shared = await shareContent({
+          title: "기도 녹음",
+          text: "나의 기도를 공유합니다",
+          url: tempAudioUrl,
+          dialogTitle: "기도 공유",
+        });
+        if (shared) return;
+      }
+
       const file = new File([audioBlob], 'prayer.webm', { type: 'audio/webm' });
 
       if (navigator.share && navigator.canShare({ files: [file] })) {
@@ -503,6 +521,24 @@ export default function PrayerPage() {
     const shareText = "기도 음성을 공유합니다.";
 
     try {
+      if (isNativeApp()) {
+        await shareContent({
+          title,
+          text: shareText,
+          url: record.audio_url,
+          dialogTitle: "기도 공유",
+        });
+        return;
+      }
+
+      const shared = await shareContent({
+        title,
+        text: shareText,
+        url: record.audio_url,
+        dialogTitle: "기도 공유",
+      });
+      if (shared) return;
+
       if (navigator.share) {
         try {
           const response = await fetch(record.audio_url);
@@ -528,11 +564,8 @@ export default function PrayerPage() {
           console.error("audio file share fallback:", error);
         }
 
-        await navigator.share({
-          title,
-          text: shareText,
-          url: record.audio_url,
-        });
+        await navigator.clipboard.writeText(record.audio_url);
+        alert("공유 링크를 복사했습니다.");
         return;
       }
 
@@ -834,7 +867,7 @@ export default function PrayerPage() {
   });
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-2 pt-24 pb-4">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-2 pt-[var(--app-page-top)] pb-4">
       <header className="relative mb-3 flex w-full flex-col items-center px-4 text-center">
   {/* 1. 연도 표시 (중앙 기준점) */}
   <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>

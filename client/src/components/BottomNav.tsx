@@ -6,7 +6,13 @@ export function BottomNav() {
   const [location] = useLocation();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[150] bg-white border-t px-1 pb-safe-area-inset-bottom h-[76px] flex items-center justify-around shadow-[0_-2px_10px_rgba(0,0,0,0.03)]">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-[150] flex items-center justify-around border-t bg-white px-1 shadow-[0_-2px_10px_rgba(0,0,0,0.03)]"
+      style={{
+        height: "calc(76px + var(--safe-bottom-inset))",
+        paddingBottom: "var(--safe-bottom-inset)",
+      }}
+    >
       <NavItem href="/" icon={<Sun />} label="오늘말씀" active={location === "/"} />
       <NavItem href="/reading" icon={<BookOpenText />} label="성경읽기" active={location === "/reading"} />
       <NavItem href="/qt" icon={<BookHeart />} label="QT일기" active={location === "/qt"} />

@@ -148,7 +148,7 @@ export default function LeadershipPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F6F7F8] pt-24 pb-28 px-4">
+    <div className="min-h-screen bg-[#F6F7F8] pt-[var(--app-page-top)] pb-28 px-4">
       <div className="max-w-2xl mx-auto space-y-4">
         <div className="flex items-center justify-between">
           <button

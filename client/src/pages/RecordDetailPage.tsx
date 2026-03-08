@@ -27,7 +27,7 @@ export default function RecordDetailPage() {
   if (!log) return <div className="p-8 text-center">기록을 찾을 수 없습니다.</div>;
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] pt-20 pb-10 px-4">
+    <div className="min-h-screen bg-[#F8F8F8] pt-[var(--app-page-top)] pb-10 px-4">
       <div className="max-w-lg mx-auto bg-white rounded-xl shadow p-6">
         <h2 className="font-bold text-lg mb-2">기록 상세</h2>
         <div className="mb-2 text-sm text-zinc-500">{formatDateTime(log.occurred_at)}</div>

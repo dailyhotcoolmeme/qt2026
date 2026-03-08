@@ -8,6 +8,7 @@ import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { VerseCardMakerModal } from "../components/VerseCardMakerModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
+import { shareContent } from "../lib/nativeShare";
 
 function cleanContent(text: string) {
   return String(text || "")
@@ -190,9 +191,8 @@ export default function DailyWordPage() {
     const shareData = { text, url };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
+      const shared = await shareContent(shareData);
+      if (!shared) {
         await navigator.clipboard.writeText(`${text}\n\n${url}`);
         alert("공유 문구를 클립보드에 복사했습니다.");
       }
@@ -281,7 +281,7 @@ export default function DailyWordPage() {
   }, [user?.id, showCardMaker]);
 
   return (
-    <div className="flex min-h-full w-full flex-col items-center overflow-x-hidden overflow-y-auto bg-[#F8F8F8] px-4 pb-4 pt-24">
+    <div className="flex min-h-full w-full flex-col items-center overflow-x-hidden overflow-y-auto bg-[#F8F8F8] px-4 pb-4 pt-[var(--app-page-top)]">
       <header className="relative mb-3 flex w-full flex-col items-center text-center">
         <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}

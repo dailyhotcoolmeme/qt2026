@@ -48,6 +48,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/card-backgrounds/:file", async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     const file = String(req.params.file || "").trim();
     if (!/^bg\d+\.jpg$/i.test(file)) {
       return res.status(400).json({ message: "invalid file" });
@@ -68,6 +71,9 @@ export async function registerRoutes(
   });
 
   app.get("/api/proxy-image", async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     const raw = String(req.query.url || "");
     if (!raw) return res.status(400).json({ message: "url is required" });
 
@@ -369,6 +375,43 @@ export async function registerRoutes(
   });
 
   // R2 오디오 URL 가져오기
+  app.delete("/api/file/delete", async (req, res) => {
+    try {
+      const { fileUrl } = req.body;
+
+      if (!fileUrl) {
+        return res.status(400).json({
+          success: false,
+          error: "fileUrl is required",
+        });
+      }
+
+      let fileName = "";
+
+      try {
+        fileName = new URL(fileUrl).pathname.replace(/^\/+/, "");
+      } catch {
+        fileName = String(fileUrl).replace(/^\/+/, "");
+      }
+
+      if (!fileName) {
+        return res.status(400).json({
+          success: false,
+          error: "invalid fileUrl",
+        });
+      }
+
+      const result = await deleteAudioFromR2(fileName);
+      res.json(result);
+    } catch (error) {
+      console.error("File delete error:", error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : "delete failed",
+      });
+    }
+  });
+
   app.get("/api/audio/:fileName", async (req, res) => {
     try {
       const { fileName } = req.params;

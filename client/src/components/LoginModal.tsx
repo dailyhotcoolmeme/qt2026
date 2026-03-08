@@ -1,8 +1,11 @@
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useLocation } from "wouter";
-import { supabase } from "../lib/supabase";
+import { startOAuthSignIn } from "../lib/oauth";
+import { isNativeApp } from "../lib/appUrl";
+import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 
 interface LoginModalProps {
@@ -13,10 +16,35 @@ interface LoginModalProps {
 
 export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const { fontSize = 16 } = useDisplaySettings();
+  const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
+  useEffect(() => {
+    if (!open || !isAuthenticated) return;
+    onOpenChange(false);
+  }, [open, isAuthenticated, onOpenChange]);
+
+  const resolveTargetReturnTo = () => {
+    const raw = returnTo || window.location.href;
+    if (!isNativeApp()) return raw;
+
+    if (raw.startsWith("/#/")) return raw.slice(1);
+    if (raw.startsWith("#/")) return raw;
+
+    try {
+      const parsed = new URL(raw);
+      if (parsed.hash && parsed.hash.startsWith("#/")) {
+        return parsed.hash;
+      }
+    } catch {
+      // ignore parse failures and fall through to the default route
+    }
+
+    return "#/";
+  };
+
   const handleKakaoLogin = async () => {
-    const targetReturnTo = returnTo || window.location.href;
+    const targetReturnTo = resolveTargetReturnTo();
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {
@@ -26,17 +54,8 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
       // ignore storage errors
     }
 
-    const encodedReturnTo = encodeURIComponent(targetReturnTo);
-    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
-
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "kakao",
-        options: {
-          redirectTo,
-        },
-      });
-      if (error) throw error;
+      await startOAuthSignIn("kakao", targetReturnTo);
     } catch (error) {
       console.error("LoginModal kakao start error", error);
       setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
@@ -44,7 +63,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   };
 
   const handleGoogleLogin = async () => {
-    const targetReturnTo = returnTo || window.location.href;
+    const targetReturnTo = resolveTargetReturnTo();
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {
@@ -54,17 +73,8 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
       // ignore storage errors
     }
 
-    const encodedReturnTo = encodeURIComponent(targetReturnTo);
-    const redirectTo = `${window.location.origin}/?returnTo=${encodedReturnTo}`;
-
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-        },
-      });
-      if (error) throw error;
+      await startOAuthSignIn("google", targetReturnTo);
     } catch (error) {
       console.error("LoginModal google start error", error);
       setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
@@ -72,7 +82,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   };
 
   const handleEmailLogin = () => {
-    const targetReturnTo = returnTo || window.location.href;
+    const targetReturnTo = resolveTargetReturnTo();
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {

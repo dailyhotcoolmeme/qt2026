@@ -9,14 +9,15 @@ export function Layout({ children, className }: { children: ReactNode; className
     <div className="min-h-screen w-full bg-zinc-50 flex justify-center">
       <div 
         className={cn(
-          "w-full max-w-[450px] min-h-screen bg-[#F8F8F8] shadow-2xl shadow-zinc-200/50 flex flex-col pb-[70px] relative overflow-hidden",
+          "w-full max-w-[450px] min-h-screen bg-[#F8F8F8] shadow-2xl shadow-zinc-200/50 flex flex-col relative overflow-hidden",
           className
         )}
         style={{
           fontFamily: fontFamily === 'serif' ? '"Noto Serif KR", serif' : 
                       fontFamily === 'monospace' ? '"Nanum Gothic", monospace' : 
                       '"Noto Sans KR", sans-serif',
-          fontSize: `${fontSize}px`
+          fontSize: `${fontSize}px`,
+          paddingBottom: "calc(76px + var(--safe-bottom-inset))",
         }}
       >
         {children}

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { supabase } from "../lib/supabase";
+import { startOAuthSignIn } from "../lib/oauth";
 import { useLocation, Link } from "wouter";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
@@ -271,14 +272,8 @@ export default function RegisterPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider,
-        options: {
-          redirectTo: `${window.location.origin}/${inviteQuery}`,
-          skipBrowserRedirect: false,
-        }
-      });
-      if (error) throw error;
+      const targetReturnTo = `${window.location.origin}/#/${inviteQuery}`;
+      await startOAuthSignIn(provider, targetReturnTo);
     } catch (e) {
       console.error(`${provider} OAuth start error:`, e);
       setModal({

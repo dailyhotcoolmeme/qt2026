@@ -13,6 +13,7 @@ import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
+import { shareContent } from "../lib/nativeShare";
 import {
   getCachedAudioObjectUrl,
   parseVerseRange,
@@ -759,9 +760,8 @@ export default function QTPage() {
     };
 
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-      } else {
+      const shared = await shareContent(shareData);
+      if (!shared) {
         await navigator.clipboard.writeText(`${text}\n\n${shareUrl}`);
         alert("공유 문구를 클립보드에 복사했습니다.");
       }
@@ -1039,7 +1039,7 @@ export default function QTPage() {
   };
 
   return (
-    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-24 pb-4 px-4">
+    <div className="flex flex-col items-center w-full min-h-full bg-[#F8F8F8] overflow-y-auto overflow-x-hidden pt-[var(--app-page-top)] pb-4 px-4">
 
       {/* 상단 날짜 영역 */}
       <header className="text-center mb-3 flex flex-col items-center w-full relative">

@@ -310,7 +310,7 @@ export default function SearchPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] pb-20">
-      <div className="fixed top-16 left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm">
+      <div className="fixed left-0 right-0 z-[100] bg-white border-b border-zinc-100 shadow-sm top-[var(--app-page-top)]">
         <div className="p-4 space-y-4 max-w-2xl mx-auto">
           <div className="flex gap-2 h-11">
             <div className="relative group flex-1">
@@ -369,7 +369,7 @@ export default function SearchPage() {
         </div>
       </div>
 
-      <div className="pt-[210px] px-4 max-w-2xl mx-auto">
+      <div className="px-4 max-w-2xl mx-auto pt-[calc(var(--app-page-top)+146px)]">
         {/* 검색 결과 요약 바 */}
         {viewMode === 'SEARCH' && searchStats && (
           <div className="mb-6 py-3 px-5 bg-[#4A6741]/5 border border-[#4A6741]/10 rounded-2xl shadow-sm flex items-center justify-between animate-in slide-in-from-top-2 duration-500">

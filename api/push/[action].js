@@ -25,12 +25,15 @@ function getSendEnv() {
   const vapidPublic = process.env.VAPID_PUBLIC_KEY || "";
   const vapidPrivate = process.env.VAPID_PRIVATE_KEY || "";
   const vapidSubject = process.env.VAPID_SUBJECT || "mailto:admin@myamen.co.kr";
+  const firebaseServerKey = process.env.FIREBASE_SERVER_KEY || "";
   return {
     ...base,
     vapidPublic,
     vapidPrivate,
     vapidSubject,
     hasVapid: Boolean(vapidPublic && vapidPrivate),
+    firebaseServerKey,
+    hasFirebase: Boolean(firebaseServerKey),
     pushServerKey: process.env.PUSH_SERVER_KEY || "",
   };
 }
@@ -250,13 +253,27 @@ async function loadSubscriptions(admin, userIds) {
   if (!userIds.length) return [];
   const { data, error } = await admin
     .from("push_subscriptions")
-    .select("id,user_id,endpoint,subscription")
+    .select("id,user_id,endpoint,subscription,channel,device_token,platform")
     .in("user_id", userIds);
 
   if (error) throw new Error(error.message || "Failed to load push subscriptions");
 
   return (data ?? [])
     .map((row) => {
+      const channel = String(row.channel || "webpush").trim().toLowerCase();
+      if (channel === "fcm") {
+        const token = String(row.device_token || row.endpoint || "").replace(/^fcm:/, "").trim();
+        if (!token) return null;
+        return {
+          id: row.id,
+          user_id: row.user_id,
+          endpoint: row.endpoint,
+          channel,
+          token,
+          platform: row.platform || null,
+        };
+      }
+
       const parsed =
         row.subscription && typeof row.subscription === "object"
           ? parseSubscriptionPayload(row.subscription)
@@ -266,10 +283,61 @@ async function loadSubscriptions(admin, userIds) {
         id: row.id,
         user_id: row.user_id,
         endpoint: row.endpoint,
+        channel,
         subscription: parsed,
       };
     })
     .filter(Boolean);
+}
+
+async function filterTargetUserIdsBySettings(admin, userIds, payload, eventType) {
+  if (!userIds.length) return [];
+
+  try {
+    const { data, error } = await admin
+      .from("user_notification_settings")
+      .select("user_id,push_enabled,group_activity_enabled,system_enabled")
+      .in("user_id", userIds);
+
+    if (error) throw error;
+
+    const byUserId = new Map((data ?? []).map((row) => [String(row.user_id), row]));
+    const notificationType =
+      String(payload?.data?.type || "").trim() ||
+      (eventType === "group_join_request_created" || eventType === "group_join_request_resolved"
+        ? "group"
+        : "system");
+
+    return userIds.filter((userId) => {
+      const row = byUserId.get(String(userId));
+      if (!row) return true;
+      if (row.push_enabled === false) return false;
+      if (notificationType === "system") {
+        return row.system_enabled !== false;
+      }
+      return row.group_activity_enabled !== false;
+    });
+  }
+  catch (error) {
+    // Legacy fallback: only a single master on/off toggle.
+    try {
+      const { data, error: legacyError } = await admin
+        .from("notification_settings")
+        .select("user_id,is_enabled")
+        .in("user_id", userIds);
+
+      if (legacyError) throw legacyError;
+
+      const byUserId = new Map((data ?? []).map((row) => [String(row.user_id), row]));
+      return userIds.filter((userId) => {
+        const row = byUserId.get(String(userId));
+        if (!row) return true;
+        return row.is_enabled !== false;
+      });
+    } catch {
+      return userIds;
+    }
+  }
 }
 
 function normalizeTargetPath(url) {
@@ -382,6 +450,91 @@ async function sendWebPushBatch(admin, subscriptions, payload, ttl) {
   return { sent, failed, removed: staleIds.length };
 }
 
+async function sendFcmBatch(admin, subscriptions, payload, serverKey) {
+  if (!subscriptions.length || !serverKey) {
+    return { sent: 0, failed: 0, removed: 0 };
+  }
+
+  let sent = 0;
+  let failed = 0;
+  const staleIds = [];
+  const failedLogs = [];
+
+  await Promise.all(
+    subscriptions.map(async (item) => {
+      try {
+        const response = await fetch("https://fcm.googleapis.com/fcm/send", {
+          method: "POST",
+          headers: {
+            Authorization: `key=${serverKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            to: item.token,
+            priority: "high",
+            notification: {
+              title: payload.title,
+              body: payload.body,
+            },
+            data: {
+              ...(payload.data && typeof payload.data === "object" ? payload.data : {}),
+              url: payload.url || "/",
+              targetPath: normalizeTargetPath(payload.url),
+            },
+          }),
+        });
+
+        const result = await response.json().catch(() => null);
+        if (!response.ok || result?.failure > 0 || result?.results?.[0]?.error) {
+          const errorMessage =
+            result?.results?.[0]?.error ||
+            result?.error ||
+            `FCM request failed (${response.status})`;
+          throw new Error(errorMessage);
+        }
+
+        sent += 1;
+      } catch (error) {
+        failed += 1;
+        const message = String(error?.message || "FCM send failed");
+        if (/notregistered|registration-token-not-registered|invalidregistration/i.test(message)) {
+          staleIds.push(item.id);
+        } else {
+          failedLogs.push({ id: item.id, message });
+        }
+      }
+    })
+  );
+
+  const nowIso = new Date().toISOString();
+  if (sent > 0) {
+    const successIds = subscriptions.map((row) => row.id).filter((id) => !staleIds.includes(id));
+    if (successIds.length) {
+      await admin
+        .from("push_subscriptions")
+        .update({ last_success_at: nowIso, updated_at: nowIso, last_error: null })
+        .in("id", successIds);
+    }
+  }
+
+  if (failedLogs.length) {
+    await Promise.all(
+      failedLogs.map((row) =>
+        admin
+          .from("push_subscriptions")
+          .update({ last_error: row.message.slice(0, 500), updated_at: nowIso })
+          .eq("id", row.id)
+      )
+    );
+  }
+
+  if (staleIds.length > 0) {
+    await admin.from("push_subscriptions").delete().in("id", staleIds);
+  }
+
+  return { sent, failed, removed: staleIds.length };
+}
+
 async function handleSubscribe(req, res) {
   const env = getBaseEnv();
   const user = await resolveAuthedUser(req, env);
@@ -389,9 +542,26 @@ async function handleSubscribe(req, res) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
-  const subscription = parseSubscriptionPayload(req.body?.subscription);
-  if (!subscription) {
-    return res.status(400).json({ success: false, error: "Invalid push subscription payload" });
+  const rawChannel = String(req.body?.channel || "webpush").trim().toLowerCase();
+  const channel = rawChannel === "fcm" ? "fcm" : "webpush";
+
+  let endpoint = "";
+  let subscription = null;
+  let deviceToken = null;
+
+  if (channel === "fcm") {
+    const token = String(req.body?.token || "").trim();
+    if (!token) {
+      return res.status(400).json({ success: false, error: "token is required" });
+    }
+    endpoint = `fcm:${token}`;
+    deviceToken = token;
+  } else {
+    subscription = parseSubscriptionPayload(req.body?.subscription);
+    if (!subscription) {
+      return res.status(400).json({ success: false, error: "Invalid push subscription payload" });
+    }
+    endpoint = subscription.endpoint;
   }
 
   const admin = createClient(env.url, env.serviceKey, {
@@ -402,13 +572,16 @@ async function handleSubscribe(req, res) {
   const { error } = await admin.from("push_subscriptions").upsert(
     {
       user_id: user.id,
-      endpoint: subscription.endpoint,
+      channel,
+      endpoint,
       subscription,
+      device_token: deviceToken,
+      platform: channel === "fcm" ? String(req.body?.platform || "").trim() || null : null,
       user_agent: req.headers["user-agent"] ? String(req.headers["user-agent"]) : null,
       updated_at: nowIso,
       last_error: null,
     },
-    { onConflict: "endpoint" }
+    { onConflict: "channel,endpoint" }
   );
 
   if (error) {
@@ -425,7 +598,9 @@ async function handleUnsubscribe(req, res) {
     return res.status(401).json({ success: false, error: "Unauthorized" });
   }
 
-  const endpoint = String(req.body?.endpoint || "").trim();
+  const channel = String(req.body?.channel || "webpush").trim().toLowerCase();
+  const token = String(req.body?.token || "").trim();
+  const endpoint = String(req.body?.endpoint || (channel === "fcm" && token ? `fcm:${token}` : "")).trim();
   if (!endpoint) {
     return res.status(400).json({ success: false, error: "endpoint is required" });
   }
@@ -434,7 +609,12 @@ async function handleUnsubscribe(req, res) {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  const { error } = await admin.from("push_subscriptions").delete().eq("user_id", user.id).eq("endpoint", endpoint);
+  const { error } = await admin
+    .from("push_subscriptions")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("channel", channel === "fcm" ? "fcm" : "webpush")
+    .eq("endpoint", endpoint);
   if (error) {
     return res.status(500).json({ success: false, error: error.message || "Failed to delete subscription" });
   }
@@ -513,9 +693,15 @@ async function handleSend(req, res) {
     });
   }
 
+  targetUserIds = await filterTargetUserIdsBySettings(admin, targetUserIds, notificationPayload, eventType);
+
   const storedCount = await storeAppNotifications(admin, targetUserIds, notificationPayload, eventType, eventDebug);
 
-  if (!env.hasVapid) {
+  const subscriptions = await loadSubscriptions(admin, targetUserIds);
+  const webSubscriptions = subscriptions.filter((row) => row.channel !== "fcm");
+  const fcmSubscriptions = subscriptions.filter((row) => row.channel === "fcm");
+
+  if (!env.hasVapid && !env.hasFirebase) {
     return res.status(200).json({
       success: true,
       targets: targetUserIds.length,
@@ -525,22 +711,26 @@ async function handleSend(req, res) {
       removed: 0,
       stored: storedCount,
       skippedPush: true,
-      reason: "VAPID key is not configured",
+      reason: "Push provider is not configured",
       eventType: eventType || null,
       event: eventDebug,
     });
   }
 
-  const subscriptions = await loadSubscriptions(admin, targetUserIds);
-  const result = await sendWebPushBatch(admin, subscriptions, notificationPayload, req.body?.ttl);
+  const webResult = env.hasVapid
+    ? await sendWebPushBatch(admin, webSubscriptions, notificationPayload, req.body?.ttl)
+    : { sent: 0, failed: 0, removed: 0 };
+  const fcmResult = env.hasFirebase
+    ? await sendFcmBatch(admin, fcmSubscriptions, notificationPayload, env.firebaseServerKey)
+    : { sent: 0, failed: 0, removed: 0 };
 
   return res.status(200).json({
     success: true,
     targets: targetUserIds.length,
     subscriptions: subscriptions.length,
-    sent: result.sent,
-    failed: result.failed,
-    removed: result.removed,
+    sent: webResult.sent + fcmResult.sent,
+    failed: webResult.failed + fcmResult.failed,
+    removed: webResult.removed + fcmResult.removed,
     stored: storedCount,
     eventType: eventType || null,
     event: eventDebug,

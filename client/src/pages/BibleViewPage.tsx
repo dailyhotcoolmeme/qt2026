@@ -82,13 +82,13 @@ export default function BibleViewPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-14 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14">
+      <div className="fixed left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 top-[var(--app-page-top)]">
         <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
       </div>
-      <div className="fixed inset-0 flex items-center justify-center pt-14 text-zinc-400 font-medium">
+      <div className="fixed inset-0 flex items-center justify-center pt-[calc(var(--app-page-top)+56px)] text-zinc-400 font-medium">
         말씀을 불러오는 중...
       </div>
     </div>
@@ -99,14 +99,14 @@ export default function BibleViewPage() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="fixed top-16 left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm">
+      <div className="fixed left-0 right-0 z-50 bg-white border-b px-4 py-3 h-14 shadow-sm top-[var(--app-page-top)]">
         <button onClick={() => setLocation('/search')} className="flex items-center gap-2 text-zinc-700 font-bold h-full">
           <ArrowLeft className="w-5 h-5" />
           <span>검색으로 돌아가기</span>
         </button>
       </div>
 
-      <div className="pt-[160px] pb-4 px-5 space-y-2 max-w-2xl mx-auto">
+      <div className="pb-4 px-5 space-y-2 max-w-2xl mx-auto pt-[calc(var(--app-page-top)+96px)]">
         <h2 className="font-bold text-zinc-800 mb-4 pb-4" style={{ fontSize: `${fontSize * 1.1}px` }}>
           {displayBookName} {displayBookName === '시편' ? `${displayChapter}편` : `${displayChapter}장`}
         </h2>

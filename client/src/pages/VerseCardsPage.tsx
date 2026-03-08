@@ -179,7 +179,7 @@ export default function VerseCardsPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-24">
+    <div className="mx-auto w-full max-w-2xl px-5 pb-24 pt-[var(--app-page-top)]">
       {isLoading && (
         <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-400">
           불러오는 중...

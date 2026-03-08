@@ -574,7 +574,7 @@ export default function ArchivePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F8F8] pt-20 pb-10 px-4 text-[clamp(13px,1.1em,18px)]">
+    <div className="min-h-screen bg-[#F8F8F8] pt-[var(--app-page-top)] pb-10 px-4 text-[clamp(13px,1.1em,18px)]">
       <div className="max-w-3xl mx-auto space-y-4">
         {/* Removed 개인 저장파일 보관 현황 (30일 무료) section */}
 

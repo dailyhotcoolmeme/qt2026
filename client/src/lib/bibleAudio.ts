@@ -137,7 +137,7 @@ export async function loadChapterAudioMetadata(
   testament?: "OT" | "NT"
 ): Promise<ChapterAudioMetadata | null> {
   try {
-    const res = await fetch(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`);
+    const res = await fetch(resolveApiUrl(`/api/bible/audio-metadata?book_id=${bookId}&chapter=${chapter}`));
     if (res.ok) {
       const payload = await res.json();
       const normalized = normalizeMetadataPayload(payload);
@@ -196,3 +196,4 @@ export async function isAudioCached(audioUrl: string): Promise<boolean> {
   }
 }
 
+import { resolveApiUrl } from "./appUrl";

@@ -35,6 +35,7 @@ import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
+import { shareContent } from "../lib/nativeShare";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
@@ -2638,11 +2639,12 @@ export default function GroupDashboard() {
     if (!group) return;
     const text = buildInviteMessage(true);
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `[마이아멘(myAmen) 모임 초대] 모임명 : ${group.name}`,
-          text,
-        });
+      const shared = await shareContent({
+        title: `[마이아멘(myAmen) 모임 초대] 모임명 : ${group.name}`,
+        text,
+        dialogTitle: "모임 초대 공유",
+      });
+      if (shared) {
         return;
       }
       await copyInviteMessage();
@@ -2717,7 +2719,7 @@ export default function GroupDashboard() {
     return (
       <div className="min-h-screen bg-[#F6F7F8] pb-10 text-base">
         <div
-          className="pt-20 pb-10 min-h-[260px] flex flex-col justify-between"
+          className="pb-10 min-h-[260px] flex flex-col justify-between pt-[var(--app-page-top)]"
           style={{
             background:
               ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -2933,7 +2935,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-20 pb-10 min-h-[260px] flex flex-col justify-between h-full">
+        <div className="max-w-2xl mx-auto px-4 pb-10 min-h-[260px] flex flex-col justify-between h-full pt-[var(--app-page-top)]">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
@@ -2974,7 +2976,7 @@ export default function GroupDashboard() {
         </div>
       </header>
 
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all overflow-x-auto hide-scrollbar">
+      <div className="sticky z-30 bg-white/95 backdrop-blur border-b border-zinc-200 transition-all overflow-x-auto hide-scrollbar top-[var(--app-topbar-height)]">
         <div className="w-full">
           <nav className="flex items-center justify-center w-full max-w-xl mx-auto">
             {([

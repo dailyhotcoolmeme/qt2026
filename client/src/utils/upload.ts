@@ -2,6 +2,8 @@
 // This avoids embedding R2 credentials in the browser and prevents credential
 // related errors. The server will perform the actual upload to R2 and return
 // a public URL.
+import { resolveApiUrl } from "../lib/appUrl";
+
 export const uploadFileToR2 = async (file: File, folder: string = "profiles") => {
   const fileName = `${folder}/${Date.now()}-${(file.name || "file").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
 
@@ -13,7 +15,7 @@ export const uploadFileToR2 = async (file: File, folder: string = "profiles") =>
   const base64 = btoa(binary);
 
   try {
-    const res = await fetch("/api/file/upload", {
+    const res = await fetch(resolveApiUrl("/api/file/upload"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileName, fileBase64: base64, contentType: file.type }),

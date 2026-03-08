@@ -5,6 +5,7 @@ import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
 import { supabase } from "../lib/supabase";
 import { uploadFileToR2 } from "../utils/upload";
+import { resolveApiUrl } from "../lib/appUrl";
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -25,7 +26,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const deleteAvatarFromR2 = async (avatarUrl?: string | null) => {
     if (!avatarUrl) return;
 
-    const response = await fetch("/api/file/delete", {
+    const response = await fetch(resolveApiUrl("/api/file/delete"), {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ fileUrl: avatarUrl }),

@@ -1,102 +1,68 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { supabase } from "../lib/supabase";
+import { resolveOAuthReturnTo, startOAuthSignIn } from "../lib/oauth";
 import { useHashLocation } from "wouter/use-hash-location";
 import { Link } from "wouter";
-import { Eye, EyeOff, X, Check, Loader2 } from "lucide-react";
+import { Eye, EyeOff, X, Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 
+type LoginFormValues = {
+  username: string;
+  password: string;
+};
+
 function AuthPage() {
-  const [location, setLocation] = useHashLocation();
+  const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
 
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const [autoLogin, setAutoLogin] = useState(true);
-  const [user, setUser] = useState<any>(null);
 
-  const { register, getValues } = useForm();
+  const { register, getValues } = useForm<LoginFormValues>();
 
-  // 페이지 로드 시 loginModal 쿼리 파라미터 확인
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('loginModal') === 'true') {
+    if (params.get("loginModal") === "true") {
       setIsLoginOpen(true);
     }
   }, []);
 
-  // 인증 후 user 상태 갱신 + 로그인 감지 시 홈으로 이동
   useEffect(() => {
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        setUser(null);
-        return;
+    const navigateHomeIfSignedIn = async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) return;
+      if (data.session?.user) {
+        window.location.replace(`${window.location.origin}/#/`);
       }
-      const sessionUser = data.session?.user ?? null;
-      setUser(sessionUser);
-      if (sessionUser) {
-        // 이미 로그인된 상태로 auth 페이지에 진입하면 홈으로 이동
-        window.location.replace(window.location.origin + '/#/');
-      }
-    }).catch(() => setUser(null));
+    };
+
+    void navigateHomeIfSignedIn();
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
       if (session?.user) {
-        window.location.replace(window.location.origin + '/#/');
+        window.location.replace(`${window.location.origin}/#/`);
       }
     });
+
     return () => listener.subscription.unsubscribe();
   }, []);
 
-  // 카카오 로그인 로직
-  const getOAuthRedirectTo = () => {
+  const getTargetReturnTo = () => {
     const params = new URLSearchParams(window.location.search);
-    const returnTo = params.get("returnTo");
-    if (!returnTo) return `${window.location.origin}/`;
-    try {
-      const decoded = decodeURIComponent(returnTo);
-      return `${window.location.origin}/?returnTo=${encodeURIComponent(decoded)}`;
-    } catch {
-      return `${window.location.origin}/?returnTo=${encodeURIComponent(returnTo)}`;
-    }
+    return resolveOAuthReturnTo(params.get("returnTo"));
   };
 
-  const handleKakaoLogin = async () => {
+  const handleSocialLogin = async (provider: "kakao" | "google") => {
     try {
-      // returnTo: auth 페이지가 아닌 홈으로 설정
-      const redirectTo = getOAuthRedirectTo();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "kakao",
-        options: {
-          redirectTo,
-        },
-      });
-      if (error) throw error;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Kakao OAuth start error:", err);
-      alert("카카오 로그인 중 오류가 발생했습니다.");
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      const redirectTo = getOAuthRedirectTo();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-        },
-      });
-      if (error) throw error;
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error("Google OAuth start error:", err);
-      alert("구글 로그인 중 오류가 발생했습니다.");
+      await startOAuthSignIn(provider, getTargetReturnTo());
+    } catch (error) {
+      console.error(`${provider} OAuth start error:`, error);
+      alert(`${provider === "kakao" ? "카카오" : "구글"} 로그인 시작에 실패했습니다.`);
     }
   };
 
@@ -106,79 +72,116 @@ function AuthPage() {
       setErrorMsg("아이디와 비밀번호를 입력해 주세요.");
       return;
     }
+
     setIsLoading(true);
     setErrorMsg("");
+
     try {
-      const { data: profile } = await supabase.from("profiles").select("email").eq("username", values.username).maybeSingle();
-      if (!profile) throw new Error("아이디를 확인해 주세요.");
-      const { error: lErr } = await supabase.auth.signInWithPassword({ email: profile.email, password: values.password });
-      if (lErr) throw new Error("비밀번호가 일치하지 않습니다.");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("email")
+        .eq("username", values.username)
+        .maybeSingle();
+
+      if (!profile?.email) {
+        throw new Error("아이디를 확인해 주세요.");
+      }
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: profile.email,
+        password: values.password,
+      });
+
+      if (error) {
+        throw new Error("비밀번호가 올바르지 않습니다.");
+      }
+
       const params = new URLSearchParams(window.location.search);
-      const returnTo = params.get('returnTo');
+      const returnTo = params.get("returnTo");
       if (returnTo) {
-        window.location.href = returnTo;
+        window.location.href = resolveOAuthReturnTo(returnTo);
       } else {
         setLocation("/");
       }
-    } catch (e: any) {
-      setErrorMsg(e.message);
+    } catch (error: any) {
+      setErrorMsg(error?.message || "로그인에 실패했습니다.");
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-[#F8F8F8] px-8 pt-24 pb-12 overflow-hidden relative text-left">
-      <style dangerouslySetInnerHTML={{
-        __html: `
-        input:-webkit-autofill {
-            -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
-            -webkit-text-fill-color: #18181b !important;
-        }
-      `}} />
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#F8F8F8] px-8 pb-12 pt-24 text-left">
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+            input:-webkit-autofill {
+              -webkit-box-shadow: 0 0 0 1000px #F9FAFB inset !important;
+              -webkit-text-fill-color: #18181b !important;
+            }
+          `,
+        }}
+      />
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full text-center mt-16">
-
-        <h1 className="font-black text-zinc-900 leading-[1.3] tracking-tighter" style={{ fontSize: `${fontSize * 1.8}px` }}>
-          나의 신앙 기록을<br />
-          <span className="text-[#4A6741]">기억하고 나누는 공간</span>
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mt-16 w-full text-center">
+        <h1 className="font-black leading-[1.3] tracking-tighter text-zinc-900" style={{ fontSize: `${fontSize * 1.8}px` }}>
+          나의 신앙 기록을
+          <br />
+          <span className="text-[#4A6741]">기억하고 나누고 공감</span>
         </h1>
-        <p className="text-zinc-400 mt-6 font-medium leading-relaxed break-keep" style={{ fontSize: `${fontSize}px` }}>
-          매일의 말씀과 묵상(QT),<br />
-          그리고 기도를 기록하고 보관하세요
+        <p className="mt-6 break-keep font-medium leading-relaxed text-zinc-400" style={{ fontSize: `${fontSize}px` }}>
+          매일의 말씀과 묵상(QT),
+          <br />
+          그리고 기도를 기록하고 보관해 보세요.
         </p>
       </motion.div>
 
-      <div className="w-full max-w-sm mt-20 mb-auto flex flex-col items-center gap-6">
+      <div className="mb-auto mt-20 flex w-full max-w-sm flex-col items-center gap-6">
         <button
-          onClick={handleKakaoLogin}
-          className="w-full h-[64px] bg-[#FEE500] text-[#3C1E1E] font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+          onClick={() => void handleSocialLogin("kakao")}
+          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95"
         >
-          <img src="/kakao-login.png" className="w-6 h-6" alt="카카오" />
+          <img src="/kakao-login.png" className="h-6 w-6" alt="카카오" />
           카카오로 로그인하기
         </button>
 
         <button
-          onClick={handleGoogleLogin}
-          className="w-full h-[64px] bg-white border-2 border-zinc-200 text-zinc-900 font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-95 transition-all"
+          onClick={() => void handleSocialLogin("google")}
+          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] border-2 border-zinc-200 bg-white font-bold text-zinc-900 shadow-sm transition-all active:scale-95"
         >
           <FcGoogle size={24} />
           구글로 로그인하기
         </button>
 
         <div className="flex items-center justify-center gap-5">
-          <button onClick={() => setIsLoginOpen(true)} className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>아이디로 로그인</button>
-          <span className="w-[1px] h-3 bg-zinc-300"></span>
-          <Link href="/register" className="text-zinc-500 font-semibold" style={{ fontSize: `${fontSize * 0.9}px` }}>회원가입</Link>
+          <button
+            onClick={() => setIsLoginOpen(true)}
+            className="font-semibold text-zinc-500"
+            style={{ fontSize: `${fontSize * 0.9}px` }}
+          >
+            아이디로 로그인
+          </button>
+          <span className="h-3 w-[1px] bg-zinc-300" />
+          <Link href="/register" className="font-semibold text-zinc-500" style={{ fontSize: `${fontSize * 0.9}px` }}>
+            회원가입
+          </Link>
         </div>
       </div>
 
       <AnimatePresence>
         {isLoginOpen && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLoginOpen(false)} className="fixed inset-0 bg-black/40 z-[90] backdrop-blur-sm" />
             <motion.div
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsLoginOpen(false)}
+              className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               drag="y"
               dragDirectionLock
@@ -189,54 +192,64 @@ function AuthPage() {
                   setIsLoginOpen(false);
                 }
               }}
-              className="fixed bottom-0 left-0 right-0 bg-white rounded-t-[40px] z-[100] px-8 pt-10 pb-28 shadow-2xl"
+              className="fixed bottom-0 left-0 right-0 z-[100] rounded-t-[40px] bg-white px-8 pb-28 pt-10 shadow-2xl"
             >
               <div className="mx-auto -mt-4 mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
-              <div className="flex justify-between items-center mb-8 px-2">
-                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>아이디 로그인</h3>
-                <button onClick={() => setIsLoginOpen(false)} className="text-zinc-400 p-2"><X size={24} /></button>
+              <div className="mb-8 flex items-center justify-between px-2">
+                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>
+                  아이디 로그인
+                </h3>
+                <button onClick={() => setIsLoginOpen(false)} className="p-2 text-zinc-400">
+                  <X size={24} />
+                </button>
               </div>
 
               <div className="space-y-4 px-2">
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741]">
-                  <label className="text-[#4A6741] font-bold text-[11px] block mb-2">아이디</label>
-                  <input {...register("username")} className="bg-transparent outline-none font-bold w-full text-zinc-900" placeholder="아이디 입력" />
+                <div className="rounded-[22px] border-2 border-transparent bg-zinc-50 p-5 focus-within:border-[#4A6741]">
+                  <label className="mb-2 block text-[11px] font-bold text-[#4A6741]">아이디</label>
+                  <input
+                    {...register("username")}
+                    className="w-full bg-transparent font-bold text-zinc-900 outline-none"
+                    placeholder="아이디 입력"
+                  />
                 </div>
 
-                <div className="bg-zinc-50 rounded-[22px] p-5 border-2 border-transparent focus-within:border-[#4A6741] relative flex flex-col">
-                  <label className="text-[#4A6741] font-bold text-[11px] block mb-2">비밀번호</label>
-                  <div className="flex items-center">
-                    <input {...register("password")} type={showPw ? "text" : "password"} className="bg-transparent outline-none font-bold w-full text-zinc-900 pr-10" placeholder="비밀번호 입력" />
-                    <button type="button" onClick={() => setShowPw(!showPw)} className="text-zinc-300 absolute right-6">
-                      {showPw ? <EyeOff size={22} /> : <Eye size={22} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between px-2 pt-1">
-                  <button type="button" onClick={() => setAutoLogin(!autoLogin)} className="flex items-center gap-2">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${autoLogin ? 'bg-[#4A6741]' : 'border-2 border-zinc-200'}`}>
-                      {autoLogin && <Check size={14} className="text-white" />}
-                    </div>
-                    <span className={`text-[13px] font-bold ${autoLogin ? 'text-[#4A6741]' : 'text-zinc-400'}`}>로그인 유지</span>
+                <div className="relative flex flex-col rounded-[22px] border-2 border-transparent bg-zinc-50 p-5 focus-within:border-[#4A6741]">
+                  <label className="mb-2 block text-[11px] font-bold text-[#4A6741]">비밀번호</label>
+                  <input
+                    {...register("password")}
+                    type={showPw ? "text" : "password"}
+                    className="w-full bg-transparent pr-12 font-bold text-zinc-900 outline-none"
+                    placeholder="비밀번호 입력"
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        void handleManualLogin();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPw((prev) => !prev)}
+                    className="absolute right-5 top-[42px] text-zinc-400"
+                  >
+                    {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
-
-                  {/* 핵심 수정 부분: 탭 신호를 포함한 링크 */}
-                  <div className="flex gap-3 text-zinc-400 font-bold text-[13px]">
-                    <Link href="/find-account?tab=id">아이디 찾기</Link>
-                    <span className="text-zinc-200">|</span>
-                    <Link href="/find-account?tab=pw">비밀번호 찾기</Link>
-                  </div>
                 </div>
 
-                {errorMsg && <p className="text-red-500 text-[12px] font-bold px-2">{errorMsg}</p>}
+                {errorMsg ? <p className="px-1 text-sm font-medium text-red-500">{errorMsg}</p> : null}
 
                 <button
-                  disabled={isLoading} onClick={handleManualLogin}
-                  className="w-full h-[64px] bg-[#4A6741] text-white rounded-[20px] font-black shadow-lg flex items-center justify-center active:scale-95 transition-all mt-6"
+                  onClick={() => void handleManualLogin()}
+                  disabled={isLoading}
+                  className="mt-4 flex h-[60px] w-full items-center justify-center rounded-[22px] bg-[#4A6741] font-bold text-white transition-all active:scale-95 disabled:opacity-60"
                 >
-                  {isLoading ? <Loader2 className="animate-spin" /> : "로그인하기"}
+                  {isLoading ? <Loader2 size={20} className="animate-spin" /> : "로그인"}
                 </button>
+
+                <div className="flex items-center justify-between px-2 pt-2 text-sm text-zinc-500">
+                  <Link href="/find-account">계정 찾기</Link>
+                  <Link href="/register">회원가입</Link>
+                </div>
               </div>
             </motion.div>
           </>

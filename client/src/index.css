@@ -5,6 +5,10 @@
 @tailwind utilities;
 
 :root {
+  --safe-top-inset: env(safe-area-inset-top, 0px);
+  --safe-bottom-inset: env(safe-area-inset-bottom, 0px);
+  --app-topbar-height: calc(64px + var(--safe-top-inset));
+  --app-page-top: calc(96px + var(--safe-top-inset));
   /* HSL conversion of #5D7BAF (approx 218deg, 35%, 52%) */
   --primary: 218 35% 52%;
   --primary-foreground: 0 0% 100%;
@@ -57,6 +61,15 @@
 }
 
 @layer base {
+  html, body, #root {
+    min-height: 100%;
+  }
+
+  html.native-app {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   * {
     @apply border-border;
   }
