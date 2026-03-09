@@ -69,14 +69,15 @@ function resolveImagePresets(): ThemePreset[] {
 function toProxyUrl(url: string): string {
   if (!url) return url;
   if (url.startsWith("/api/")) return resolveApiUrl(url);
+  const normalized = resolveAppUrl(url);
   try {
-    const parsed = new URL(url, window.location.origin);
+    const parsed = new URL(normalized);
     if (parsed.origin === window.location.origin || parsed.origin === getPublicWebOrigin()) {
       return parsed.toString();
     }
     return resolveApiUrl(`/api/proxy-image?url=${encodeURIComponent(parsed.toString())}`);
   } catch {
-    return resolveAppUrl(url);
+    return normalized;
   }
 }
 
@@ -594,24 +595,55 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
-                <div
-                  className="relative aspect-[4/5] rounded-none border border-zinc-200 p-5 overflow-hidden"
-                  style={{ ...previewStyle, width: `${PREVIEW_WIDTH_PX}px` }}
-                >
-                  {currentPreset?.mode === "image" ? (
-                    <div
-                      className="absolute inset-0 bg-cover bg-center"
-                      style={{ backgroundImage: `url(${toProxyUrl(currentPreset.bg)})`, opacity: IMAGE_OPACITY }}
-                    />
-                  ) : null}
-                  <div className="relative h-full flex flex-col">
-                    <div className="flex-1 flex flex-col items-center justify-center">
-                      <p className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold" style={{ color: effectiveTextColor, fontSize: previewBodyFontPx, fontFamily: "serif", textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
-                        {cleanContent}
-                      </p>
-                      <p className="mt-2 text-center font-bold" style={{ color: effectiveSubColor, fontSize: previewRefFontPx, fontFamily: "serif", textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none" }}>
-                        {title}
-                      </p>
+                <div className="relative w-full flex justify-center">
+                  <div
+                    className="absolute inset-y-0 left-0"
+                    style={{ width: `calc(50% - ${PREVIEW_WIDTH_PX / 2}px)` }}
+                    onPointerDown={(e) => dragControls.start(e)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute inset-y-0 right-0"
+                    style={{ width: `calc(50% - ${PREVIEW_WIDTH_PX / 2}px)` }}
+                    onPointerDown={(e) => dragControls.start(e)}
+                    aria-hidden="true"
+                  />
+
+                  <div
+                    className="relative aspect-[4/5] rounded-none border border-zinc-200 p-5 overflow-hidden"
+                    style={{ ...previewStyle, width: `${PREVIEW_WIDTH_PX}px` }}
+                  >
+                    {currentPreset?.mode === "image" ? (
+                      <div
+                        className="absolute inset-0 bg-cover bg-center"
+                        style={{ backgroundImage: `url(${toProxyUrl(currentPreset.bg)})`, opacity: IMAGE_OPACITY }}
+                      />
+                    ) : null}
+                    <div className="relative h-full flex flex-col">
+                      <div className="flex-1 flex flex-col items-center justify-center">
+                        <p
+                          className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold"
+                          style={{
+                            color: effectiveTextColor,
+                            fontSize: previewBodyFontPx,
+                            fontFamily: "serif",
+                            textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
+                          }}
+                        >
+                          {cleanContent}
+                        </p>
+                        <p
+                          className="mt-2 text-center font-bold"
+                          style={{
+                            color: effectiveSubColor,
+                            fontSize: previewRefFontPx,
+                            fontFamily: "serif",
+                            textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
+                          }}
+                        >
+                          {title}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -641,7 +673,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       >
                         {preset.mode === "image" ? (
                           <img
-                            src={preset.bg}
+                            src={toProxyUrl(preset.bg)}
                             alt=""
                             loading="lazy"
                             decoding="async"
@@ -703,7 +735,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             title={`${bg.name} (by ${bg.uploader})`}
                           >
                             <img
-                              src={bg.url}
+                              src={toProxyUrl(bg.url)}
                               alt={bg.name}
                               loading="lazy"
                               decoding="async"

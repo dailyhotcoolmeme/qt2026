@@ -12,6 +12,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+.idea/
 
 # Capacitor / native builds (generated + local artifacts)
 client/apk/
