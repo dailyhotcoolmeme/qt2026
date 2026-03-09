@@ -5,6 +5,7 @@ import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { LoginModal } from "../components/LoginModal";
 import { shareContent } from "../lib/nativeShare";
+import { getPublicWebOrigin } from "../lib/appUrl";
 
 type VerseBookmarkRow = {
   id: string;
@@ -208,7 +209,7 @@ export default function FavoritesPage() {
                               // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
                               const shareUrl =
                                 window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-                                  ? "https://www.myamen.co.kr"
+                                  ? getPublicWebOrigin()
                                   : window.location.origin;
                               const shared = await shareText(null, brandedShareText || shareTextOnly || content || verseRef, shareUrl);
                               if (!shared) {

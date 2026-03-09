@@ -24,6 +24,7 @@ import {
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import { shareContent } from "../lib/nativeShare";
+import { getPublicWebOrigin } from "../lib/appUrl";
 
 import { useLocation } from "wouter";
 
@@ -1831,7 +1832,7 @@ export default function ReadingPage() {
     // 또한 localhost는 카카오가 접근 불가하므로 배포 도메인으로 고정한다(개발환경 공유 테스트용).
     const url =
       window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
-        ? "https://www.myamen.co.kr"
+        ? getPublicWebOrigin()
         : window.location.origin;
 
     const shareData = {

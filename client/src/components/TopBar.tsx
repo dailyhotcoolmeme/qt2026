@@ -675,7 +675,7 @@ export function TopBar() {
                 <div>
                   <h4 className="text-lg font-bold text-zinc-900">알림 설정</h4>
                   <p className="mt-1 text-sm text-zinc-500">
-                    {isNativeApp() ? "앱 푸시와 앱 내 알림을 관리합니다." : "웹 푸시와 앱 내 알림을 관리합니다."}
+                    {isNativeApp() ? "앱 푸시와 시스템 알림을 관리합니다." : "브라우저 푸시와 시스템 알림을 관리합니다."}
                   </p>
                 </div>
                 <button onClick={() => setShowNotificationSettings(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
@@ -686,7 +686,7 @@ export function TopBar() {
               <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
                   <Smartphone className="h-4 w-4" />
-                  <span>{isNativeApp() ? "앱 푸시 상태" : "브라우저 알림 상태"}</span>
+                  <span>{isNativeApp() ? "앱 권한 상태" : "브라우저 권한 상태"}</span>
                 </div>
                 <p className="mt-2 text-sm text-zinc-500">
                   {notificationPermission === "granted"
@@ -724,7 +724,7 @@ export function TopBar() {
               {isPushSyncing && (
                 <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>푸시 등록을 동기화하는 중입니다.</span>
+                  <span>푸시 설정을 동기화하는 중입니다.</span>
                 </div>
               )}
             </motion.div>
@@ -1018,11 +1018,12 @@ function NotificationToggle({
         type="button"
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-7 w-12 rounded-full transition-colors ${checked ? "bg-[#4A6741]" : "bg-zinc-200"} ${disabled ? "cursor-not-allowed" : ""}`}
+        aria-checked={checked}
+        className={`mt-0.5 inline-flex h-7 w-12 shrink-0 items-center rounded-full px-1 transition-colors ${
+          checked ? "justify-end bg-[#4A6741]" : "justify-start bg-zinc-200"
+        } ${disabled ? "cursor-not-allowed" : ""}`}
       >
-        <span
-          className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`}
-        />
+        <span className="h-5 w-5 rounded-full bg-white shadow" />
       </button>
     </div>
   );

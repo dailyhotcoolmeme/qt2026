@@ -68,17 +68,19 @@ function resolveImagePresets(): ThemePreset[] {
 
 function toProxyUrl(url: string): string {
   if (!url) return url;
-  if (url.startsWith("/api/")) return resolveApiUrl(url);
-  const normalized = resolveAppUrl(url);
-  try {
-    const parsed = new URL(normalized);
-    if (parsed.origin === window.location.origin || parsed.origin === getPublicWebOrigin()) {
-      return parsed.toString();
-    }
-    return resolveApiUrl(`/api/proxy-image?url=${encodeURIComponent(parsed.toString())}`);
-  } catch {
-    return normalized;
+  const absoluteUrl = resolveAppUrl(url);
+  const publicOrigin = getPublicWebOrigin();
+  const browserOrigin = typeof window !== "undefined" ? window.location.origin : "";
+
+  if (
+    absoluteUrl.startsWith(`${publicOrigin}/`) ||
+    absoluteUrl === publicOrigin ||
+    (browserOrigin && (absoluteUrl.startsWith(`${browserOrigin}/`) || absoluteUrl === browserOrigin))
+  ) {
+    return absoluteUrl;
   }
+
+  return `${resolveApiUrl("/api/proxy-image")}?url=${encodeURIComponent(absoluteUrl)}`;
 }
 
 function storageKey(userId?: string | null) {
@@ -188,30 +190,47 @@ async function shareDataUrl(dataUrl: string, title: string) {
 }
 
 async function loadCanvasImage(src: string) {
-  const response = await fetch(src);
-  if (!response.ok) {
-    throw new Error(`image fetch failed: ${response.status}`);
+  try {
+    const response = await fetch(src, { mode: "cors", credentials: "omit" });
+    if (!response.ok) {
+      throw new Error(`image fetch failed: ${response.status}`);
+    }
+
+    const blob = await response.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const nextImage = new Image();
+      nextImage.onload = () => resolve(nextImage);
+      nextImage.onerror = () => reject(new Error("image load failed"));
+      nextImage.src = objectUrl;
+    });
+
+    return {
+      image,
+      cleanup: () => URL.revokeObjectURL(objectUrl),
+    };
+  } catch {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const nextImage = new Image();
+      nextImage.crossOrigin = "anonymous";
+      nextImage.referrerPolicy = "no-referrer";
+      nextImage.onload = () => resolve(nextImage);
+      nextImage.onerror = () => reject(new Error("image load failed"));
+      nextImage.src = src;
+    });
+
+    return {
+      image,
+      cleanup: () => {},
+    };
   }
-
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
-  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-    const nextImage = new Image();
-    nextImage.onload = () => resolve(nextImage);
-    nextImage.onerror = () => reject(new Error("image load failed"));
-    nextImage.src = objectUrl;
-  });
-
-  return {
-    image,
-    cleanup: () => URL.revokeObjectURL(objectUrl),
-  };
 }
 
 type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const dragControls = useDragControls();
+  const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const [mode, setMode] = useState<ThemeMode>("image");
   const [selectedId, setSelectedId] = useState<string>("i1");
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
@@ -560,6 +579,29 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       ? { background: "#ffffff" }
       : { background: currentPreset?.bg || COLOR_PRESETS[0].bg };
 
+  const handleSwipeStart = (event: React.TouchEvent<HTMLDivElement>) => {
+    const touch = event.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleSwipeMove = (event: React.TouchEvent<HTMLDivElement>) => {
+    const start = swipeStartRef.current;
+    const touch = event.touches[0];
+    if (!start || !touch) return;
+
+    const deltaX = Math.abs(touch.clientX - start.x);
+    const deltaY = touch.clientY - start.y;
+    if (deltaY > 80 && deltaY > deltaX + 24) {
+      swipeStartRef.current = null;
+      event.preventDefault();
+      onClose();
+    }
+  };
+
+  const handleSwipeEnd = () => {
+    swipeStartRef.current = null;
+  };
+
   return (
     <AnimatePresence>
       {open && (
@@ -595,17 +637,23 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
               <div className="flex justify-center">
-                <div className="relative w-full flex justify-center">
+                <div className="relative flex w-full justify-center px-8 sm:px-0" style={{ touchAction: "none" }}>
                   <div
                     className="absolute inset-y-0 left-0"
-                    style={{ width: `calc(50% - ${PREVIEW_WIDTH_PX / 2}px)` }}
+                    style={{ width: `max(56px, calc(50% - ${PREVIEW_WIDTH_PX / 2}px))`, touchAction: "none" }}
                     onPointerDown={(e) => dragControls.start(e)}
+                    onTouchStart={handleSwipeStart}
+                    onTouchMove={handleSwipeMove}
+                    onTouchEnd={handleSwipeEnd}
                     aria-hidden="true"
                   />
                   <div
                     className="absolute inset-y-0 right-0"
-                    style={{ width: `calc(50% - ${PREVIEW_WIDTH_PX / 2}px)` }}
+                    style={{ width: `max(56px, calc(50% - ${PREVIEW_WIDTH_PX / 2}px))`, touchAction: "none" }}
                     onPointerDown={(e) => dragControls.start(e)}
+                    onTouchStart={handleSwipeStart}
+                    onTouchMove={handleSwipeMove}
+                    onTouchEnd={handleSwipeEnd}
                     aria-hidden="true"
                   />
 

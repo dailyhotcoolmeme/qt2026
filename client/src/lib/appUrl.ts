@@ -5,7 +5,7 @@ const env =
   (globalThis as any).importMetaEnv ||
   {};
 
-const FALLBACK_PUBLIC_WEB_ORIGIN = "https://www.myamen.co.kr";
+const FALLBACK_PUBLIC_WEB_ORIGIN = "https://myamen.co.kr";
 
 function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
