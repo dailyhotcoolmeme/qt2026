@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "qt2026",
+  "main": "cloudflare/worker.ts",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": [
     "nodejs_compat"
