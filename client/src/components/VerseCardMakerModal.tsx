@@ -591,7 +591,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
     const deltaX = Math.abs(touch.clientX - start.x);
     const deltaY = touch.clientY - start.y;
-    if (deltaY > 80 && deltaY > deltaX + 24) {
+    if (deltaY > 140 && deltaY > deltaX + 48) {
       swipeStartRef.current = null;
       event.preventDefault();
       onClose();
@@ -618,7 +618,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             dragConstraints={{ top: 0, bottom: 240 }}
             dragElastic={{ top: 0, bottom: 0.2 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 700) {
+              if (info.offset.y > 150 || info.velocity.y > 950) {
                 onClose();
               }
             }}

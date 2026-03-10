@@ -14,7 +14,7 @@ import { LoginModal } from "../components/LoginModal";
 import { BibleAudioPlayerModal } from "../components/BibleAudioPlayerModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import { shareContent } from "../lib/nativeShare";
-import { getPublicWebOrigin } from "../lib/appUrl";
+import { getPublicWebOrigin, resolveApiUrl } from "../lib/appUrl";
 import {
   getCachedAudioObjectUrl,
   parseVerseRange,
@@ -265,7 +265,7 @@ export default function QTPage() {
       for (const record of recordsToDelete) {
         if (record.audio_url) {
           try {
-            await fetch('/api/audio/delete', {
+            await fetch(resolveApiUrl('/api/audio/delete'), {
               method: 'DELETE',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ fileUrl: record.audio_url })
@@ -416,7 +416,7 @@ export default function QTPage() {
         const audioFile = new File([audioBlob], `qt_${timestamp}.webm`, { type: 'audio/webm' });
 
         // R2 업로드 (기존 함수 활용, 경로만 전달)
-        const response = await fetch('/api/audio/upload', {
+        const response = await fetch(resolveApiUrl('/api/audio/upload'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -499,7 +499,7 @@ export default function QTPage() {
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
 
-        const response = await fetch('/api/audio/upload', {
+        const response = await fetch(resolveApiUrl('/api/audio/upload'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -561,7 +561,7 @@ export default function QTPage() {
         try {
           console.log('[R2 삭제] 시작:', recordToDelete.audio_url);
 
-          const response = await fetch('/api/audio/delete', {
+          const response = await fetch(resolveApiUrl('/api/audio/delete'), {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ fileUrl: recordToDelete.audio_url })

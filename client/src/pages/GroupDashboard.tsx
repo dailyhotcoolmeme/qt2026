@@ -36,6 +36,7 @@ import { supabase } from "../lib/supabase";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
 import { shareContent } from "../lib/nativeShare";
+import { resolveApiUrl } from "../lib/appUrl";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
@@ -184,6 +185,12 @@ type FaithRecordDetail = {
   payload: Record<string, unknown> | null;
 };
 
+type MemberFaithWeekDetail = {
+  userId: string;
+  name: string;
+  records: Record<string, Record<string, number>>;
+};
+
 function formatDateTime(iso?: string | null) {
   if (!iso) return "-";
   const date = new Date(iso);
@@ -233,7 +240,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 async function uploadToR2(fileName: string, blob: Blob): Promise<string> {
   const audioBase64 = await blobToBase64(blob);
-  const response = await fetch("/api/audio/upload", {
+  const response = await fetch(resolveApiUrl("/api/audio/upload"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fileName, audioBase64 }),
@@ -310,7 +317,7 @@ function getTabQueryParam(pathWithQuery?: string) {
 
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
-  const response = await fetch("/api/file/upload", {
+  const response = await fetch(resolveApiUrl("/api/file/upload"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fileName, fileBase64, contentType }),
@@ -652,30 +659,51 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
 
 const PostImageCarousel = ({ urls, onImageClick }: { urls: string[]; onImageClick: (index: number) => void }) => {
   const [activeIndex, setActiveIndex] = useState(0);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
 
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollLeft = e.currentTarget.scrollLeft;
-    const width = e.currentTarget.clientWidth;
-    const MathIndex = Math.round(scrollLeft / width);
-    if (MathIndex !== activeIndex) {
-      setActiveIndex(MathIndex);
-    }
-  };
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [urls.join("|")]);
 
   if (!urls || urls.length === 0) return null;
 
   return (
     <div className="w-full mt-3 mb-1 flex flex-col relative px-4">
       <div
-        onScroll={handleScroll}
-        className="w-full flex overflow-x-auto touch-pan-x snap-x snap-mandatory items-center pb-2"
-        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        className="w-full overflow-hidden pb-2"
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          touchStartXRef.current = touch?.clientX ?? null;
+          touchStartYRef.current = touch?.clientY ?? null;
+        }}
+        onTouchEnd={(event) => {
+          const startX = touchStartXRef.current;
+          const startY = touchStartYRef.current;
+          const touch = event.changedTouches[0];
+          touchStartXRef.current = null;
+          touchStartYRef.current = null;
+          if (!touch || startX === null || startY === null) return;
+          const deltaX = touch.clientX - startX;
+          const deltaY = Math.abs(touch.clientY - startY);
+          if (Math.abs(deltaX) < 48 || deltaY > 64) return;
+          if (deltaX < 0 && activeIndex < urls.length - 1) {
+            setActiveIndex((prev) => prev + 1);
+          } else if (deltaX > 0 && activeIndex > 0) {
+            setActiveIndex((prev) => prev - 1);
+          }
+        }}
       >
-        {urls.map((url, idx) => (
-          <div key={idx} className="flex-shrink-0 w-full snap-center flex justify-center cursor-pointer px-1" onClick={() => onImageClick(idx)}>
-            <img src={url} alt={`img-${idx}`} className="w-full h-auto max-h-[400px] object-cover sm:object-contain rounded-2xl shadow-sm border border-black/5" />
-          </div>
-        ))}
+        <div
+          className="flex items-center transition-transform duration-300 ease-out"
+          style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+        >
+          {urls.map((url, idx) => (
+            <div key={idx} className="w-full shrink-0 flex justify-center cursor-pointer px-1" onClick={() => onImageClick(idx)}>
+              <img src={url} alt={`img-${idx}`} className="w-full h-auto max-h-[400px] object-cover sm:object-contain rounded-2xl shadow-sm border border-black/5" />
+            </div>
+          ))}
+        </div>
       </div>
       {urls.length > 1 && (
         <div className="flex justify-center gap-1.5 mt-1">
@@ -739,6 +767,9 @@ export default function GroupDashboard() {
   const [faithBoardLoading, setFaithBoardLoading] = useState(false);
   const [weekDates, setWeekDates] = useState<string[]>([]);
   const [weeklyRecords, setWeeklyRecords] = useState<Record<string, Record<string, number>>>({});
+  const [selectedFaithMemberDetail, setSelectedFaithMemberDetail] = useState<MemberFaithWeekDetail | null>(null);
+  const [memberFaithDetailLoading, setMemberFaithDetailLoading] = useState(false);
+  const [memberFaithDetailSaving, setMemberFaithDetailSaving] = useState(false);
 
   const [posts, setPosts] = useState<GroupPostRow[]>([]);
   const [postType, setPostType] = useState<"post" | "notice">("post");
@@ -915,6 +946,16 @@ export default function GroupDashboard() {
   // Removed dynamic header/tab pinning effect
 
   const isManager = role === "owner" || role === "leader";
+  const faithMemberMap = useMemo(
+    () =>
+      new Map(
+        members.map((member) => [
+          member.user_id,
+          member.profile?.nickname || member.profile?.username || "이름없음",
+        ])
+      ),
+    [members]
+  );
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
     setLoading(true);
@@ -1262,6 +1303,96 @@ export default function GroupDashboard() {
     }
   };
 
+  const loadMemberFaithWeekDetail = async (targetUserId: string) => {
+    if (!group?.id || !weekDates.length) return;
+    setMemberFaithDetailLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("group_faith_records")
+        .select("item_id, value, record_date")
+        .eq("group_id", group.id)
+        .eq("user_id", targetUserId)
+        .in("record_date", weekDates);
+
+      if (error) throw error;
+
+      const records: Record<string, Record<string, number>> = {};
+      (data ?? []).forEach((row: any) => {
+        const date = String(row.record_date);
+        records[date] = records[date] ?? {};
+        records[date][String(row.item_id)] = Number(row.value ?? 0);
+      });
+
+      setSelectedFaithMemberDetail({
+        userId: targetUserId,
+        name: faithMemberMap.get(targetUserId) || "이름없음",
+        records,
+      });
+    } catch (error) {
+      console.error("failed to load member faith detail:", error);
+      alert("멤버 주간 현황을 불러오지 못했습니다.");
+    } finally {
+      setMemberFaithDetailLoading(false);
+    }
+  };
+
+  const handleManagerAttendanceToggle = async (dateIso: string) => {
+    if (!group || !selectedFaithMemberDetail || !isManager) return;
+    const attendanceItem = faithItemSlots.find((slot) => slot.key === "attendance")?.item;
+    if (!attendanceItem) {
+      alert("예배 항목이 설정되지 않았습니다.");
+      return;
+    }
+
+    const current = selectedFaithMemberDetail.records[dateIso]?.[attendanceItem.id] ?? 0;
+    setMemberFaithDetailSaving(true);
+    try {
+      if (current > 0) {
+        await supabase
+          .from("group_faith_records")
+          .delete()
+          .eq("group_id", group.id)
+          .eq("item_id", attendanceItem.id)
+          .eq("user_id", selectedFaithMemberDetail.userId)
+          .eq("record_date", dateIso);
+      } else {
+        const { error } = await supabase.from("group_faith_records").upsert(
+          {
+            group_id: group.id,
+            item_id: attendanceItem.id,
+            user_id: selectedFaithMemberDetail.userId,
+            record_date: dateIso,
+            value: 1,
+            note: null,
+            source_type: "manual",
+            source_event_type: null,
+            source_event_id: null,
+          },
+          { onConflict: "group_id,item_id,user_id,record_date" }
+        );
+        if (error) throw error;
+      }
+
+      await Promise.all([
+        loadMemberFaithWeekDetail(selectedFaithMemberDetail.userId),
+        loadFaithBoard(group.id, buildWeekIso(faithCurrentDate), members),
+      ]);
+      if (selectedFaithMemberDetail.userId === user?.id) {
+        await loadWeeklyFaithRecords(faithCurrentDate);
+      }
+    } catch (error) {
+      console.error("failed to update attendance:", error);
+      alert("예배 현황 수정에 실패했습니다.");
+    } finally {
+      setMemberFaithDetailSaving(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedFaithMemberDetail) return;
+    void loadMemberFaithWeekDetail(selectedFaithMemberDetail.userId);
+  }, [selectedFaithMemberDetail?.userId, weekDates.join("|")]);
+
   const loadPosts = async (targetGroupId: string) => {
     const withTitle = await supabase
       .from("group_posts")
@@ -1606,26 +1737,20 @@ export default function GroupDashboard() {
 
   const addPrayerTopic = async () => {
     if (!group || !user || !newPrayerTopic.trim()) return;
+    const { error } = await supabase.from("group_prayer_topics").insert({
+      group_id: group.id,
+      author_id: user.id,
+      content: newPrayerTopic.trim(),
+      is_active: true,
+    });
 
-    const topicsToInsert = newPrayerTopic.split("\n").filter(t => t.trim().length > 0);
-    if (topicsToInsert.length === 0) return;
-
-    for (const text of topicsToInsert) {
-      const { error } = await supabase.from("group_prayer_topics").insert({
-        group_id: group.id,
-        author_id: user.id,
-        content: text.trim(),
-        is_active: true,
-      });
-
-      if (error) {
-        if (error.code === "42P01") {
-          alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
-          return;
-        }
-        alert("일부 기도제목 등록에 실패했습니다.");
+    if (error) {
+      if (error.code === "42P01") {
+        alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
         return;
       }
+      alert("기도제목 등록에 실패했습니다.");
+      return;
     }
 
     setNewPrayerTopic("");
@@ -1672,7 +1797,7 @@ export default function GroupDashboard() {
     }
 
     if (record.source_type === "direct") {
-      fetch("/api/audio/delete", {
+      fetch(resolveApiUrl("/api/audio/delete"), {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fileUrl: record.audio_url }),
@@ -2043,7 +2168,7 @@ export default function GroupDashboard() {
 
       const imagesToRemove = (editingPost.image_urls || []).filter(url => !postExistingImages.includes(url));
       for (const removedUrl of imagesToRemove) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: removedUrl }) }).catch(() => undefined);
+        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: removedUrl }) }).catch(() => undefined);
       }
 
       await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
@@ -2167,7 +2292,7 @@ export default function GroupDashboard() {
 
     if (post.image_urls && post.image_urls.length > 0) {
       for (const url of post.image_urls) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
+        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
       }
     }
 
@@ -2437,7 +2562,7 @@ export default function GroupDashboard() {
 
       // 기존 이미지 R2에서 삭제
       for (const url of oldImages) {
-        fetch("/api/audio/delete", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
+        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
       }
 
       setGroup(prev => prev ? { ...prev, group_image: null, header_image_url: null, header_color: "#4A6741" } : prev);
@@ -3271,7 +3396,19 @@ export default function GroupDashboard() {
 
                             {/* 3. 행 제목 (멤버 이름) */}
                             {/* text-[13px] -> text-base sm:text-lg 등으로 수정 */}
-                            <div className="shrink-0 w-16 sm:w-20 font-bold text-zinc-700 text-base sm:text-lg text-center break-all flex items-center justify-center min-h-[44px] leading-tight px-1">{row.name}</div>
+                            <div className="shrink-0 w-16 sm:w-20 flex items-center justify-center min-h-[44px] px-1">
+                              {isManager ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void loadMemberFaithWeekDetail(row.user_id)}
+                                  className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight hover:text-[#4A6741] transition-colors"
+                                >
+                                  {row.name}
+                                </button>
+                              ) : (
+                                <div className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight">{row.name}</div>
+                              )}
+                            </div>
 
                             {faithItemSlots.filter((slot) => slot.item).map((slot) => {
                               const count = row.values[slot.item!.id] ?? 0;
@@ -3828,6 +3965,77 @@ export default function GroupDashboard() {
       </main>
 
       {
+        selectedFaithMemberDetail && (
+          <div className="fixed inset-0 z-[215] p-4 flex items-end sm:items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedFaithMemberDetail(null)} />
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative w-full max-w-2xl max-h-[86vh] overflow-y-auto bg-[#F6F7F8] rounded-t-3xl sm:rounded-3xl border border-zinc-200 p-5 sm:p-6"
+            >
+              <div className="mx-auto -mt-1 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="font-black text-zinc-900 text-lg">{selectedFaithMemberDetail.name}</h3>
+                  <p className="text-sm text-zinc-400 mt-1">해당 주간의 날짜별 체크 현황</p>
+                </div>
+                <button
+                  onClick={() => setSelectedFaithMemberDetail(null)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              {memberFaithDetailLoading ? (
+                <div className="py-14 text-center text-sm text-zinc-400">현황 불러오는 중...</div>
+              ) : (
+                <div className="space-y-3">
+                  {weekDates.map((dateIso) => (
+                    <div key={dateIso} className="bg-white rounded-2xl border border-zinc-100 p-4 shadow-sm">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="font-bold text-zinc-900">{dateIso}</div>
+                        {memberFaithDetailSaving && <span className="text-xs text-zinc-400">저장 중...</span>}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {faithItemSlots.filter((slot) => slot.item).map((slot) => {
+                          const item = slot.item!;
+                          const value = selectedFaithMemberDetail.records[dateIso]?.[item.id] ?? 0;
+                          const isAttendance = slot.key === "attendance";
+                          return (
+                            <div key={`${dateIso}-${slot.key}`} className="rounded-xl border border-zinc-100 bg-zinc-50 p-2.5">
+                              <div className="text-[11px] font-bold text-zinc-500 mb-2">{slot.label}</div>
+                              {isAttendance ? (
+                                <button
+                                  type="button"
+                                  onClick={() => void handleManagerAttendanceToggle(dateIso)}
+                                  disabled={memberFaithDetailSaving}
+                                  className={`w-full rounded-lg px-2 py-2 text-sm font-bold transition-colors ${
+                                    value > 0 ? "bg-[#4A6741] text-white" : "bg-white border border-zinc-200 text-zinc-400"
+                                  } ${memberFaithDetailSaving ? "opacity-60 cursor-wait" : ""}`}
+                                >
+                                  {value > 0 ? "체크됨" : "미체크"}
+                                </button>
+                              ) : (
+                                <div className={`rounded-lg px-2 py-2 text-sm font-bold text-center ${value > 0 ? "bg-[#4A6741]/10 text-[#4A6741]" : "bg-white border border-zinc-200 text-zinc-300"}`}>
+                                  {value > 0 ? value : "—"}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          </div>
+        )
+      }
+
+      {
         showPrayerLinkModal && (
           <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
             <div
@@ -4009,11 +4217,11 @@ export default function GroupDashboard() {
                   ) : (
                     <div className="space-y-2">
                       {groupPrayerTopics.filter(t => t.author_id === user.id).map(topic => (
-                        <div key={topic.id} className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between bg-white rounded-xl p-3 border border-zinc-100 shadow-sm">
-                          <div className="text-sm font-medium text-zinc-800 break-all leading-snug flex-1">{topic.content}</div>
-                          <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-auto border-t sm:border-t-0 border-zinc-100 pt-2 sm:pt-0 mt-1 sm:mt-0 w-full sm:w-auto">
-                            <button onClick={() => editSingleTopic(topic)} className="flex-1 sm:flex-none px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center"><Pencil className="mr-1" size={12} />수정</button>
-                            <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="flex-1 sm:flex-none px-3 py-1.5 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center"><Trash2 className="mr-1" size={12} />삭제</button>
+                        <div key={topic.id} className="flex items-start gap-2 bg-white rounded-xl p-3 border border-zinc-100 shadow-sm">
+                          <div className="text-sm font-medium text-zinc-800 whitespace-pre-wrap break-words leading-snug flex-1 min-w-0">{topic.content}</div>
+                          <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                            <button onClick={() => editSingleTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="기도제목 수정"><Pencil size={13} /></button>
+                            <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center" aria-label="기도제목 삭제"><Trash2 size={13} /></button>
                           </div>
                         </div>
                       ))}
@@ -4023,15 +4231,12 @@ export default function GroupDashboard() {
 
                 {/* 2. 새 기도제목 입력 폼 */}
                 <div className="space-y-3">
-                  <label className="text-sm font-bold text-zinc-700 flex justify-between items-center">
-                    새 기도제목 추가
-                    <span className="text-xs font-medium text-zinc-400 font-normal hidden sm:inline">엔터(줄바꿈)로 여러 개 동시 등록 가능</span>
-                  </label>
+                  <label className="text-sm font-bold text-zinc-700">새 기도제목 추가</label>
                   <textarea
                     value={newPrayerTopic}
                     onChange={(e) => setNewPrayerTopic(e.target.value)}
                     className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-white border border-zinc-200 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none shadow-inner"
-                    placeholder="엔터를 치면 여러 기도제목을 한번에 등록할 수 있어요."
+                    placeholder="기도제목 1개를 입력하세요. 줄바꿈은 그대로 보존됩니다."
                   />
                   <button
                     onClick={() => { addPrayerTopic(); }}

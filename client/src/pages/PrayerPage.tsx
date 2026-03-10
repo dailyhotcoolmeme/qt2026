@@ -8,7 +8,7 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import { shareContent } from "../lib/nativeShare";
-import { isNativeApp } from "../lib/appUrl";
+import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
 import { shareBlobFile } from "../lib/nativeFileShare";
 
 function formatLocalDate(date: Date) {
@@ -310,7 +310,7 @@ export default function PrayerPage() {
       reader.onloadend = async () => {
         const base64 = (reader.result as string).split(',')[1];
 
-        const response = await fetch('/api/audio/upload', {
+        const response = await fetch(resolveApiUrl('/api/audio/upload'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileName, audioBase64: base64 })
@@ -391,7 +391,7 @@ export default function PrayerPage() {
 
       if (tempAudioUrl) {
         // R2 내부에서 이동 (빠름)
-        const moveResponse = await fetch('/api/audio/move', {
+        const moveResponse = await fetch(resolveApiUrl('/api/audio/move'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sourceUrl: tempAudioUrl, targetPath })
@@ -408,7 +408,7 @@ export default function PrayerPage() {
           reader.onloadend = async () => {
             try {
               const base64 = (reader.result as string).split(',')[1];
-              const response = await fetch('/api/audio/upload', {
+              const response = await fetch(resolveApiUrl('/api/audio/upload'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fileName: targetPath, audioBase64: base64 })
@@ -665,7 +665,7 @@ export default function PrayerPage() {
   const handleClosePrayer = () => {
     // temp 파일 삭제 (저장 안 한 경우)
     if (tempAudioUrl) {
-      fetch('/api/audio/delete', {
+      fetch(resolveApiUrl('/api/audio/delete'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileUrl: tempAudioUrl })
@@ -779,7 +779,7 @@ export default function PrayerPage() {
 
       // R2에서 파일 삭제 (실제 URL일 때만)
       if (deleteRecordUrl.startsWith('http')) {
-        await fetch('/api/audio/delete', {
+        await fetch(resolveApiUrl('/api/audio/delete'), {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ fileUrl: deleteRecordUrl })
