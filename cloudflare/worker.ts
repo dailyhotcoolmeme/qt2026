@@ -36,11 +36,12 @@ function json(status: number, body: unknown) {
 }
 
 function requireR2Env(env: Env) {
-  const endpoint = env.R2_ENDPOINT || "";
+  const rawEndpoint = env.R2_ENDPOINT || "";
   const accessKeyId = env.R2_ACCESS_KEY_ID || "";
   const secretAccessKey = env.R2_SECRET_ACCESS_KEY || "";
   const bucketName = env.R2_BUCKET_NAME || "";
   const publicUrl = env.R2_PUBLIC_URL || "";
+  const endpoint = rawEndpoint.replace(/\/+$/, "").replace(/\/myamen-assets$/i, "");
 
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucketName || !publicUrl) {
     throw new Error("Missing R2 environment variables");

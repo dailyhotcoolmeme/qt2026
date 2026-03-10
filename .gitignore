@@ -5,6 +5,9 @@ client/.env
 client/.env.local
 .env
 .env.local
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
 
 node_modules
 dist
