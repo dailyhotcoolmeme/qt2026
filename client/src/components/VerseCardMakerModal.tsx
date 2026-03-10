@@ -613,7 +613,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             exit={{ y: 30, opacity: 0 }}
             // 아래 transition 부분을 추가하세요
   transition={{ 
-    duration: 0.5, // 숫자가 클수록 천천히 닫힙니다 (기본값은 보통 0.2~0.3)
+    duration: 0.8, // 숫자가 클수록 천천히 닫힙니다 (기본값은 보통 0.2~0.3)
     ease: "easeInOut" // 시작과 끝을 부드럽게 처리
   }}
             drag="y"
