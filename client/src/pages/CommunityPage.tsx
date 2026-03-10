@@ -546,7 +546,18 @@ export default function CommunityPage() {
     const count = memberCounts[row.id] ?? 0;
 
     return (
-      <div className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => openGroup(row.id)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            openGroup(row.id);
+          }
+        }}
+        className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200 text-left"
+      >
         <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl">
           {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
         </div>
@@ -566,7 +577,10 @@ export default function CommunityPage() {
         </div>
 
         <button
-          onClick={() => openGroup(row.id)}
+          onClick={(event) => {
+            event.stopPropagation();
+            openGroup(row.id);
+          }}
           className="w-9 h-9 bg-[#4A6741] opacity-90 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-[#3d5535] transition-colors"
           aria-label="입장"
         >

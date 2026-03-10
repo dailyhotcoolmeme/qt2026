@@ -3966,15 +3966,24 @@ export default function GroupDashboard() {
 
       {
         selectedFaithMemberDetail && (
-          <div className="fixed inset-0 z-[215] p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[215] flex items-end sm:items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedFaithMemberDetail(null)} />
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-2xl max-h-[86vh] overflow-y-auto bg-[#F6F7F8] rounded-t-3xl sm:rounded-3xl border border-zinc-200 p-5 sm:p-6"
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 240 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => {
+                if (info.offset.y > 120 || info.velocity.y > 900) {
+                  setSelectedFaithMemberDetail(null);
+                }
+              }}
+              className="relative w-full h-[88vh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl overflow-y-auto bg-[#F6F7F8] rounded-t-3xl sm:rounded-3xl border border-zinc-200 px-4 pt-3 pb-6 sm:p-6"
             >
-              <div className="mx-auto -mt-1 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-lg">{selectedFaithMemberDetail.name}</h3>
@@ -3991,43 +4000,77 @@ export default function GroupDashboard() {
               {memberFaithDetailLoading ? (
                 <div className="py-14 text-center text-sm text-zinc-400">현황 불러오는 중...</div>
               ) : (
-                <div className="space-y-3">
-                  {weekDates.map((dateIso) => (
-                    <div key={dateIso} className="bg-white rounded-2xl border border-zinc-100 p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="font-bold text-zinc-900">{dateIso}</div>
-                        {memberFaithDetailSaving && <span className="text-xs text-zinc-400">저장 중...</span>}
+                <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 p-5 overflow-hidden">
+                  <div className="w-full">
+                    <div className="w-full select-none pb-0">
+                      <div className="flex items-center pt-1 pb-4 px-0 sm:px-2">
+                        <div className="shrink-0 w-16 sm:w-20" />
+                        {faithItemSlots.map((slot) => (
+                          <div key={`detail-header-${slot.key}`} className="flex-1 flex flex-col items-center text-center">
+                            <span className="text-base sm:text-lg font-bold text-[#4A6741] leading-none">{slot.label}</span>
+                            {!slot.item && <span className="text-[0.7em] text-zinc-300 mt-1">미설정</span>}
+                          </div>
+                        ))}
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        {faithItemSlots.filter((slot) => slot.item).map((slot) => {
-                          const item = slot.item!;
-                          const value = selectedFaithMemberDetail.records[dateIso]?.[item.id] ?? 0;
-                          const isAttendance = slot.key === "attendance";
+
+                      <div className="space-y-0 px-0 sm:px-2 pt-2">
+                        {weekDates.map((dateIso) => {
+                          const dt = parseISO(dateIso);
+                          const isToday = isSameDay(dt, new Date());
+                          const isFutureDate = dateIso > todayFaithDateIso;
+                          const isHoliday = KOREAN_HOLIDAYS[dateIso];
+                          const isSunday = dt.getDay() === 0;
+                          const isSaturday = dt.getDay() === 6;
+                          const isRed = isSunday || isHoliday;
                           return (
-                            <div key={`${dateIso}-${slot.key}`} className="rounded-xl border border-zinc-100 bg-zinc-50 p-2.5">
-                              <div className="text-[11px] font-bold text-zinc-500 mb-2">{slot.label}</div>
-                              {isAttendance ? (
-                                <button
-                                  type="button"
-                                  onClick={() => void handleManagerAttendanceToggle(dateIso)}
-                                  disabled={memberFaithDetailSaving}
-                                  className={`w-full rounded-lg px-2 py-2 text-sm font-bold transition-colors ${
-                                    value > 0 ? "bg-[#4A6741] text-white" : "bg-white border border-zinc-200 text-zinc-400"
-                                  } ${memberFaithDetailSaving ? "opacity-60 cursor-wait" : ""}`}
-                                >
-                                  {value > 0 ? "체크됨" : "미체크"}
-                                </button>
-                              ) : (
-                                <div className={`rounded-lg px-2 py-2 text-sm font-bold text-center ${value > 0 ? "bg-[#4A6741]/10 text-[#4A6741]" : "bg-white border border-zinc-200 text-zinc-300"}`}>
-                                  {value > 0 ? value : "—"}
-                                </div>
-                              )}
+                            <div key={dateIso} className={`flex items-center py-3 rounded-2xl transition-colors ${isToday ? "bg-[#4A6741]/20" : ""}`}>
+                              <div className="shrink-0 w-16 sm:w-20 flex flex-col items-center justify-center">
+                                <span className={`text-base base:text-sm font-bold leading-none ${isToday ? "text-[#4A6741]" : isRed ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-500"} text-center`}>
+                                  {dt.getDate()}({dt.toLocaleDateString("ko-KR", { weekday: "short" })})
+                                </span>
+                                {isHoliday && <span className="text-[0.65em] leading-tight text-rose-500 font-bold max-w-full truncate px-0.5 mt-1" style={{ transform: "scale(0.95)" }}>{isHoliday}</span>}
+                              </div>
+                              {faithItemSlots.map((slot) => {
+                                const item = slot.item;
+                                const done = !!item && (selectedFaithMemberDetail.records[dateIso]?.[item.id] ?? 0) > 0;
+                                const isAttendance = slot.key === "attendance";
+                                const disabled = !item || (isAttendance ? isFutureDate || memberFaithDetailSaving : true);
+                                return (
+                                  <div key={`${dateIso}-${slot.key}`} className="flex-1 flex justify-center px-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        if (isAttendance && item && !disabled) {
+                                          void handleManagerAttendanceToggle(dateIso);
+                                        }
+                                      }}
+                                      disabled={disabled}
+                                      className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0 ${
+                                        !item
+                                          ? "opacity-25 cursor-not-allowed bg-zinc-50"
+                                          : done
+                                            ? "bg-[#4A6741]/90 text-white shadow-sm"
+                                            : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
+                                      } ${isAttendance && !isFutureDate && !memberFaithDetailSaving ? "active:scale-[0.98]" : ""}`}
+                                    >
+                                      <Check
+                                        size={20}
+                                        strokeWidth={done ? 4 : 2.5}
+                                        className={done ? "opacity-100" : "opacity-40"}
+                                      />
+                                    </button>
+                                  </div>
+                                );
+                              })}
                             </div>
                           );
                         })}
                       </div>
                     </div>
-                  ))}
+                  </div>
+                  {memberFaithDetailSaving && (
+                    <div className="px-1 pt-4 text-xs text-zinc-400 text-right">예배 현황 저장 중...</div>
+                  )}
                 </div>
               )}
             </motion.div>

@@ -85,7 +85,7 @@ export default function PrayerPage() {
   const loadMyTopics = async () => {
     if (!user) return;
     const { data } = await supabase.from('prayer_topics').select('*').eq('user_id', user.id);
-    setMyTopics(data || []);
+    setMyTopics([...(data || [])].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
   };
 
   const loadPublicTopics = async () => {
@@ -1016,7 +1016,7 @@ export default function PrayerPage() {
                     <Check size={16} className="text-[#4A6741]" />
                   </div>
                   <p
-                    className="text-zinc-600 font-bold flex-1 break-words whitespace-normal py-0.5"
+                    className="text-zinc-600 font-bold flex-1 break-words whitespace-pre-wrap py-0.5"
                     style={{ fontSize: `${fontSize * 0.90}px`, lineHeight: '1.5', wordBreak: 'break-word' }}
                   >
                     {topic.topic_text}
@@ -1656,7 +1656,7 @@ export default function PrayerPage() {
                                 }`}
                             >
                               <div className="flex items-start justify-between gap-3">
-                                <span className={`text-sm font-bold break-words ${isSelected ? "text-[#4A6741]" : "text-zinc-700"}`}>
+                                <span className={`text-sm font-bold break-words whitespace-pre-wrap ${isSelected ? "text-[#4A6741]" : "text-zinc-700"}`}>
                                   {topic.topic_text}
                                 </span>
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center transition-colors shrink-0 mt-0.5 ${isSelected ? "bg-[#4A6741] text-white" : "bg-zinc-100 text-transparent"
