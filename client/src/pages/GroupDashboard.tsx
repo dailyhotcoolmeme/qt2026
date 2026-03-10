@@ -3987,7 +3987,7 @@ export default function GroupDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-lg">{selectedFaithMemberDetail.name}</h3>
-                  <p className="text-sm text-zinc-400 mt-1">해당 주간의 날짜별 체크 현황</p>
+                  <p className="text-sm text-zinc-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
                 </div>
                 <button
                   onClick={() => setSelectedFaithMemberDetail(null)}
