@@ -9,8 +9,20 @@
   "vars": {
     "R2_ENDPOINT": "https://4c0f5d706177b84ade4d424a08ec46e8.r2.cloudflarestorage.com",
     "R2_BUCKET_NAME": "myamen-assets",
-    "R2_PUBLIC_URL": "https://audio.myamen.co.kr"
+    "R2_PUBLIC_URL": "https://pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev"
   },
+  "routes": [
+    {
+      "pattern": "myamen.co.kr",
+      "zone_name": "myamen.co.kr",
+      "custom_domain": true
+    },
+    {
+      "pattern": "www.myamen.co.kr",
+      "zone_name": "myamen.co.kr",
+      "custom_domain": true
+    }
+  ],
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application"

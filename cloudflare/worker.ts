@@ -9,6 +9,9 @@ interface Env {
   R2_SECRET_ACCESS_KEY?: string;
   R2_BUCKET_NAME?: string;
   R2_PUBLIC_URL?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
+  KAKAO_ADMIN_KEY?: string;
 }
 
 const CORS_HEADERS = {
@@ -335,6 +338,190 @@ async function handleFileDelete(request: Request, env: Env) {
   }
 }
 
+async function handleUserDelete(request: Request, env: Env) {
+  if (request.method === "OPTIONS") {
+    return withCorsHeaders(new Response(null, { status: 204 }));
+  }
+  if (request.method !== "DELETE") {
+    return json(405, { message: "method not allowed" });
+  }
+
+  const supabaseUrl = env.SUPABASE_URL || "";
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceKey) {
+    return json(503, { message: "서버 설정 오류: Supabase 서비스 키가 없습니다" });
+  }
+
+  const authHeader = request.headers.get("authorization") || "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return json(401, { message: "인증이 필요합니다" });
+  }
+  const token = authHeader.slice(7);
+
+  try {
+    // 1. JWT로 유저 확인
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: serviceKey },
+    });
+    if (!userRes.ok) {
+      return json(401, { message: "유효하지 않은 토큰입니다" });
+    }
+    const userData = await userRes.json() as { id?: string; identities?: Array<{ provider: string; identity_data?: { sub?: string }; id?: string }> };
+    const userId = userData?.id;
+    if (!userId) {
+      return json(401, { message: "유저 정보를 가져올 수 없습니다" });
+    }
+
+    // 2. Kakao 연동 해제 (비치명적)
+    const kakaoAdminKey = env.KAKAO_ADMIN_KEY || "";
+    const kakaoIdentity = userData.identities?.find((i) => i.provider === "kakao");
+    const kakaoUserId = kakaoIdentity?.identity_data?.sub ?? kakaoIdentity?.id;
+    if (kakaoUserId && kakaoAdminKey) {
+      try {
+        await fetch("https://kapi.kakao.com/v1/user/unlink", {
+          method: "POST",
+          headers: {
+            Authorization: `KakaoAK ${kakaoAdminKey}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: `target_id_type=user_id&target_id=${kakaoUserId}`,
+        });
+      } catch (e) {
+        console.warn("[UserDelete] Kakao unlink 오류 (비치명적):", e);
+      }
+    }
+
+    // 3. R2 파일 삭제 (비치명적) - profiles.avatar_url, user_meditation_records.audio_url, prayer_records.audio_url
+    const publicUrl = env.R2_PUBLIC_URL || "";
+    let r2Client: S3Client | null = null;
+    try {
+      r2Client = getR2Client(env);
+    } catch (e) {
+      console.warn("[UserDelete] R2 클라이언트 초기화 실패 (비치명적):", e);
+    }
+
+    if (r2Client && publicUrl) {
+      const { bucketName } = requireR2Env(env);
+
+      // 3-a. 프로필 이미지 삭제
+      try {
+        const profileRes = await fetch(
+          `${supabaseUrl}/rest/v1/profiles?select=avatar_url&id=eq.${userId}`,
+          { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+        );
+        if (profileRes.ok) {
+          const profiles = await profileRes.json() as Array<{ avatar_url?: string | null }>;
+          const avatarUrl = profiles[0]?.avatar_url;
+          if (avatarUrl) {
+            const key = extractR2Key(avatarUrl, publicUrl);
+            if (key) {
+              await r2Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+              console.log("[UserDelete] 프로필 이미지 R2 삭제 완료:", key);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("[UserDelete] 프로필 이미지 R2 삭제 실패 (비치명적):", e);
+      }
+
+      // 3-b. 묵상 음성 파일 삭제 (user_meditation_records)
+      try {
+        const meditationRes = await fetch(
+          `${supabaseUrl}/rest/v1/user_meditation_records?select=audio_url&user_id=eq.${userId}&audio_url=not.is.null`,
+          { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+        );
+        if (meditationRes.ok) {
+          const records = await meditationRes.json() as Array<{ audio_url?: string | null }>;
+          for (const rec of records) {
+            if (!rec.audio_url) continue;
+            const key = extractR2Key(rec.audio_url, publicUrl);
+            if (!key) continue;
+            try {
+              await r2Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+            } catch (e) {
+              console.warn("[UserDelete] 묵상 음성 R2 삭제 실패:", key, e);
+            }
+          }
+          console.log(`[UserDelete] 묵상 음성 ${records.length}개 R2 삭제 처리 완료`);
+        }
+      } catch (e) {
+        console.warn("[UserDelete] 묵상 음성 R2 삭제 실패 (비치명적):", e);
+      }
+
+      // 3-c. 기도 음성 파일 삭제 (prayer_records)
+      try {
+        const prayerRes = await fetch(
+          `${supabaseUrl}/rest/v1/prayer_records?select=audio_url&user_id=eq.${userId}&audio_url=not.is.null`,
+          { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+        );
+        if (prayerRes.ok) {
+          const records = await prayerRes.json() as Array<{ audio_url?: string | null }>;
+          for (const rec of records) {
+            if (!rec.audio_url || rec.audio_url === "amen") continue;
+            const key = extractR2Key(rec.audio_url, publicUrl);
+            if (!key) continue;
+            try {
+              await r2Client.send(new DeleteObjectCommand({ Bucket: bucketName, Key: key }));
+            } catch (e) {
+              console.warn("[UserDelete] 기도 음성 R2 삭제 실패:", key, e);
+            }
+          }
+          console.log(`[UserDelete] 기도 음성 ${records.length}개 R2 삭제 처리 완료`);
+        }
+      } catch (e) {
+        console.warn("[UserDelete] 기도 음성 R2 삭제 실패 (비치명적):", e);
+      }
+    }
+
+    // 4. 소유한 그룹 및 관련 데이터 삭제
+    const ownedGroupsRes = await fetch(
+      `${supabaseUrl}/rest/v1/groups?select=id&owner_id=eq.${userId}`,
+      { headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+    );
+    if (ownedGroupsRes.ok) {
+      const ownedGroups = await ownedGroupsRes.json() as Array<{ id: string }>;
+      if (ownedGroups.length > 0) {
+        const groupIds = ownedGroups.map((g) => g.id);
+        const inFilter = groupIds.map((id) => `"${id}"`).join(",");
+        const headers = { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey, "Content-Type": "application/json" };
+        const tables = [
+          "activity_group_links", "group_faith_records", "group_faith_items",
+          "group_prayer_records", "group_prayer_topics",
+          "group_posts", "group_join_requests", "group_members",
+        ];
+        for (const table of tables) {
+          await fetch(`${supabaseUrl}/rest/v1/${table}?group_id=in.(${inFilter})`, { method: "DELETE", headers }).catch(() => {});
+        }
+        await fetch(`${supabaseUrl}/rest/v1/group_members?user_id=eq.${userId}`, { method: "DELETE", headers }).catch(() => {});
+        await fetch(`${supabaseUrl}/rest/v1/groups?id=in.(${inFilter})`, { method: "DELETE", headers }).catch(() => {});
+        console.log(`[UserDelete] 소유 그룹 ${groupIds.length}개 삭제 완료`);
+      }
+    }
+    // 다른 그룹 멤버 레코드 제거
+    await fetch(
+      `${supabaseUrl}/rest/v1/group_members?user_id=eq.${userId}`,
+      { method: "DELETE", headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey } }
+    ).catch(() => {});
+
+    // 5. Supabase Auth 유저 삭제
+    const deleteRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${serviceKey}`, apikey: serviceKey },
+    });
+
+    if (!deleteRes.ok) {
+      const errBody = await deleteRes.text();
+      console.error("[UserDelete] Supabase auth 삭제 실패:", deleteRes.status, errBody);
+      return json(500, { message: "회원탈퇴에 실패했습니다", detail: `${deleteRes.status}: ${errBody}` });
+    }
+
+    return json(200, { success: true });
+  } catch (error) {
+    console.error("[UserDelete] 오류:", error);
+    return json(500, { message: `서버 오류: ${error instanceof Error ? error.message : String(error)}` });
+  }
+}
+
 async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname.startsWith("/api/card-backgrounds/")) {
     return handleCardBackgrounds(request, url);
@@ -356,6 +543,9 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === "/api/file/delete") {
     return handleFileDelete(request, env);
+  }
+  if (url.pathname === "/api/user/delete") {
+    return handleUserDelete(request, env);
   }
 
   if (request.method === "OPTIONS") {

@@ -1,12 +1,4 @@
-import { S3Client } from "@aws-sdk/client-s3";
-
-export const r2Client = new S3Client({
-  region: "auto",
-  endpoint: `https://${import.meta.env.VITE_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: import.meta.env.VITE_R2_ACCESS_KEY_ID,
-    secretAccessKey: import.meta.env.VITE_R2_SECRET_ACCESS_KEY,
-  },
-});
-
-export const R2_BUCKET_NAME = import.meta.env.VITE_R2_BUCKET_NAME;
+// R2 클라이언트는 서버 사이드에서만 사용합니다.
+// 클라이언트 측 파일 업로드는 /api/file/upload 엔드포인트를 통해 서버 경유로 처리됩니다.
+// (client/src/utils/upload.ts 참조)
+export {};
