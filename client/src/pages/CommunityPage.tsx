@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, Plus, Search, Shield, Loader2, Users, X } from "lucide-react";
@@ -16,7 +16,7 @@ type GroupRow = {
   created_at: string | null;
 };
 
-type MemberRole = "owner" | "leader" | "member";
+type MemberRole = "owner" | "leader" | "member" | "scope_leader";
 
 type JoinedGroup = {
   group: GroupRow;
@@ -289,7 +289,11 @@ export default function CommunityPage() {
   };
 
   const loadJoinedGroups = async (userId: string): Promise<JoinedGroup[]> => {
-    const [{ data: memberRows, error: memberError }, { data: ownedRows, error: ownedError }] = await Promise.all([
+    const [
+      { data: memberRows, error: memberError },
+      { data: ownedRows, error: ownedError },
+      { data: scopeRows, error: scopeError }
+    ] = await Promise.all([
       supabase
         .from("group_members")
         .select("group_id, role, groups(*)")
@@ -300,6 +304,10 @@ export default function CommunityPage() {
         .select("id, name, description, group_image, group_slug, owner_id, group_type, created_at")
         .eq("owner_id", userId)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("group_scope_leaders")
+        .select("root_group_id, groups(*)")
+        .eq("user_id", userId)
     ]);
 
     if (memberError) {
@@ -319,6 +327,15 @@ export default function CommunityPage() {
       if (!g?.id) return;
       const role: MemberRole = g.owner_id === userId ? "owner" : (row.role ?? "member");
       map.set(g.id, { group: g, role });
+    });
+
+    (scopeRows ?? []).forEach((row: any) => {
+      const g = row.groups as GroupRow | null;
+      if (!g?.id) return;
+      // 상위 리더 목록에 추가. 단, 이미 내가 일반 가입된 모임이라면 덮어쓰지 않음(혹은 권한에 맞게 표시)
+      if (!map.has(g.id)) {
+        map.set(g.id, { group: g, role: "scope_leader" });
+      }
     });
 
     (ownedRows ?? []).forEach((g: any) => {
@@ -540,6 +557,8 @@ export default function CommunityPage() {
         ? "관리자"
         : membership.role === "leader"
           ? "리더"
+          : membership.role === "scope_leader"
+          ? "상위 리더"
           : "일반멤버"
       : "비가입";
 
@@ -567,6 +586,7 @@ export default function CommunityPage() {
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
             <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${membership?.role === 'owner' ? 'bg-amber-100 text-amber-700' :
               membership?.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+              membership?.role === 'scope_leader' ? 'bg-purple-100 text-purple-700' :
                 membership ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-50 text-zinc-400'
               }`}>
               {roleText}

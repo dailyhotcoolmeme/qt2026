@@ -1022,7 +1022,20 @@ export default function GroupDashboard() {
         .eq("group_id", targetGroupId)
         .eq("user_id", userId)
         .maybeSingle();
-      if (memberData?.role) nextRole = memberData.role as GroupRole;
+      if (memberData?.role) {
+        nextRole = memberData.role as GroupRole;
+      } else {
+        // 일반 멤버가 아닐 경우 상위 리더인지 확인
+        const { data: scopeLeader } = await supabase
+          .from("group_scope_leaders")
+          .select("id")
+          .eq("root_group_id", targetGroupId)
+          .eq("user_id", userId)
+          .maybeSingle();
+        if (scopeLeader) {
+          nextRole = "leader"; // 상위 리더에게 리더 권한 부여
+        }
+      }
     }
 
     setRole(nextRole);
