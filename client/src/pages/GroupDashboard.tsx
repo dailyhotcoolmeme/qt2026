@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useLocation, useRoute } from "wouter";
 import {
   Check,
@@ -728,7 +728,13 @@ export default function GroupDashboard() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
-  const [activeTab, setActiveTab] = useState<TabKey>((initialTab as TabKey) || "faith");
+  const [activeTab, setActiveTab] = useState(() => {
+    return sessionStorage.getItem("groupDashboardTab") || "faith";
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem("groupDashboardTab", activeTab);
+  }, [activeTab]);
   const [loading, setLoading] = useState(true);
 
   const [groupPrayers, setGroupPrayers] = useState<GroupPrayerRecord[]>([]);
@@ -789,6 +795,8 @@ export default function GroupDashboard() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
+  const touchStartXRef = useRef<number | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
@@ -4317,27 +4325,45 @@ export default function GroupDashboard() {
               </div>
             )}
             
-            <div className="w-full flex-1 flex items-center justify-center relative overflow-hidden">
-              {modalImages[modalIndex] && (
-                <motion.img
-                  key={modalIndex}
-                  src={modalImages[modalIndex]}
-                  alt="full"
-                  drag={modalImages.length > 1 ? "x" : false}
-                  dragConstraints={{ left: 0, right: 0 }}
-                  dragElastic={0.8}
-                  onDragEnd={(e, { offset, velocity }) => {
-                    const swipe = 1000 * offset.x + velocity.x;
-                    if (swipe > 10000 && modalIndex > 0) {
-                      setModalIndex(prev => prev - 1);
-                    } else if (swipe < -10000 && modalIndex < modalImages.length - 1) {
-                      setModalIndex(prev => prev + 1);
-                    }
-                  }}
-                  onClick={() => setShowImageModal(false)}
-                  className="w-full h-full max-h-[85vh] object-contain mx-auto cursor-pointer"
-                />
-              )}
+            <div 
+              className="w-full flex-1 flex items-center justify-center relative overflow-hidden"
+              onTouchStart={(event) => {
+                const touch = event.touches[0];
+                touchStartXRef.current = touch?.clientX ?? null;
+                touchStartYRef.current = touch?.clientY ?? null;
+              }}
+              onTouchEnd={(event) => {
+                const startX = touchStartXRef.current;
+                const startY = touchStartYRef.current;
+                const touch = event.changedTouches[0];
+                touchStartXRef.current = null;
+                touchStartYRef.current = null;
+                if (!touch || startX === null || startY === null) return;
+                const deltaX = touch.clientX - startX;
+                const deltaY = Math.abs(touch.clientY - startY);
+                if (Math.abs(deltaX) < 48 || deltaY > 64) return;
+                if (deltaX < 0 && modalIndex < modalImages.length - 1) {
+                  setModalIndex(modalIndex + 1);
+                } else if (deltaX > 0 && modalIndex > 0) {
+                  setModalIndex(modalIndex - 1);
+                }
+              }}
+            >
+              <AnimatePresence mode="wait">
+                {modalImages[modalIndex] && (
+                  <motion.img
+                    key={modalIndex}
+                    src={modalImages[modalIndex]}
+                    alt="full"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.15 }}
+                    onClick={() => setShowImageModal(false)}
+                    className="w-full h-full max-h-[85vh] object-contain mx-auto cursor-pointer"
+                  />
+                )}
+              </AnimatePresence>
             </div>
 
             {modalImages.length > 1 && (
