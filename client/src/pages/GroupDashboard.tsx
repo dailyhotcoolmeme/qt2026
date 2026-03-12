@@ -4257,7 +4257,7 @@ export default function GroupDashboard() {
                 </button>
               </div>
 
-              <div className="p-6 overflow-y-auto space-y-8 bg-zinc-50/50">
+              <div className="p-6 overflow-y-auto space-y-8">
                 {/* 1. 내가 등록한 기도제목 리스트 (수정/삭제 가능) */}
                 <div className="space-y-3">
                   <label className="text-sm font-bold text-zinc-700">등록된 내 기도제목</label>
