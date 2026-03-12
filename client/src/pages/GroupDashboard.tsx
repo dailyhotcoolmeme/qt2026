@@ -728,8 +728,10 @@ export default function GroupDashboard() {
   const [user, setUser] = useState<{ id: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
-  const [activeTab, setActiveTab] = useState(() => {
-    return sessionStorage.getItem("groupDashboardTab") || "faith";
+  const [activeTab, setActiveTab] = useState<TabKey>(() => {
+    if (initialTab) return initialTab as TabKey;
+    const sessionTab = sessionStorage.getItem("groupDashboardTab");
+    return (sessionTab as TabKey) || "faith";
   });
 
   useEffect(() => {
@@ -4326,7 +4328,7 @@ export default function GroupDashboard() {
             )}
             
             <div 
-              className="w-full flex-1 flex items-center justify-center relative overflow-hidden"
+              className="w-full flex-1 relative overflow-hidden"
               onTouchStart={(event) => {
                 const touch = event.touches[0];
                 touchStartXRef.current = touch?.clientX ?? null;
@@ -4343,27 +4345,27 @@ export default function GroupDashboard() {
                 const deltaY = Math.abs(touch.clientY - startY);
                 if (Math.abs(deltaX) < 48 || deltaY > 64) return;
                 if (deltaX < 0 && modalIndex < modalImages.length - 1) {
-                  setModalIndex(modalIndex + 1);
+                  setModalIndex(prev => prev + 1);
                 } else if (deltaX > 0 && modalIndex > 0) {
-                  setModalIndex(modalIndex - 1);
+                  setModalIndex(prev => prev - 1);
                 }
               }}
             >
-              <AnimatePresence mode="wait">
-                {modalImages[modalIndex] && (
-                  <motion.img
-                    key={modalIndex}
-                    src={modalImages[modalIndex]}
-                    alt="full"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.15 }}
-                    onClick={() => setShowImageModal(false)}
-                    className="w-full h-full max-h-[85vh] object-contain mx-auto cursor-pointer"
-                  />
-                )}
-              </AnimatePresence>
+              <div
+                className="flex items-center w-full h-full transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(-${modalIndex * 100}%)` }}
+              >
+                {modalImages.map((src, idx) => (
+                  <div key={idx} className="w-full h-full shrink-0 flex items-center justify-center p-4">
+                    <img
+                      src={src}
+                      alt="full view"
+                      onClick={() => setShowImageModal(false)}
+                      className="max-w-full max-h-full object-contain cursor-pointer"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {modalImages.length > 1 && (
