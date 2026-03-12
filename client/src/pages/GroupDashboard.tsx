@@ -2147,6 +2147,7 @@ export default function GroupDashboard() {
 
     // @ts-ignore
     setShowPostComposerModal('submitting');
+    setIsSubmittingPost(true);
 
     const payload = {
       group_id: group.id,
@@ -2164,6 +2165,7 @@ export default function GroupDashboard() {
 
       if (error) {
         alert("게시글 수정에 실패했습니다.");
+        setIsSubmittingPost(false);
         return;
       }
 
@@ -2212,6 +2214,7 @@ export default function GroupDashboard() {
       setShowPostComposerModal(false);
       setEditingPost(null);
       await loadPosts(group.id);
+      setIsSubmittingPost(false);
       return;
     }
 
@@ -2246,6 +2249,7 @@ export default function GroupDashboard() {
 
     if (error) {
       alert("게시글 등록에 실패했습니다.");
+      setIsSubmittingPost(false);
       return;
     }
 
@@ -2284,6 +2288,7 @@ export default function GroupDashboard() {
     setPostExistingImages([]);
     setShowPostComposerModal(false);
     await loadPosts(group.id);
+    setIsSubmittingPost(false);
   };
 
   const removePost = async (post: GroupPostRow) => {
@@ -4355,7 +4360,7 @@ export default function GroupDashboard() {
               }}
               className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
             >
-              <div className="mx-auto -mt-2 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <h3 className="font-black text-xl text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
