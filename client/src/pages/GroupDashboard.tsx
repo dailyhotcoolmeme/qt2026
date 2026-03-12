@@ -2676,7 +2676,7 @@ export default function GroupDashboard() {
     setIsSearchingLeader(true);
     try {
       const { data, error } = await supabase
-        .from("profiles_duplicate")
+        .from("profiles")
         .select("*")
         .or(`nickname.ilike.%${leaderSearchQuery}%,username.ilike.%${leaderSearchQuery}%,church.ilike.%${leaderSearchQuery}%`)
         .limit(20);
@@ -3924,7 +3924,7 @@ export default function GroupDashboard() {
                       onChange={(e) => setLeaderSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && searchLeaders()}
                       placeholder="이름, 아이디, 교회명 검색"
-                      className="flex-1 px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
+                      className="flex-1 min-w-0 px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
                     />
                     <button
                       onClick={searchLeaders}
