@@ -29,7 +29,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, MoreVertical } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, MoreVertical, Search } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -97,6 +97,9 @@ type ProfileLite = {
   username: string | null;
   nickname: string | null;
   avatar_url: string | null;
+  church?: string | null;
+  rank?: string | null;
+  email?: string | null;
 };
 
 type GroupMemberRow = {
@@ -811,9 +814,12 @@ export default function GroupDashboard() {
 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [scopeLeaderUserId, setScopeLeaderUserId] = useState("");
+  const [leaderSearchQuery, setLeaderSearchQuery] = useState("");
+  const [leaderSearchResults, setLeaderSearchResults] = useState<ProfileLite[]>([]);
+  const [isSearchingLeader, setIsSearchingLeader] = useState(false);
+  const [selectedLeader, setSelectedLeader] = useState<ProfileLite | null>(null);
+
   const [closingGroup, setClosingGroup] = useState(false);
-  const [childGroupCode, setChildGroupCode] = useState("");
-  const [linkingChildGroup, setLinkingChildGroup] = useState(false);
 
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
@@ -2640,11 +2646,11 @@ export default function GroupDashboard() {
   };
 
   const registerScopeLeader = async () => {
-    if (!group || !isManager || !scopeLeaderUserId) return;
+    if (!group || !isManager || !selectedLeader) return;
 
     const { error } = await supabase.from("group_scope_leaders").upsert(
       {
-        user_id: scopeLeaderUserId,
+        user_id: selectedLeader.id,
         root_group_id: group.id,
         can_manage: true,
       },
@@ -2657,49 +2663,32 @@ export default function GroupDashboard() {
     }
 
     alert("상위 리더로 등록했습니다.");
-    setScopeLeaderUserId("");
+    setSelectedLeader(null);
+    setLeaderSearchQuery("");
+    setLeaderSearchResults([]);
   };
 
-  const linkChildGroup = async () => {
-    if (!group || !user || !isManager || !childGroupCode.trim()) return;
-
-    setLinkingChildGroup(true);
-    const code = childGroupCode.trim().toLowerCase();
+  const searchLeaders = async () => {
+    if (!leaderSearchQuery.trim()) {
+      alert("검색어를 입력해주세요.");
+      return;
+    }
+    setIsSearchingLeader(true);
     try {
-      const { data: child, error: childErr } = await supabase
-        .from("groups")
-        .select("id")
-        .eq("group_slug", code)
-        .maybeSingle();
-
-      if (childErr || !child?.id) {
-        alert("해당 아이디의 모임을 찾지 못했습니다.");
-        return;
-      }
-
-      if (child.id === group.id) {
-        alert("현재 모임은 하위 모임으로 연결할 수 없습니다.");
-        return;
-      }
-
-      const { error } = await supabase.from("group_edges").upsert(
-        {
-          parent_group_id: group.id,
-          child_group_id: child.id,
-          created_by: user.id,
-        },
-        { onConflict: "parent_group_id,child_group_id" }
-      );
-
-      if (error) {
-        alert("하위 모임 연결에 실패했습니다.");
-        return;
-      }
-
-      setChildGroupCode("");
-      alert("하위 모임 연결을 저장했습니다.");
+      const { data, error } = await supabase
+        .from("profiles_duplicate")
+        .select("*")
+        .or(`nickname.ilike.%${leaderSearchQuery}%,username.ilike.%${leaderSearchQuery}%,church.ilike.%${leaderSearchQuery}%`)
+        .limit(20);
+        
+      if (error) throw error;
+      setLeaderSearchResults(data || []);
+      setSelectedLeader(null);
+    } catch (error) {
+      console.error(error);
+      alert("리더 검색에 실패했습니다.");
     } finally {
-      setLinkingChildGroup(false);
+      setIsSearchingLeader(false);
     }
   };
 
@@ -3929,47 +3918,62 @@ export default function GroupDashboard() {
                     <h3 className="font-black text-zinc-900 text-lg">상위 리더 등록</h3>
                   </div>
                   <p className="text-sm text-zinc-500 leading-relaxed">등록된 상위 리더는 현재 모임을 루트로 하위 모임 현황을 함께 조회할 수 있습니다.</p>
-                  <select
-                    value={scopeLeaderUserId}
-                    onChange={(e) => setScopeLeaderUserId(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
-                  >
-                    <option value="">멤버 선택</option>
-                    {members.map((member) => {
-                      const name = member.profile?.nickname || member.profile?.username || "이름 없음";
-                      return (
-                        <option key={member.user_id} value={member.user_id}>
-                          {name} ({toLabel(member.role)})
-                        </option>
-                      );
-                    })}
-                  </select>
+                  <div className="flex gap-2">
+                    <input
+                      value={leaderSearchQuery}
+                      onChange={(e) => setLeaderSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && searchLeaders()}
+                      placeholder="이름, 아이디, 교회명 검색"
+                      className="flex-1 px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
+                    />
+                    <button
+                      onClick={searchLeaders}
+                      disabled={isSearchingLeader}
+                      className="px-4 py-3 bg-zinc-100 text-zinc-700 rounded-xl font-bold hover:bg-zinc-200 disabled:opacity-50 flex items-center gap-1 shrink-0"
+                    >
+                      {isSearchingLeader ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
+                      검색
+                    </button>
+                  </div>
+
+                  {leaderSearchResults.length > 0 && (
+                    <div className="mt-3 max-h-[300px] overflow-y-auto space-y-2 border border-zinc-100 p-2 rounded-xl bg-zinc-50/50">
+                      {leaderSearchResults.map(profile => (
+                        <div
+                          key={profile.id}
+                          onClick={() => setSelectedLeader(profile)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedLeader?.id === profile.id ? "border-[#4A6741] bg-green-50" : "border-zinc-200 bg-white hover:border-zinc-300"}`}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="font-bold text-zinc-900 text-base">{profile.nickname || "이름 없음"}</div>
+                            <div className="text-xs text-zinc-500 font-mono">{profile.username}</div>
+                          </div>
+                          <div className="text-sm text-zinc-600 space-y-0.5">
+                            {profile.church && <div>교회: {profile.church}</div>}
+                            {profile.rank && <div>직분: {profile.rank}</div>}
+                            {profile.email && <div>이메일: {profile.email}</div>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedLeader && (
+                    <div className="p-3 bg-emerald-50 text-emerald-800 rounded-xl text-sm border border-emerald-100">
+                      <span className="font-bold">{selectedLeader.nickname}</span> 님을 상위 리더로 등록합니다.
+                    </div>
+                  )}
+
                   <button
                     onClick={registerScopeLeader}
-                    disabled={!scopeLeaderUserId}
+                    disabled={!selectedLeader}
                     className="w-full py-3 rounded-xl bg-zinc-900 text-white font-bold text-sm hover:bg-zinc-800 disabled:opacity-50 transition-colors"
                   >
-                    상위 리더 등록하기
+                    선택한 리더 등록하기
                   </button>
                 </section>
 
-                <section className="bg-white rounded-3xl shadow-sm p-5 space-y-4">
-                  <h3 className="font-black text-zinc-900 text-lg mb-2">하위 모임 연결</h3>
-                  <p className="text-sm text-zinc-500 leading-relaxed">연결된 하위 모임들은 상위 리더 집계 범위에 포함되어 활동 내역이 그룹화됩니다.</p>
-                  <input
-                    value={childGroupCode}
-                    onChange={(e) => setChildGroupCode(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl bg-zinc-50 border border-zinc-100 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all font-medium"
-                    placeholder="하위 모임 아이디 입력"
-                  />
-                  <button
-                    onClick={linkChildGroup}
-                    disabled={linkingChildGroup || !childGroupCode.trim()}
-                    className="w-full py-3 rounded-xl bg-[#4A6741] text-white font-bold text-sm hover:bg-[#3d5535] disabled:opacity-50 transition-colors"
-                  >
-                    {linkingChildGroup ? "연결 중..." : "하위 모임 연결"}
-                  </button>
-                </section>
+
 
                 <section className="bg-red-50 rounded-3xl shadow-sm p-5 space-y-4 border border-red-100">
                   <h3 className="font-black text-rose-700 text-lg">모임 삭제 (Danger Zone)</h3>
