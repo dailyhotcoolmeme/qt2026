@@ -35,8 +35,10 @@ export async function setupVite(server: Server, app: Express) {
     const url = req.originalUrl;
 
     try {
+      // Handle compatibility for dirname in both ESM and CJS contexts
+      const currentDir = typeof __dirname !== 'undefined' ? __dirname : new URL('.', import.meta.url).pathname;
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        currentDir,
         "..",
         "client",
         "index.html",

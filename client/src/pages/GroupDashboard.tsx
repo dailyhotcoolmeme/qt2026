@@ -4250,7 +4250,7 @@ export default function GroupDashboard() {
               className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0"
             >
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
-              <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100">
+              <div className="flex items-center justify-between p-6 pb-4">
                 <h3 className="font-black text-zinc-900 text-xl">나의 기도제목 관리</h3>
                 <button onClick={() => setShowPrayerTopicModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
                   <X size={16} />
@@ -4358,9 +4358,9 @@ export default function GroupDashboard() {
                   setShowPostComposerModal(false);
                 }
               }}
-              className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
+              className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl pt-5 px-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
             >
-              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <h3 className="font-black text-xl text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
