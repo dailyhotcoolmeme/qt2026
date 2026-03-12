@@ -4048,10 +4048,10 @@ export default function GroupDashboard() {
                                       }}
                                       disabled={disabled}
                                       className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0 ${!item
-                                          ? "opacity-25 cursor-not-allowed bg-zinc-50"
-                                          : done
-                                            ? "bg-[#4A6741]/90 text-white shadow-sm"
-                                            : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
+                                        ? "opacity-25 cursor-not-allowed bg-zinc-50"
+                                        : done
+                                          ? "bg-[#4A6741]/90 text-white shadow-sm"
+                                          : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
                                         } ${isAttendance && !isFutureDate && !memberFaithDetailSaving ? "active:scale-[0.98]" : ""}`}
                                     >
                                       <Check
@@ -4358,7 +4358,7 @@ export default function GroupDashboard() {
               <div className="mx-auto -mt-2 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
-                  <h3 className="font-black text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
+                  <h3 className="font-black text-xl text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
                   <button
                     onClick={() => setShowPostComposerModal(false)}
                     className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center"
