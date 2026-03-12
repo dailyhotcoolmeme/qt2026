@@ -3223,7 +3223,7 @@ export default function GroupDashboard() {
                                   <div className="flex justify-between items-center mb-1.5">
                                     <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
                                       <Mic size={12} /> {pname}
-                                      <span className="text-[10px] text-zinc-600 font-bold ml-1">{formatDateTime(vp.created_at)}</span>
+                                      <span className="text-[10px] text-zinc-500 font-bold ml-1">{formatDateTime(vp.created_at)}</span>
                                     </div>
                                     {canDelete && (
                                       <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
@@ -3527,38 +3527,38 @@ export default function GroupDashboard() {
 
                     {/* 댓글 목록 & 입력창 */}
                     {isCommentsOpen && (
-                    <div className="mx-4 mt-3 flex flex-col gap-2">
-                      {postComments[post.id]?.map((comment: any) => {
-                        const cAuthor = authorMap[comment.user_id];
-                        const cName = cAuthor?.nickname || cAuthor?.username || "모임원";
-                        const canDeleteComment = isManager || comment.user_id === user.id;
-                        return (
-                          <div key={comment.id} className="bg-zinc-50 rounded-lg p-3 text-sm">
-                            <div className="flex justify-between items-start mb-1">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="font-bold text-zinc-700 truncate">{cName}</span>
-                                <span className="text-[11px] text-zinc-400 shrink-0">{formatDateTime(comment.created_at).slice(0, 17).replace('T', ' ')}</span>
+                      <div className="mx-4 mt-3 flex flex-col gap-2">
+                        {postComments[post.id]?.map((comment: any) => {
+                          const cAuthor = authorMap[comment.user_id];
+                          const cName = cAuthor?.nickname || cAuthor?.username || "모임원";
+                          const canDeleteComment = isManager || comment.user_id === user.id;
+                          return (
+                            <div key={comment.id} className="bg-zinc-50 rounded-lg p-3 text-sm">
+                              <div className="flex justify-between items-start mb-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-bold text-zinc-700 truncate">{cName}</span>
+                                  <span className="text-[11px] text-zinc-400 shrink-0">{formatDateTime(comment.created_at).slice(0, 17).replace('T', ' ')}</span>
+                                </div>
+                                {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><Trash2 size={14} /></button>}
                               </div>
-                              {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><Trash2 size={14} /></button>}
+                              <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
                             </div>
-                            <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center gap-2 mt-1 relative">
-                        <input
-                          type="text"
-                          value={commentDrafts[post.id] || ""}
-                          onChange={(e) => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
-                          onKeyDown={(e) => { if (e.key === 'Enter') addComment(post.id); }}
-                          placeholder="댓글 달기..."
-                          className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#4A6741] transition-colors"
-                        />
-                        <button disabled={!commentDrafts[post.id]?.trim()} onClick={() => addComment(post.id)} className="absolute right-1 w-8 h-8 rounded-full bg-[#4A6741] text-white flex items-center justify-center disabled:opacity-50 disabled:bg-zinc-300">
-                          <SendHorizontal size={14} className="ml-0.5" />
-                        </button>
+                          );
+                        })}
+                        <div className="flex items-center gap-2 mt-1 relative">
+                          <input
+                            type="text"
+                            value={commentDrafts[post.id] || ""}
+                            onChange={(e) => setCommentDrafts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                            onKeyDown={(e) => { if (e.key === 'Enter') addComment(post.id); }}
+                            placeholder="댓글 달기..."
+                            className="flex-1 bg-zinc-50 border border-zinc-200 rounded-full px-4 py-2 text-sm focus:outline-none focus:border-[#4A6741] transition-colors"
+                          />
+                          <button disabled={!commentDrafts[post.id]?.trim()} onClick={() => addComment(post.id)} className="absolute right-1 w-8 h-8 rounded-full bg-[#4A6741] text-white flex items-center justify-center disabled:opacity-50 disabled:bg-zinc-300">
+                            <SendHorizontal size={14} className="ml-0.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
                     )}
                   </div>
                 );
@@ -4047,13 +4047,12 @@ export default function GroupDashboard() {
                                         }
                                       }}
                                       disabled={disabled}
-                                      className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0 ${
-                                        !item
+                                      className={`w-[44px] h-[44px] sm:w-[50px] sm:h-[50px] rounded-[18px] flex items-center justify-center transition-all shrink-0 ${!item
                                           ? "opacity-25 cursor-not-allowed bg-zinc-50"
                                           : done
                                             ? "bg-[#4A6741]/90 text-white shadow-sm"
                                             : "bg-zinc-50 border border-zinc-100/80 text-zinc-300"
-                                      } ${isAttendance && !isFutureDate && !memberFaithDetailSaving ? "active:scale-[0.98]" : ""}`}
+                                        } ${isAttendance && !isFutureDate && !memberFaithDetailSaving ? "active:scale-[0.98]" : ""}`}
                                     >
                                       <Check
                                         size={20}
@@ -4247,7 +4246,7 @@ export default function GroupDashboard() {
             >
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between p-6 pb-4 border-b border-zinc-100">
-                <h3 className="font-black text-zinc-900 text-lg">나의 기도제목 관리</h3>
+                <h3 className="font-black text-zinc-900 text-xl">나의 기도제목 관리</h3>
                 <button onClick={() => setShowPrayerTopicModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
                   <X size={16} />
                 </button>
@@ -4339,7 +4338,7 @@ export default function GroupDashboard() {
 
       {
         showPostComposerModal && (
-          <div className="fixed inset-0 z-[220] p-0 sm:p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
             <motion.div
               initial={{ y: 20, opacity: 0 }}
@@ -4447,9 +4446,16 @@ export default function GroupDashboard() {
                   <button
                     onClick={addPost}
                     disabled={isSubmittingPost}
-                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-50"
+                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    {isSubmittingPost ? "저장 중..." : (editingPost ? "수정완료" : "저장")}
+                    {isSubmittingPost ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        저장 중...
+                      </>
+                    ) : (
+                      editingPost ? "수정완료" : "저장"
+                    )}
                   </button>
                 </div>
               </div>
