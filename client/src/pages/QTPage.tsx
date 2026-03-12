@@ -93,6 +93,7 @@ export default function QTPage() {
   const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
   const [audioProgress, setAudioProgress] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
 
   // Refs
@@ -407,6 +408,7 @@ export default function QTPage() {
     let audioUrl: string | null = null;
 
     try {
+      setIsSaving(true);
       // 음성 파일이 있으면 R2에 업로드
       if (audioBlob) {
         const timestamp = Date.now();
@@ -471,6 +473,8 @@ export default function QTPage() {
       console.error('Error saving meditation:', error);
       // error가 있을 때만 alert, inserted?.id 체크로 불필요하게 throw하지 않음
       alert('묵상 기록 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -493,6 +497,7 @@ export default function QTPage() {
     let audioUrl = editingRecord.audio_url;
 
     try {
+      setIsSaving(true);
       // 새 음성 파일이 있으면 업로드
       if (audioBlob) {
         const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
@@ -539,6 +544,8 @@ export default function QTPage() {
     } catch (error) {
       console.error('Error updating meditation:', error);
       alert('묵상 기록 수정 중 오류가 발생했습니다.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1474,13 +1481,24 @@ export default function QTPage() {
               }}
               className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
             >
-              <div className="w-12 h-1.5 bg-zinc-200 rounded-full mx-auto my-4" />
-
-              <div className="flex items-center mb-6">
-                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
-                  {editingRecord ? '묵상 기록 수정' : '묵상 기록'}
-                </h3>
-              </div>
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-zinc-200 rounded-full" />
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-black text-zinc-800">
+                {editingRecord ? '묵상 기록 수정' : '새 묵상 기록'}
+              </h2>
+              <button
+                onClick={() => {
+                  setShowWriteSheet(false);
+                  setEditingRecord(null);
+                  setMeditationText('');
+                  setAudioBlob(null);
+                  setRecordingTime(0);
+                }}
+                className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
               {/* 텍스트 입력 영역 */}
               <textarea

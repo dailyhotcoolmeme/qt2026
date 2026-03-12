@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
@@ -42,7 +42,6 @@ export default function PrayerPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
-  const [tempAudioUrl, setTempAudioUrl] = useState<string | null>(null);
   const [showPlayback, setShowPlayback] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveTitle, setSaveTitle] = useState("");
@@ -245,11 +244,6 @@ export default function PrayerPage() {
         if (recordingTimerRef.current) {
           clearInterval(recordingTimerRef.current);
         }
-
-        // temp 폴더로 업로드 (백그라운드)
-        if (user) {
-          uploadToTemp(blob);
-        }
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -300,33 +294,7 @@ export default function PrayerPage() {
     }
   };
 
-  // temp 폴더 업로드 (백그라운드)
-  const uploadToTemp = async (blob: Blob) => {
-    try {
-      const timestamp = Date.now();
-      const fileName = `audio/temp/${user!.id}/prayer_${timestamp}.webm`;
 
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        const base64 = (reader.result as string).split(',')[1];
-
-        const response = await fetch(resolveApiUrl('/api/audio/upload'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fileName, audioBase64: base64 })
-        });
-
-        if (response.ok) {
-          const { publicUrl } = await response.json();
-          setTempAudioUrl(publicUrl);
-          console.log('[PrayerPage] Temp 업로드 완료:', publicUrl);
-        }
-      };
-      reader.readAsDataURL(blob);
-    } catch (error) {
-      console.error('[PrayerPage] Temp 업로드 실패:', error);
-    }
-  };
 
   // 재생
   const playRecordedAudio = () => {
@@ -386,47 +354,32 @@ export default function PrayerPage() {
 
       let publicUrl: string;
 
-      // 1단계: 파일 이동 (20%)
+      // 1단계: 업로드 (20%)
       setSavingProgress(10);
 
-      if (tempAudioUrl) {
-        // R2 내부에서 이동 (빠름)
-        const moveResponse = await fetch(resolveApiUrl('/api/audio/move'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sourceUrl: tempAudioUrl, targetPath })
-        });
+      const reader = new FileReader();
+      const uploadPromise = new Promise<string>((resolve, reject) => {
+        reader.onloadend = async () => {
+          try {
+            const base64 = (reader.result as string).split(',')[1];
+            const response = await fetch(resolveApiUrl('/api/audio/upload'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ fileName: targetPath, audioBase64: base64 })
+            });
 
-        if (!moveResponse.ok) throw new Error('파일 이동 실패');
+            if (!response.ok) throw new Error('업로드 실패');
 
-        const moveData = await moveResponse.json();
-        publicUrl = moveData.publicUrl;
-      } else {
-        // Fallback: 직접 업로드
-        const reader = new FileReader();
-        const uploadPromise = new Promise<string>((resolve, reject) => {
-          reader.onloadend = async () => {
-            try {
-              const base64 = (reader.result as string).split(',')[1];
-              const response = await fetch(resolveApiUrl('/api/audio/upload'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: targetPath, audioBase64: base64 })
-              });
+            const { publicUrl: url } = await response.json();
+            resolve(url);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        reader.readAsDataURL(audioBlob);
+      });
 
-              if (!response.ok) throw new Error('업로드 실패');
-
-              const { publicUrl: url } = await response.json();
-              resolve(url);
-            } catch (error) {
-              reject(error);
-            }
-          };
-          reader.readAsDataURL(audioBlob);
-        });
-
-        publicUrl = await uploadPromise;
-      }
+      publicUrl = await uploadPromise;
 
       setSavingProgress(30);
 
@@ -488,15 +441,6 @@ export default function PrayerPage() {
         return;
       }
 
-      if (tempAudioUrl) {
-        const shared = await shareContent({
-          title: "기도 녹음",
-          text: "나의 기도를 공유합니다",
-          url: tempAudioUrl,
-          dialogTitle: "기도 공유",
-        });
-        if (shared) return;
-      }
 
       const file = new File([audioBlob], 'prayer.webm', { type: 'audio/webm' });
 
@@ -663,14 +607,6 @@ export default function PrayerPage() {
 
   // 닫기
   const handleClosePrayer = () => {
-    // temp 파일 삭제 (저장 안 한 경우)
-    if (tempAudioUrl) {
-      fetch(resolveApiUrl('/api/audio/delete'), {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileUrl: tempAudioUrl })
-      }).catch(err => console.error('Temp 삭제 실패:', err));
-    }
     resetPrayerState();
   };
 
@@ -681,7 +617,6 @@ export default function PrayerPage() {
     setIsPaused(false);
     setRecordingTime(0);
     setAudioBlob(null);
-    setTempAudioUrl(null);
     setShowPlayback(false);
     setShowSaveModal(false);
     setSaveTitle("");

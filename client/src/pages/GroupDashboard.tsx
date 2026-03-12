@@ -789,6 +789,7 @@ export default function GroupDashboard() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
+  const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
@@ -3218,10 +3219,11 @@ export default function GroupDashboard() {
                               const canDelete = isManager || vp.user_id === user.id;
 
                               return (
-                                <div key={vp.id} className="bg-[#F6F7F8] rounded-xl border border-zinc-100 p-2.5 shadow-sm">
+                                <div key={vp.id} className="bg-transparent rounded-xl border border-zinc-100 p-2.5 shadow-sm">
                                   <div className="flex justify-between items-center mb-1.5">
                                     <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
                                       <Mic size={12} /> {pname}
+                                      <span className="text-[10px] text-zinc-400 font-normal ml-1">{formatDateTime(vp.created_at)}</span>
                                     </div>
                                     {canDelete && (
                                       <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
@@ -4444,9 +4446,10 @@ export default function GroupDashboard() {
 
                   <button
                     onClick={addPost}
-                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all"
+                    disabled={isSubmittingPost}
+                    className="w-full py-4 mt-2 mb-2 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all disabled:opacity-50"
                   >
-                    {editingPost ? "수정완료" : "등록완료"}
+                    {isSubmittingPost ? "저장 중..." : (editingPost ? "수정완료" : "저장")}
                   </button>
                 </div>
               </div>
