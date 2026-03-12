@@ -4316,27 +4316,40 @@ export default function GroupDashboard() {
                 </span>
               </div>
             )}
-            <div className="w-full flex-1 flex items-center justify-center relative">
-              {modalImages.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setModalIndex(prev => prev > 0 ? prev - 1 : prev); }}
-                    className={`absolute left-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur z-[310] transition-colors ${modalIndex === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/60'}`}
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setModalIndex(prev => prev < modalImages.length - 1 ? prev + 1 : prev); }}
-                    className={`absolute right-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 text-white backdrop-blur z-[310] transition-colors ${modalIndex === modalImages.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-black/60'}`}
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                </>
-              )}
+            
+            <div className="w-full flex-1 flex items-center justify-center relative overflow-hidden">
               {modalImages[modalIndex] && (
-                <img src={modalImages[modalIndex]} alt="full" className="w-full h-full max-h-screen object-contain mx-auto" />
+                <motion.img
+                  key={modalIndex}
+                  src={modalImages[modalIndex]}
+                  alt="full"
+                  drag={modalImages.length > 1 ? "x" : false}
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.8}
+                  onDragEnd={(e, { offset, velocity }) => {
+                    const swipe = 1000 * offset.x + velocity.x;
+                    if (swipe > 10000 && modalIndex > 0) {
+                      setModalIndex(prev => prev - 1);
+                    } else if (swipe < -10000 && modalIndex < modalImages.length - 1) {
+                      setModalIndex(prev => prev + 1);
+                    }
+                  }}
+                  onClick={() => setShowImageModal(false)}
+                  className="w-full h-full max-h-[85vh] object-contain mx-auto cursor-pointer"
+                />
               )}
             </div>
+
+            {modalImages.length > 1 && (
+              <div className="absolute bottom-8 flex justify-center w-full z-[310] gap-2">
+                {modalImages.map((_, idx) => (
+                  <div
+                    key={idx}
+                    className={`w-2 h-2 rounded-full transition-colors ${idx === modalIndex ? 'bg-white' : 'bg-white/40'}`}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )
       }
