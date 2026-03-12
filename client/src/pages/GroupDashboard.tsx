@@ -3219,11 +3219,11 @@ export default function GroupDashboard() {
                               const canDelete = isManager || vp.user_id === user.id;
 
                               return (
-                                <div key={vp.id} className="bg-transparent rounded-xl border border-zinc-100 p-2.5 shadow-sm">
+                                <div key={vp.id} className="bg-[#f1f3f4] rounded-xl border border-zinc-100 p-2.5 shadow-sm">
                                   <div className="flex justify-between items-center mb-1.5">
                                     <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
                                       <Mic size={12} /> {pname}
-                                      <span className="text-[10px] text-zinc-400 font-normal ml-1">{formatDateTime(vp.created_at)}</span>
+                                      <span className="text-[10px] text-zinc-600 font-bold ml-1">{formatDateTime(vp.created_at)}</span>
                                     </div>
                                     {canDelete && (
                                       <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">

@@ -1191,38 +1191,38 @@ export default function QTPage() {
                 }
 
                 return (
-  <div key={index} className="flex flex-col"> {/* mb 제거: 아이템 자체 여백 없앰 */}
-    
-    {/* 1. 번호 + 설명 */}
-    <div 
-      className="px-2 text-zinc-700 flex items-start leading-[1.5] break-keep" 
-      style={{ fontSize: `${fontSize * 0.95}px` }}
-    >
-      <span className="text-zinc-700 min-w-[1.5rem] shrink-0">
-        {index + 1}.
-      </span>
-      <span className="text-zinc-700">
-        {description}
-      </span>
-    </div>
+                  <div key={index} className="flex flex-col"> {/* mb 제거: 아이템 자체 여백 없앰 */}
 
-    {/* 2. 실제 질문 (밀착 정렬) */}
-    {question && (
-      <p
-        className="mt-1 text-zinc-700 leading-[1.5] break-keep ml-[1.5rem]"
-        style={{ fontSize: `${fontSize * 0.95}px` }}
-      >
-        {question}
-      </p>
-    )}
+                    {/* 1. 번호 + 설명 */}
+                    <div
+                      className="px-2 text-zinc-700 flex items-start leading-[1.5] break-keep"
+                      style={{ fontSize: `${fontSize * 0.95}px` }}
+                    >
+                      <span className="text-zinc-700 min-w-[1.5rem] shrink-0">
+                        {index + 1}.
+                      </span>
+                      <span className="text-zinc-700">
+                        {description}
+                      </span>
+                    </div>
 
-    {/* 3. 구분선: 마지막 제외, 위아래 간격을 my-4로 동일하게 설정 */}
-    {index < arr.length - 1 && (
-      <div className="w-full" /> 
-      /* my-3(12px) 혹은 my-2(8px)로 줄여서 선 위아래 공백을 일치시킴 */
-    )}
-  </div>
-);
+                    {/* 2. 실제 질문 (밀착 정렬) */}
+                    {question && (
+                      <p
+                        className="mt-1 text-zinc-700 leading-[1.5] break-keep ml-[1.5rem]"
+                        style={{ fontSize: `${fontSize * 0.95}px` }}
+                      >
+                        {question}
+                      </p>
+                    )}
+
+                    {/* 3. 구분선: 마지막 제외, 위아래 간격을 my-4로 동일하게 설정 */}
+                    {index < arr.length - 1 && (
+                      <div className="w-full" />
+                      /* my-3(12px) 혹은 my-2(8px)로 줄여서 선 위아래 공백을 일치시킴 */
+                    )}
+                  </div>
+                );
               })}
           </div>
         </div>
@@ -1482,23 +1482,23 @@ export default function QTPage() {
               className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
             >
               <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-zinc-200 rounded-full" />
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-black text-zinc-800">
-                {editingRecord ? '묵상 기록 수정' : '새 묵상 기록'}
-              </h2>
-              <button
-                onClick={() => {
-                  setShowWriteSheet(false);
-                  setEditingRecord(null);
-                  setMeditationText('');
-                  setAudioBlob(null);
-                  setRecordingTime(0);
-                }}
-                className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"
-              >
-                <X size={16} />
-              </button>
-            </div>
+              <div className="flex justify-between items-center mt-3 mb-6">
+                <h2 className="text-xl font-black text-zinc-800">
+                  {editingRecord ? '묵상 기록 수정' : '새 묵상 기록'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowWriteSheet(false);
+                    setEditingRecord(null);
+                    setMeditationText('');
+                    setAudioBlob(null);
+                    setRecordingTime(0);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"
+                >
+                  <X size={16} />
+                </button>
+              </div>
 
               {/* 텍스트 입력 영역 */}
               <textarea
@@ -1612,9 +1612,10 @@ export default function QTPage() {
 
               <button
                 onClick={editingRecord ? handleUpdateMeditation : handleSubmitMeditation}
-                className="w-full mt-6 py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
+                disabled={isSaving}
+                className="w-full mt-6 py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98] disabled:opacity-50"
               >
-                {editingRecord ? '저장' : '등록'}
+                {isSaving ? '저장중...' : '저장'}
               </button>
             </motion.div>
           </>
