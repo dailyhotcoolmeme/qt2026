@@ -818,6 +818,7 @@ export default function GroupDashboard() {
   const [leaderSearchResults, setLeaderSearchResults] = useState<ProfileLite[]>([]);
   const [isSearchingLeader, setIsSearchingLeader] = useState(false);
   const [selectedLeader, setSelectedLeader] = useState<ProfileLite | null>(null);
+  const [scopeLeaders, setScopeLeaders] = useState<ProfileLite[]>([]);
 
   const [closingGroup, setClosingGroup] = useState(false);
 
@@ -1079,6 +1080,7 @@ export default function GroupDashboard() {
       loadPosts(targetGroupId),
       loadMembers(targetGroupId, groupData.owner_id),
       loadJoinRequests(targetGroupId),
+      loadScopeLeaders(targetGroupId),
     ]);
 
     if (nextRole === "owner" || nextRole === "leader") {
@@ -1253,6 +1255,20 @@ export default function GroupDashboard() {
     });
 
     setFaithRecordDetails(baseDetails);
+  };
+
+  const loadScopeLeaders = async (targetGroupId: string) => {
+    const { data: scopeRoles } = await supabase
+      .from("group_scope_leaders")
+      .select("user_id, profiles(*)")
+      .eq("root_group_id", targetGroupId);
+
+    if (scopeRoles && scopeRoles.length > 0) {
+      const leaders = scopeRoles.map(row => row.profiles as unknown as ProfileLite).filter(p => !!p);
+      setScopeLeaders(leaders);
+    } else {
+      setScopeLeaders([]);
+    }
   };
 
   const buildWeekIso = (ref = new Date()) => {
@@ -2679,6 +2695,26 @@ export default function GroupDashboard() {
     setSelectedLeader(null);
     setLeaderSearchQuery("");
     setLeaderSearchResults([]);
+    loadScopeLeaders(group.id);
+  };
+
+  const removeScopeLeader = async (leaderId: string) => {
+    if (!group || !isManager) return;
+    if (!confirm("해당 상위 리더의 권한을 해제하시겠습니까?")) return;
+
+    const { error } = await supabase
+      .from("group_scope_leaders")
+      .delete()
+      .eq("root_group_id", group.id)
+      .eq("user_id", leaderId);
+
+    if (error) {
+      console.error(error);
+      alert("권한 해제에 실패했습니다.");
+      return;
+    }
+
+    setScopeLeaders(prev => prev.filter(leader => leader.id !== leaderId));
   };
 
   const searchLeaders = async () => {
@@ -3984,6 +4020,34 @@ export default function GroupDashboard() {
                   >
                     선택한 리더 등록하기
                   </button>
+
+                  <div className="pt-4 border-t border-zinc-100">
+                    <h4 className="font-bold text-zinc-900 mb-2">현재 등록된 상위 리더 목록</h4>
+                    {scopeLeaders.length === 0 ? (
+                      <p className="text-sm text-zinc-500">등록된 상위 리더가 없습니다.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {scopeLeaders.map(leader => (
+                          <div key={leader.id} className="flex items-center justify-between p-3 rounded-lg border border-zinc-200 bg-white shadow-sm">
+                            <div>
+                              <div className="font-bold text-zinc-900 text-base">{leader.nickname || "이름 없음"}</div>
+                              <div className="text-xs text-zinc-500 font-mono mb-1">{leader.username}</div>
+                              <div className="flex items-center gap-2 text-xs text-zinc-600">
+                                {leader.church && <span className="px-1.5 py-0.5 bg-zinc-100 rounded text-zinc-500">{leader.church}</span>}
+                                {leader.rank && <span>{leader.rank}</span>}
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => removeScopeLeader(leader.id)}
+                              className="px-3 py-1.5 text-xs font-bold text-rose-600 bg-rose-50 rounded-lg hover:bg-rose-100 transition-colors"
+                            >
+                              해제
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </section>
 
 
