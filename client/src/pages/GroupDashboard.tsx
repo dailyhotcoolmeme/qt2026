@@ -903,10 +903,17 @@ export default function GroupDashboard() {
     const searchParams = new URLSearchParams(location.split("?")[1] || "");
     const queryTab = searchParams.get("tab");
     const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin", "schedule"];
+    
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
-      setActiveTab("faith");
+      // url param이 없을 때는 sessionStorage를 우선하고, 없으면 faith로 설정
+      const sessionTab = sessionStorage.getItem("groupDashboardTab") as TabKey | null;
+      if (sessionTab && validTabs.includes(sessionTab)) {
+        setActiveTab(sessionTab);
+      } else {
+        setActiveTab("faith");
+      }
     }
     void loadAll(groupId, user?.id ?? null);
   }, [groupId, user?.id, location, authReady]);
