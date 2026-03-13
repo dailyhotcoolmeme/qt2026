@@ -219,8 +219,7 @@ function formatJoinedAt(iso?: string | null) {
 }
 
 function toLabel(role: string) {
-  if (role === "owner") return "관리자";
-  if (role === "leader") return "리더";
+  if (role === "owner" || role === "leader") return "모임리더";
   if (role === "member") return "일반";
   return role;
 }
@@ -728,7 +727,7 @@ export default function GroupDashboard() {
   const [location, setLocation] = useLocation();
 
   const [authReady, setAuthReady] = useState(false);
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -2418,6 +2417,31 @@ export default function GroupDashboard() {
     alert(nextRole === "leader" ? "리더로 변경했습니다." : "일반멤버로 변경했습니다.");
   };
 
+  const transferGroupAuthority = async (targetUserId: string, targetName: string) => {
+    if (!group || role !== "owner") return;
+    if (!confirm(`[${targetName}]님에게 모임리더 권한을 양도하시겠습니까?\n양도 후 본인은 일반 멤버로 전환되며, 신규 리더가 모든 관리 권한을 갖게 됩니다.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("transfer_group_authority", {
+        p_group_id: group.id,
+        p_new_owner_id: targetUserId,
+      });
+
+      if (error || !data) throw error || new Error("양도 실패");
+
+      alert("모임리더 권한이 성공적으로 양도되었습니다.");
+      window.location.reload();
+    } catch (err) {
+      console.error("transfer authority failed:", err);
+      alert("권한 양도 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const removeMember = async (targetUserId: string) => {
     if (!group || !isManager || targetUserId === group.owner_id) return;
     if (!confirm("이 멤버를 모임에서 강퇴할까요?")) return;
@@ -3713,8 +3737,7 @@ export default function GroupDashboard() {
                           <div className="font-bold text-zinc-900">{name}</div>
 
                           {/* 역할 배지 */}
-                          <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' ? 'bg-amber-100 text-amber-700' :
-                            member.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+                          <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' || member.role === 'leader' ? 'bg-[#4A6741]/10 text-[#4A6741]' :
                               'bg-zinc-200 text-zinc-600'
                             }`}>
                             {toLabel(member.role)}
@@ -3722,21 +3745,30 @@ export default function GroupDashboard() {
 
                           {/* 권한 변경 버튼을 이름 라인으로 이동 */}
                           <div className="flex items-center gap-1.5 ml-1">
-                            {canPromoteDemote && member.role === "member" && (
-                              <button
-                                onClick={() => changeMemberRole(member.user_id, "leader")}
-                                className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
-                              >
-                                리더권한 부여
-                              </button>
-                            )}
-                            {canPromoteDemote && member.role === "leader" && (
-                              <button
-                                onClick={() => changeMemberRole(member.user_id, "member")}
-                                className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"
-                              >
-                                일반멤버 전환
-                              </button>
+                            {canPromoteDemote && (member.role === "member" || member.role === "leader") && (
+                              <div className="flex items-center gap-1.5">
+                                {member.role === "member" ? (
+                                  <button
+                                    onClick={() => changeMemberRole(member.user_id, "leader")}
+                                    className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
+                                  >
+                                    리더권한 부여
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => changeMemberRole(member.user_id, "member")}
+                                    className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"
+                                  >
+                                    일반멤버 전환
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => transferGroupAuthority(member.user_id, name)}
+                                  className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 text-xs font-bold hover:bg-rose-100 transition-colors"
+                                >
+                                  권한 양도
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
