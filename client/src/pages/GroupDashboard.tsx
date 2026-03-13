@@ -2938,12 +2938,12 @@ export default function GroupDashboard() {
                 : `linear-gradient(135deg, ${group.header_color || "#4A6741"}, #1f2937)`,
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 w-full text-white py-6">
+          <div className="max-w-2xl mx-auto px-4 w-full text-white py-8">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
               {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
             </div>
-            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.7 leading-tight">
+            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-1 leading-tight">
               {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
               <span>개설일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
               <span>나의 등급 : 방문자</span>
@@ -3137,7 +3137,7 @@ export default function GroupDashboard() {
         }}
       >
         <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-topbar-height)]">
-          <div className="text-white py-6">
+          <div className="text-white py-8">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -3155,7 +3155,7 @@ export default function GroupDashboard() {
                   {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
                 </div>
 
-                <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.7 leading-tight">
+                <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-1 leading-tight">
                   {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
                   <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
                   <span>나의 등급 : {toLabel(role)}</span>
