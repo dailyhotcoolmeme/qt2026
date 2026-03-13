@@ -913,8 +913,14 @@ export default function GroupDashboard() {
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
-      // url param이 없을 때는 항상 "faith"로 초기화 (사용자 요청: 진입 시 신앙생활 탭이 첫 화면)
-      setActiveTab("faith");
+      // url param이 없을 때는 sessionStorage를 우선하고 (새로고침 대응), 없으면 faith로 설정 (진입 시 대응)
+      // 단, CommunityPage에서 진입할 때 sessionStorage를 명시적으로 비워줌으로써 '진입 시 신앙생활' 요구사항 충족
+      const sessionTab = sessionStorage.getItem("groupDashboardTab") as TabKey | null;
+      if (sessionTab && validTabs.includes(sessionTab)) {
+        setActiveTab(sessionTab);
+      } else {
+        setActiveTab("faith");
+      }
     }
     void loadAll(groupId, user?.id ?? null);
   }, [groupId, user?.id, location, authReady]);
@@ -2924,7 +2930,7 @@ export default function GroupDashboard() {
     return (
       <div className="min-h-screen bg-[#F6F7F8] pb-10 text-base">
         <div
-          className="min-h-[160px] flex flex-col justify-center pt-[var(--app-page-top)]"
+          className="min-h-[160px] flex flex-col justify-center pt-[var(--app-topbar-height)]"
           style={{
             background:
               ((ensureHttpsUrl(group.header_image_url) || ensureHttpsUrl(group.group_image)) ?? "").trim()
@@ -3130,7 +3136,7 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-page-top)]">
+        <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-topbar-height)]">
           <div className="text-white">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">

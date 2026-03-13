@@ -547,6 +547,8 @@ export default function CommunityPage() {
   const openGroup = (groupId: string) => {
     if (loading) return;
     localStorage.setItem(LAST_GROUP_KEY, groupId);
+    // 새로운 모임 진입 시 이전 탭 기록을 삭제하여 '신앙생활' 탭이 기본으로 뜨게 함
+    sessionStorage.removeItem("groupDashboardTab");
     setLocation(`/group/${groupId}`);
   };
 
