@@ -240,6 +240,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [bgPage, setBgPage] = useState(1);
   const [bgHasMore, setBgHasMore] = useState(true);
   const [bgSort, setBgSort] = useState<"latest" | "popular">("latest");
+  const [visiblePresetsCount, setVisiblePresetsCount] = useState(4);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const CANVAS_WIDTH = 900;
@@ -283,8 +284,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             .select("url, name, uploader, created_at, thumbnail_url");
 
       const finalQuery = query
-        .limit(12)
-        .range((bgPage - 1) * 12, bgPage * 12 - 1);
+        .limit(4)
+        .range((bgPage - 1) * 4, bgPage * 4 - 1);
 
       const { data, error } = await (
         bgSort === "popular"
@@ -298,7 +299,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         return;
       }
       setUserBgs((prev) => bgPage === 1 ? (data ?? []) : [...prev, ...(data ?? [])]);
-      setBgHasMore((data?.length ?? 0) === 12);
+      setBgHasMore((data?.length ?? 0) === 4);
     };
     fetchBgs();
   }, [open, bgPage, bgSort]);
@@ -363,11 +364,11 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
         const { data: fresh, error: fetchErr } =
           bgSort === "popular"
-            ? await freshQuery.limit(12).range(0, 11).order("use_count", { ascending: false }).order("created_at", { ascending: false })
-            : await freshQuery.limit(12).range(0, 11).order("created_at", { ascending: false });
+            ? await freshQuery.limit(4).range(0, 3).order("use_count", { ascending: false }).order("created_at", { ascending: false })
+            : await freshQuery.limit(4).range(0, 3).order("created_at", { ascending: false });
         if (!fetchErr && Array.isArray(fresh)) {
           setUserBgs(fresh as any as UserBg[]);
-          setBgHasMore((fresh?.length ?? 0) === 12);
+          setBgHasMore((fresh?.length ?? 0) === 4);
           setSelectedId("user-0");
         }
       } catch (e) {
@@ -734,27 +735,41 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 </div>
 
                 {!userBgTab ? (
-                  <div className="grid grid-cols-4 gap-2">
-                    {(mode === "color" ? COLOR_PRESETS : imagePresets).map((preset) => (
+                  <>
+                    <div className="grid grid-cols-4 gap-2">
+                      {(mode === "color"
+                        ? COLOR_PRESETS
+                        : imagePresets.slice(0, visiblePresetsCount)
+                      ).map((preset) => (
+                        <button
+                          key={preset.id}
+                          onClick={() => setSelectedId(preset.id)}
+                          className={`h-12 rounded-none border overflow-hidden bg-zinc-50 ${selectedId === preset.id ? "border-zinc-500 border-2" : "border-zinc-200"}`}
+                        >
+                          {preset.mode === "image" ? (
+                            <img
+                              src={toProxyUrl(preset.bg.includes('/api/card-backgrounds/') ? `https://wsrv.nl/?url=${encodeURIComponent(resolveAppUrl(preset.bg))}&w=300&h=300&fit=cover&output=webp` : preset.bg)}
+                              alt=""
+                              loading="lazy"
+                              decoding="async"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full" style={{ background: preset.bg }} />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    {mode === "image" && visiblePresetsCount < imagePresets.length && (
                       <button
-                        key={preset.id}
-                        onClick={() => setSelectedId(preset.id)}
-                        className={`h-12 rounded-none border overflow-hidden bg-zinc-50 ${selectedId === preset.id ? "border-zinc-500 border-2" : "border-zinc-200"}`}
+                        className="mt-2 w-full rounded-lg bg-zinc-100 py-2 text-xs font-bold text-zinc-700"
+                        onClick={() => setVisiblePresetsCount(prev => Math.min(prev + 4, imagePresets.length))}
                       >
-                        {preset.mode === "image" ? (
-                          <img
-                            src={toProxyUrl(preset.bg.includes('/api/card-backgrounds/') ? `https://wsrv.nl/?url=${encodeURIComponent(resolveAppUrl(preset.bg))}&w=300&h=300&fit=cover&output=webp` : preset.bg)}
-                            alt=""
-                            loading="lazy"
-                            decoding="async"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full" style={{ background: preset.bg }} />
-                        )}
+                        이미지 더보기
                       </button>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 ) : (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
