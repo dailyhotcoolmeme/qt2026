@@ -2941,12 +2941,12 @@ export default function GroupDashboard() {
             <div className="flex items-center justify-between">
               <button
                 onClick={() => setLocation("/community?list=1")}
-                className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur shadow-sm hover:bg-white/30 transition-colors"
+                className="w-10 h-10 rounded-full bg-transparent text-white flex items-center justify-center transition-colors hover:scale-110 active:scale-95"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={22} strokeWidth={3} />
               </button>
             </div>
-            <div className="text-white mt-8 mb-4">
+            <div className="text-white mt-6 mb-2">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
                 {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
