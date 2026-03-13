@@ -4098,12 +4098,12 @@ export default function GroupDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="flex items-baseline gap-2"> {/* 이름과 글자를 나란히 정렬 */}
-                    <h3 className="font-black text-zinc-900 text-lg">
+                    <h3 className="font-black text-[#4A6741] text-lg underline decoration-1 underline-offset-4">
                       {selectedFaithMemberDetail.name}
                     </h3>
                     <span className="text-lg text-zinc-900 font-black">신앙 기록</span>
                   </div>
-                  <p className="text-sm text-red-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
+                  <p className="text-sm text-red-400 font-bold mt-1">예배 기록은 직접 수정 가능합니다.</p>
                 </div>
                 <button
                   onClick={() => setSelectedFaithMemberDetail(null)}
