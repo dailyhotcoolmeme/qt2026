@@ -913,13 +913,8 @@ export default function GroupDashboard() {
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
-      // url param이 없을 때는 sessionStorage를 우선하고, 없으면 faith로 설정
-      const sessionTab = sessionStorage.getItem("groupDashboardTab") as TabKey | null;
-      if (sessionTab && validTabs.includes(sessionTab)) {
-        setActiveTab(sessionTab);
-      } else {
-        setActiveTab("faith");
-      }
+      // url param이 없을 때는 항상 "faith"로 초기화 (사용자 요청: 진입 시 신앙생활 탭이 첫 화면)
+      setActiveTab("faith");
     }
     void loadAll(groupId, user?.id ?? null);
   }, [groupId, user?.id, location, authReady]);
@@ -3145,32 +3140,22 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pb-10 min-h-[260px] flex flex-col justify-between h-full pt-[var(--app-page-top)]">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setLocation("/community?list=1")}
-              // w-8 h-8 -> w-10 h-10으로 변경
-              className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
-            >
-              {/* 아이콘 크기도 16 -> 20으로 한 단계 키움 */}
-              <ChevronLeft size={20} />
-            </button>
+        <div className="max-w-2xl mx-auto px-4 pb-4 min-h-[160px] flex flex-col justify-end h-full pt-[var(--app-page-top)]">
 
-            {isManager && (
-              <button
-                onClick={() => setActiveTab("admin")}
-                // w-8 h-8 -> w-10 h-10으로 변경
-                className="w-10 h-10 rounded-full bg-transparent text-white font-bold inline-flex items-center justify-center gap-1.5 hover:bg-white/30 transition-colors"
-              >
-                {/* 아이콘 크기 20으로 변경 */}
-                <Settings size={20} />
-              </button>
-            )}
-          </div>
-
-          <div className="text-white mt-8">
+          <div className="text-white mt-4">
             <div className="flex items-center gap-3 flex-wrap">
-              <div className="text-2xl sm:text-2xl font-bold truncate leading-none py-1">{group.name}</div>
+              <div className="flex items-center gap-2 max-w-full">
+                <div className="text-2xl sm:text-2xl font-black truncate leading-none py-1 drop-shadow-sm">{group.name}</div>
+                {isManager && (
+                  <button
+                    onClick={() => setActiveTab("admin")}
+                    className="w-6 h-6 text-white/70 hover:text-white transition-colors flex items-center justify-center"
+                    title="모임 관리"
+                  >
+                    <Settings size={18} />
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setActiveTab("members")}
                 className="px-2.5 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
