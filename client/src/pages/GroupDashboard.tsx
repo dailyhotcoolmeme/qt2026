@@ -220,7 +220,8 @@ function formatJoinedAt(iso?: string | null) {
 
 function toLabel(role: string) {
   if (role === "owner" || role === "leader") return "모임리더";
-  if (role === "member") return "일반";
+  if (role === "scope_leader") return "상위리더";
+  if (role === "member") return "일반멤버";
   return role;
 }
 
@@ -4076,7 +4077,7 @@ export default function GroupDashboard() {
                     disabled={closingGroup || role !== "owner"}
                     className="w-full py-3.5 rounded-2xl bg-rose-600 text-white font-black text-base shadow-lg hover:bg-rose-700 disabled:opacity-50 transition-all active:scale-[0.98]"
                   >
-                    {closingGroup ? "삭제 중..." : role !== "owner" ? "관리자만 삭제 가능" : "모임 영구 삭제하기"}
+                    {closingGroup ? "삭제 중..." : role !== "owner" ? "모임리더만 삭제 가능" : "모임 영구 삭제하기"}
                   </button>
                 </section>
               </motion.div>
