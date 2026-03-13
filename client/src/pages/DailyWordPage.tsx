@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Calendar as CalendarIcon, Copy, Bookmark, Share2, Heart, ImagePlus as ImageIcon } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -37,6 +37,7 @@ const VERSE_CARD_STORE = "cards";
 
 type SavedCardMeta = {
   createdAt?: string;
+  created_at?: string;
 };
 
 function verseCardStorageKey(userId?: string | null) {
@@ -82,7 +83,7 @@ async function loadSavedCardDateKeys(userId?: string | null): Promise<string[]> 
   }
 
   return records
-    .map((record) => toLocalDateKey(record.createdAt))
+    .map((record) => toLocalDateKey(record.created_at || record.createdAt))
     .filter((dateKey): dateKey is string => Boolean(dateKey));
 }
 
@@ -279,7 +280,7 @@ export default function DailyWordPage() {
     return () => {
       alive = false;
     };
-  }, [user?.id, showCardMaker]);
+  }, [user?.id, showCardMaker, showCalendarModal]);
 
   return (
     <div className="flex min-h-full w-full flex-col items-center overflow-x-hidden overflow-y-auto bg-[#F8F8F8] px-4 pb-4 pt-[var(--app-page-top)]">
