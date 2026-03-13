@@ -2938,7 +2938,7 @@ export default function GroupDashboard() {
                 : `linear-gradient(135deg, ${group.header_color || "#4A6741"}, #1f2937)`,
           }}
         >
-          <div className="max-w-2xl mx-auto px-4 w-full text-white">
+          <div className="max-w-2xl mx-auto px-4 w-full text-white py-10">
             <div className="flex items-center gap-3 flex-wrap">
               <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
               {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
@@ -3137,7 +3137,7 @@ export default function GroupDashboard() {
         }}
       >
         <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-topbar-height)]">
-          <div className="text-white">
+          <div className="text-white py-10">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 flex-wrap">
