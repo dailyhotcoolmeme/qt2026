@@ -318,7 +318,7 @@ export default function ReadingPage() {
     const isToday = date.toDateString() === today.toDateString();
     const forceTodayRestore = Boolean(options?.forceTodayRestore);
 
-    console.log('loadDailyVerse 호출:', date.toISOString().split('T')[0], 'isToday:', isToday);
+    console.log('loadDailyVerse 호출:', formatLocalDate(date), 'isToday:', isToday);
 
 
     if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
@@ -378,7 +378,7 @@ export default function ReadingPage() {
     setIsLoadingVerse(true);
     setNoReadingForDate(false);
 
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
 
 
     const { data: records, error } = await supabase
@@ -521,7 +521,7 @@ export default function ReadingPage() {
     const savedPages = localStorage.getItem('reading_pages');
     const savedIdx = localStorage.getItem('reading_page_idx');
     const savedDate = localStorage.getItem('reading_date');
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatLocalDate(new Date());
 
     if (savedSelection) {
       try {
@@ -569,7 +569,7 @@ export default function ReadingPage() {
 
 
       if (isToday) {
-        const todayStr = today.toISOString().split('T')[0];
+        const todayStr = formatLocalDate(today);
         localStorage.setItem('reading_pages', JSON.stringify(rangePages));
         localStorage.setItem('reading_date', todayStr);
         localStorage.setItem('reading_page_idx', String(currentPageIdx));
@@ -2012,7 +2012,7 @@ export default function ReadingPage() {
 
     if (chapterData) {
       try {
-        const dateStr = currentDate.toISOString().split('T')[0];
+        const dateStr = formatLocalDate(currentDate);
         const verseValue = chapterData.verse;
         let startVerse: number | null = null;
         let endVerse: number | null = null;
@@ -2449,7 +2449,7 @@ export default function ReadingPage() {
                     className="self-stretch px-4 rounded-2xl bg-red-50 text-red-600 font-bold text-base flex items-center justify-center"
                     style={{ fontSize: `${fontSize * 0.9}px` }}
                   >
-                    다시<br/> 선택하기
+                    다시<br /> 선택하기
                   </button>
                 )}
               </div>
@@ -2654,7 +2654,7 @@ export default function ReadingPage() {
         onSelectDate={handleDateChange}
         highlightedDateKeys={activityDateKeys}
         maxDate={today}
-        title="통독 날짜 선택"
+        title="성경읽기 날짜 선택"
       />
 
       <ActivityGroupLinkModal

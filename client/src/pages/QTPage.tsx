@@ -182,7 +182,7 @@ export default function QTPage() {
       return;
     }
 
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
 
     const { data, error } = await supabase
       .from('user_meditation_records')
@@ -206,7 +206,7 @@ export default function QTPage() {
       return;
     }
 
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
 
     const { data, error } = await supabase
       .from('user_meditation_records')
@@ -254,7 +254,7 @@ export default function QTPage() {
 
   // 묵상 완료 취소
   const handleCancelMeditation = async () => {
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
 
     try {
       // 해당 날짜의 모든 레코드 찾기
@@ -303,7 +303,7 @@ export default function QTPage() {
       setShowLoginModal(true);
       return;
     }
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
 
     try {
       const { data: inserted, error } = await supabase
@@ -403,8 +403,8 @@ export default function QTPage() {
       return;
     }
 
-    const formattedDate = currentDate.toISOString().split('T')[0];
-    const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
+    const kstDate = formatLocalDate(currentDate);
     let audioUrl: string | null = null;
 
     try {
@@ -500,7 +500,7 @@ export default function QTPage() {
       setIsSaving(true);
       // 새 음성 파일이 있으면 업로드
       if (audioBlob) {
-        const kstDate = new Date(currentDate.getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+        const kstDate = formatLocalDate(currentDate);
         const timestamp = Date.now();
         const fileName = `audio/meditation/${user!.id}/${kstDate}/qt_${timestamp}.webm`;
 
@@ -700,7 +700,7 @@ export default function QTPage() {
   }, [currentDate]);
 
   const fetchVerse = async () => {
-    const formattedDate = currentDate.toISOString().split('T')[0];
+    const formattedDate = formatLocalDate(currentDate);
 
     // 1. 오늘의 말씀 가져오기
     const { data: verse } = await supabase
