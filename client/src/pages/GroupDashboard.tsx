@@ -910,7 +910,7 @@ export default function GroupDashboard() {
     const searchParams = new URLSearchParams(location.split("?")[1] || "");
     const queryTab = searchParams.get("tab");
     const validTabs: TabKey[] = ["faith", "prayer", "social", "members", "admin", "schedule"];
-    
+
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
     } else {
@@ -2729,7 +2729,7 @@ export default function GroupDashboard() {
         .select("*")
         .or(`nickname.ilike.%${leaderSearchQuery}%,username.ilike.%${leaderSearchQuery}%,church.ilike.%${leaderSearchQuery}%`)
         .limit(20);
-        
+
       if (error) throw error;
       setLeaderSearchResults(data || []);
       setSelectedLeader(null);
@@ -3125,16 +3125,21 @@ export default function GroupDashboard() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => setLocation("/community?list=1")}
-              className="w-8 h-8 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
+              // w-8 h-8 -> w-10 h-10으로 변경
+              className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center backdrop-blur"
             >
-              <ChevronLeft size={16} />
+              {/* 아이콘 크기도 16 -> 20으로 한 단계 키움 */}
+              <ChevronLeft size={20} />
             </button>
+
             {isManager && (
               <button
                 onClick={() => setActiveTab("admin")}
-                className="w-8 h-8 rounded-full bg-transparent text-white font-bold inline-flex items-center justify-center gap-1.5 hover:bg-white/30 transition-colors"
+                // w-8 h-8 -> w-10 h-10으로 변경
+                className="w-10 h-10 rounded-full bg-transparent text-white font-bold inline-flex items-center justify-center gap-1.5 hover:bg-white/30 transition-colors"
               >
-                <Settings size={16} />
+                {/* 아이콘 크기 20으로 변경 */}
+                <Settings size={20} />
               </button>
             )}
           </div>
@@ -3463,7 +3468,8 @@ export default function GroupDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => void loadMemberFaithWeekDetail(row.user_id)}
-                                  className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight hover:text-[#4A6741] transition-colors"
+                                  // hover:underline 클래스 추가
+                                  className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight hover:text-[#4A6741] hover:underline transition-colors decoration-1 underline-offset-4"
                                 >
                                   {row.name}
                                 </button>
@@ -4092,7 +4098,7 @@ export default function GroupDashboard() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-lg">{selectedFaithMemberDetail.name}</h3>
-                  <p className="text-sm text-zinc-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
+                  <p className="text-sm text-red-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
                 </div>
                 <button
                   onClick={() => setSelectedFaithMemberDetail(null)}
@@ -4414,8 +4420,8 @@ export default function GroupDashboard() {
                 </span>
               </div>
             )}
-            
-            <div 
+
+            <div
               className="w-full flex-1 relative overflow-hidden"
               onTouchStart={(event) => {
                 const touch = event.touches[0];
