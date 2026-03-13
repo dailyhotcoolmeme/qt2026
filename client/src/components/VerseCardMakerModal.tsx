@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
 import { Download, Save, Share2, X } from "lucide-react";
 
@@ -20,7 +20,7 @@ type SavedCard = {
   id: string;
   title: string;
   imageDataUrl: string;
-  createdAt: string;
+  created_at: string;
 };
 
 type ThemeMode = "color" | "image";
@@ -226,7 +226,7 @@ async function loadCanvasImage(src: string) {
   }
 }
 
-type UserBg = { url: string; name: string; uploader: string; createdAt: string; use_count?: number };
+type UserBg = { url: string; name: string; uploader: string; created_at: string; use_count?: number; thumbnail_url?: string | null };
 
 export function VerseCardMakerModal({ open, onClose, title, content, userId }: Props) {
   const dragControls = useDragControls();
@@ -274,21 +274,22 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const fetchBgs = async () => {
       // 최신순: use_count 컴럼 불필요 (마이그레이션 전에도 동작)
       // 인기순: use_count 컴럼 필요 → SQL 마이그레이션 실행 필수
-      const selectFields =
-        bgSort === "popular"
-          ? "url, name, uploader, created_at, use_count"
-          : "url, name, uploader, created_at";
+      const query = bgSort === "popular"
+        ? supabase
+            .from("verse_card_backgrounds")
+            .select("url, name, uploader, created_at, use_count, thumbnail_url")
+        : supabase
+            .from("verse_card_backgrounds")
+            .select("url, name, uploader, created_at, thumbnail_url");
 
-      const query = supabase
-        .from("verse_card_backgrounds")
-        .select(selectFields)
+      const finalQuery = query
         .limit(12)
         .range((bgPage - 1) * 12, bgPage * 12 - 1);
 
       const { data, error } = await (
         bgSort === "popular"
-          ? query.order("use_count", { ascending: false }).order("created_at", { ascending: false })
-          : query.order("created_at", { ascending: false })
+          ? finalQuery.order("use_count", { ascending: false }).order("created_at", { ascending: false })
+          : finalQuery.order("created_at", { ascending: false })
       );
 
       if (error) {
@@ -327,9 +328,22 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         new File([compressed], file.name, { type: compressed.type }),
         `user-card-backgrounds/open` // open folder
       );
+      // --- 추가: 썸네일 생성 ---
+      const thumbFile = await imageCompression(file, {
+        maxWidthOrHeight: 300,
+        maxSizeMB: 0.1,
+        useWebWorker: false,
+        initialQuality: 0.7,
+      });
+      const thumbnailUrl = await uploadFileToR2(
+        new File([thumbFile], `thumb_${file.name}`, { type: thumbFile.type }),
+        `user-card-backgrounds/thumbs`
+      );
+
       // Insert metadata to Supabase
       const { error } = await supabase.from("verse_card_backgrounds").insert({
         url,
+        thumbnail_url: thumbnailUrl,
         name: file.name,
         uploader: userId,
         created_at: new Date().toISOString(),
@@ -339,17 +353,20 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       // Immediately reload the first page of backgrounds so the UI reflects
       // the newly uploaded image instead of waiting for a page-change.
       try {
-        const freshQuery = supabase
-          .from("verse_card_backgrounds")
-          .select(bgSort === "popular" ? "url, name, uploader, created_at, use_count" : "url, name, uploader, created_at")
-          .limit(12)
-          .range(0, 11);
+        const freshQuery = bgSort === "popular"
+          ? supabase
+              .from("verse_card_backgrounds")
+              .select("url, name, uploader, created_at, use_count, thumbnail_url")
+          : supabase
+              .from("verse_card_backgrounds")
+              .select("url, name, uploader, created_at, thumbnail_url");
+
         const { data: fresh, error: fetchErr } =
           bgSort === "popular"
-            ? await freshQuery.order("use_count", { ascending: false }).order("created_at", { ascending: false })
-            : await freshQuery.order("created_at", { ascending: false });
+            ? await freshQuery.limit(12).range(0, 11).order("use_count", { ascending: false }).order("created_at", { ascending: false })
+            : await freshQuery.limit(12).range(0, 11).order("created_at", { ascending: false });
         if (!fetchErr && Array.isArray(fresh)) {
-          setUserBgs(fresh as UserBg[]);
+          setUserBgs(fresh as any as UserBg[]);
           setBgHasMore((fresh?.length ?? 0) === 12);
           setSelectedId("user-0");
         }
@@ -516,7 +533,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
         id: `${Date.now()}`,
         title,
         imageDataUrl,
-        createdAt: new Date().toISOString(),
+        created_at: new Date().toISOString(),
       };
       const next = [entry, ...savedCards].slice(0, 30);
       setSavedCards(next);
@@ -726,7 +743,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       >
                         {preset.mode === "image" ? (
                           <img
-                            src={toProxyUrl(preset.bg)}
+                            src={toProxyUrl(preset.bg.includes('/api/card-backgrounds/') ? `https://wsrv.nl/?url=${encodeURIComponent(resolveAppUrl(preset.bg))}&w=300&h=300&fit=cover&output=webp` : preset.bg)}
                             alt=""
                             loading="lazy"
                             decoding="async"
@@ -788,7 +805,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             title={`${bg.name} (by ${bg.uploader})`}
                           >
                             <img
-                              src={toProxyUrl(bg.url)}
+                              src={toProxyUrl(bg.thumbnail_url || bg.url)}
                               alt={bg.name}
                               loading="lazy"
                               decoding="async"
