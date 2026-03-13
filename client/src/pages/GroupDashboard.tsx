@@ -3468,8 +3468,8 @@ export default function GroupDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => void loadMemberFaithWeekDetail(row.user_id)}
-                                  // hover:underline 클래스 추가
-                                  className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight hover:text-[#4A6741] hover:underline transition-colors decoration-1 underline-offset-4"
+                                  // underline 클래스 추가
+                                  className="font-bold text-zinc-700 text-base sm:text-lg text-center break-all leading-tight hover:text-[#4A6741] transition-colors underline decoration-1 underline-offset-4"
                                 >
                                   {row.name}
                                 </button>
@@ -4097,7 +4097,12 @@ export default function GroupDashboard() {
               <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="font-black text-zinc-900 text-lg">{selectedFaithMemberDetail.name}</h3>
+                  <div className="flex items-baseline gap-2"> {/* 이름과 글자를 나란히 정렬 */}
+                    <h3 className="font-black text-zinc-900 text-lg">
+                      {selectedFaithMemberDetail.name}
+                    </h3>
+                    <span className="text-base text-zinc-400 font-lg">신앙 기록</span>
+                  </div>
                   <p className="text-sm text-red-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
                 </div>
                 <button
