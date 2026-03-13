@@ -2941,7 +2941,7 @@ export default function GroupDashboard() {
                 <ChevronLeft size={22} strokeWidth={3} />
               </button>
             </div>
-            <div className="text-white mt-6 mb-2">
+            <div className="text-white mt-4 mb-4">
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="text-2xl sm:text-3xl font-black truncate drop-shadow-md">{group.name}</div>
                 {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
@@ -3158,7 +3158,7 @@ export default function GroupDashboard() {
                   </button>
                   {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
                 </div>
-                
+
                 <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.5 leading-tight">
                   {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
                   <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
