@@ -3747,14 +3747,7 @@ export default function GroupDashboard() {
                           <div className="flex items-center gap-1.5 ml-1">
                             {canPromoteDemote && (member.role === "member" || member.role === "leader") && (
                               <div className="flex items-center gap-1.5">
-                                {member.role === "member" ? (
-                                  <button
-                                    onClick={() => changeMemberRole(member.user_id, "leader")}
-                                    className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-bold hover:bg-blue-200 transition-colors"
-                                  >
-                                    리더권한 부여
-                                  </button>
-                                ) : (
+                                {member.role === "leader" && (
                                   <button
                                     onClick={() => changeMemberRole(member.user_id, "member")}
                                     className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 transition-colors"

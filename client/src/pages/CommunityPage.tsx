@@ -553,11 +553,9 @@ export default function CommunityPage() {
   const GroupCard = ({ row }: { row: GroupRow }) => {
     const membership = membershipMap.get(row.id);
     const roleText = membership
-      ? membership.role === "owner"
-        ? "관리자"
-        : membership.role === "leader"
-          ? "리더"
-          : membership.role === "scope_leader"
+      ? membership.role === "owner" || membership.role === "leader"
+        ? "모임리더"
+        : membership.role === "scope_leader"
           ? "상위 리더"
           : "일반멤버"
       : "비가입";
@@ -584,8 +582,7 @@ export default function CommunityPage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-            <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${membership?.role === 'owner' ? 'bg-amber-100 text-amber-700' :
-              membership?.role === 'leader' ? 'bg-blue-100 text-blue-700' :
+            <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${membership?.role === 'owner' || membership?.role === 'leader' ? 'bg-[#4A6741]/10 text-[#4A6741]' :
               membership?.role === 'scope_leader' ? 'bg-purple-100 text-purple-700' :
                 membership ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-50 text-zinc-400'
               }`}>
