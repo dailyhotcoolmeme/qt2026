@@ -4101,7 +4101,7 @@ export default function GroupDashboard() {
                     <h3 className="font-black text-zinc-900 text-lg">
                       {selectedFaithMemberDetail.name}
                     </h3>
-                    <span className="text-base text-zinc-400 font-lg">신앙 기록</span>
+                    <span className="text-lg text-zinc-900 font-black">신앙 기록</span>
                   </div>
                   <p className="text-sm text-red-400 mt-1">예배 기록은 직접 수정 가능합니다.</p>
                 </div>
