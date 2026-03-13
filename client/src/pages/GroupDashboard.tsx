@@ -3140,41 +3140,41 @@ export default function GroupDashboard() {
               : `linear-gradient(120deg, ${group.header_color || "#4A6741"}, #1f2937)`,
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pb-4 min-h-[160px] flex flex-col justify-end h-full pt-[var(--app-page-top)]">
-
-          <div className="text-white mt-4">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex items-center gap-2 max-w-full">
-                <div className="text-2xl sm:text-2xl font-black truncate leading-none py-1 drop-shadow-sm">{group.name}</div>
-                {isManager && (
+        <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-page-top)]">
+          <div className="text-white py-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="text-2xl sm:text-2xl font-black truncate leading-tight drop-shadow-sm">{group.name}</div>
                   <button
-                    onClick={() => setActiveTab("admin")}
-                    className="w-6 h-6 text-white/70 hover:text-white transition-colors flex items-center justify-center"
-                    title="모임 관리"
+                    onClick={() => setActiveTab("members")}
+                    className="px-2.5 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
+                    title="회원 조회"
                   >
-                    <Settings size={18} />
+                    <Users size={14} />
+                    <span className="underline underline-offset-2 decoration-white/60">
+                      회원수 {members.length}명
+                    </span>
                   </button>
-                )}
+                  {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
+                </div>
+                
+                <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.5 leading-tight">
+                  {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
+                  <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
+                  <span>나의 등급 : {toLabel(role)}</span>
+                </div>
               </div>
-              <button
-                onClick={() => setActiveTab("members")}
-                className="px-2.5 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
-                title="회원 조회"
-              >
-                <Users size={14} />
-                {/* 텍스트 부분에 underline과 간격 설정 추가 */}
-                <span className="underline underline-offset-2 decoration-white/60">
-                  회원수 {members.length}명
-                </span>
-              </button>
-              {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
-            </div>
 
-            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.5 leading-tight">
-              {/* gap-1.5를 gap-0.5로 줄이고, leading-tight로 글자 자체의 위아래 여백을 제거 */}
-              {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
-              <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
-              <span>나의 등급 : {toLabel(role)}</span>
+              {isManager && (
+                <button
+                  onClick={() => setActiveTab("admin")}
+                  className="w-10 h-10 -mr-2 text-white/80 hover:text-white transition-colors flex items-center justify-center bg-white/0 hover:bg-white/10 rounded-full shrink-0"
+                  title="모임 관리"
+                >
+                  <Settings size={22} />
+                </button>
+              )}
             </div>
           </div>
         </div>
