@@ -3177,12 +3177,16 @@ export default function GroupDashboard() {
                 title="회원 조회"
               >
                 <Users size={14} />
-                회원수 {members.length}명
+                {/* 텍스트 부분에 underline과 간격 설정 추가 */}
+                <span className="underline underline-offset-2 decoration-white/60">
+                  회원수 {members.length}명
+                </span>
               </button>
               {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
             </div>
 
-            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-1.5">
+            <div className="mt-3 text-sm sm:text-sm text-white/80 flex flex-col gap-0.5 leading-tight">
+              {/* gap-1.5를 gap-0.5로 줄이고, leading-tight로 글자 자체의 위아래 여백을 제거 */}
               {group.group_slug && <span>모임 아이디 : {group.group_slug}</span>}
               <span>개설 일자 : {group.created_at ? new Date(group.created_at).toLocaleDateString("ko-KR").slice(0, -1).replace(/\. /g, '.') : "-"}</span>
               <span>나의 등급 : {toLabel(role)}</span>
@@ -3738,7 +3742,7 @@ export default function GroupDashboard() {
 
                           {/* 역할 배지 */}
                           <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${member.role === 'owner' || member.role === 'leader' ? 'bg-[#4A6741]/10 text-[#4A6741]' :
-                              'bg-zinc-200 text-zinc-600'
+                            'bg-zinc-200 text-zinc-600'
                             }`}>
                             {toLabel(member.role)}
                           </span>
