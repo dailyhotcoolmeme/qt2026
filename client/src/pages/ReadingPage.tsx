@@ -42,6 +42,20 @@ function toLocalDateKey(value?: string | null) {
   return formatLocalDate(parsed);
 }
 
+function formatRecordDateTime(value?: string | null) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
+
 function clearTodayReadingCache() {
   localStorage.removeItem('reading_pages');
   localStorage.removeItem('reading_date');
@@ -131,6 +145,7 @@ export default function ReadingPage() {
 
   const [isReadCompleted, setIsReadCompleted] = useState(false);
   const [readCount, setReadCount] = useState(0);
+  const [dailyCompletedReadings, setDailyCompletedReadings] = useState<any[]>([]);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showRangeToast, setShowRangeToast] = useState(false);
   const [rangeToastMessage, setRangeToastMessage] = useState('');
@@ -209,6 +224,41 @@ export default function ReadingPage() {
     };
 
     void loadActivityDateKeys();
+    return () => {
+      alive = false;
+    };
+  }, [user?.id, currentDate, isReadCompleted]);
+
+  useEffect(() => {
+    let alive = true;
+
+    const loadDailyCompletedReadings = async () => {
+      if (!user?.id) {
+        if (alive) setDailyCompletedReadings([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("user_reading_records")
+        .select("id, date, book_name, chapter, start_verse, end_verse, read_count, created_at, updated_at")
+        .eq("user_id", user.id)
+        .eq("date", formatLocalDate(currentDate))
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        if (!String((error as any)?.message || "").includes("AbortError")) {
+          console.error("Error loading daily reading records:", error);
+        }
+        if (alive) setDailyCompletedReadings([]);
+        return;
+      }
+
+      if (alive) {
+        setDailyCompletedReadings(data || []);
+      }
+    };
+
+    void loadDailyCompletedReadings();
     return () => {
       alive = false;
     };
@@ -1956,6 +2006,61 @@ export default function ReadingPage() {
     }
   }, [user, bibleData]);
 
+  const handleReadCancelRecord = useCallback(async (record: any) => {
+    if (!user || !record) return;
+
+    try {
+      const currentCount = Number(record.read_count || 0);
+      if (currentCount <= 0) return;
+      const nextCount = currentCount - 1;
+
+      if (nextCount === 0) {
+        await supabase
+          .from('user_reading_records')
+          .delete()
+          .eq('id', record.id)
+          .eq('user_id', user.id);
+      } else {
+        await supabase
+          .from('user_reading_records')
+          .update({
+            read_count: nextCount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', record.id)
+          .eq('user_id', user.id);
+      }
+
+      if (bibleData) {
+        await checkCurrentChapterReadStatus();
+      } else {
+        setIsReadCompleted(false);
+        setReadCount(0);
+      }
+
+      const selectedDateKey = formatLocalDate(currentDate);
+      const { data } = await supabase
+        .from("user_reading_records")
+        .select("id, date, book_name, chapter, start_verse, end_verse, read_count, created_at, updated_at")
+        .eq("user_id", user.id)
+        .eq("date", selectedDateKey)
+        .order("updated_at", { ascending: false });
+
+      setDailyCompletedReadings(data || []);
+
+      if (navigator.vibrate) {
+        navigator.vibrate([100, 50, 100]);
+      }
+
+      setShowCancelToast(true);
+      setTimeout(() => setShowCancelToast(false), 2000);
+    } catch (error) {
+      if (!String((error as any)?.message || '').includes('AbortError')) {
+        console.error('읽기 완료 기록 취소 실패:', error);
+      }
+    }
+  }, [bibleData?.bible_name, bibleData?.chapter, currentDate, user]);
+
   const shouldAutoOpenReadingGroupLinkModal = useCallback(async (dateKey: string) => {
     if (!user?.id) return false;
     const { count, error } = await supabase
@@ -2348,26 +2453,59 @@ export default function ReadingPage() {
           <ChevronRight size={32} strokeWidth={1.5} />
         </motion.button>
       </div>
-      {isReadCompleted && (
-        <div className="mt-1 pb-6 flex items-center justify-center gap-2">
-          <div className="rounded-full border border-rose-200 bg-rose-50">
-            <button
-              onClick={() => void handleReadCancel()}
-              className="px-3 py-1.5 text-xs font-bold text-rose-500 rounded-full transition-colors hover:bg-rose-100"
-            >
-              읽기완료 취소
-            </button>
+      {dailyCompletedReadings.length > 0 && (
+        <div className="mx-auto mb-8 mt-1 w-full max-w-sm space-y-3">
+          <div className="px-1">
+            <h3 className="text-sm font-black text-zinc-800">이날 읽기 완료한 말씀</h3>
+            <p className="mt-1 text-xs font-medium text-zinc-400">각 장별로 완료 기록과 입력 시각을 확인할 수 있습니다.</p>
           </div>
-          {currentDate.toDateString() === today.toDateString() && (
-            <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
-              <button
-                onClick={() => setShowGroupLinkModal(true)}
-                className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
-              >
-                <Share2 size={12} /> 모임에 연결
-              </button>
-            </div>
-          )}
+          <div className="space-y-3">
+            {dailyCompletedReadings.map((record, index) => {
+              const verseLabel =
+                typeof record.start_verse === "number" && typeof record.end_verse === "number"
+                  ? record.start_verse === record.end_verse
+                    ? ` ${record.start_verse}절`
+                    : ` ${record.start_verse}-${record.end_verse}절`
+                  : "";
+
+              return (
+                <div key={record.id} className="rounded-[24px] border border-zinc-100 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-base font-black text-zinc-900">
+                        {record.book_name} {record.chapter}장{verseLabel}
+                      </div>
+                      <div className="mt-1 text-xs font-medium text-zinc-400">
+                        {formatRecordDateTime(record.updated_at || record.created_at)}
+                      </div>
+                      {Number(record.read_count || 0) > 1 && (
+                        <div className="mt-1 text-[11px] font-bold text-[#4A6741]">
+                          완료 {record.read_count}회
+                        </div>
+                      )}
+                    </div>
+                    {index === 0 && currentDate.toDateString() === today.toDateString() && (
+                      <button
+                        onClick={() => setShowGroupLinkModal(true)}
+                        className="inline-flex items-center gap-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 px-3 py-1.5 text-[11px] font-bold text-[#4A6741] shrink-0"
+                      >
+                        <Share2 size={12} />
+                        모임에 연결
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={() => void handleReadCancelRecord(record)}
+                      className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-100"
+                    >
+                      완료취소
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
       <AnimatePresence>
