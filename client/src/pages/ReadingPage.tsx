@@ -3,7 +3,7 @@ import {
   Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Check, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Pencil, NotebookPen,
-  BookX, Loader2, BookOpen
+  BookX, Loader2, BookOpen, Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -2485,24 +2485,26 @@ export default function ReadingPage() {
                   <div className="bg-white p-4 flex items-center gap-3">
                     <BookOpen size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
                     <div className="flex-1 min-w-0">
-                      <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                        {record.book_name} {record.chapter}장{verseLabel}
-                      </p>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <p className="font-bold text-[#4A6741]/90 truncate" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                          {record.book_name} {record.chapter}장{verseLabel}
+                        </p>
+                        {Number(record.read_count || 0) > 1 && (
+                          <span className="shrink-0 rounded-full bg-[#4A6741]/10 px-2 py-0.5 text-xs font-bold text-[#4A6741]">
+                            {record.read_count}회
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
                         {formatRecordDateTime(record.updated_at || record.created_at)}
                       </p>
-                      {Number(record.read_count || 0) > 1 && (
-                        <p className="text-xs text-[#4A6741] mt-0.5 font-bold">
-                          완료 {record.read_count}회
-                        </p>
-                      )}
                     </div>
                     <button
                       onClick={() => void handleReadCancelRecord(record)}
                       className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
                       title="완료취소"
                     >
-                      <X size={16} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
                   {index !== dailyCompletedReadings.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
