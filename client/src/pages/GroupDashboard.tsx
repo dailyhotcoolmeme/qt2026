@@ -4796,7 +4796,8 @@ export default function GroupDashboard() {
                     <Mic size={32} />
                   </button>
                   <p className="mt-5 text-center text-sm leading-relaxed text-rose-200">
-                    음성기도는 기도를 받은 멤버와 기도를 해준 멤버에게만 공개됩니다.
+                    음성기도는 기도를 받은 멤버와 <br />
+                    기도를 해준 멤버에게만 공개됩니다.
                   </p>
                   <button
                     onClick={() => {
