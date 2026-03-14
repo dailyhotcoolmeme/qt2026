@@ -594,21 +594,21 @@ export default function CommunityPage() {
           </div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
-        </div>
+	        </div>
 
-        <button
-          onClick={(event) => {
-            event.stopPropagation();
-            openGroup(row.id);
-          }}
-          className="w-9 h-9 bg-[#4A6741] opacity-90 text-white rounded-full flex items-center justify-center shadow-sm hover:bg-[#3d5535] transition-colors"
-          aria-label="입장"
-        >
-          <ChevronRight size={16} />
-        </button>
-      </div>
-    );
-  };
+	        <button
+	          onClick={(event) => {
+	            event.stopPropagation();
+	            openGroup(row.id);
+	          }}
+	          className="w-9 h-9 text-[#4A6741] rounded-full flex items-center justify-center hover:bg-[#4A6741]/10 transition-colors"
+	          aria-label="입장"
+	        >
+	          <ChevronRight size={22} strokeWidth={2.5} />
+	        </button>
+	      </div>
+	    );
+	  };
 
   return (
       <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
@@ -671,24 +671,24 @@ export default function CommunityPage() {
                         <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl">
                           {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-bold rounded-md">승인대기</span>
-                          </div>
-                          <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
-                          <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
-                        </div>
-                        <button
-                          onClick={() => openGroup(row.id)}
-                          className="w-9 h-9 bg-[#4A6741] text-white rounded-full flex items-center justify-center shadow-sm hover:bg-[#3d5535] transition-colors"
-                          aria-label="입장"
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
-                    );
-                  })}
+	                        <div className="flex-1 min-w-0">
+	                          <div className="flex items-center gap-2">
+	                            <span className="font-bold text-zinc-900 truncate">{row.name}</span>
+	                            <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-xs font-bold rounded-md">승인대기</span>
+	                          </div>
+	                          <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
+	                          <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
+	                        </div>
+	                        <button
+	                          onClick={() => openGroup(row.id)}
+	                          className="w-9 h-9 text-[#4A6741] rounded-full flex items-center justify-center hover:bg-[#4A6741]/10 transition-colors"
+	                          aria-label="입장"
+	                        >
+	                          <ChevronRight size={22} strokeWidth={2.5} />
+	                        </button>
+	                      </div>
+	                    );
+	                  })}
                 </div>
               )}
 

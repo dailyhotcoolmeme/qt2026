@@ -243,14 +243,11 @@ export default function QTPage() {
       return; // 과거 날짜는 클릭 불가
     }
 
-    if (!isMeditationCompleted) {
-      // 확인 모달 표시
-      setShowConfirmModal(true);
-    } else {
-      // 완료 상태일 때 취소 모달 표시
-      setShowCancelConfirmModal(true);
-    }
-  };
+	    if (!isMeditationCompleted) {
+	      // 확인 모달 표시
+	      setShowConfirmModal(true);
+	    }
+	  };
 
   // 묵상 완료 취소
   const handleCancelMeditation = async () => {
@@ -1228,9 +1225,9 @@ export default function QTPage() {
         </div>
       )}
 
-      {/* 묵상 완료 버튼 (아멘 버튼 스타일) */}
-      <div className="flex flex-col items-center gap-3 pb-6 mt-8">
-        <div className="relative w-24 h-24 flex items-center justify-center">
+	      {/* 묵상 완료 버튼 (아멘 버튼 스타일) */}
+	      <div className="flex flex-col items-center gap-3 pb-6 mt-8">
+	        <div className="relative w-24 h-24 flex items-center justify-center">
           {/* 빛의 파동 효과 */}
           <AnimatePresence>
             {isMeditationCompleted && (
@@ -1275,32 +1272,48 @@ export default function QTPage() {
 	            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
 	              {isMeditationCompleted ? '묵상완료' : '묵상하기'}
 	            </span>
-	          </motion.button>
-	        </div>
+		          </motion.button>
+		        </div>
+
+	        {isMeditationCompleted && (
+	          <div className="mt-1 flex items-center justify-center gap-2">
+	            <div className="rounded-full border border-rose-200 bg-rose-50">
+	              <button
+	                onClick={() => setShowCancelConfirmModal(true)}
+	                className="px-3 py-1.5 text-xs font-bold text-rose-500 rounded-full transition-colors hover:bg-rose-100"
+	              >
+	                묵상완료 취소
+	              </button>
+	            </div>
+
+	            {currentDate.toDateString() === today.toDateString() && (
+	              <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
+	                <button
+	                  onClick={() => setShowGroupLinkModal(true)}
+	                  className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
+	                >
+	                  <Share2 size={12} /> 모임에 연결
+	                </button>
+	              </div>
+	            )}
+	          </div>
+	        )}
 	      </div>
 
-      {/* 묵상 기록 목록 */}
-      {meditationRecords.length > 0 && (
-        <div className="w-full max-w-md pt-10 px-0 mb-6">
+	      {/* 묵상 기록 목록 */}
+	      {meditationRecords.length > 0 && (
+	        <div className="w-full max-w-md pt-10 px-0 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
             <h3 className="font-black text-medium text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.0}px` }}>
               묵상 기록
-            </h3>
-            <div className="flex-1" />
-            {currentDate.toDateString() === today.toDateString() && (
-              <button
-                onClick={() => setShowGroupLinkModal(true)}
-                className="px-3 py-1.5 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold rounded-full hover:bg-[#4A6741]/20 transition-colors mr-2 flex items-center gap-1.5"
-              >
-                <Share2 size={12} /> 모임에 연결
-              </button>
-            )}
-            <button
-              onClick={() => setShowWriteSheet(true)}
-              className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
-              title="묵상 기록 추가"
-            >
+	            </h3>
+	            <div className="flex-1" />
+	            <button
+	              onClick={() => setShowWriteSheet(true)}
+	              className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
+	              title="묵상 기록 추가"
+	            >
               <NotebookPen size={18} />
             </button>
           </div>
