@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, FileSearch, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -558,18 +558,21 @@ export function TopBar() {
             </div>
           </button>
 
-          </div>
-
-          <div className="flex items-center gap-1">
-            <Link href="/search">
-              <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
-                <FileSearch className="h-5 w-5" />
-              </button>
-            </Link>
-            <button
-              onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
-              className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
-            >
+	          </div>
+	
+	          <div className="flex items-center gap-1">
+	            {/*
+	            FileSearch(성경 검색) 버튼/기능 비활성화
+	            <Link href="/search">
+	              <button className="rounded-full p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="성경 검색">
+	                <FileSearch className="h-5 w-5" />
+	              </button>
+	            </Link>
+	            */}
+	            <button
+	              onClick={() => setShowFontSizeSlider(!showFontSizeSlider)}
+	              className={`rounded-full p-2 transition-colors ${showFontSizeSlider ? "bg-green-100 text-[#4A6741]" : "text-zinc-600 hover:bg-zinc-100"}`}
+	            >
               <Type className="h-5 w-5" />
             </button>
             <button
