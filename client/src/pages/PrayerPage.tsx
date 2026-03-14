@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -838,15 +838,7 @@ export default function PrayerPage() {
         </div>
       </header>
 
-      <div className="relative mb-5 flex w-full items-center justify-center overflow-visible py-4">
-        <button
-          onClick={() => moveDate(-1)}
-          className="absolute left-1 z-20 rounded-full border border-zinc-100 bg-white/90 p-2 text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100"
-          title="이전 날짜"
-        >
-          <ChevronLeft size={20} strokeWidth={1.8} />
-        </button>
-
+      <div className="relative mb-12 flex w-full items-center justify-center overflow-visible py-4">
         <div className="absolute left-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
         <AnimatePresence mode="wait">
           <motion.div
@@ -862,67 +854,44 @@ export default function PrayerPage() {
           >
             <div className="mb-3 flex flex-1 flex-col items-center justify-center">
               <div className="mb-6 flex w-full flex-col items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4A6741]/8 text-[#4A6741]">
+                <div className="flex items-center gap-3 text-[#4A6741]">
                   <Heart size={28} strokeWidth={1.4} />
-                </div>
-                <div className="space-y-2">
                   <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
                     마음기도
-                  </p>
-                  <p className="text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                    오늘의 마음을 조용히 올려 드려요
                   </p>
                 </div>
                 <button
                   onClick={handleAmenClick}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#4A6741] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-[#4A6741] text-sm font-bold text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                 >
-                  <Heart size={16} strokeWidth={2} />
-                  마음기도 하기
+                  기도하기
                 </button>
               </div>
 
               <div className="my-2 h-px w-full bg-zinc-100" />
 
               <div className="mt-6 flex w-full flex-col items-center gap-4">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4A6741]/8 text-[#4A6741]">
+                <div className="flex items-center gap-3 text-[#4A6741]">
                   <Mic size={28} strokeWidth={1.4} />
-                </div>
-                <div className="space-y-2">
                   <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
                     음성기도
-                  </p>
-                  <p className="text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                    음성으로 남겨 두고 다시 들을 수 있어요
                   </p>
                 </div>
                 <button
                   onClick={handleStartPrayerMode}
-                  className="inline-flex items-center gap-2 rounded-full border border-[#4A6741]/15 bg-[#4A6741]/8 px-5 py-2.5 text-sm font-bold text-[#4A6741] transition-transform active:scale-95"
+                  className="flex h-20 w-20 items-center justify-center rounded-full border border-[#4A6741]/15 bg-[#4A6741]/8 text-sm font-bold text-[#4A6741] transition-transform active:scale-95"
                 >
-                  <Mic size={16} strokeWidth={2} />
-                  음성기도 시작
+                  기도하기
                 </button>
               </div>
             </div>
           </motion.div>
         </AnimatePresence>
         <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
-
-        <button
-          onClick={() => moveDate(1)}
-          disabled={selectedDateKey >= todayDateKey}
-          className={`absolute right-1 z-20 rounded-full border border-zinc-100 bg-white/90 p-2 text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 ${
-            selectedDateKey >= todayDateKey ? "cursor-not-allowed opacity-40" : ""
-          }`}
-          title="다음 날짜"
-        >
-          <ChevronRight size={20} strokeWidth={1.8} />
-        </button>
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
-      <div className="px-2">
+      <div className="mx-auto w-[82%] max-w-sm px-0">
         <div className="mb-4 bg-white shadow-sm rounded-2xl border border-zinc-100 p-1.5 flex">
           <button
             onClick={() => setPrayerSubTab('topics')}
@@ -969,7 +938,7 @@ export default function PrayerPage() {
               </div>
             )}
 
-            <div className="space-y-1 max-w-md bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
+            <div className="w-full space-y-1 bg-white rounded-2xl p-2 shadow-sm border border-zinc-100">
               {visibleMyTopics.length === 0 && !showAddInput && (
                 <div className="px-3 py-6 text-center text-sm text-zinc-400">
                   등록된 기도 제목이 없습니다.
