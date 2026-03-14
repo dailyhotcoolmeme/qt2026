@@ -2250,23 +2250,42 @@ export default function ReadingPage() {
           <ChevronLeft size={32} strokeWidth={1.5} />
         </motion.button>
 
-        <div className="relative flex flex-col items-center">
-          <motion.button
-            onClick={() => void handleReadComplete()}
-            whileTap={{ scale: 0.9 }}
-            className={`relative w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
-              ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
-          >
-            <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
-            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
-            {user && readCount > 0 && (
-              <span className="text-xs mt-0.5 opacity-80" style={{ fontSize: `${fontSize * 0.65}px` }}>
-                {readCount}회
-              </span>
-            )}
-          </motion.button>
-
-        </div>
+	        <div className="relative w-24 h-24 flex items-center justify-center">
+	          <AnimatePresence>
+	            {isReadCompleted && (
+	              <>
+	                <motion.div
+	                  initial={{ scale: 1, opacity: 0.5 }}
+	                  animate={{ scale: 1.5, opacity: 0 }}
+	                  exit={{ opacity: 0 }}
+	                  transition={{ duration: 2.2, ease: "easeOut" }}
+	                  className="absolute inset-0 bg-[#4A6741] rounded-full"
+	                />
+	                <motion.div
+	                  initial={{ scale: 1, opacity: 0.4 }}
+	                  animate={{ scale: 1.2, opacity: 0 }}
+	                  exit={{ opacity: 0 }}
+	                  transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+	                  className="absolute inset-0 bg-[#4A6741] rounded-full"
+	                />
+	              </>
+	            )}
+	          </AnimatePresence>
+	          <motion.button
+	            onClick={() => void handleReadComplete()}
+	            whileTap={{ scale: 0.9 }}
+	            className={`relative z-10 w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500
+	              ${isReadCompleted ? 'bg-[#4A6741] text-white' : 'bg-white text-gray-400 border border-green-50'}`}
+	          >
+	            <Check className={`w-6 h-6 ${isReadCompleted ? 'text-white animate-pulse' : ''}`} strokeWidth={3} />
+	            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>읽기완료</span>
+	            {user && readCount > 0 && (
+	              <span className="text-xs mt-0.5 opacity-80" style={{ fontSize: `${fontSize * 0.65}px` }}>
+	                {readCount}회
+	              </span>
+	            )}
+	          </motion.button>
+	        </div>
 
         <motion.button
           whileHover={{ scale: 1.1 }}
@@ -2890,5 +2909,4 @@ export default function ReadingPage() {
     </div>
   );
 }
-
 
