@@ -780,6 +780,17 @@ export default function PrayerPage() {
     setCurrentDate(nextDate);
   };
 
+  const onCardDragEnd = (_event: unknown, info: { offset: { x: number } }) => {
+    if (info.offset.x > 100) {
+      moveDate(-1);
+      return;
+    }
+
+    if (info.offset.x < -100 && selectedDateKey < todayDateKey) {
+      moveDate(1);
+    }
+  };
+
   const getRecordDateKey = (record: any) => {
     if (record.date) return record.date;
     return toLocalDateKey(record.created_at) || "";
@@ -804,88 +815,110 @@ export default function PrayerPage() {
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-2 pt-[var(--app-page-top)] pb-4">
       <header className="relative mb-3 flex w-full flex-col items-center px-4 text-center">
-  {/* 1. 연도 표시 (중앙 기준점) */}
-  <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
-    {currentDate.getFullYear()}
-  </p>
+        <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
+          {currentDate.getFullYear()}
+        </p>
+        <div className="flex w-full items-center justify-center">
+          <div className="flex flex-1 justify-end pr-3">
+            <button
+              onClick={() => setShowCalendarModal(true)}
+              className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
+            >
+              <CalendarIcon size={16} strokeWidth={1.5} />
+            </button>
+          </div>
 
-  <div className="relative flex w-full items-center justify-center">
-    {/* 2. 왼쪽 이전 버튼 (절대 위치로 왼쪽 끝 고정) */}
-    <div className="absolute left-0">
-      <button
-        onClick={() => moveDate(-1)}
-        className="rounded-full p-2 hover:bg-zinc-200 rounded-full transition-colors"
-        title="이전 날짜"
-      >
-        <ChevronLeft size={24} strokeWidth={1.8} />
-      </button>
-    </div>
+          <h2 className="shrink-0 font-black tracking-tighter text-zinc-900" style={{ fontSize: `${fontSize * 1.25}px` }}>
+            {currentDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+          </h2>
 
-    {/* 중앙 영역: 날짜 텍스트를 기준으로 정렬 */}
-<div className="relative flex items-center justify-center">
-  
-  {/* 1. 달력 버튼 컨테이너 (날짜 왼쪽으로 밀어내기) */}
-  <div className="absolute right-full pr-3"> {/* <- 여기서 pr-3이 간격을 결정합니다! */}
-    <button
-      onClick={() => setShowCalendarModal(true)}
-      className="rounded-full border border-zinc-100 bg-white p-1.5 text-[#4A6741] shadow-sm transition-transform active:scale-95"
-    >
-      <CalendarIcon size={16} strokeWidth={1.5} />
-    </button>
-  </div>
-  
-  {/* 2. 날짜 텍스트 (연도와 수직 정렬되는 주인공) */}
-  <h2 
-    className="font-black tracking-tighter text-zinc-900 whitespace-nowrap" 
-    style={{ fontSize: `${fontSize * 1.25}px` }}
-  >
-    {currentDate.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
-  </h2>
+          <div className="flex flex-1 justify-start pl-3">
+            <div className="h-[28px] w-[28px]" aria-hidden="true" />
+          </div>
+        </div>
+      </header>
 
-</div>
-
-    {/* 4. 오른쪽 다음 버튼 (절대 위치로 오른쪽 끝 고정) */}
-    <div className="absolute right-0">
-      <button
-        onClick={() => moveDate(1)}
-        disabled={selectedDateKey >= todayDateKey}
-        className={`rounded-full p-2 hover:bg-zinc-200 rounded-full transition-colors ${
-          selectedDateKey >= todayDateKey ? 'opacity-40 cursor-not-allowed' : ''
-        }`}
-        title="다음 날짜"
-      >
-        <ChevronRight size={24} strokeWidth={1.8} />
-      </button>
-    </div>
-
-  </div>
-</header>
-      {/* 중앙: Amen + 기도하기 버튼 */}
-      <div className="flex items-center justify-center gap-10 py-16 mt-1 mb-2">
-        <motion.button
-          onClick={handleAmenClick}
-          whileTap={{ scale: 0.95 }}
-          className="w-28 h-28 rounded-full bg-white text-[#4A6741] border border-[#4A6741]/70 shadow-2xl flex flex-col items-center justify-center gap-2"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 20, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
+      <div className="relative mb-5 flex w-full items-center justify-center overflow-visible py-4">
+        <button
+          onClick={() => moveDate(-1)}
+          className="absolute left-1 z-20 rounded-full border border-zinc-100 bg-white/90 p-2 text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100"
+          title="이전 날짜"
         >
-          <Heart size={32} strokeWidth={1.0} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            마음기도
-          </span>
-        </motion.button>
-        <motion.button
-          onClick={handleStartPrayerMode}
-          whileTap={{ scale: 0.95 }}
-          className="w-28 h-28 rounded-full bg-[#4A6741]/90 text-white border border-[#4A6741]/90 shadow-2xl flex flex-col items-center justify-center gap-2"
-          animate={{ scale: [1, 1.05, 1] }}
-          transition={{ duration: 20, repeat: Infinity, repeatDelay: 3, ease: "easeInOut" }}
+          <ChevronLeft size={20} strokeWidth={1.8} />
+        </button>
+
+        <div className="absolute left-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentDate.toISOString()}
+            drag="x"
+            dragConstraints={{ left: 0, right: 0 }}
+            dragElastic={0.2}
+            onDragEnd={onCardDragEnd}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="relative z-10 flex aspect-[4/5] w-[82%] max-w-sm touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-7 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
+          >
+            <div className="mb-3 flex flex-1 flex-col items-center justify-center">
+              <div className="mb-6 flex w-full flex-col items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4A6741]/8 text-[#4A6741]">
+                  <Heart size={28} strokeWidth={1.4} />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
+                    마음기도
+                  </p>
+                  <p className="text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                    오늘의 마음을 조용히 올려 드려요
+                  </p>
+                </div>
+                <button
+                  onClick={handleAmenClick}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#4A6741] px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                >
+                  <Heart size={16} strokeWidth={2} />
+                  마음기도 하기
+                </button>
+              </div>
+
+              <div className="my-2 h-px w-full bg-zinc-100" />
+
+              <div className="mt-6 flex w-full flex-col items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#4A6741]/8 text-[#4A6741]">
+                  <Mic size={28} strokeWidth={1.4} />
+                </div>
+                <div className="space-y-2">
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
+                    음성기도
+                  </p>
+                  <p className="text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                    음성으로 남겨 두고 다시 들을 수 있어요
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartPrayerMode}
+                  className="inline-flex items-center gap-2 rounded-full border border-[#4A6741]/15 bg-[#4A6741]/8 px-5 py-2.5 text-sm font-bold text-[#4A6741] transition-transform active:scale-95"
+                >
+                  <Mic size={16} strokeWidth={2} />
+                  음성기도 시작
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+        <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+
+        <button
+          onClick={() => moveDate(1)}
+          disabled={selectedDateKey >= todayDateKey}
+          className={`absolute right-1 z-20 rounded-full border border-zinc-100 bg-white/90 p-2 text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 ${
+            selectedDateKey >= todayDateKey ? "cursor-not-allowed opacity-40" : ""
+          }`}
+          title="다음 날짜"
         >
-          <HandHeart size={32} strokeWidth={1.0} />
-          <span className="font-medium" style={{ fontSize: `${fontSize * 1.0}px` }}>
-            음성기도
-          </span>
-        </motion.button>
+          <ChevronRight size={20} strokeWidth={1.8} />
+        </button>
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
