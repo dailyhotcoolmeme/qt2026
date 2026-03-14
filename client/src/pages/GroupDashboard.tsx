@@ -143,6 +143,10 @@ type GroupPrayerTopic = {
   group_id: string;
   author_id: string;
   content: string;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
+  attachment_type?: string | null;
+  attachment_kind?: "image" | "file" | null;
   is_active: boolean;
   created_at: string;
 };
@@ -256,6 +260,13 @@ async function uploadToR2(fileName: string, blob: Blob): Promise<string> {
 
 function sanitizeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function isImageAttachment(topic?: Pick<GroupPrayerTopic, "attachment_kind" | "attachment_type" | "attachment_name" | "attachment_url"> | null) {
+  if (!topic) return false;
+  if (topic.attachment_kind === "image") return true;
+  if (topic.attachment_type?.startsWith("image/")) return true;
+  return /\.(png|jpe?g|gif|webp|bmp|svg|heic|heif)$/i.test(topic.attachment_name || topic.attachment_url || "");
 }
 
 function ensureHttpsUrl(url?: string | null) {
@@ -749,6 +760,15 @@ export default function GroupDashboard() {
   const [showPrayerComposer, setShowPrayerComposer] = useState(false);
   const [showPrayerTopicModal, setShowPrayerTopicModal] = useState(false);
   const [newPrayerTopic, setNewPrayerTopic] = useState("");
+  const [newPrayerAttachment, setNewPrayerAttachment] = useState<File | null>(null);
+  const [newPrayerAttachmentPreview, setNewPrayerAttachmentPreview] = useState<string | null>(null);
+  const [isSubmittingPrayerTopic, setIsSubmittingPrayerTopic] = useState(false);
+  const [editingPrayerTopicId, setEditingPrayerTopicId] = useState<number | null>(null);
+  const [editingPrayerTopicContent, setEditingPrayerTopicContent] = useState("");
+  const [editingPrayerAttachmentFile, setEditingPrayerAttachmentFile] = useState<File | null>(null);
+  const [editingPrayerAttachmentPreview, setEditingPrayerAttachmentPreview] = useState<string | null>(null);
+  const [editingPrayerAttachmentRemoved, setEditingPrayerAttachmentRemoved] = useState(false);
+  const [savingPrayerTopicId, setSavingPrayerTopicId] = useState<number | null>(null);
 
   const [recordTitle, setRecordTitle] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -955,6 +975,26 @@ export default function GroupDashboard() {
   }, [postImageFiles]);
 
   useEffect(() => {
+    if (!newPrayerAttachment) {
+      setNewPrayerAttachmentPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(newPrayerAttachment);
+    setNewPrayerAttachmentPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [newPrayerAttachment]);
+
+  useEffect(() => {
+    if (!editingPrayerAttachmentFile) {
+      setEditingPrayerAttachmentPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(editingPrayerAttachmentFile);
+    setEditingPrayerAttachmentPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [editingPrayerAttachmentFile]);
+
+  useEffect(() => {
     if (!group?.id) return;
     localStorage.setItem(LAST_GROUP_KEY, group.id);
     setHeaderColorDraft(group.header_color || "#4A6741");
@@ -1096,7 +1136,7 @@ export default function GroupDashboard() {
   const loadGroupPrayerTopics = async (targetGroupId: string) => {
     const { data, error } = await supabase
       .from("group_prayer_topics")
-      .select("id, group_id, author_id, content, is_active, created_at")
+      .select("*")
       .eq("group_id", targetGroupId)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
@@ -1561,6 +1601,7 @@ export default function GroupDashboard() {
         id: String(row.user_id),
         username: row.username ?? null,
         nickname: row.nickname ?? null,
+        avatar_url: row.avatar_url ?? null,
       },
     }));
 
@@ -1789,26 +1830,112 @@ export default function GroupDashboard() {
     }
   };
 
-  const addPrayerTopic = async () => {
-    if (!group || !user || !newPrayerTopic.trim()) return;
-    const { error } = await supabase.from("group_prayer_topics").insert({
-      group_id: group.id,
-      author_id: user.id,
-      content: newPrayerTopic.trim(),
-      is_active: true,
-    });
+  const deleteFileFromR2 = async (fileUrl?: string | null) => {
+    if (!fileUrl) return;
+    try {
+      await fetch(resolveApiUrl("/api/file/delete"), {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileUrl }),
+      });
+    } catch {
+      // Keep DB actions non-blocking even if remote cleanup fails.
+    }
+  };
 
-    if (error) {
-      if (error.code === "42P01") {
-        alert("기도제목 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
-        return;
-      }
-      alert("기도제목 등록에 실패했습니다.");
-      return;
+  const uploadPrayerTopicAttachment = async (file: File) => {
+    if (!group || !user) return null;
+    const safeName = sanitizeFileName(file.name || "attachment");
+    const isImage = file.type.startsWith("image/");
+    const baseFolder = isImage ? "images/group-prayer-topics" : "files/group-prayer-topics";
+    const key = `${baseFolder}/${group.id}/${user.id}/${Date.now()}_${safeName}`;
+
+    if (isImage) {
+      const optimized = await resizeImageFile(file, 1280, 0.84);
+      const publicUrl = ensureHttpsUrl(await uploadFileToR2(key, optimized, optimized.type || "image/jpeg"));
+      return {
+        attachment_url: publicUrl,
+        attachment_name: file.name,
+        attachment_type: optimized.type || file.type || "image/jpeg",
+        attachment_kind: "image" as const,
+      };
     }
 
-    setNewPrayerTopic("");
-    await loadGroupPrayerTopics(group.id);
+    const publicUrl = ensureHttpsUrl(await uploadFileToR2(key, file, file.type || "application/octet-stream"));
+    return {
+      attachment_url: publicUrl,
+      attachment_name: file.name,
+      attachment_type: file.type || "application/octet-stream",
+      attachment_kind: "file" as const,
+    };
+  };
+
+  const startEditingPrayerTopic = (topic: GroupPrayerTopic) => {
+    if (!user || topic.author_id !== user.id) return;
+    setEditingPrayerTopicId(topic.id);
+    setEditingPrayerTopicContent(topic.content);
+    setEditingPrayerAttachmentFile(null);
+    setEditingPrayerAttachmentRemoved(false);
+    setEditingPrayerAttachmentPreview(null);
+  };
+
+  const cancelEditingPrayerTopic = () => {
+    setEditingPrayerTopicId(null);
+    setEditingPrayerTopicContent("");
+    setEditingPrayerAttachmentFile(null);
+    setEditingPrayerAttachmentRemoved(false);
+    setEditingPrayerAttachmentPreview(null);
+  };
+
+  const handleNewPrayerAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setNewPrayerAttachment(file);
+    event.target.value = "";
+  };
+
+  const handleEditingPrayerAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setEditingPrayerAttachmentFile(file);
+    setEditingPrayerAttachmentRemoved(false);
+    event.target.value = "";
+  };
+
+  const addPrayerTopic = async () => {
+    if (!group || !user || !newPrayerTopic.trim()) return;
+    setIsSubmittingPrayerTopic(true);
+    let uploadedAttachmentUrl: string | null = null;
+    try {
+      const attachmentPayload = newPrayerAttachment
+        ? await uploadPrayerTopicAttachment(newPrayerAttachment)
+        : null;
+      uploadedAttachmentUrl = attachmentPayload?.attachment_url ?? null;
+
+      const { error } = await supabase.from("group_prayer_topics").insert({
+        group_id: group.id,
+        author_id: user.id,
+        content: newPrayerTopic.trim(),
+        is_active: true,
+        ...(attachmentPayload ?? {}),
+      });
+
+      if (error) {
+        if (uploadedAttachmentUrl) await deleteFileFromR2(uploadedAttachmentUrl);
+        if (error.code === "42P01" || error.code === "42703") {
+          alert("기도제목 첨부 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다.");
+          return;
+        }
+        throw error;
+      }
+
+      setNewPrayerTopic("");
+      setNewPrayerAttachment(null);
+      await loadGroupPrayerTopics(group.id);
+    } catch (error) {
+      console.error(error);
+      alert("기도제목 등록에 실패했습니다.");
+    } finally {
+      setIsSubmittingPrayerTopic(false);
+    }
   };
 
   const linkPrayerToGroup = async (record: PersonalPrayerRecord) => {
@@ -3072,12 +3199,17 @@ export default function GroupDashboard() {
     if (!confirm(message)) return;
 
     try {
+      const attachmentUrls = groupPrayerTopics
+        .filter((topic) => topic.author_id === authorId)
+        .map((topic) => topic.attachment_url)
+        .filter(Boolean);
       const { error } = await supabase
         .from("group_prayer_topics")
         .delete()
         .eq("group_id", group.id)
         .eq("author_id", authorId);
       if (error) throw error;
+      await Promise.all(attachmentUrls.map((url) => deleteFileFromR2(url)));
       if (group?.id) loadGroupPrayerTopics(group.id);
     } catch (err) {
       console.error(err);
@@ -3091,6 +3223,7 @@ export default function GroupDashboard() {
     if (!canDelete) return;
     if (!confirm("이 기도제목을 삭제할까요?")) return;
     try {
+      const topic = groupPrayerTopics.find((item) => item.id === topicId) ?? null;
       let query = supabase
         .from("group_prayer_topics")
         .delete()
@@ -3101,6 +3234,10 @@ export default function GroupDashboard() {
       }
       const { error } = await query;
       if (error) throw error;
+      await deleteFileFromR2(topic?.attachment_url);
+      if (editingPrayerTopicId === topicId) {
+        cancelEditingPrayerTopic();
+      }
       if (group?.id) loadGroupPrayerTopics(group.id);
     } catch (err) {
       console.error(err);
@@ -3109,20 +3246,58 @@ export default function GroupDashboard() {
   };
 
   const editSingleTopic = async (topic: typeof groupPrayerTopics[0]) => {
-    if (!user || topic.author_id !== user.id) return;
-    const newContent = prompt("수정할 기도제목을 입력하세요.", topic.content);
-    if (newContent === null) return;
-    if (newContent.trim() === "") {
+    if (!group || !user || topic.author_id !== user.id) return;
+    const newContent = editingPrayerTopicContent.trim();
+    if (newContent === "") {
       alert("기도제목을 입력해주세요.");
       return;
     }
+    setSavingPrayerTopicId(topic.id);
+    let nextAttachmentUrl: string | null = topic.attachment_url ?? null;
+    let uploadedAttachmentUrl: string | null = null;
     try {
-      const { error } = await supabase.from("group_prayer_topics").update({ content: newContent.trim() }).eq("id", topic.id);
+      let attachmentPayload: Record<string, string | null> = {};
+      if (editingPrayerAttachmentRemoved) {
+        attachmentPayload = {
+          attachment_url: null,
+          attachment_name: null,
+          attachment_type: null,
+          attachment_kind: null,
+        };
+        nextAttachmentUrl = null;
+      }
+      if (editingPrayerAttachmentFile) {
+        const uploaded = await uploadPrayerTopicAttachment(editingPrayerAttachmentFile);
+        attachmentPayload = uploaded ?? {};
+        uploadedAttachmentUrl = uploaded?.attachment_url ?? null;
+        nextAttachmentUrl = uploadedAttachmentUrl;
+      }
+
+      const { error } = await supabase
+        .from("group_prayer_topics")
+        .update({
+          content: newContent,
+          ...attachmentPayload,
+        })
+        .eq("id", topic.id)
+        .eq("group_id", group.id);
       if (error) throw error;
+
+      if ((editingPrayerAttachmentRemoved || editingPrayerAttachmentFile) && topic.attachment_url && topic.attachment_url !== nextAttachmentUrl) {
+        await deleteFileFromR2(topic.attachment_url);
+      }
+
+      cancelEditingPrayerTopic();
       if (group?.id) loadGroupPrayerTopics(group.id);
     } catch (err) {
+      if (uploadedAttachmentUrl) await deleteFileFromR2(uploadedAttachmentUrl);
       console.error(err);
-      alert("수정에 실패했습니다.");
+      const message = err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "42703"
+        ? "기도제목 첨부 기능을 사용하려면 최신 DB 마이그레이션 적용이 필요합니다."
+        : "수정에 실패했습니다.";
+      alert(message);
+    } finally {
+      setSavingPrayerTopicId(null);
     }
   };
 
@@ -3241,7 +3416,39 @@ export default function GroupDashboard() {
                         {topics.map((topic) => (
                           <div key={topic.id} className="flex gap-0 items-start text-sm">
                             <span className="text-[#4A6741] shrink-0 mt-[2px]"><Dot size={20} /></span>
-                            <div className="flex-1 font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-relaxed">{topic.content}</div>
+                              {topic.attachment_url && isImageAttachment(topic) && (
+                                <button
+                                  onClick={() => {
+                                    setModalImages([topic.attachment_url!]);
+                                    setModalIndex(0);
+                                    setShowImageModal(true);
+                                  }}
+                                  className="mt-3 block"
+                                >
+                                  <img
+                                    src={topic.attachment_url}
+                                    alt={topic.attachment_name || "첨부 이미지"}
+                                    className="w-24 h-24 rounded-xl object-cover border border-zinc-200 shadow-sm"
+                                  />
+                                </button>
+                              )}
+                              {topic.attachment_url && !isImageAttachment(topic) && (
+                                <div className="mt-3">
+                                  <a
+                                    href={topic.attachment_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download={topic.attachment_name || undefined}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                                  >
+                                    <Link2 size={12} />
+                                    <span className="max-w-[220px] truncate">{topic.attachment_name || "첨부 파일"}</span>
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                             {user && (isManager || topic.author_id === user.id) && (
                               <button
                                 onClick={() => void deleteSingleTopic(topic.id, topic.author_id)}
@@ -4353,7 +4560,7 @@ export default function GroupDashboard() {
       {
         showPrayerTopicModal && (
           <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicModal(false)} />
+            <div className="absolute inset-0 bg-black/40" onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }} />
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -4365,6 +4572,7 @@ export default function GroupDashboard() {
               onDragEnd={(_, info) => {
                 if (info.offset.y > 90 || info.velocity.y > 700) {
                   setShowPrayerTopicModal(false);
+                  cancelEditingPrayerTopic();
                 }
               }}
               className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0"
@@ -4372,7 +4580,7 @@ export default function GroupDashboard() {
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between p-6 pb-4">
                 <h3 className="font-black text-zinc-900 text-xl">나의 기도제목 관리</h3>
-                <button onClick={() => setShowPrayerTopicModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
+                <button onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
                   <X size={16} />
                 </button>
               </div>
@@ -4387,11 +4595,113 @@ export default function GroupDashboard() {
                     <div className="space-y-2">
                       {groupPrayerTopics.filter(t => t.author_id === user.id).map(topic => (
                         <div key={topic.id} className="flex items-start gap-2 bg-white rounded-xl p-3 border border-zinc-100 shadow-sm">
-                          <div className="text-sm font-medium text-zinc-800 whitespace-pre-wrap break-words leading-snug flex-1 min-w-0">{topic.content}</div>
-                          <div className="flex items-center gap-1 shrink-0 pt-0.5">
-                            <button onClick={() => editSingleTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="기도제목 수정"><Pencil size={13} /></button>
-                            <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center" aria-label="기도제목 삭제"><Trash2 size={13} /></button>
+                          <div className="flex-1 min-w-0">
+                            {editingPrayerTopicId === topic.id ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  value={editingPrayerTopicContent}
+                                  onChange={(e) => setEditingPrayerTopicContent(e.target.value)}
+                                  className="w-full min-h-[88px] px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-800 focus:ring-2 focus:ring-[#4A6741]/20 outline-none resize-none"
+                                />
+
+                                {(editingPrayerAttachmentFile || (!editingPrayerAttachmentRemoved && topic.attachment_url)) && (
+                                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                    {editingPrayerAttachmentFile ? (
+                                      isImageAttachment({
+                                        attachment_type: editingPrayerAttachmentFile.type,
+                                        attachment_name: editingPrayerAttachmentFile.name,
+                                        attachment_kind: editingPrayerAttachmentFile.type.startsWith("image/") ? "image" : "file",
+                                      }) ? (
+                                        <img
+                                          src={editingPrayerAttachmentPreview || ""}
+                                          alt={editingPrayerAttachmentFile.name}
+                                          className="w-24 h-24 rounded-xl object-cover border border-zinc-200"
+                                        />
+                                      ) : (
+                                        <div className="text-xs font-bold text-zinc-700 truncate">{editingPrayerAttachmentFile.name}</div>
+                                      )
+                                    ) : isImageAttachment(topic) ? (
+                                      <img
+                                        src={topic.attachment_url || ""}
+                                        alt={topic.attachment_name || "첨부 이미지"}
+                                        className="w-24 h-24 rounded-xl object-cover border border-zinc-200"
+                                      />
+                                    ) : (
+                                      <div className="text-xs font-bold text-zinc-700 truncate">{topic.attachment_name || "첨부 파일"}</div>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        setEditingPrayerAttachmentFile(null);
+                                        setEditingPrayerAttachmentRemoved(true);
+                                      }}
+                                      className="mt-2 inline-flex items-center rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-100"
+                                    >
+                                      첨부 삭제
+                                    </button>
+                                  </div>
+                                )}
+
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <label className="inline-flex cursor-pointer items-center rounded-lg bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-200">
+                                    파일/이미지 첨부
+                                    <input type="file" className="hidden" onChange={handleEditingPrayerAttachmentChange} />
+                                  </label>
+                                  <button
+                                    onClick={() => void editSingleTopic(topic)}
+                                    disabled={!editingPrayerTopicContent.trim() || savingPrayerTopicId === topic.id}
+                                    className="inline-flex items-center rounded-lg bg-[#4A6741] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                  >
+                                    {savingPrayerTopicId === topic.id ? "저장중..." : "저장"}
+                                  </button>
+                                  <button
+                                    onClick={cancelEditingPrayerTopic}
+                                    disabled={savingPrayerTopicId === topic.id}
+                                    className="inline-flex items-center rounded-lg bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 disabled:opacity-50"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-3">
+                                <div className="text-sm font-medium text-zinc-800 whitespace-pre-wrap break-words leading-snug">{topic.content}</div>
+                                {topic.attachment_url && isImageAttachment(topic) && (
+                                  <button
+                                    onClick={() => {
+                                      setModalImages([topic.attachment_url!]);
+                                      setModalIndex(0);
+                                      setShowImageModal(true);
+                                    }}
+                                    className="block"
+                                  >
+                                    <img
+                                      src={topic.attachment_url}
+                                      alt={topic.attachment_name || "첨부 이미지"}
+                                      className="w-24 h-24 rounded-xl object-cover border border-zinc-200"
+                                    />
+                                  </button>
+                                )}
+                                {topic.attachment_url && !isImageAttachment(topic) && (
+                                  <a
+                                    href={topic.attachment_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    download={topic.attachment_name || undefined}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                                  >
+                                    <Link2 size={12} />
+                                    <span className="max-w-[220px] truncate">{topic.attachment_name || "첨부 파일"}</span>
+                                  </a>
+                                )}
+                              </div>
+                            )}
                           </div>
+                          {editingPrayerTopicId !== topic.id && (
+                            <div className="flex items-center gap-1 shrink-0 pt-0.5">
+                              <button onClick={() => startEditingPrayerTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="기도제목 수정"><Pencil size={13} /></button>
+                              <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center" aria-label="기도제목 삭제"><Trash2 size={13} /></button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -4407,12 +4717,37 @@ export default function GroupDashboard() {
                     className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-white border border-zinc-200 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none shadow-inner"
                     placeholder="기도제목 1개를 입력하세요. 줄바꿈은 그대로 보존됩니다."
                   />
+                  <div className="space-y-2">
+                    <label className="inline-flex cursor-pointer items-center rounded-xl bg-zinc-100 px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-200">
+                      파일/이미지 첨부
+                      <input type="file" className="hidden" onChange={handleNewPrayerAttachmentChange} />
+                    </label>
+                    {newPrayerAttachment && (
+                      <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                        {newPrayerAttachment.type.startsWith("image/") ? (
+                          <img
+                            src={newPrayerAttachmentPreview || ""}
+                            alt={newPrayerAttachment.name}
+                            className="w-24 h-24 rounded-xl object-cover border border-zinc-200"
+                          />
+                        ) : (
+                          <div className="text-sm font-bold text-zinc-700 break-all">{newPrayerAttachment.name}</div>
+                        )}
+                        <button
+                          onClick={() => setNewPrayerAttachment(null)}
+                          className="mt-2 inline-flex items-center rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-100"
+                        >
+                          첨부 삭제
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   <button
                     onClick={() => { addPrayerTopic(); }}
-                    disabled={!newPrayerTopic.trim()}
+                    disabled={!newPrayerTopic.trim() || isSubmittingPrayerTopic}
                     className="w-full py-3.5 mt-2 rounded-xl bg-[#4A6741] text-white font-bold text-base shadow-sm disabled:opacity-50 transition-all hover:bg-[#3d5535] active:scale-[0.98]"
                   >
-                    추가하기
+                    {isSubmittingPrayerTopic ? "추가중..." : "추가하기"}
                   </button>
                 </div>
               </div>
