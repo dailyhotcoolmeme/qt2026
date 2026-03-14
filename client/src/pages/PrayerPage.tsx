@@ -870,7 +870,7 @@ export default function PrayerPage() {
                   className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Mic size={24} strokeWidth={2} />
+                  <Mic size={22} strokeWidth={2} />
                   <span className="leading-none">기도하기</span>
                 </button>
               </div>
@@ -894,7 +894,7 @@ export default function PrayerPage() {
                   className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Heart size={24} strokeWidth={2} />
+                  <Heart size={22} strokeWidth={2} />
                   <span className="leading-none">기도하기</span>
                 </button>
               </div>
@@ -1086,20 +1086,23 @@ export default function PrayerPage() {
                                   <Headphones size={22} className="text-[#4A6741]/90" strokeWidth={1.5} />
                                 </div>
                                 <div className="flex-1 min-w-0 flex flex-col">
-                                  <div className="flex items-start justify-between gap-2">
-                                    <h4 className="font-bold text-[#4A6741]/90 break-words flex-1 min-w-0" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                                      {record.title || '음성 기도'}
-                                    </h4>
-                                    <div className="flex items-center gap-1.5 shrink-0 min-w-0 max-w-[55%]">
-                                      {record.hashtags && record.hashtags.length > 0 && (
-                                        <div className="flex items-center gap-1 min-w-0 overflow-hidden justify-end">
-                                          {record.hashtags.map((tag: string, idx: number) => (
-                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
-                                              #{tag}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      )}
+	                                  <div className="flex items-center justify-between gap-2">
+	                                    <h4
+	                                      className="flex-1 min-w-0 truncate font-bold leading-tight text-[#4A6741]/90"
+	                                      style={{ fontSize: `${fontSize * 0.90}px` }}
+	                                    >
+	                                      {record.title || '음성 기도'}
+	                                    </h4>
+	                                    <div className="flex shrink-0 items-center gap-1.5 min-w-0 max-w-[55%] flex-nowrap">
+	                                      {record.hashtags && record.hashtags.length > 0 && (
+	                                        <div className="flex min-w-0 items-center justify-end gap-1 overflow-hidden">
+	                                          {record.hashtags.map((tag: string, idx: number) => (
+	                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
+	                                              #{tag}
+	                                            </span>
+	                                          ))}
+	                                        </div>
+	                                      )}
                                       <button
                                         onClick={() => handleDeleteRecord(record.id, record.audio_url)}
                                         className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
@@ -1109,10 +1112,10 @@ export default function PrayerPage() {
                                       </button>
                                     </div>
                                   </div>
-                                  <div className="flex items-center justify-between text-xs text-zinc-400 -mt-0.5">
-                                    <span>{formattedDate}</span>
-                                    <div className="flex items-center gap-1">
-                                      <button
+	                                  <div className="mt-0.5 flex items-center justify-between text-xs text-zinc-400">
+	                                    <span>{formattedDate}</span>
+	                                    <div className="flex items-center gap-1">
+	                                      <button
                                         onClick={() => handleShareRecordAudio(record)}
                                         className="h-7 px-2.5 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
                                         title="공유"
