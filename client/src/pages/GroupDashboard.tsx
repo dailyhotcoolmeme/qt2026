@@ -3594,27 +3594,14 @@ export default function GroupDashboard() {
           )}
 
           {imageAttachments.length > 0 && (
-            <div className="space-y-3">
-              {imageAttachments.map((attachment) => (
-                <button
-                  key={attachment.id}
-                  onClick={() => {
-                    const imageUrls = imageAttachments.map((item) => item.file_url).filter(Boolean);
-                    const currentIndex = imageAttachments.findIndex((item) => item.id === attachment.id);
-                    setModalImages(imageUrls);
-                    setModalIndex(Math.max(0, currentIndex));
-                    setShowImageModal(true);
-                  }}
-                  className="block w-full"
-                >
-                  <img
-                    src={attachment.file_url || ""}
-                    alt={attachment.file_name || "첨부 이미지"}
-                    className="w-full max-h-[320px] rounded-2xl object-cover border border-zinc-200 shadow-sm"
-                  />
-                </button>
-              ))}
-            </div>
+            <PostImageCarousel
+              urls={imageAttachments.map((attachment) => attachment.file_url)}
+              onImageClick={(index) => {
+                setModalImages(imageAttachments.map((attachment) => attachment.file_url));
+                setModalIndex(index);
+                setShowImageModal(true);
+              }}
+            />
           )}
 
           <div className="flex items-center gap-2 mt-0 pt-3 border-t border-zinc-150 shrink-0">
@@ -3811,7 +3798,7 @@ export default function GroupDashboard() {
         </div>
     );
 
-    if (!draggable) return content;
+    if (!draggable || editingPrayerTopicId === topic.id) return content;
 
     return (
       <Reorder.Item
@@ -3820,7 +3807,9 @@ export default function GroupDashboard() {
         dragListener={false}
         dragControls={dragControls}
         className="list-none"
-        transition={{ type: "spring", stiffness: 280, damping: 28 }}
+        transition={{ type: "spring", stiffness: 170, damping: 24, mass: 0.9 }}
+        dragMomentum={false}
+        dragElastic={0.04}
         whileDrag={{ scale: 1.01, boxShadow: "0 18px 40px rgba(0,0,0,0.16)", zIndex: 20 }}
       >
         {content}
@@ -3855,7 +3844,9 @@ export default function GroupDashboard() {
         dragListener={false}
         dragControls={dragControls}
         className="list-none"
-        transition={{ type: "spring", stiffness: 280, damping: 28 }}
+        transition={{ type: "spring", stiffness: 170, damping: 24, mass: 0.9 }}
+        dragMomentum={false}
+        dragElastic={0.04}
         whileDrag={{ scale: 1.01, boxShadow: "0 18px 40px rgba(0,0,0,0.16)", zIndex: 20 }}
       >
         <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
