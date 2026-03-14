@@ -121,6 +121,22 @@ export default function PrayerPage() {
     }
   };
 
+  const shouldAutoOpenPrayerGroupLinkModal = async (dateKey: string) => {
+    if (!user?.id) return false;
+    const { count, error } = await supabase
+      .from('prayer_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('date', dateKey);
+
+    if (error) {
+      console.error('기도 첫 완료 확인 실패:', error);
+      return false;
+    }
+
+    return (count || 0) === 0;
+  };
+
   const handleAddTopic = async () => {
     if (!user) return;
     if (!newTopic.trim()) return;
@@ -349,6 +365,7 @@ export default function PrayerPage() {
       setSavingProgress(0);
 
       const kstDate = new Date(new Date().getTime() + (9 * 60 * 60 * 1000)).toISOString().split('T')[0];
+      const shouldOpenGroupLinkModal = await shouldAutoOpenPrayerGroupLinkModal(kstDate);
       const timestamp = Date.now();
       const targetPath = `audio/prayer/${user.id}/${kstDate}/prayer_${timestamp}.webm`;
 
@@ -419,8 +436,9 @@ export default function PrayerPage() {
         setSavingProgress(0);
       }, 500);
 
-      // 기록 완료 후 모임 연결 모달 띄우기 (150ms 딜레이)
-      setTimeout(() => setShowGroupLinkModal(true), 150);
+      if (shouldOpenGroupLinkModal) {
+        setTimeout(() => setShowGroupLinkModal(true), 150);
+      }
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
     } catch (error) {
@@ -679,6 +697,7 @@ export default function PrayerPage() {
     }
     try {
       const kstDate = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
+      const shouldOpenGroupLinkModal = await shouldAutoOpenPrayerGroupLinkModal(kstDate);
       const { error } = await supabase.from('prayer_records').insert({
         user_id: user.id,
         audio_url: 'amen',   // Amen 레코드 마커
@@ -691,8 +710,9 @@ export default function PrayerPage() {
         await loadPrayerRecords();
         setPrayerSubTab('archive');
         if (window.navigator?.vibrate) window.navigator.vibrate([20, 40, 20]);
-        // 기록 완료 후 모임 연결 모달 띄우기
-        setTimeout(() => setShowGroupLinkModal(true), 250);
+        if (shouldOpenGroupLinkModal) {
+          setTimeout(() => setShowGroupLinkModal(true), 250);
+        }
       }
     } catch (err) {
       console.error('Amen 저장 실패:', err);

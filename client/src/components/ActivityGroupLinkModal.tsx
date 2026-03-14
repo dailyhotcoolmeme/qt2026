@@ -207,7 +207,7 @@ export function ActivityGroupLinkModal({
     return (
         <AnimatePresence>
             {open && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[300] flex items-end justify-center p-0 sm:items-center sm:p-4">
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -216,11 +216,21 @@ export function ActivityGroupLinkModal({
                         onClick={() => onOpenChange(false)}
                     />
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        initial={{ opacity: 0, scale: 0.98, y: 24 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                        className="relative w-full max-w-sm bg-white rounded-[32px] p-6 shadow-2xl overflow-hidden"
+                        exit={{ opacity: 0, scale: 0.98, y: 24 }}
+                        drag="y"
+                        dragDirectionLock
+                        dragConstraints={{ top: 0, bottom: 260 }}
+                        dragElastic={{ top: 0, bottom: 0.18 }}
+                        onDragEnd={(_, info) => {
+                            if (info.offset.y > 100 || info.velocity.y > 700) {
+                                onOpenChange(false);
+                            }
+                        }}
+                        className="relative w-full max-w-sm bg-white rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl overflow-hidden max-h-[85vh]"
                     >
+                        <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="text-xl font-black text-zinc-900 tracking-tight">모임으로 연결하기</h3>
                             <button

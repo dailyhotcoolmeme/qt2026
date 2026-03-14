@@ -228,6 +228,23 @@ export default function QTPage() {
     setMeditationRecords(recordsWithContent);
   };
 
+  const shouldAutoOpenQtGroupLinkModal = async (dateKey: string) => {
+    if (!user?.id) return false;
+    const { count, error } = await supabase
+      .from('user_meditation_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('date', dateKey)
+      .eq('meditation_type', 'daily_qt');
+
+    if (error) {
+      console.error('Error checking QT first completion:', error);
+      return false;
+    }
+
+    return (count || 0) === 0;
+  };
+
 
 
   // 묵상 완료 버튼 클릭
@@ -301,6 +318,7 @@ export default function QTPage() {
       return;
     }
     const formattedDate = formatLocalDate(currentDate);
+    const shouldOpenGroupLinkModal = await shouldAutoOpenQtGroupLinkModal(formattedDate);
 
     try {
       const { data: inserted, error } = await supabase
@@ -324,8 +342,9 @@ export default function QTPage() {
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
 
-      // 기록 완료 후 모임 연결 모달 띄우기 (타이머를 줘서 모달 전환이 부드럽게)
-      setTimeout(() => setShowGroupLinkModal(true), 150);
+      if (shouldOpenGroupLinkModal) {
+        setTimeout(() => setShowGroupLinkModal(true), 150);
+      }
     } catch (error) {
       console.error('Error completing meditation:', error);
       alert('묵상 완료 중 오류가 발생했습니다.');
@@ -402,6 +421,7 @@ export default function QTPage() {
 
     const formattedDate = formatLocalDate(currentDate);
     const kstDate = formatLocalDate(currentDate);
+    const shouldOpenGroupLinkModal = await shouldAutoOpenQtGroupLinkModal(formattedDate);
     let audioUrl: string | null = null;
 
     try {
@@ -464,8 +484,9 @@ export default function QTPage() {
 
       if (window.navigator?.vibrate) window.navigator.vibrate(30);
 
-      // 기록 완료 후 모임 연결 모달 띄우기
-      setTimeout(() => setShowGroupLinkModal(true), 150);
+      if (shouldOpenGroupLinkModal) {
+        setTimeout(() => setShowGroupLinkModal(true), 150);
+      }
     } catch (error) {
       console.error('Error saving meditation:', error);
       // error가 있을 때만 alert, inserted?.id 체크로 불필요하게 throw하지 않음
@@ -905,7 +926,7 @@ export default function QTPage() {
 
     const verses = getPlayableVerseNumbers();
     if (!verses.length) return;
-    const foundIdx = verses.findIndex((v) => v >= targetVerse);
+    const foundIdx = verses.findIndex((v: number) => v >= targetVerse);
     const targetIdx = foundIdx === -1 ? verses.length - 1 : foundIdx;
     const dur = audioRef.current.duration || audioDurationUi || 0;
     if (dur > 0) {
@@ -1776,7 +1797,7 @@ export default function QTPage() {
       <ActivityGroupLinkModal
         open={showGroupLinkModal}
         onOpenChange={setShowGroupLinkModal}
-        user={user}
+        user={user ? { id: user.id } : null}
         activityType="qt"
         activityDate={currentDate}
       />

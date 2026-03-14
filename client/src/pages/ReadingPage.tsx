@@ -1956,12 +1956,31 @@ export default function ReadingPage() {
     }
   }, [user, bibleData]);
 
+  const shouldAutoOpenReadingGroupLinkModal = useCallback(async (dateKey: string) => {
+    if (!user?.id) return false;
+    const { count, error } = await supabase
+      .from('user_reading_records')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('date', dateKey);
+
+    if (error) {
+      if (!String((error as any)?.message || '').includes('AbortError')) {
+        console.error('reading first completion check failed:', error);
+      }
+      return false;
+    }
+
+    return (count || 0) === 0;
+  }, [user?.id]);
+
   const prepareReadingGroupLink = useCallback(
     async (sourceRowId: string, label: string) => {
       if (!user?.id) return;
       const groups = await fetchMyGroups(user.id);
       if (groups.length === 0) return;
 
+      setPendingGroupLinkSourceRowId(sourceRowId);
       setPendingGroupLinkLabel(label);
       setShowGroupLinkModal(true);
     },
@@ -2028,6 +2047,7 @@ export default function ReadingPage() {
     if (chapterData) {
       try {
         const dateStr = formatLocalDate(currentDate);
+        const shouldOpenGroupLinkModal = await shouldAutoOpenReadingGroupLinkModal(dateStr);
         const verseValue = chapterData.verse;
         let startVerse: number | null = null;
         let endVerse: number | null = null;
@@ -2083,7 +2103,7 @@ export default function ReadingPage() {
 
         await checkCurrentChapterReadStatus();
 
-        if (!silent && savedRecord?.id) {
+        if (!silent && shouldOpenGroupLinkModal && savedRecord?.id) {
           await prepareReadingGroupLink(String(savedRecord.id), `${chapterData.bible_name} ${chapterData.chapter}장`);
         }
       } catch (error) {
