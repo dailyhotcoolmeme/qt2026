@@ -4788,12 +4788,31 @@ export default function GroupDashboard() {
               </h3>
 
               {!isRecording && !recordedBlob && (
-                <button
-                  onClick={startRecording}
-                  className="w-24 h-24 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
-                >
-                  <Mic size={32} />
-                </button>
+                <div className="flex w-full flex-col items-center">
+                  <button
+                    onClick={startRecording}
+                    className="w-24 h-24 rounded-full bg-[#4A6741] text-white flex items-center justify-center shadow-lg transition-transform active:scale-95"
+                  >
+                    <Mic size={32} />
+                  </button>
+                  <p className="mt-5 text-center text-sm leading-relaxed text-rose-200">
+                    음성기도는 기도를 받은 멤버와 기도를 해준 멤버에게만 공개됩니다.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setShowPrayerComposer(false);
+                      if (recordedBlob) URL.revokeObjectURL(recordPreviewUrl!);
+                      setRecordedBlob(null);
+                      setRecordPreviewUrl(null);
+                      setRecordingTime(0);
+                      if (isRecording) stopRecording();
+                    }}
+                    className="mt-4 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                    title="닫기"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
               )}
 
               {isRecording && (
@@ -4842,20 +4861,22 @@ export default function GroupDashboard() {
                 </div>
               )}
 
-              <button
-                onClick={() => {
-                  setShowPrayerComposer(false);
-                  if (recordedBlob) URL.revokeObjectURL(recordPreviewUrl!);
-                  setRecordedBlob(null);
-                  setRecordPreviewUrl(null);
-                  setRecordingTime(0);
-                  if (isRecording) stopRecording();
-                }}
-                className="mt-12 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
-                title="닫기"
-              >
-                <X size={20} />
-              </button>
+              {(isRecording || recordedBlob) && (
+                <button
+                  onClick={() => {
+                    setShowPrayerComposer(false);
+                    if (recordedBlob) URL.revokeObjectURL(recordPreviewUrl!);
+                    setRecordedBlob(null);
+                    setRecordPreviewUrl(null);
+                    setRecordingTime(0);
+                    if (isRecording) stopRecording();
+                  }}
+                  className="mt-12 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                  title="닫기"
+                >
+                  <X size={20} />
+                </button>
+              )}
             </div>
           </motion.div>
         )
@@ -4965,7 +4986,10 @@ export default function GroupDashboard() {
               <div className="flex items-center justify-between p-6 pb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-xl">순서 조정</h3>
-                  <p className="text-xs text-zinc-400 mt-1">오른쪽 메뉴 버튼을 길게 눌러 순서를 바꿔주세요.</p>
+                  <p className="inline-flex items-center gap-1 text-xs text-zinc-400 mt-1">
+                    <GripVertical size={12} />
+                    오른쪽 메뉴 버튼을 길게 눌러 순서를 바꿔주세요.
+                  </p>
                 </div>
                 <button onClick={() => setShowPrayerTopicOrderModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
                   <X size={16} />
@@ -5210,30 +5234,41 @@ export default function GroupDashboard() {
                       </DndContext>
                       {orderedMyPrayerAttachmentOnlyTopics.map((topic) => (
                         <div key={topic.id} className="bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
-                          {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment) => (
-                            <a
-                              key={attachment.id}
-                              href={attachment.file_url}
-                              target="_blank"
-                              rel="noreferrer"
-                              download={attachment.file_name || undefined}
-                              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0 space-y-3">
+                              {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment) => (
+                                <a
+                                  key={attachment.id}
+                                  href={attachment.file_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  download={attachment.file_name || undefined}
+                                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                                >
+                                  <Link2 size={12} />
+                                  <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                                </a>
+                              ))}
+                              {getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).length > 0 && (
+                                <PostImageCarousel
+                                  urls={getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url)}
+                                  onImageClick={(index) => {
+                                    const urls = getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url);
+                                    setModalImages(urls);
+                                    setModalIndex(index);
+                                    setShowImageModal(true);
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <button
+                              onClick={() => deleteSingleTopic(topic.id, topic.author_id)}
+                              className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center shrink-0"
+                              aria-label="첨부 기도제목 삭제"
                             >
-                              <Link2 size={12} />
-                              <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
-                            </a>
-                          ))}
-                          {getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).length > 0 && (
-                            <PostImageCarousel
-                              urls={getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url)}
-                              onImageClick={(index) => {
-                                const urls = getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url);
-                                setModalImages(urls);
-                                setModalIndex(index);
-                                setShowImageModal(true);
-                              }}
-                            />
-                          )}
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -5287,13 +5322,21 @@ export default function GroupDashboard() {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => { addPrayerTopic(); }}
-                    disabled={(!newPrayerTopic.trim() && newPrayerAttachments.length === 0) || isSubmittingPrayerTopic}
-                    className="w-full py-3.5 mt-2 rounded-xl bg-[#4A6741] text-white font-bold text-base shadow-sm disabled:opacity-50 transition-all hover:bg-[#3d5535] active:scale-[0.98]"
-                  >
-                    {isSubmittingPrayerTopic ? "추가중..." : "추가하기"}
-                  </button>
+                  <div className="mt-2 flex items-center justify-end gap-3">
+                    <button
+                      onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }}
+                      className="w-[48%] py-3.5 rounded-xl bg-zinc-100 text-zinc-700 font-bold text-base shadow-sm transition-all hover:bg-zinc-200 active:scale-[0.98]"
+                    >
+                      닫기
+                    </button>
+                    <button
+                      onClick={() => { addPrayerTopic(); }}
+                      disabled={(!newPrayerTopic.trim() && newPrayerAttachments.length === 0) || isSubmittingPrayerTopic}
+                      className="w-[48%] py-3.5 rounded-xl bg-[#4A6741] text-white font-bold text-base shadow-sm disabled:opacity-50 transition-all hover:bg-[#3d5535] active:scale-[0.98]"
+                    >
+                      {isSubmittingPrayerTopic ? "추가중..." : "추가하기"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
