@@ -850,7 +850,7 @@ export default function PrayerPage() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="relative z-10 flex aspect-[4/5] w-[82%] max-w-sm touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-7 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
+            className="relative z-10 flex aspect-[4/5] w-[82%] max-w-sm touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-6 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
           >
             <div className="flex h-full w-full flex-1 flex-col">
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
@@ -867,11 +867,11 @@ export default function PrayerPage() {
                 </div>
                 <button
                   onClick={handleStartPrayerMode}
-                  className="inline-flex w-full max-w-[240px] items-center justify-center gap-2 rounded-2xl bg-[#4A6741] px-6 py-3 font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Mic size={18} strokeWidth={2} />
-                  기도하기
+                  <Mic size={22} strokeWidth={2} />
+                  <span className="leading-none">기도하기</span>
                 </button>
               </div>
 
@@ -891,11 +891,11 @@ export default function PrayerPage() {
                 </div>
                 <button
                   onClick={handleAmenClick}
-                  className="inline-flex w-full max-w-[240px] items-center justify-center gap-2 rounded-2xl bg-[#4A6741] px-6 py-3 font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Heart size={18} strokeWidth={2} />
-                  기도하기
+                  <Heart size={22} strokeWidth={2} />
+                  <span className="leading-none">기도하기</span>
                 </button>
               </div>
             </div>
@@ -909,14 +909,18 @@ export default function PrayerPage() {
         <div className="mb-4 bg-white shadow-sm rounded-2xl border border-zinc-100 p-1.5 flex">
           <button
             onClick={() => setPrayerSubTab('topics')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${prayerSubTab === 'topics' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${
+              prayerSubTab === 'topics' ? 'bg-zinc-200 text-zinc-800 shadow-sm' : 'text-zinc-500 hover:bg-zinc-50'
+            }`}
           >
             <ClipboardPen size={15} />
             기도 제목
           </button>
           <button
             onClick={() => setPrayerSubTab('archive')}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${prayerSubTab === 'archive' ? 'bg-[#4A6741]/90 text-white' : 'text-zinc-500 hover:bg-zinc-50'}`}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-colors inline-flex items-center justify-center gap-1.5 ${
+              prayerSubTab === 'archive' ? 'bg-zinc-200 text-zinc-800 shadow-sm' : 'text-zinc-500 hover:bg-zinc-50'
+            }`}
           >
             <Download size={15} />
             기도 보관함
