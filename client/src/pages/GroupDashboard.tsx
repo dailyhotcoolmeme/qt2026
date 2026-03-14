@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
-import { motion, AnimatePresence, Reorder, useDragControls } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useLocation, useRoute } from "wouter";
 import {
   Check,
@@ -782,6 +785,35 @@ const PostImageCarousel = ({ urls, onImageClick }: { urls: string[]; onImageClic
     </div>
   );
 };
+
+function SortableItem({
+  id,
+  disabled = false,
+  children,
+}: {
+  id: string;
+  disabled?: boolean;
+  children: (args: {
+    setNodeRef: (element: HTMLElement | null) => void;
+    style: React.CSSProperties;
+    attributes: any;
+    listeners: any;
+    isDragging: boolean;
+  }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    disabled,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition: transition || "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)",
+    zIndex: isDragging ? 30 : undefined,
+  };
+
+  return <>{children({ setNodeRef, style, attributes, listeners, isDragging })}</>;
+}
 
 export default function GroupDashboard() {
   const [matched, routeParams] = useRoute("/group/:id");
@@ -3187,6 +3219,11 @@ export default function GroupDashboard() {
     [orderedMyPrayerTopics]
   );
 
+  const sortableSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
+  );
+
   const prayerTopicOrderStorageKey = useMemo(() => {
     if (!group?.id) return null;
     return `group-prayer-topic-order:${group.id}:${user?.id ?? "guest"}`;
@@ -3647,233 +3684,6 @@ export default function GroupDashboard() {
           )}
         </div>
       </div>
-    );
-  };
-
-  const MyPrayerTopicModalItem = ({ topic, draggable = true }: { topic: GroupPrayerTopic; draggable?: boolean }) => {
-    const dragControls = useDragControls();
-    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const attachments = getTopicAttachments(topic);
-    const visibleAttachments = attachments.filter((attachment) => !editingPrayerRemovedAttachmentIds.includes(attachment.id));
-    const imageAttachments = visibleAttachments.filter((attachment) => isImageAttachment(attachment));
-    const fileAttachments = visibleAttachments.filter((attachment) => !isImageAttachment(attachment));
-
-    const clearLongPress = () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-
-    const startLongPress = (event: React.PointerEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      clearLongPress();
-      longPressTimerRef.current = setTimeout(() => {
-        dragControls.start(event);
-        longPressTimerRef.current = null;
-      }, 320);
-    };
-
-    const content = (
-        <div className="flex items-center gap-2 bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
-          <div className="flex-1 min-w-0">
-            {editingPrayerTopicId === topic.id ? (
-              <div className="space-y-3">
-                <textarea
-                  value={editingPrayerTopicContent}
-                  onChange={(e) => setEditingPrayerTopicContent(e.target.value)}
-                  className="w-full min-h-[88px] px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-800 focus:ring-2 focus:ring-[#4A6741]/20 outline-none resize-none"
-                />
-
-                {visibleAttachments.length > 0 && (
-                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                    {fileAttachments.map((attachment) => (
-                      <div key={attachment.id} className="flex items-center justify-between gap-2 py-1">
-                        <div className="text-xs font-bold text-zinc-700 truncate">{attachment.file_name || "첨부 파일"}</div>
-                        <button
-                          onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
-                          className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    ))}
-                    {imageAttachments.length > 0 && (
-                      <div className="mt-2">
-                        <PostImageCarousel
-                          urls={imageAttachments.map((attachment) => attachment.file_url)}
-                          onImageClick={(index) => {
-                            setModalImages(imageAttachments.map((attachment) => attachment.file_url));
-                            setModalIndex(index);
-                            setShowImageModal(true);
-                          }}
-                        />
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {imageAttachments.map((attachment) => (
-                            <button
-                              key={attachment.id}
-                              onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
-                              className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
-                            >
-                              {attachment.file_name || "이미지"} 삭제
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => void editSingleTopic(topic)}
-                    disabled={
-                      (
-                        !editingPrayerTopicContent.trim() &&
-                        visibleAttachments.length === 0
-                      ) ||
-                      savingPrayerTopicId === topic.id
-                    }
-                    className="inline-flex items-center rounded-lg bg-[#4A6741] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
-                  >
-                    {savingPrayerTopicId === topic.id ? "저장중..." : "저장"}
-                  </button>
-                  <button
-                    onClick={cancelEditingPrayerTopic}
-                    disabled={savingPrayerTopicId === topic.id}
-                    className="inline-flex items-center rounded-lg bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 disabled:opacity-50"
-                  >
-                    취소
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {hasVisiblePrayerTopicContent(topic.content) && (
-                  <div className="text-sm font-medium text-zinc-800 whitespace-pre-wrap break-words leading-snug">{topic.content}</div>
-                )}
-                {fileAttachments.map((attachment) => (
-                  <a
-                    key={attachment.id}
-                    href={attachment.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    download={attachment.file_name || undefined}
-                    className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
-                  >
-                    <Link2 size={12} />
-                    <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
-                  </a>
-                ))}
-                {imageAttachments.length > 0 && (
-                  <PostImageCarousel
-                    urls={imageAttachments.map((attachment) => attachment.file_url)}
-                    onImageClick={(index) => {
-                      setModalImages(imageAttachments.map((attachment) => attachment.file_url));
-                      setModalIndex(index);
-                      setShowImageModal(true);
-                    }}
-                  />
-                )}
-              </div>
-            )}
-          </div>
-          {editingPrayerTopicId !== topic.id && (
-            <div className="flex items-center gap-1 shrink-0 self-center">
-              <button onClick={() => startEditingPrayerTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="기도제목 수정"><Pencil size={13} /></button>
-              <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center" aria-label="기도제목 삭제"><Trash2 size={13} /></button>
-              <button
-                onPointerDown={startLongPress}
-                onPointerUp={clearLongPress}
-                onPointerCancel={clearLongPress}
-                onPointerLeave={clearLongPress}
-                className="relative z-10 p-2 bg-zinc-100 text-zinc-400 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center touch-none"
-                aria-label="기도제목 순서 조정"
-                type="button"
-              >
-                <GripVertical size={13} />
-              </button>
-            </div>
-          )}
-        </div>
-    );
-
-    if (!draggable || editingPrayerTopicId === topic.id) return content;
-
-    return (
-      <Reorder.Item
-        value={topic.id}
-        drag="y"
-        dragListener={false}
-        dragControls={dragControls}
-        className="list-none"
-        transition={{ type: "spring", stiffness: 170, damping: 24, mass: 0.9 }}
-        dragMomentum={false}
-        dragElastic={0.04}
-        whileDrag={{ scale: 1.01, boxShadow: "0 18px 40px rgba(0,0,0,0.16)", zIndex: 20 }}
-      >
-        {content}
-      </Reorder.Item>
-    );
-  };
-
-  const PrayerTopicAuthorOrderItem = ({ userId, author, topics }: (typeof orderedTopicsByAuthor)[number]) => {
-    const dragControls = useDragControls();
-    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-    const clearLongPress = () => {
-      if (longPressTimerRef.current) {
-        clearTimeout(longPressTimerRef.current);
-        longPressTimerRef.current = null;
-      }
-    };
-
-    const startLongPress = (event: React.PointerEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      clearLongPress();
-      longPressTimerRef.current = setTimeout(() => {
-        dragControls.start(event);
-        longPressTimerRef.current = null;
-      }, 320);
-    };
-
-    return (
-      <Reorder.Item
-        value={userId}
-        drag="y"
-        dragListener={false}
-        dragControls={dragControls}
-        className="list-none"
-        transition={{ type: "spring", stiffness: 170, damping: 24, mass: 0.9 }}
-        dragMomentum={false}
-        dragElastic={0.04}
-        whileDrag={{ scale: 1.01, boxShadow: "0 18px 40px rgba(0,0,0,0.16)", zIndex: 20 }}
-      >
-        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-          {author.avatar_url ? (
-            <img src={author.avatar_url} className="w-11 h-11 rounded-full object-cover shrink-0" alt="avatar" />
-          ) : (
-            <div className="w-11 h-11 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
-              <User size={18} />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            <div className="font-bold text-sm text-zinc-900 truncate">{author.nickname || author.username}</div>
-            <div className="text-xs text-zinc-400 truncate">{topics.length}개 기도제목</div>
-          </div>
-          <button
-            onPointerDown={startLongPress}
-            onPointerUp={clearLongPress}
-            onPointerCancel={clearLongPress}
-            onPointerLeave={clearLongPress}
-            className="relative z-10 p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none"
-            aria-label="기도제목 박스 순서 조정"
-            type="button"
-          >
-            <GripVertical size={16} />
-          </button>
-        </div>
-      </Reorder.Item>
     );
   };
 
@@ -5032,17 +4842,55 @@ export default function GroupDashboard() {
               </div>
 
               <div className="px-6 pb-6 overflow-y-auto">
-                <Reorder.Group
-                  axis="y"
-                  values={prayerTopicAuthorOrder}
-                  onReorder={setPrayerTopicAuthorOrder}
-                  layoutScroll
-                  className="space-y-3"
+                <DndContext
+                  sensors={sortableSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (!over || active.id === over.id) return;
+                    setPrayerTopicAuthorOrder((prev) => {
+                      const oldIndex = prev.indexOf(String(active.id));
+                      const newIndex = prev.indexOf(String(over.id));
+                      if (oldIndex < 0 || newIndex < 0) return prev;
+                      return arrayMove(prev, oldIndex, newIndex);
+                    });
+                  }}
                 >
-                  {orderedTopicsByAuthor.map((item) => (
-                    <PrayerTopicAuthorOrderItem key={item.userId} {...item} />
-                  ))}
-                </Reorder.Group>
+                  <SortableContext items={prayerTopicAuthorOrder} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-3">
+                      {orderedTopicsByAuthor.map((item) => (
+                        <SortableItem key={item.userId} id={item.userId}>
+                          {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                            <div ref={setNodeRef} style={style} className={`${isDragging ? "scale-[1.01]" : ""}`}>
+                              <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
+                                {item.author.avatar_url ? (
+                                  <img src={item.author.avatar_url} className="w-11 h-11 rounded-full object-cover shrink-0" alt="avatar" />
+                                ) : (
+                                  <div className="w-11 h-11 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
+                                    <User size={18} />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-sm text-zinc-900 truncate">{item.author.nickname || item.author.username}</div>
+                                  <div className="text-xs text-zinc-400 truncate">{item.topics.length}개 기도제목</div>
+                                </div>
+                                <button
+                                  {...attributes}
+                                  {...listeners}
+                                  className="relative z-10 p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none"
+                                  aria-label="기도제목 박스 순서 조정"
+                                  type="button"
+                                >
+                                  <GripVertical size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </SortableItem>
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
             </motion.div>
           </div>
@@ -5081,21 +4929,181 @@ export default function GroupDashboard() {
                     <div className="text-sm text-zinc-400 py-6 text-center bg-white rounded-xl border border-zinc-100">등록된 기도제목이 없습니다.</div>
                   ) : (
                     <div className="space-y-2">
-                      <Reorder.Group
-                        axis="y"
-                        values={orderedMyPrayerContentTopics.map((topic) => topic.id)}
-                        onReorder={(nextOrder) => {
+                      <DndContext
+                        sensors={sortableSensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={(event: DragEndEvent) => {
+                          const { active, over } = event;
+                          if (!over || active.id === over.id) return;
+                          const current = orderedMyPrayerContentTopics.map((topic) => String(topic.id));
+                          const oldIndex = current.indexOf(String(active.id));
+                          const newIndex = current.indexOf(String(over.id));
+                          if (oldIndex < 0 || newIndex < 0) return;
+                          const nextOrder = arrayMove(current, oldIndex, newIndex).map((id) => Number(id));
                           setMyPrayerTopicOrder([...nextOrder, ...orderedMyPrayerAttachmentOnlyTopics.map((topic) => topic.id)]);
                         }}
-                        layoutScroll
-                        className="space-y-2"
                       >
-                        {orderedMyPrayerContentTopics.map((topic) => (
-                          <MyPrayerTopicModalItem key={topic.id} topic={topic} />
-                        ))}
-                      </Reorder.Group>
+                        <SortableContext items={orderedMyPrayerContentTopics.map((topic) => String(topic.id))} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-2">
+                            {orderedMyPrayerContentTopics.map((topic) => {
+                              const attachments = getTopicAttachments(topic);
+                              const visibleAttachments = attachments.filter((attachment) => !editingPrayerRemovedAttachmentIds.includes(attachment.id));
+                              const imageAttachments = visibleAttachments.filter((attachment) => isImageAttachment(attachment));
+                              const fileAttachments = visibleAttachments.filter((attachment) => !isImageAttachment(attachment));
+                              const isEditing = editingPrayerTopicId === topic.id;
+
+                              return (
+                                <SortableItem key={topic.id} id={String(topic.id)} disabled={isEditing}>
+                                  {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                                    <div ref={setNodeRef} style={style} className={`${isDragging ? "scale-[1.01]" : ""}`}>
+                                      <div className="flex items-center gap-2 bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
+                                        <div className="flex-1 min-w-0">
+                                          {isEditing ? (
+                                            <div className="space-y-3">
+                                              <textarea
+                                                value={editingPrayerTopicContent}
+                                                onChange={(e) => setEditingPrayerTopicContent(e.target.value)}
+                                                className="w-full min-h-[88px] px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-800 focus:ring-2 focus:ring-[#4A6741]/20 outline-none resize-none"
+                                              />
+
+                                              {visibleAttachments.length > 0 && (
+                                                <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                                  {fileAttachments.map((attachment) => (
+                                                    <div key={attachment.id} className="flex items-center justify-between gap-2 py-1">
+                                                      <div className="text-xs font-bold text-zinc-700 truncate">{attachment.file_name || "첨부 파일"}</div>
+                                                      <button
+                                                        onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                                        className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
+                                                      >
+                                                        삭제
+                                                      </button>
+                                                    </div>
+                                                  ))}
+                                                  {imageAttachments.length > 0 && (
+                                                    <div className="mt-2">
+                                                      <PostImageCarousel
+                                                        urls={imageAttachments.map((attachment) => attachment.file_url)}
+                                                        onImageClick={(index) => {
+                                                          setModalImages(imageAttachments.map((attachment) => attachment.file_url));
+                                                          setModalIndex(index);
+                                                          setShowImageModal(true);
+                                                        }}
+                                                      />
+                                                      <div className="flex flex-wrap gap-2 mt-2">
+                                                        {imageAttachments.map((attachment) => (
+                                                          <button
+                                                            key={attachment.id}
+                                                            onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                                            className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
+                                                          >
+                                                            {attachment.file_name || "이미지"} 삭제
+                                                          </button>
+                                                        ))}
+                                                      </div>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )}
+
+                                              <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                  onClick={() => void editSingleTopic(topic)}
+                                                  disabled={(!editingPrayerTopicContent.trim() && visibleAttachments.length === 0) || savingPrayerTopicId === topic.id}
+                                                  className="inline-flex items-center rounded-lg bg-[#4A6741] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                                >
+                                                  {savingPrayerTopicId === topic.id ? "저장중..." : "저장"}
+                                                </button>
+                                                <button
+                                                  onClick={cancelEditingPrayerTopic}
+                                                  disabled={savingPrayerTopicId === topic.id}
+                                                  className="inline-flex items-center rounded-lg bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 disabled:opacity-50"
+                                                >
+                                                  취소
+                                                </button>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-3">
+                                              {hasVisiblePrayerTopicContent(topic.content) && (
+                                                <div className="text-sm font-medium text-zinc-800 whitespace-pre-wrap break-words leading-snug">{topic.content}</div>
+                                              )}
+                                              {fileAttachments.map((attachment) => (
+                                                <a
+                                                  key={attachment.id}
+                                                  href={attachment.file_url}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  download={attachment.file_name || undefined}
+                                                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                                                >
+                                                  <Link2 size={12} />
+                                                  <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                                                </a>
+                                              ))}
+                                              {imageAttachments.length > 0 && (
+                                                <PostImageCarousel
+                                                  urls={imageAttachments.map((attachment) => attachment.file_url)}
+                                                  onImageClick={(index) => {
+                                                    setModalImages(imageAttachments.map((attachment) => attachment.file_url));
+                                                    setModalIndex(index);
+                                                    setShowImageModal(true);
+                                                  }}
+                                                />
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                        {!isEditing && (
+                                          <div className="flex items-center gap-1 shrink-0 self-center">
+                                            <button onClick={() => startEditingPrayerTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="기도제목 수정"><Pencil size={13} /></button>
+                                            <button onClick={() => deleteSingleTopic(topic.id, topic.author_id)} className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center" aria-label="기도제목 삭제"><Trash2 size={13} /></button>
+                                            <button
+                                              {...attributes}
+                                              {...listeners}
+                                              className="relative z-10 p-2 bg-zinc-100 text-zinc-400 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center touch-none"
+                                              aria-label="기도제목 순서 조정"
+                                              type="button"
+                                            >
+                                              <GripVertical size={13} />
+                                            </button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </SortableItem>
+                              );
+                            })}
+                          </div>
+                        </SortableContext>
+                      </DndContext>
                       {orderedMyPrayerAttachmentOnlyTopics.map((topic) => (
-                        <MyPrayerTopicModalItem key={topic.id} topic={topic} draggable={false} />
+                        <div key={topic.id} className="bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
+                          {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment) => (
+                            <a
+                              key={attachment.id}
+                              href={attachment.file_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              download={attachment.file_name || undefined}
+                              className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                            >
+                              <Link2 size={12} />
+                              <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                            </a>
+                          ))}
+                          {getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).length > 0 && (
+                            <PostImageCarousel
+                              urls={getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url)}
+                              onImageClick={(index) => {
+                                const urls = getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url);
+                                setModalImages(urls);
+                                setModalIndex(index);
+                                setShowImageModal(true);
+                              }}
+                            />
+                          )}
+                        </div>
                       ))}
                     </div>
                   )}
