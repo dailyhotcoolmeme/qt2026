@@ -886,7 +886,7 @@ export default function PrayerPage() {
                     className="mt-1 font-semibold text-zinc-400"
                     style={{ fontSize: `${Math.max(11, fontSize * 0.78)}px` }}
                   >
-                    나의 기도 음성을 보관하고 공유할 수 있습니다.
+                    나의 음성기도를 보관하고 공유할 수 있습니다.
                   </p>
                 </div>
                 <div className="flex flex-col items-center gap-3">
@@ -940,7 +940,7 @@ export default function PrayerPage() {
                 </div>
               </div>
 
-              <div className="my-3 h-px w-full bg-zinc-200" />
+              <div className="my-3 h-px w-1/2 mx-auto bg-zinc-200" />
 
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <div className="text-center">
