@@ -1272,12 +1272,12 @@ export default function QTPage() {
               className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`}
               strokeWidth={isMeditationCompleted ? 0 : 2}
             />
-            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-              {isMeditationCompleted ? '묵상완료' : '묵상완료'}
-            </span>
-          </motion.button>
-        </div>
-      </div>
+	            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+	              {isMeditationCompleted ? '묵상완료' : '묵상하기'}
+	            </span>
+	          </motion.button>
+	        </div>
+	      </div>
 
       {/* 묵상 기록 목록 */}
       {meditationRecords.length > 0 && (

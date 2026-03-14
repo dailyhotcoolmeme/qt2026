@@ -806,43 +806,11 @@ export default function PrayerPage() {
 
   const isToday = selectedDateKey === todayDateKey;
 
-  const voicePressedStorageKey = useMemo(() => {
-    const uid = user?.id || "guest";
-    return `prayer:pressed:${uid}:${selectedDateKey}:voice`;
-  }, [selectedDateKey, user?.id]);
+  const voicePrayerCount = selectedDateRecords.filter((record: any) => record?.audio_url && record.audio_url !== "amen").length;
+  const heartPrayerCount = selectedDateRecords.filter((record: any) => !record?.audio_url || record.audio_url === "amen").length;
 
-  const heartPressedStorageKey = useMemo(() => {
-    const uid = user?.id || "guest";
-    return `prayer:pressed:${uid}:${selectedDateKey}:heart`;
-  }, [selectedDateKey, user?.id]);
-
-  const [voicePrayedOnce, setVoicePrayedOnce] = useState(false);
-  const [heartPrayedOnce, setHeartPrayedOnce] = useState(false);
-
-  useEffect(() => {
-    const hasVoiceRecord = selectedDateRecords.some((record: any) => record?.audio_url && record.audio_url !== "amen");
-    const hasHeartRecord = selectedDateRecords.some((record: any) => record?.audio_url === "amen");
-
-    let voiceLocal = false;
-    let heartLocal = false;
-    try {
-      voiceLocal = localStorage.getItem(voicePressedStorageKey) === "1";
-      heartLocal = localStorage.getItem(heartPressedStorageKey) === "1";
-    } catch {
-      // ignore
-    }
-
-    setVoicePrayedOnce(hasVoiceRecord || voiceLocal);
-    setHeartPrayedOnce(hasHeartRecord || heartLocal);
-  }, [selectedDateRecords, voicePressedStorageKey, heartPressedStorageKey]);
-
-  const markPrayerPressed = (key: string) => {
-    try {
-      localStorage.setItem(key, "1");
-    } catch {
-      // ignore
-    }
-  };
+  const isVoicePrayerCompleted = voicePrayerCount > 0;
+  const isHeartPrayerCompleted = heartPrayerCount > 0;
 
   const handleVoicePrayerClick = () => {
     if (!user) {
@@ -850,8 +818,6 @@ export default function PrayerPage() {
       return;
     }
     if (!isToday) return;
-    markPrayerPressed(voicePressedStorageKey);
-    setVoicePrayedOnce(true);
     handleStartPrayerMode();
   };
 
@@ -861,8 +827,6 @@ export default function PrayerPage() {
       return;
     }
     if (!isToday) return;
-    markPrayerPressed(heartPressedStorageKey);
-    setHeartPrayedOnce(true);
     void handleAmenClick();
   };
 
@@ -899,7 +863,7 @@ export default function PrayerPage() {
       </header>
 
       <div className="relative mb-12 flex w-full items-center justify-center overflow-visible py-4">
-        <div className="absolute left-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+        <div className="absolute left-[-75%] z-0 w-[82%] max-w-sm h-[440px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
         <AnimatePresence mode="wait">
           <motion.div
             key={currentDate.toISOString()}
@@ -910,7 +874,7 @@ export default function PrayerPage() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="relative z-10 flex aspect-[4/5] w-[82%] max-w-sm touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-6 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
+            className="relative z-10 flex w-[82%] max-w-sm h-[440px] touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-6 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
           >
             <div className="flex h-full w-full flex-1 flex-col">
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
@@ -928,7 +892,7 @@ export default function PrayerPage() {
                 <div className="flex flex-col items-center gap-3">
                   <div className="relative w-24 h-24 flex items-center justify-center">
                     <AnimatePresence>
-                      {voicePrayedOnce && (
+                      {isVoicePrayerCompleted && (
                         <>
                           <motion.div
                             initial={{ scale: 1, opacity: 0.5 }}
@@ -953,7 +917,7 @@ export default function PrayerPage() {
                       whileTap={{ scale: 0.9 }}
                       disabled={!isToday}
                       className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-                        ${voicePrayedOnce
+                        ${isVoicePrayerCompleted
                           ? 'bg-[#4A6741] text-white border-none'
                           : 'bg-white text-gray-400 border border-green-50'
                         }
@@ -962,10 +926,15 @@ export default function PrayerPage() {
                           : ''
                         }`}
                     >
-                      <Mic className={`w-5 h-5 mb-1 ${voicePrayedOnce ? 'animate-bounce' : ''}`} strokeWidth={2} />
+                      <Mic className={`w-5 h-5 mb-1 ${isVoicePrayerCompleted ? 'animate-bounce' : ''}`} strokeWidth={2} />
                       <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                        기도하기
+                        {isVoicePrayerCompleted ? "기도완료" : "기도하기"}
                       </span>
+                      {isVoicePrayerCompleted && (
+                        <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                          {voicePrayerCount.toLocaleString()}
+                        </span>
+                      )}
                     </motion.button>
                   </div>
                 </div>
@@ -988,7 +957,7 @@ export default function PrayerPage() {
                 <div className="flex flex-col items-center gap-3">
                   <div className="relative w-24 h-24 flex items-center justify-center">
                     <AnimatePresence>
-                      {heartPrayedOnce && (
+                      {isHeartPrayerCompleted && (
                         <>
                           <motion.div
                             initial={{ scale: 1, opacity: 0.5 }}
@@ -1013,7 +982,7 @@ export default function PrayerPage() {
                       whileTap={{ scale: 0.9 }}
                       disabled={!isToday}
                       className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-                        ${heartPrayedOnce
+                        ${isHeartPrayerCompleted
                           ? 'bg-[#4A6741] text-white border-none'
                           : 'bg-white text-gray-400 border border-green-50'
                         }
@@ -1023,12 +992,17 @@ export default function PrayerPage() {
                         }`}
                     >
                       <Heart
-                        className={`w-5 h-5 mb-1 ${heartPrayedOnce ? 'fill-white animate-bounce' : ''}`}
-                        strokeWidth={heartPrayedOnce ? 0 : 2}
+                        className={`w-5 h-5 mb-1 ${isHeartPrayerCompleted ? 'fill-white animate-bounce' : ''}`}
+                        strokeWidth={isHeartPrayerCompleted ? 0 : 2}
                       />
                       <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
-                        기도하기
+                        {isHeartPrayerCompleted ? "기도완료" : "기도하기"}
                       </span>
+                      {isHeartPrayerCompleted && (
+                        <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                          {heartPrayerCount.toLocaleString()}
+                        </span>
+                      )}
                     </motion.button>
                   </div>
                 </div>
@@ -1036,7 +1010,7 @@ export default function PrayerPage() {
             </div>
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+        <div className="absolute right-[-75%] z-0 w-[82%] max-w-sm h-[440px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
