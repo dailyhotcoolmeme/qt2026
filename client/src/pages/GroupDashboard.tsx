@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -845,6 +845,9 @@ export default function GroupDashboard() {
   const [showPrayerComposer, setShowPrayerComposer] = useState(false);
   const [showPrayerTopicModal, setShowPrayerTopicModal] = useState(false);
   const [showPrayerTopicOrderModal, setShowPrayerTopicOrderModal] = useState(false);
+  const [showHeartPrayerHistoryModal, setShowHeartPrayerHistoryModal] = useState(false);
+  const [heartPrayerHistoryTargetUserId, setHeartPrayerHistoryTargetUserId] = useState<string | null>(null);
+  const [heartPrayerHistorySort, setHeartPrayerHistorySort] = useState<"latest" | "oldest" | "name">("latest");
   const [newPrayerTopic, setNewPrayerTopic] = useState("");
   const [newPrayerAttachments, setNewPrayerAttachments] = useState<File[]>([]);
   const [newPrayerAttachmentPreviews, setNewPrayerAttachmentPreviews] = useState<string[]>([]);
@@ -3304,6 +3307,31 @@ export default function GroupDashboard() {
     return map;
   }, [groupPrayers, groupPrayerTopics]);
 
+  const heartPrayerHistoryRecords = useMemo(() => {
+    if (!heartPrayerHistoryTargetUserId) return [];
+    const records = (prayersByTargetUser.get(heartPrayerHistoryTargetUserId) || []).filter((record) => record.audio_url === "amen");
+    const getPrayerUserName = (record: GroupPrayerRecord) => {
+      const profile = authorMap[record.user_id];
+      return (profile?.nickname || profile?.username || "모임원").trim();
+    };
+
+    return [...records].sort((a, b) => {
+      if (heartPrayerHistorySort === "name") {
+        const nameCompare = getPrayerUserName(a).localeCompare(getPrayerUserName(b), "ko");
+        if (nameCompare !== 0) return nameCompare;
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      }
+
+      const diff = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
+      return heartPrayerHistorySort === "oldest" ? diff : -diff;
+    });
+  }, [authorMap, heartPrayerHistorySort, heartPrayerHistoryTargetUserId, prayersByTargetUser]);
+
+  const heartPrayerHistoryAuthor = useMemo(() => {
+    if (!heartPrayerHistoryTargetUserId) return null;
+    return authorMap[heartPrayerHistoryTargetUserId] || null;
+  }, [authorMap, heartPrayerHistoryTargetUserId]);
+
   const todayFaithDateIso = format(new Date(), "yyyy-MM-dd");
   const currentFaithWeekStartMs = startOfWeek(new Date(), { weekStartsOn: 0 }).getTime();
   const selectedFaithWeekStartMs = startOfWeek(faithCurrentDate, { weekStartsOn: 0 }).getTime();
@@ -3567,7 +3595,6 @@ export default function GroupDashboard() {
 
   const PrayerTopicAuthorCard = ({ userId, topics, author }: (typeof topicsByAuthor)[number]) => {
     const relatedPrayers = prayersByTargetUser.get(userId) || [];
-    const heartCount = relatedPrayers.filter((p) => p.audio_url === "amen").length;
     const voicePrayers = relatedPrayers
       .filter((p) => p.audio_url && p.audio_url !== "amen")
       .filter((vp) => vp.user_id === user.id || userId === user.id);
@@ -3646,8 +3673,22 @@ export default function GroupDashboard() {
               onClick={() => handleHeartPrayer(userId)}
               className="flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-xs font-bold transition-all active:scale-95"
             >
-              <Heart size={12} fill="currentColor" className="opacity-80" /> 마음기도 {heartCount > 0 && <span>{heartCount}</span>}
+              <Heart size={12} fill="currentColor" className="opacity-80" /> 마음기도
             </button>
+            {userId === user.id && (
+              <button
+                onClick={() => {
+                  setHeartPrayerHistoryTargetUserId(userId);
+                  setHeartPrayerHistorySort("latest");
+                  setShowHeartPrayerHistoryModal(true);
+                }}
+                className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
+                aria-label="마음기도 기록 보기"
+                type="button"
+              >
+                <MoreHorizontal size={14} />
+              </button>
+            )}
             <button
               onClick={() => startVoicePrayerForUser(userId)}
               className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
@@ -4821,6 +4862,96 @@ export default function GroupDashboard() {
       }
 
       {
+        showHeartPrayerHistoryModal && (
+          <div className="fixed inset-0 z-[226] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => {
+                setShowHeartPrayerHistoryModal(false);
+                setHeartPrayerHistoryTargetUserId(null);
+              }}
+            />
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden mt-auto sm:mt-0"
+            >
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="flex items-center justify-between p-6 pb-4">
+                <div>
+                  <h3 className="font-black text-zinc-900 text-xl">마음기도 기록</h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    {(heartPrayerHistoryAuthor?.nickname || heartPrayerHistoryAuthor?.username || "내")} 기도제목에 마음기도를 남긴 기록입니다.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowHeartPrayerHistoryModal(false);
+                    setHeartPrayerHistoryTargetUserId(null);
+                  }}
+                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="px-6 pb-6 overflow-y-auto">
+                <div className="mb-4 flex items-center gap-2">
+                  {[
+                    { value: "latest", label: "최신순" },
+                    { value: "oldest", label: "과거순" },
+                    { value: "name", label: "이름순" },
+                  ].map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => setHeartPrayerHistorySort(option.value as "latest" | "oldest" | "name")}
+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+                        heartPrayerHistorySort === option.value
+                          ? "bg-[#4A6741] text-white"
+                          : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                      }`}
+                      type="button"
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+
+                {heartPrayerHistoryRecords.length === 0 ? (
+                  <div className="rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-8 text-center text-sm text-zinc-400">
+                    아직 남겨진 마음기도 기록이 없습니다.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {heartPrayerHistoryRecords.map((record) => {
+                      const prayingUser = authorMap[record.user_id];
+                      const name = prayingUser?.nickname || prayingUser?.username || "모임원";
+
+                      return (
+                        <div key={record.id} className="rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-bold text-zinc-800">{name}</div>
+                              <div className="mt-1 text-xs text-zinc-400">{formatDateTime(record.created_at)}</div>
+                            </div>
+                            <div className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-500 shrink-0">
+                              <Heart size={10} fill="currentColor" />
+                              마음기도
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )
+      }
+
+      {
         showPrayerTopicOrderModal && (
           <div className="fixed inset-0 z-[225] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicOrderModal(false)} />
@@ -5116,7 +5247,7 @@ export default function GroupDashboard() {
                     value={newPrayerTopic}
                     onChange={(e) => setNewPrayerTopic(e.target.value)}
                     className="w-full min-h-[100px] px-4 py-3 rounded-xl bg-white border border-zinc-200 text-sm focus:ring-2 focus:ring-[#4A6741]/20 outline-none transition-all resize-none shadow-inner"
-                    placeholder="기도제목 1개를 입력하세요. 줄바꿈은 그대로 보존됩니다."
+                    placeholder="기도제목을 하나씩 추가해주세요. 줄바꿈 하시면 그대로 줄바꿈으로 표시됩니다."
                   />
                   <div className="space-y-2">
                     <label className="inline-flex cursor-pointer items-center rounded-xl bg-zinc-100 px-3 py-2 text-sm font-bold text-zinc-700 hover:bg-zinc-200">
