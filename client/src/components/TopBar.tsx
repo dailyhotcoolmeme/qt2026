@@ -617,18 +617,31 @@ export function TopBar() {
       </div>
 
       {showNotificationPanel && <div className="fixed inset-0 z-[161]" onClick={() => setShowNotificationPanel(false)} />}
-      {showNotificationPanel && (
-        <div
-          className="fixed right-4 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
-          style={{ top: "calc(64px + var(--safe-top-inset))" }}
-        >
-          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
-            <h4 className="text-sm font-bold text-zinc-900">알림</h4>
-            <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
-              <CheckCheck size={13} />
-              모두 읽음
-            </button>
-          </div>
+	      {showNotificationPanel && (
+	        <div
+	          className="fixed right-4 z-[162] w-[330px] max-h-[65vh] overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+	          style={{ top: "calc(64px + var(--safe-top-inset))" }}
+	        >
+	          <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2.5">
+	            <div className="flex items-center gap-2">
+	              <h4 className="text-sm font-bold text-zinc-900">알림</h4>
+	              <button
+	                type="button"
+	                onClick={() => {
+	                  setShowNotificationSettings(true);
+	                  setShowNotificationPanel(false);
+	                }}
+	                className="inline-flex items-center justify-center rounded-lg bg-zinc-50 px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+	                aria-label="알림 설정"
+	              >
+	                <Settings size={13} />
+	              </button>
+	            </div>
+	            <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
+	              <CheckCheck size={13} />
+	              모두 읽음
+	            </button>
+	          </div>
           <div className="max-h-[56vh] overflow-y-auto">
             {notifications.length === 0 ? (
               <div className="px-4 py-6 text-sm text-zinc-500 text-center">새 알림이 없습니다.</div>
@@ -736,29 +749,43 @@ export function TopBar() {
 
       <div className={`fixed left-0 top-0 z-[210] h-full w-[280px] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="flex h-full flex-col overflow-y-auto p-6">
-          <div className="mb-8 pt-2">
-            <div className="mb-4 flex items-start justify-between">
-              {user?.avatar_url ? (
-                <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
-              ) : (
+	          <div className="mb-8 pt-2">
+	            <div className="mb-4 flex items-start justify-between">
+	              {user?.avatar_url ? (
+	                <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
+	              ) : (
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
                   <User className="h-8 w-8 text-zinc-400" />
                 </div>
               )}
               <button onClick={() => setIsMenuOpen(false)} className="rounded-full p-1 transition-colors hover:bg-zinc-50">
                 <X className="h-6 w-6 text-zinc-300" />
-              </button>
-            </div>
-
-            <div className="space-y-0.5">
-              <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
-                {user?.nickname || "비로그인 상태"}
-              </p>
-              {user?.username && (
-                <p className="text-zinc-500" style={{ fontSize: `${Math.max(10, fontSize - 3)}px` }}>
-                  아이디 : {user.username}
-                </p>
-              )}
+	              </button>
+	            </div>
+	
+	            <div className="space-y-0.5">
+	              <div className="flex items-center gap-2">
+	                <p className="font-bold text-zinc-900" style={{ fontSize: `${fontSize}px` }}>
+	                  {user?.nickname || "비로그인 상태"}
+	                </p>
+	                {isAuthenticated && (
+	                  <button
+	                    type="button"
+	                    onClick={() => {
+	                      setIsProfileModalOpen(true);
+	                      setIsMenuOpen(false);
+	                    }}
+	                    className="shrink-0 rounded-lg border border-zinc-200/60 bg-zinc-50 px-2 py-1 text-[11px] font-bold text-zinc-600 hover:bg-zinc-100"
+	                  >
+	                    프로필 수정
+	                  </button>
+	                )}
+	              </div>
+	              {user?.username && (
+	                <p className="text-zinc-500" style={{ fontSize: `${Math.max(10, fontSize - 3)}px` }}>
+	                  아이디 : {user.username}
+	                </p>
+	              )}
               {user?.church && (
                 <p className="text-zinc-500" style={{ fontSize: `${fontSize - 2}px` }}>
                   {user.church}
@@ -774,37 +801,18 @@ export function TopBar() {
 
           </div>
 
-          <nav className="flex flex-col gap-1">
-            <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
-              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
-            </Link>
-            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
-              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
-            </Link>
-            <SidebarItem
-              icon={<Settings className="h-5 w-5" />}
-              label="알림 설정"
-              onClick={() => {
-                setShowNotificationSettings(true);
-                setIsMenuOpen(false);
-              }}
-            />
-
-            {isAuthenticated && (
-              <SidebarItem
-                icon={<User className="h-5 w-5" />}
-                label="프로필 수정"
-                onClick={() => {
-                  setIsProfileModalOpen(true);
-                  setIsMenuOpen(false);
-                }}
-              />
-            )}
-
-            {!isAuthenticated && (
-              <div className="mt-2 flex flex-col gap-2">
-                <button onClick={handleLoginClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
-                  <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
+	          <nav className="flex flex-col gap-1">
+	            <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
+	              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
+	            </Link>
+	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
+	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
+	            </Link>
+	
+	            {!isAuthenticated && (
+	              <div className="mt-2 flex flex-col gap-2">
+	                <button onClick={handleLoginClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
+	                  <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">
                     <User className="h-5 w-5" />
                   </div>
                   <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">로그인</span>
