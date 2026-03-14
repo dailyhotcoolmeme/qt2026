@@ -863,7 +863,7 @@ export default function PrayerPage() {
       </header>
 
       <div className="relative mb-12 flex w-full items-center justify-center overflow-visible py-4">
-        <div className="absolute left-[-75%] z-0 w-[82%] max-w-sm h-[440px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+        <div className="absolute left-[-75%] z-0 w-[82%] max-w-sm h-[450px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
         <AnimatePresence mode="wait">
           <motion.div
             key={currentDate.toISOString()}
@@ -874,7 +874,7 @@ export default function PrayerPage() {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="relative z-10 flex w-[82%] max-w-sm h-[440px] touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-6 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
+            className="relative z-10 flex w-[82%] max-w-sm h-[450px] touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-5 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
           >
             <div className="flex h-full w-full flex-1 flex-col">
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
@@ -940,7 +940,7 @@ export default function PrayerPage() {
                 </div>
               </div>
 
-              <div className="h-px w-full bg-zinc-100" />
+              <div className="my-3 h-px w-full bg-zinc-200" />
 
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <div className="text-center">
@@ -1010,7 +1010,7 @@ export default function PrayerPage() {
             </div>
           </motion.div>
         </AnimatePresence>
-        <div className="absolute right-[-75%] z-0 w-[82%] max-w-sm h-[440px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
+        <div className="absolute right-[-75%] z-0 w-[82%] max-w-sm h-[450px] scale-90 rounded-[32px] bg-white blur-[0.5px]" />
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
@@ -1202,42 +1202,23 @@ export default function PrayerPage() {
 	                                    >
 	                                      {record.title || '음성 기도'}
 	                                    </h4>
-	                                    <div className="flex shrink-0 items-center gap-1.5 min-w-0 max-w-[55%] flex-nowrap">
-	                                      {record.hashtags && record.hashtags.length > 0 && (
-	                                        <div className="flex min-w-0 items-center justify-end gap-1 overflow-hidden">
-	                                          {record.hashtags.map((tag: string, idx: number) => (
-	                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
-	                                              #{tag}
-	                                            </span>
-	                                          ))}
-	                                        </div>
-	                                      )}
-                                      <button
-                                        onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                                        className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
-                                        title="삭제"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
-                                  </div>
-	                                  <div className="mt-0.5 flex items-center justify-between text-xs text-zinc-400">
-	                                    <span>{formattedDate}</span>
-	                                    <div className="flex items-center gap-1">
-	                                      <button
-                                        onClick={() => handleShareRecordAudio(record)}
-                                        className="h-7 px-2.5 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
-                                        title="공유"
-                                      >
-                                        <Share2 size={12} />
-                                        공유
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3 mt-2">
-                                    <button
-                                      onClick={() => playRecording(record.audio_url, record.id)}
-                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+		                                    <div className="flex shrink-0 items-center gap-1.5 min-w-0 max-w-[60%] flex-nowrap">
+		                                      {record.hashtags && record.hashtags.length > 0 && (
+		                                        <div className="flex min-w-0 items-center justify-end gap-1 overflow-hidden">
+		                                          {record.hashtags.map((tag: string, idx: number) => (
+		                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
+		                                              #{tag}
+		                                            </span>
+		                                          ))}
+		                                        </div>
+		                                      )}
+		                                    </div>
+		                                  </div>
+		                                  <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
+		                                  <div className="flex items-center gap-3 mt-2">
+		                                    <button
+		                                      onClick={() => playRecording(record.audio_url, record.id)}
+		                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
                                     >
                                       {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
                                         <Pause size={16} fill="white" />
@@ -1246,25 +1227,42 @@ export default function PrayerPage() {
                                       )}
                                     </button>
                                     <div className="flex-1 flex flex-col gap-1.5">
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max={safeDuration}
-                                        value={recordCurrentTime[record.id] || 0}
-                                        onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
-                                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                                        style={{
-                                          background: safeDuration > 0
-                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
-                                            : '#c8dfc4',
-                                        }}
-                                      />
-                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
-                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
-                                      </div>
-                                    </div>
-                                  </div>
+		                                      <input
+		                                        type="range"
+		                                        min="0"
+		                                        max={safeDuration}
+		                                        value={recordCurrentTime[record.id] || 0}
+		                                        onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
+		                                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+		                                        style={{
+		                                          background: safeDuration > 0
+		                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
+		                                            : '#c8dfc4',
+		                                        }}
+		                                      />
+		                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
+		                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
+		                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
+		                                      </div>
+		                                      <div className="mt-2 flex items-center justify-end gap-2">
+		                                        <button
+		                                          onClick={() => handleShareRecordAudio(record)}
+		                                          className="h-8 px-3 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors inline-flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold shrink-0"
+		                                          title="공유"
+		                                        >
+		                                          <Share2 size={12} />
+		                                          공유
+		                                        </button>
+		                                        <button
+		                                          onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+		                                          className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
+		                                          title="삭제"
+		                                        >
+		                                          <Trash2 size={16} />
+		                                        </button>
+		                                      </div>
+		                                    </div>
+		                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -1474,7 +1472,7 @@ export default function PrayerPage() {
                     className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
                   >
                     <Share2 size={16} />
-                    전달
+                    공유
                   </button>
 
                   <button
