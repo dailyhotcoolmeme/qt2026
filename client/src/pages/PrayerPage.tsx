@@ -855,7 +855,7 @@ export default function PrayerPage() {
             <div className="flex h-full w-full flex-1 flex-col">
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <div className="text-center">
-                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
                     음성기도
                   </p>
                   <p
@@ -867,10 +867,10 @@ export default function PrayerPage() {
                 </div>
                 <button
                   onClick={handleStartPrayerMode}
-                  className="flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Mic size={22} strokeWidth={2} />
+                  <Mic size={24} strokeWidth={2} />
                   <span className="leading-none">기도하기</span>
                 </button>
               </div>
@@ -879,7 +879,7 @@ export default function PrayerPage() {
 
               <div className="flex flex-1 flex-col items-center justify-center gap-4">
                 <div className="text-center">
-                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
                     마음기도
                   </p>
                   <p
@@ -891,10 +891,10 @@ export default function PrayerPage() {
                 </div>
                 <button
                   onClick={handleAmenClick}
-                  className="flex h-[84px] w-[84px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
                   style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
-                  <Heart size={22} strokeWidth={2} />
+                  <Heart size={24} strokeWidth={2} />
                   <span className="leading-none">기도하기</span>
                 </button>
               </div>
@@ -1082,7 +1082,9 @@ export default function PrayerPage() {
                           ) : (
                             <div className="bg-white p-4">
                               <div className="flex items-start gap-3">
-                                <Headphones size={22} className="text-[#4A6741]/90 shrink-0 mt-3" strokeWidth={1.5} />
+                                <div className="shrink-0 self-center">
+                                  <Headphones size={22} className="text-[#4A6741]/90" strokeWidth={1.5} />
+                                </div>
                                 <div className="flex-1 min-w-0 flex flex-col">
                                   <div className="flex items-start justify-between gap-2">
                                     <h4 className="font-bold text-[#4A6741]/90 break-words flex-1 min-w-0" style={{ fontSize: `${fontSize * 0.90}px` }}>
