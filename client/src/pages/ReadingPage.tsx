@@ -42,6 +42,36 @@ function toLocalDateKey(value?: string | null) {
   return formatLocalDate(parsed);
 }
 
+function clearTodayReadingCache() {
+  localStorage.removeItem('reading_pages');
+  localStorage.removeItem('reading_date');
+  localStorage.removeItem('reading_page_idx');
+}
+
+function readTodayReadingCache(todayKey: string) {
+  const savedPages = localStorage.getItem('reading_pages');
+  const savedDate = localStorage.getItem('reading_date');
+  const savedIdx = localStorage.getItem('reading_page_idx');
+
+  if (!savedPages || savedDate !== todayKey) {
+    if (savedDate && savedDate !== todayKey) {
+      clearTodayReadingCache();
+    }
+    return null;
+  }
+
+  try {
+    const pages = JSON.parse(savedPages);
+    const idx = Number(savedIdx) || 0;
+    if (!Array.isArray(pages) || pages.length === 0) return null;
+    return { pages, idx };
+  } catch (error) {
+    console.error('today reading cache restore failed:', error);
+    clearTodayReadingCache();
+    return null;
+  }
+}
+
 export default function ReadingPage() {
   const [location] = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -317,83 +347,15 @@ export default function ReadingPage() {
     const today = new Date();
     const isToday = date.toDateString() === today.toDateString();
     const forceTodayRestore = Boolean(options?.forceTodayRestore);
-
-    console.log('loadDailyVerse 호출:', formatLocalDate(date), 'isToday:', isToday);
-
-
-    if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
-      const savedPages = localStorage.getItem('reading_pages');
-      const savedDate = localStorage.getItem('reading_date');
-      const savedIdx = localStorage.getItem('reading_page_idx');
-
-
-      const todayStr = today.toISOString().split('T')[0];
-      if (savedPages && savedDate === todayStr) {
-        try {
-          const pages = JSON.parse(savedPages);
-          const idx = Number(savedIdx) || 0;
-
-          console.log('localStorage 복원:', pages.length, '페이지');
-
-          setRangePages(pages);
-          setCurrentPageIdx(idx);
-          if (pages[idx]) {
-            setBibleData(pages[idx]);
-          }
-          return;
-        } catch (e) {
-          console.error('복원 실패:', e);
-        }
-      } else if (savedDate && savedDate !== todayStr) {
-
-        console.log('localStorage 날짜 불일치, 삭제');
-        localStorage.removeItem('reading_pages');
-        localStorage.removeItem('reading_date');
-        localStorage.removeItem('reading_page_idx');
-        if (forceTodayRestore) {
-          setRangePages([]);
-          setCurrentPageIdx(0);
-          setBibleData(null);
-        }
-      } else if (forceTodayRestore) {
-        setRangePages([]);
-        setCurrentPageIdx(0);
-        setBibleData(null);
-      }
-    }
-
-
-    if (isToday) {
-      console.log('오늘 날짜, rangePages 유지');
-
-      setIsLoadingVerse(false);
-      if (rangePages.length === 0) {
-        setNoReadingForDate(false);
-      }
-      return;
-    }
-
-
-    console.log('과거 날짜, 서버에서 로드');
-    setIsLoadingVerse(true);
-    setNoReadingForDate(false);
-
+    const todayStr = formatLocalDate(today);
     const dateStr = formatLocalDate(date);
 
-
-    const { data: records, error } = await supabase
-      .from('user_reading_records')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', dateStr)
-      .order('updated_at', { ascending: true });
-
-    if (records && records.length > 0) {
+    const buildPagesFromRecords = async (records: any[]) => {
+      if (!records || records.length === 0) return [];
 
       const pages = [];
-
-
       const bookOrders: Record<string, number> = {};
+
       for (const record of records) {
         if (!bookOrders[record.book_name]) {
           const { data: bookInfo } = await supabase
@@ -408,7 +370,6 @@ export default function ReadingPage() {
         }
       }
 
-
       const sortedRecords = [...records].sort((a, b) => {
         const orderA = bookOrders[a.book_name] || 0;
         const orderB = bookOrders[b.book_name] || 0;
@@ -417,13 +378,11 @@ export default function ReadingPage() {
       });
 
       for (const record of sortedRecords) {
-        // bible_books 정보 별도 조회
         const { data: bookInfo } = await supabase
           .from('bible_books')
           .select('*')
           .eq('book_name', record.book_name)
           .single();
-
 
         const { data: verses } = await supabase
           .from('bible_verses')
@@ -453,6 +412,77 @@ export default function ReadingPage() {
           });
         }
       }
+
+      return pages;
+    };
+
+    console.log('loadDailyVerse 호출:', formatLocalDate(date), 'isToday:', isToday);
+
+
+    if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
+      const cachedToday = readTodayReadingCache(todayStr);
+      if (cachedToday) {
+        console.log('localStorage 복원:', cachedToday.pages.length, '페이지');
+        setRangePages(cachedToday.pages);
+        setCurrentPageIdx(cachedToday.idx);
+        setBibleData(cachedToday.pages[cachedToday.idx] || cachedToday.pages[0] || null);
+        return;
+      }
+
+      const { data: todayRecords, error: todayError } = await supabase
+        .from('user_reading_records')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', todayStr)
+        .order('updated_at', { ascending: true });
+
+      if (todayError) {
+        if (!String((todayError as any)?.message || '').includes('AbortError')) {
+          console.error('오늘 말씀 복원 실패:', todayError);
+        }
+      } else if (todayRecords && todayRecords.length > 0) {
+        const pages = await buildPagesFromRecords(todayRecords);
+        if (pages.length > 0) {
+          setRangePages(pages);
+          setCurrentPageIdx(0);
+          setBibleData(pages[0]);
+          setNoReadingForDate(false);
+          return;
+        }
+      }
+
+      if (forceTodayRestore) {
+        setRangePages([]);
+        setCurrentPageIdx(0);
+        setBibleData(null);
+      }
+    }
+
+
+    if (isToday) {
+      console.log('오늘 날짜, rangePages 유지');
+
+      setIsLoadingVerse(false);
+      if (rangePages.length === 0) {
+        setNoReadingForDate(false);
+      }
+      return;
+    }
+
+
+    console.log('과거 날짜, 서버에서 로드');
+    setIsLoadingVerse(true);
+    setNoReadingForDate(false);
+
+    const { data: records, error } = await supabase
+      .from('user_reading_records')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', dateStr)
+      .order('updated_at', { ascending: true });
+
+    if (records && records.length > 0) {
+      const pages = await buildPagesFromRecords(records);
 
       if (pages.length > 0) {
         setRangePages(pages);
@@ -518,9 +548,6 @@ export default function ReadingPage() {
   // localStorage에서 상태 복원
   useEffect(() => {
     const savedSelection = localStorage.getItem('reading_selection');
-    const savedPages = localStorage.getItem('reading_pages');
-    const savedIdx = localStorage.getItem('reading_page_idx');
-    const savedDate = localStorage.getItem('reading_date');
     const todayStr = formatLocalDate(new Date());
 
     if (savedSelection) {
@@ -533,23 +560,11 @@ export default function ReadingPage() {
     }
 
     // 복원 완료 표시
-    if (savedPages && savedDate === todayStr) {
-      try {
-        const pages = JSON.parse(savedPages);
-        const idx = Number(savedIdx) || 0;
-
-        setRangePages(pages);
-        setCurrentPageIdx(idx);
-        if (pages[idx]) {
-          setBibleData(pages[idx]);
-        }
-      } catch (e) {
-        console.error('state restore failed:', e);
-      }
-    } else if (savedPages && savedDate !== todayStr) {
-      localStorage.removeItem('reading_pages');
-      localStorage.removeItem('reading_date');
-      localStorage.removeItem('reading_page_idx');
+    const cachedToday = readTodayReadingCache(todayStr);
+    if (cachedToday) {
+      setRangePages(cachedToday.pages);
+      setCurrentPageIdx(cachedToday.idx);
+      setBibleData(cachedToday.pages[cachedToday.idx] || cachedToday.pages[0] || null);
     }
 
     setIsInitialized(true);

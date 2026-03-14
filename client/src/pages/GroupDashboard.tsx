@@ -5193,23 +5193,33 @@ export default function GroupDashboard() {
                                                   ))}
                                                   {imageAttachments.length > 0 && (
                                                     <div className="mt-2">
-                                                      <PostImageCarousel
-                                                        urls={imageAttachments.map((attachment) => attachment.file_url)}
-                                                        onImageClick={(index) => {
-                                                          setModalImages(imageAttachments.map((attachment) => attachment.file_url));
-                                                          setModalIndex(index);
-                                                          setShowImageModal(true);
-                                                        }}
-                                                      />
-                                                      <div className="flex flex-wrap gap-2 mt-2">
-                                                        {imageAttachments.map((attachment) => (
-                                                          <button
-                                                            key={attachment.id}
-                                                            onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
-                                                            className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
-                                                          >
-                                                            {attachment.file_name || "이미지"} 삭제
-                                                          </button>
+                                                      <div className="grid grid-cols-2 gap-2">
+                                                        {imageAttachments.map((attachment, index) => (
+                                                          <div key={attachment.id} className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+                                                            <button
+                                                              onClick={() => {
+                                                                setModalImages(imageAttachments.map((item) => item.file_url));
+                                                                setModalIndex(index);
+                                                                setShowImageModal(true);
+                                                              }}
+                                                              className="block w-full"
+                                                              type="button"
+                                                            >
+                                                              <img
+                                                                src={attachment.file_url}
+                                                                alt={attachment.file_name || "이미지"}
+                                                                className="h-32 w-full object-cover"
+                                                              />
+                                                            </button>
+                                                            <button
+                                                              onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                                              className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm"
+                                                              aria-label={`${attachment.file_name || "이미지"} 삭제`}
+                                                              type="button"
+                                                            >
+                                                              <X size={14} />
+                                                            </button>
+                                                          </div>
                                                         ))}
                                                       </div>
                                                     </div>
@@ -5361,23 +5371,33 @@ export default function GroupDashboard() {
                                     ))}
                                     {imageAttachments.length > 0 && (
                                       <div className="mt-2">
-                                        <PostImageCarousel
-                                          urls={imageAttachments.map((attachment) => attachment.file_url)}
-                                          onImageClick={(index) => {
-                                            setModalImages(imageAttachments.map((attachment) => attachment.file_url));
-                                            setModalIndex(index);
-                                            setShowImageModal(true);
-                                          }}
-                                        />
-                                        <div className="flex flex-wrap gap-2 mt-2">
-                                          {imageAttachments.map((attachment) => (
-                                            <button
-                                              key={attachment.id}
-                                              onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
-                                              className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
-                                            >
-                                              {attachment.file_name || "이미지"} 삭제
-                                            </button>
+                                        <div className="grid grid-cols-2 gap-2">
+                                          {imageAttachments.map((attachment, index) => (
+                                            <div key={attachment.id} className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white">
+                                              <button
+                                                onClick={() => {
+                                                  setModalImages(imageAttachments.map((item) => item.file_url));
+                                                  setModalIndex(index);
+                                                  setShowImageModal(true);
+                                                }}
+                                                className="block w-full"
+                                                type="button"
+                                              >
+                                                <img
+                                                  src={attachment.file_url}
+                                                  alt={attachment.file_name || "이미지"}
+                                                  className="h-32 w-full object-cover"
+                                                />
+                                              </button>
+                                              <button
+                                                onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                                className="absolute right-2 top-2 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm"
+                                                aria-label={`${attachment.file_name || "이미지"} 삭제`}
+                                                type="button"
+                                              >
+                                                <X size={14} />
+                                              </button>
+                                            </div>
                                           ))}
                                         </div>
                                       </div>
