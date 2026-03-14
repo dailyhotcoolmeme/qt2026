@@ -543,10 +543,10 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       // 커다란 사용 추적 (fire-and-forget)
       void trackBgUsage();
 
-      alert("기록함에 보관되었습니다.");
+      alert("보관함에 저장되었습니다.");
     } catch (error) {
       console.error("save card failed:", error);
-      alert("기록함 보관에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+      alert("보관함 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
     }
   };
 
@@ -845,21 +845,21 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <button onClick={() => exportImage(false)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Download size={15} />
-                    저장
+                    핸드폰 저장
                   </button>
                   <button onClick={() => exportImage(true)} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Share2 size={15} />
-                    카톡 공유
+                    공유
                   </button>
                   <button onClick={saveToRecords} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
                     <Save size={15} />
-                    기록함
+                    보관함
                   </button>
                 </div>
 
                 <div className="rounded-none border border-zinc-200 bg-zinc-50/60 p-3">
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="text-sm font-bold text-zinc-800">기록함</p>
+                    <p className="text-sm font-bold text-zinc-800">보관함</p>
                     <p className="text-xs text-zinc-500">{savedCards.length}개</p>
                   </div>
 
@@ -933,7 +933,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       className="flex items-center justify-center gap-1.5 rounded-none bg-white px-3 py-2 text-sm font-bold text-[#4A6741]"
                     >
                       <Share2 size={15} />
-                      <span>카톡 공유</span>
+                      <span>공유</span>
                     </button>
                   </div>
                 </div>

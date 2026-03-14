@@ -776,10 +776,10 @@ export function TopBar() {
 
           <nav className="flex flex-col gap-1">
             <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
-              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드" />
+              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
             </Link>
             <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
-              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기" />
+              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
             </Link>
             <SidebarItem
               icon={<Settings className="h-5 w-5" />}

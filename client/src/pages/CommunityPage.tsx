@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Plus, Search, Shield, Loader2, Users, X } from "lucide-react";
+import { ChevronRight, Plus, Search, Loader2, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { LoginModal } from "../components/LoginModal";
 
@@ -97,7 +97,6 @@ export default function CommunityPage() {
   const [isInitialLoading, setIsInitialLoading] = useState(true); // 최초 로딩 상태
   const [saving, setSaving] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [hasLeadershipScope, setHasLeadershipScope] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
 
@@ -162,18 +161,20 @@ export default function CommunityPage() {
 
   const initialize = async (userId: string) => {
     setLoading(true);
-    await Promise.all([loadJoinedGroups(userId), loadLeadershipScope(userId), loadPendingRequests(userId)]);
+    await Promise.all([loadJoinedGroups(userId), loadPendingRequests(userId)]);
     setLoading(false);
   };
 
-  const loadLeadershipScope = async (userId: string) => {
-    const { data, error } = await supabase.from("group_scope_leaders").select("id").eq("user_id", userId).limit(1);
-    if (error) {
-      setHasLeadershipScope(false);
-      return;
-    }
-    setHasLeadershipScope((data?.length ?? 0) > 0);
-  };
+  // NOTE: "상위 리더 대쉬보드" 진입 버튼 및 관련 권한 체크는 현재 비활성화 상태입니다.
+  // const [hasLeadershipScope, setHasLeadershipScope] = useState(false);
+  // const loadLeadershipScope = async (userId: string) => {
+  //   const { data, error } = await supabase.from("group_scope_leaders").select("id").eq("user_id", userId).limit(1);
+  //   if (error) {
+  //     setHasLeadershipScope(false);
+  //     return;
+  //   }
+  //   setHasLeadershipScope((data?.length ?? 0) > 0);
+  // };
 
   const loadMemberCountsForGroups = async (groupsInput: Array<Pick<GroupRow, "id" | "owner_id">>) => {
     if (groupsInput.length === 0) return;
@@ -610,8 +611,10 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
+      <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
       <div className="max-w-2xl mx-auto space-y-4 flex-1 flex flex-col w-full">
+        {/*
+        상위 리더 대쉬보드 버튼 및 LeadershipPage(/leadership) 연결 비활성화
         {hasLeadershipScope && (
           <div className="flex justify-end">
             <button
@@ -622,6 +625,7 @@ export default function CommunityPage() {
             </button>
           </div>
         )}
+        */}
 
         {/* 최초 로딩 중에는 아무것도 렌더링하지 않음 */}
         {isInitialLoading ? null :
