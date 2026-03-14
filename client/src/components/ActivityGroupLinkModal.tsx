@@ -51,13 +51,47 @@ export function ActivityGroupLinkModal({
 
         const { data: logsData } = await supabase
             .from("activity_logs")
-            .select("id, payload, occurred_at")
+            .select("id, source_row_id, payload, occurred_at")
             .eq("user_id", user.id)
             .eq("source_kind", "personal")
             .eq("activity_type", activityType)
             .gte("occurred_at", todayStart.toISOString())
             .lt("occurred_at", tomorrowStart.toISOString())
             .order("occurred_at", { ascending: false });
+
+        let activeSourceRowIds = new Set<string>();
+
+        if (activityType === "qt") {
+            const { data: currentQtRows } = await supabase
+                .from("user_meditation_records")
+                .select("id")
+                .eq("user_id", user.id)
+                .eq("date", format(activityDate, "yyyy-MM-dd"))
+                .eq("meditation_type", "daily_qt");
+
+            activeSourceRowIds = new Set((currentQtRows || []).map((row: any) => String(row.id)));
+        } else if (activityType === "prayer") {
+            const { data: currentPrayerRows } = await supabase
+                .from("prayer_records")
+                .select("id")
+                .eq("user_id", user.id)
+                .eq("date", format(activityDate, "yyyy-MM-dd"));
+
+            activeSourceRowIds = new Set((currentPrayerRows || []).map((row: any) => String(row.id)));
+        } else {
+            const { data: currentReadingRows } = await supabase
+                .from("user_reading_records")
+                .select("id")
+                .eq("user_id", user.id)
+                .eq("date", format(activityDate, "yyyy-MM-dd"));
+
+            activeSourceRowIds = new Set((currentReadingRows || []).map((row: any) => String(row.id)));
+        }
+
+        const filteredActivities = (logsData || []).filter((activity: any) => {
+            if (!activity?.source_row_id) return false;
+            return activeSourceRowIds.has(String(activity.source_row_id));
+        });
 
         // 2. Fetch user's groups and their faith items
         const { data: userGroups } = await supabase
@@ -98,7 +132,7 @@ export function ActivityGroupLinkModal({
             });
         }
 
-        setActivities(logsData || []);
+        setActivities(filteredActivities);
         setGroups(validGroups);
         // 팝업 오픈 시 기본값: 전체 모임 선택 상태
         setSelectedGroups(validGroups.map((g) => g.id));
