@@ -813,7 +813,7 @@ export default function PrayerPage() {
   });
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-hidden px-2 pt-[var(--app-page-top)] pb-4">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-x-hidden px-2 pt-[var(--app-page-top)] pb-4">
       <header className="relative mb-3 flex w-full flex-col items-center px-4 text-center">
         <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -1112,50 +1112,48 @@ export default function PrayerPage() {
                                       </button>
                                     </div>
                                   </div>
-	                                  <div className="mt-0.5 flex items-center justify-between text-xs text-zinc-400">
-	                                    <span>{formattedDate}</span>
-	                                    <div className="flex items-center gap-1">
-	                                      <button
-                                        onClick={() => handleShareRecordAudio(record)}
-                                        className="h-7 px-2.5 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
-                                        title="공유"
-                                      >
-                                        <Share2 size={12} />
-                                        공유
-                                      </button>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-3 mt-2">
-                                    <button
-                                      onClick={() => playRecording(record.audio_url, record.id)}
-                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
-                                    >
+	                                  <p className="mt-0.5 text-xs text-zinc-400">{formattedDate}</p>
+	                                  <div className="flex items-center gap-3 mt-2">
+	                                    <button
+	                                      onClick={() => playRecording(record.audio_url, record.id)}
+	                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+	                                    >
                                       {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
                                         <Pause size={16} fill="white" />
                                       ) : (
                                         <Play size={16} fill="white" />
                                       )}
                                     </button>
-                                    <div className="flex-1 flex flex-col gap-1.5">
-                                      <input
-                                        type="range"
-                                        min="0"
-                                        max={safeDuration}
-                                        value={recordCurrentTime[record.id] || 0}
-                                        onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
-                                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-                                        style={{
-                                          background: safeDuration > 0
-                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
-                                            : '#c8dfc4',
-                                        }}
-                                      />
-                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
-                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
-                                      </div>
-                                    </div>
-                                  </div>
+	                                    <div className="flex-1 flex flex-col gap-1.5">
+	                                      <div className="flex items-center gap-2">
+	                                        <input
+	                                          type="range"
+	                                          min="0"
+	                                          max={safeDuration}
+	                                          value={recordCurrentTime[record.id] || 0}
+	                                          onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
+	                                          className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
+	                                          style={{
+	                                            background: safeDuration > 0
+	                                              ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
+	                                              : '#c8dfc4',
+	                                          }}
+	                                        />
+	                                        <button
+	                                          onClick={() => handleShareRecordAudio(record)}
+	                                          className="h-8 px-3 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors inline-flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold shrink-0"
+	                                          title="공유"
+	                                        >
+	                                          <Share2 size={12} />
+	                                          공유
+	                                        </button>
+	                                      </div>
+	                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
+	                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
+	                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
+	                                      </div>
+	                                    </div>
+	                                  </div>
                                 </div>
                               </div>
                             </div>
