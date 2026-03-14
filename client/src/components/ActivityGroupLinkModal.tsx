@@ -100,6 +100,8 @@ export function ActivityGroupLinkModal({
 
         setActivities(logsData || []);
         setGroups(validGroups);
+        // 팝업 오픈 시 기본값: 전체 모임 선택 상태
+        setSelectedGroups(validGroups.map((g) => g.id));
         setLoading(false);
     };
 

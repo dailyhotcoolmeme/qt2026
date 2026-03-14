@@ -123,6 +123,7 @@ export default function ReadingPage() {
   const [audioControlY, setAudioControlY] = useState(0); // 재생 팝업 Y 위치
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
+  const [cardTransition, setCardTransition] = useState<"page" | "date">("page");
   const [currentVerseIndex, setCurrentVerseIndex] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const verseRefs = useRef<(HTMLParagraphElement | null)[]>([]);
@@ -2083,6 +2084,7 @@ export default function ReadingPage() {
 
   const onDragEnd = (event: any, info: any) => {
     if (info.offset.x > 100) { // 이전 날짜
+      setCardTransition("date");
       const d = new Date(currentDate);
       d.setDate(d.getDate() - 1);
 
@@ -2091,6 +2093,7 @@ export default function ReadingPage() {
       setNoReadingForDate(false);
       setCurrentDate(d);
     } else if (info.offset.x < -100) { // 다음 날짜
+      setCardTransition("date");
       const d = new Date(currentDate);
       d.setDate(d.getDate() + 1);
       if (d <= today) {
@@ -2151,19 +2154,34 @@ export default function ReadingPage() {
 
       <div className="relative w-full flex-1 flex items-center justify-center py-4 overflow-visible">
         <div className="absolute left-[-75%] w-[82%] max-w-sm h-[460px] bg-white rounded-[32px] scale-90 blur-[0.5px] z-0" />
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={bibleData?.id || bibleData?.chapter || currentDate.toISOString()}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.2}
-            onDragEnd={onDragEnd}
-            initial={{ opacity: 0, rotateY: -15, scale: 0.95 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
-            exit={{ opacity: 0, rotateY: 15, scale: 0.95 }}
-            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
-            style={{ perspective: 1000 }}
-          >
+	        <AnimatePresence mode="wait">
+	          <motion.div
+	            key={`${currentDate.toISOString()}-${bibleData?.id || bibleData?.chapter || "empty"}-${currentPageIdx}`}
+	            drag="x"
+	            dragConstraints={{ left: 0, right: 0 }}
+	            dragElastic={0.2}
+	            onDragEnd={onDragEnd}
+	            initial={
+	              cardTransition === "date"
+	                ? { opacity: 0, x: 20 }
+	                : { opacity: 0, rotateY: -15, scale: 0.95 }
+	            }
+	            animate={
+	              cardTransition === "date"
+	                ? { opacity: 1, x: 0 }
+	                : { opacity: 1, rotateY: 0, scale: 1 }
+	            }
+	            exit={
+	              cardTransition === "date"
+	                ? { opacity: 0, x: -20 }
+	                : { opacity: 0, rotateY: 15, scale: 0.95 }
+	            }
+	            className="w-[82%] max-w-sm h-auto min-h-[450px] bg-white rounded-[32px] shadow-[0_15px_45px_rgba(0,0,0,0.06)] border border-white flex flex-col items-start justify-center px-8 py-6 text-left z-10 touch-none cursor-grab active:cursor-grabbing"
+	            style={{ perspective: 1000 }}
+	            onAnimationComplete={() => {
+	              if (cardTransition === "date") setCardTransition("page");
+	            }}
+	          >
             {bibleData ? (
               <>
                 {/* 출처 영역 - 상단으로 이동 */}
@@ -2909,4 +2927,3 @@ export default function ReadingPage() {
     </div>
   );
 }
-

@@ -1226,79 +1226,79 @@ export default function QTPage() {
       )}
 
 	      {/* 묵상 완료 버튼 (아멘 버튼 스타일) */}
-	      <div className="flex flex-col items-center gap-3 pb-6 mt-8">
+	      <div className="flex flex-col items-center pb-6 mt-8">
 	        <div className="relative w-24 h-24 flex items-center justify-center">
-          {/* 빛의 파동 효과 */}
-          <AnimatePresence>
-            {isMeditationCompleted && (
-              <>
-                <motion.div
-                  initial={{ scale: 1, opacity: 0.5 }}
-                  animate={{ scale: 1.5, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 2.2, ease: "easeOut" }}
-                  className="absolute inset-0 bg-[#4A6741] rounded-full"
-                />
-                <motion.div
-                  initial={{ scale: 1, opacity: 0.4 }}
-                  animate={{ scale: 1.2, opacity: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
-                  className="absolute inset-0 bg-[#4A6741] rounded-full"
-                />
-              </>
-            )}
-          </AnimatePresence>
+	          {/* 빛의 파동 효과 */}
+	          <AnimatePresence>
+	            {isMeditationCompleted && (
+	              <>
+	                <motion.div
+	                  initial={{ scale: 1, opacity: 0.5 }}
+	                  animate={{ scale: 1.5, opacity: 0 }}
+	                  exit={{ opacity: 0 }}
+	                  transition={{ duration: 2.2, ease: "easeOut" }}
+	                  className="absolute inset-0 bg-[#4A6741] rounded-full"
+	                />
+	                <motion.div
+	                  initial={{ scale: 1, opacity: 0.4 }}
+	                  animate={{ scale: 1.2, opacity: 0 }}
+	                  exit={{ opacity: 0 }}
+	                  transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+	                  className="absolute inset-0 bg-[#4A6741] rounded-full"
+	                />
+	              </>
+	            )}
+	          </AnimatePresence>
 
-          {/* 실제 버튼 */}
-          <motion.button
-            onClick={handleMeditationComplete}
-            whileTap={{ scale: 0.9 }}
-            disabled={currentDate.toDateString() !== today.toDateString()}
-            className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
-              ${isMeditationCompleted
-                ? 'bg-[#4A6741] text-white border-none'
-                : 'bg-white text-gray-400 border border-green-50'
-              }
-              ${currentDate.toDateString() !== today.toDateString()
-                ? 'cursor-not-allowed opacity-60'
-                : ''
-              }`}
-          >
-            <Heart
-              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`}
-              strokeWidth={isMeditationCompleted ? 0 : 2}
-            />
+	          {/* 실제 버튼 */}
+	          <motion.button
+	            onClick={handleMeditationComplete}
+	            whileTap={{ scale: 0.9 }}
+	            disabled={currentDate.toDateString() !== today.toDateString()}
+	            className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
+	              ${isMeditationCompleted
+	                ? 'bg-[#4A6741] text-white border-none'
+	                : 'bg-white text-gray-400 border border-green-50'
+	              }
+	              ${currentDate.toDateString() !== today.toDateString()
+	                ? 'cursor-not-allowed opacity-60'
+	                : ''
+	              }`}
+	          >
+	            <Heart
+	              className={`w-5 h-5 mb-1 ${isMeditationCompleted ? 'fill-white animate-bounce' : ''}`}
+	              strokeWidth={isMeditationCompleted ? 0 : 2}
+	            />
 	            <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
 	              {isMeditationCompleted ? '묵상완료' : '묵상하기'}
 	            </span>
-		          </motion.button>
-		        </div>
+	          </motion.button>
+	        </div>
+	      </div>
 
-	        {isMeditationCompleted && (
-	          <div className="mt-1 flex items-center justify-center gap-2">
-	            <div className="rounded-full border border-rose-200 bg-rose-50">
+	      {isMeditationCompleted && (
+	        <div className="mt-1 pb-6 flex items-center justify-center gap-2">
+	          <div className="rounded-full border border-rose-200 bg-rose-50">
+	            <button
+	              onClick={() => setShowCancelConfirmModal(true)}
+	              className="px-3 py-1.5 text-xs font-bold text-rose-500 rounded-full transition-colors hover:bg-rose-100"
+	            >
+	              묵상완료 취소
+	            </button>
+	          </div>
+
+	          {currentDate.toDateString() === today.toDateString() && (
+	            <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
 	              <button
-	                onClick={() => setShowCancelConfirmModal(true)}
-	                className="px-3 py-1.5 text-xs font-bold text-rose-500 rounded-full transition-colors hover:bg-rose-100"
+	                onClick={() => setShowGroupLinkModal(true)}
+	                className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
 	              >
-	                묵상완료 취소
+	                <Share2 size={12} /> 모임에 연결
 	              </button>
 	            </div>
-
-	            {currentDate.toDateString() === today.toDateString() && (
-	              <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
-	                <button
-	                  onClick={() => setShowGroupLinkModal(true)}
-	                  className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
-	                >
-	                  <Share2 size={12} /> 모임에 연결
-	                </button>
-	              </div>
-	            )}
-	          </div>
-	        )}
-	      </div>
+	          )}
+	        </div>
+	      )}
 
 	      {/* 묵상 기록 목록 */}
 	      {meditationRecords.length > 0 && (
