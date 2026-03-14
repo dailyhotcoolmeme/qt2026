@@ -1190,7 +1190,7 @@ export default function PrayerPage() {
                             </div>
 		                          ) : (
 		                            <div className="bg-white p-4">
-		                              <div className="grid grid-cols-[28px_1fr] gap-x-3 gap-y-2">
+		                              <div className="grid grid-cols-[22px_1fr] gap-x-3 gap-y-1">
 		                                {/* (A) 헤더: 아이콘 + (제목/작성일) */}
 		                                <div className="self-center">
 		                                  <Headphones size={22} className="text-[#4A6741]/90" strokeWidth={1.5} />
@@ -1257,7 +1257,7 @@ export default function PrayerPage() {
 		                                <div className="flex items-center justify-end gap-2">
 		                                  <button
 		                                    onClick={() => handleShareRecordAudio(record)}
-		                                    className="inline-flex items-center gap-1 text-[#4A6741] text-xs font-bold hover:underline"
+		                                    className="inline-flex items-center gap-1 text-[#4A6741] text-sm font-bold hover:underline"
 		                                    title="공유"
 		                                  >
 		                                    <Share2 size={16} />

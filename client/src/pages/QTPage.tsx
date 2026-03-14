@@ -1315,49 +1315,55 @@ export default function QTPage() {
                 )}
 
                 {/* 음성 재생 */}
-                {record.audio_url && (
-                  <div className="bg-[#4A6741]/5 rounded-lg p-3 mb-2">
-                    <div className="flex items-center gap-3 mb-2">
-                      <button
-                        onClick={() => playRecordAudio(record.audio_url, record.id)}
-                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full"
-                      >
-                        {playingAudioId === record.id ? (
-                          <Pause size={16} fill="white" />
-                        ) : (
-                          <Play size={16} fill="white" />
-                        )}
-                      </button>
-                      <div className="flex-1">
-                        <div className="text-xs text-zinc-600 mb-1">
-                          {playingAudioId === record.id
-                            ? `${formatTime(Math.floor(audioProgress))} / ${formatTime(Math.floor(audioDuration))}`
-                            : formatTime(record.audio_duration || 0)}
-                        </div>
-                        <div
-                          className="h-1.5 bg-zinc-200 rounded-full overflow-hidden cursor-pointer"
-                          onClick={(e) => {
-                            if (playingAudioId === record.id && audioDuration > 0) {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              const x = e.clientX - rect.left;
-                              const percentage = x / rect.width;
-                              seekAudio(percentage * audioDuration);
-                            }
-                          }}
-                        >
-                          <div
-                            className="h-full bg-[#4A6741] transition-all"
-                            style={{
-                              width: playingAudioId === record.id && audioDuration > 0
-                                ? `${(audioProgress / audioDuration) * 100}%`
-                                : '0%'
-                            }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
+	                {record.audio_url && (
+	                  <div className="bg-[#4A6741]/5 rounded-lg p-3 mb-2">
+	                    <div className="flex items-center gap-3">
+	                      <button
+	                        onClick={() => playRecordAudio(record.audio_url, record.id)}
+	                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full"
+	                      >
+	                        {playingAudioId === record.id ? (
+	                          <Pause size={16} fill="white" />
+	                        ) : (
+	                          <Play size={16} fill="white" />
+	                        )}
+	                      </button>
+	                      <div className="flex-1 flex flex-col gap-1.5">
+	                        <input
+	                          type="range"
+	                          min="0"
+	                          max={playingAudioId === record.id ? (audioDuration || 0) : (record.audio_duration || 0)}
+	                          value={playingAudioId === record.id ? (audioProgress || 0) : 0}
+	                          onChange={(e) => {
+	                            if (playingAudioId !== record.id) return;
+	                            seekAudio(Number(e.target.value));
+	                          }}
+	                          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+	                          style={{
+	                            background:
+	                              playingAudioId === record.id && audioDuration > 0
+	                                ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${(audioProgress / audioDuration) * 100}%, #c8dfc4 ${(audioProgress / audioDuration) * 100}%, #c8dfc4 100%)`
+	                                : '#c8dfc4',
+	                          }}
+	                        />
+	                        <div className="flex justify-between text-xs text-[#4A6741]/70">
+	                          <span>
+	                            {playingAudioId === record.id ? formatTime(Math.floor(audioProgress || 0)) : "0:00"}
+	                          </span>
+	                          <span>
+	                            {formatTime(
+	                              Math.floor(
+	                                playingAudioId === record.id
+	                                  ? (audioDuration || 0)
+	                                  : (record.audio_duration || 0)
+	                              )
+	                            )}
+	                          </span>
+	                        </div>
+	                      </div>
+	                    </div>
+	                  </div>
+	                )}
 
                 {/* 수정/삭제 버튼 */}
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
