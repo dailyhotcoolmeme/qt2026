@@ -855,6 +855,8 @@ export default function GroupDashboard() {
   const [editingPrayerTopicId, setEditingPrayerTopicId] = useState<number | null>(null);
   const [editingPrayerTopicContent, setEditingPrayerTopicContent] = useState("");
   const [editingPrayerRemovedAttachmentIds, setEditingPrayerRemovedAttachmentIds] = useState<number[]>([]);
+  const [editingPrayerNewAttachments, setEditingPrayerNewAttachments] = useState<File[]>([]);
+  const [editingPrayerNewAttachmentPreviews, setEditingPrayerNewAttachmentPreviews] = useState<string[]>([]);
   const [savingPrayerTopicId, setSavingPrayerTopicId] = useState<number | null>(null);
   const [prayerTopicAuthorOrder, setPrayerTopicAuthorOrder] = useState<string[]>([]);
   const [myPrayerTopicOrder, setMyPrayerTopicOrder] = useState<number[]>([]);
@@ -1070,6 +1072,14 @@ export default function GroupDashboard() {
       urls.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [newPrayerAttachments]);
+
+  useEffect(() => {
+    const urls = editingPrayerNewAttachments.map((file) => URL.createObjectURL(file));
+    setEditingPrayerNewAttachmentPreviews(urls);
+    return () => {
+      urls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [editingPrayerNewAttachments]);
 
   useEffect(() => {
     if (!group?.id) return;
@@ -1998,18 +2008,28 @@ export default function GroupDashboard() {
     setEditingPrayerTopicId(topic.id);
     setEditingPrayerTopicContent(topic.content);
     setEditingPrayerRemovedAttachmentIds([]);
+    setEditingPrayerNewAttachments([]);
   };
 
   const cancelEditingPrayerTopic = () => {
     setEditingPrayerTopicId(null);
     setEditingPrayerTopicContent("");
     setEditingPrayerRemovedAttachmentIds([]);
+    setEditingPrayerNewAttachments([]);
   };
 
   const handleNewPrayerAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(event.target.files ?? []);
     if (selected.length > 0) {
       setNewPrayerAttachments((prev) => [...prev, ...selected]);
+    }
+    event.target.value = "";
+  };
+
+  const handleEditingPrayerAttachmentChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(event.target.files ?? []);
+    if (selected.length > 0) {
+      setEditingPrayerNewAttachments((prev) => [...prev, ...selected]);
     }
     event.target.value = "";
   };
@@ -3551,7 +3571,7 @@ export default function GroupDashboard() {
     if (!group || !user || topic.author_id !== user.id) return;
     const newContent = editingPrayerTopicContent.trim();
     const remainingAttachments = getTopicAttachments(topic).filter((attachment) => !editingPrayerRemovedAttachmentIds.includes(attachment.id));
-    const willHaveAttachment = remainingAttachments.length > 0;
+    const willHaveAttachment = remainingAttachments.length > 0 || editingPrayerNewAttachments.length > 0;
     if (newContent === "" && !willHaveAttachment) {
       alert("기도제목을 입력해주세요.");
       return;
@@ -3578,6 +3598,42 @@ export default function GroupDashboard() {
           .delete()
           .in("id", removedAttachments.map((attachment) => attachment.id).filter((id) => id < 1000000));
         await Promise.all(removedAttachments.map((attachment) => deleteFileFromR2(attachment.file_url)));
+      }
+
+      if (editingPrayerNewAttachments.length > 0) {
+        const uploaded = await uploadPrayerTopicAttachments(editingPrayerNewAttachments);
+        const { error: attachmentError } = await supabase.from("group_prayer_topic_attachments").insert(
+          uploaded.map((item, index) => ({
+            topic_id: topic.id,
+            uploader_id: user.id,
+            file_url: item.attachment_url,
+            file_name: item.attachment_name,
+            content_type: item.attachment_type,
+            attachment_kind: item.attachment_kind,
+            sort_order: remainingAttachments.length + index,
+          }))
+        );
+
+        if (attachmentError) {
+          if (attachmentError.code === "42P01" || attachmentError.code === "42703") {
+            const firstAttachment = uploaded[0];
+            if (firstAttachment) {
+              const { error: legacyAttachmentError } = await supabase
+                .from("group_prayer_topics")
+                .update({
+                  attachment_url: firstAttachment.attachment_url,
+                  attachment_name: firstAttachment.attachment_name,
+                  attachment_type: firstAttachment.attachment_type,
+                  attachment_kind: firstAttachment.attachment_kind,
+                })
+                .eq("id", topic.id)
+                .eq("group_id", group.id);
+              if (legacyAttachmentError) throw legacyAttachmentError;
+            }
+          } else {
+            throw attachmentError;
+          }
+        }
       }
 
       cancelEditingPrayerTopic();
@@ -5161,10 +5217,49 @@ export default function GroupDashboard() {
                                                 </div>
                                               )}
 
+                                              <div className="space-y-2">
+                                                <label className="inline-flex cursor-pointer items-center rounded-xl bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-200">
+                                                  파일/이미지 첨부
+                                                  <input type="file" className="hidden" multiple onChange={handleEditingPrayerAttachmentChange} />
+                                                </label>
+                                                {editingPrayerNewAttachments.length > 0 && (
+                                                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                                    {editingPrayerNewAttachments.some((file) => file.type.startsWith("image/")) && (
+                                                      <PostImageCarousel
+                                                        urls={editingPrayerNewAttachments
+                                                          .map((file, index) => file.type.startsWith("image/") ? editingPrayerNewAttachmentPreviews[index] : null)
+                                                          .filter((url): url is string => Boolean(url))}
+                                                        onImageClick={(index) => {
+                                                          const imageUrls = editingPrayerNewAttachments
+                                                            .map((file, previewIndex) => file.type.startsWith("image/") ? editingPrayerNewAttachmentPreviews[previewIndex] : null)
+                                                            .filter((url): url is string => Boolean(url));
+                                                          setModalImages(imageUrls);
+                                                          setModalIndex(index);
+                                                          setShowImageModal(true);
+                                                        }}
+                                                      />
+                                                    )}
+                                                    <div className="mt-2 space-y-2">
+                                                      {editingPrayerNewAttachments.map((file, index) => (
+                                                        <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-2">
+                                                          <div className="text-sm font-bold text-zinc-700 break-all">{file.name}</div>
+                                                          <button
+                                                            onClick={() => setEditingPrayerNewAttachments((prev) => prev.filter((_, fileIndex) => fileIndex !== index))}
+                                                            className="inline-flex items-center rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-100"
+                                                          >
+                                                            첨부 삭제
+                                                          </button>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+
                                               <div className="flex items-center justify-end gap-2">
                                                 <button
                                                   onClick={() => void editSingleTopic(topic)}
-                                                  disabled={(!editingPrayerTopicContent.trim() && visibleAttachments.length === 0) || savingPrayerTopicId === topic.id}
+                                                  disabled={(!editingPrayerTopicContent.trim() && visibleAttachments.length === 0 && editingPrayerNewAttachments.length === 0) || savingPrayerTopicId === topic.id}
                                                   className="inline-flex items-center rounded-lg bg-[#4A6741] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
                                                 >
                                                   {savingPrayerTopicId === topic.id ? "저장중..." : "저장"}
@@ -5233,45 +5328,162 @@ export default function GroupDashboard() {
                           </div>
                         </SortableContext>
                       </DndContext>
-                      {orderedMyPrayerAttachmentOnlyTopics.map((topic) => (
-                        <div key={topic.id} className="bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-1 min-w-0 space-y-3">
-                              {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment) => (
-                                <a
-                                  key={attachment.id}
-                                  href={attachment.file_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  download={attachment.file_name || undefined}
-                                  className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
-                                >
-                                  <Link2 size={12} />
-                                  <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
-                                </a>
-                              ))}
-                              {getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).length > 0 && (
-                                <PostImageCarousel
-                                  urls={getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url)}
-                                  onImageClick={(index) => {
-                                    const urls = getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)).map((attachment) => attachment.file_url);
-                                    setModalImages(urls);
-                                    setModalIndex(index);
-                                    setShowImageModal(true);
-                                  }}
+                      {orderedMyPrayerAttachmentOnlyTopics.map((topic) => {
+                        const attachments = getTopicAttachments(topic);
+                        const visibleAttachments = attachments.filter((attachment) => !editingPrayerRemovedAttachmentIds.includes(attachment.id));
+                        const imageAttachments = visibleAttachments.filter((attachment) => isImageAttachment(attachment));
+                        const fileAttachments = visibleAttachments.filter((attachment) => !isImageAttachment(attachment));
+                        const isEditing = editingPrayerTopicId === topic.id;
+
+                        return (
+                          <div key={topic.id} className="bg-[#EEF7EC] rounded-xl p-3 border border-[#D7E9D4] shadow-sm">
+                            {isEditing ? (
+                              <div className="space-y-3">
+                                <textarea
+                                  value={editingPrayerTopicContent}
+                                  onChange={(e) => setEditingPrayerTopicContent(e.target.value)}
+                                  className="w-full min-h-[88px] px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 text-sm text-zinc-800 focus:ring-2 focus:ring-[#4A6741]/20 outline-none resize-none"
+                                  placeholder="기도제목을 입력하지 않아도 첨부만 저장할 수 있습니다."
                                 />
-                              )}
-                            </div>
-                            <button
-                              onClick={() => deleteSingleTopic(topic.id, topic.author_id)}
-                              className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center shrink-0"
-                              aria-label="첨부 기도제목 삭제"
-                            >
-                              <Trash2 size={13} />
-                            </button>
+
+                                {visibleAttachments.length > 0 && (
+                                  <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                    {fileAttachments.map((attachment) => (
+                                      <div key={attachment.id} className="flex items-center justify-between gap-2 py-1">
+                                        <div className="text-xs font-bold text-zinc-700 truncate">{attachment.file_name || "첨부 파일"}</div>
+                                        <button
+                                          onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                          className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
+                                        >
+                                          삭제
+                                        </button>
+                                      </div>
+                                    ))}
+                                    {imageAttachments.length > 0 && (
+                                      <div className="mt-2">
+                                        <PostImageCarousel
+                                          urls={imageAttachments.map((attachment) => attachment.file_url)}
+                                          onImageClick={(index) => {
+                                            setModalImages(imageAttachments.map((attachment) => attachment.file_url));
+                                            setModalIndex(index);
+                                            setShowImageModal(true);
+                                          }}
+                                        />
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                          {imageAttachments.map((attachment) => (
+                                            <button
+                                              key={attachment.id}
+                                              onClick={() => setEditingPrayerRemovedAttachmentIds((prev) => [...prev, attachment.id])}
+                                              className="inline-flex items-center rounded-lg bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-500 hover:bg-rose-100"
+                                            >
+                                              {attachment.file_name || "이미지"} 삭제
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <div className="space-y-2">
+                                  <label className="inline-flex cursor-pointer items-center rounded-xl bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-200">
+                                    파일/이미지 첨부
+                                    <input type="file" className="hidden" multiple onChange={handleEditingPrayerAttachmentChange} />
+                                  </label>
+                                  {editingPrayerNewAttachments.length > 0 && (
+                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
+                                      {editingPrayerNewAttachments.some((file) => file.type.startsWith("image/")) && (
+                                        <PostImageCarousel
+                                          urls={editingPrayerNewAttachments
+                                            .map((file, index) => file.type.startsWith("image/") ? editingPrayerNewAttachmentPreviews[index] : null)
+                                            .filter((url): url is string => Boolean(url))}
+                                          onImageClick={(index) => {
+                                            const imageUrls = editingPrayerNewAttachments
+                                              .map((file, previewIndex) => file.type.startsWith("image/") ? editingPrayerNewAttachmentPreviews[previewIndex] : null)
+                                              .filter((url): url is string => Boolean(url));
+                                            setModalImages(imageUrls);
+                                            setModalIndex(index);
+                                            setShowImageModal(true);
+                                          }}
+                                        />
+                                      )}
+                                      <div className="mt-2 space-y-2">
+                                        {editingPrayerNewAttachments.map((file, index) => (
+                                          <div key={`${file.name}-${index}`} className="flex items-center justify-between gap-2">
+                                            <div className="text-sm font-bold text-zinc-700 break-all">{file.name}</div>
+                                            <button
+                                              onClick={() => setEditingPrayerNewAttachments((prev) => prev.filter((_, fileIndex) => fileIndex !== index))}
+                                              className="inline-flex items-center rounded-lg bg-rose-50 px-2.5 py-1.5 text-xs font-bold text-rose-500 hover:bg-rose-100"
+                                            >
+                                              첨부 삭제
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => void editSingleTopic(topic)}
+                                    disabled={(!editingPrayerTopicContent.trim() && visibleAttachments.length === 0 && editingPrayerNewAttachments.length === 0) || savingPrayerTopicId === topic.id}
+                                    className="inline-flex items-center rounded-lg bg-[#4A6741] px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
+                                  >
+                                    {savingPrayerTopicId === topic.id ? "저장중..." : "저장"}
+                                  </button>
+                                  <button
+                                    onClick={cancelEditingPrayerTopic}
+                                    disabled={savingPrayerTopicId === topic.id}
+                                    className="inline-flex items-center rounded-lg bg-zinc-100 px-3 py-2 text-xs font-bold text-zinc-700 disabled:opacity-50"
+                                  >
+                                    취소
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0 space-y-3">
+                                  {fileAttachments.map((attachment) => (
+                                    <a
+                                      key={attachment.id}
+                                      href={attachment.file_url}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      download={attachment.file_name || undefined}
+                                      className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                                    >
+                                      <Link2 size={12} />
+                                      <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                                    </a>
+                                  ))}
+                                  {imageAttachments.length > 0 && (
+                                    <PostImageCarousel
+                                      urls={imageAttachments.map((attachment) => attachment.file_url)}
+                                      onImageClick={(index) => {
+                                        const urls = imageAttachments.map((attachment) => attachment.file_url);
+                                        setModalImages(urls);
+                                        setModalIndex(index);
+                                        setShowImageModal(true);
+                                      }}
+                                    />
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 self-start">
+                                  <button onClick={() => startEditingPrayerTopic(topic)} className="p-2 bg-zinc-100 text-zinc-600 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center" aria-label="첨부 기도제목 수정"><Pencil size={13} /></button>
+                                  <button
+                                    onClick={() => deleteSingleTopic(topic.id, topic.author_id)}
+                                    className="p-2 bg-rose-50 text-rose-500 rounded-lg text-xs font-bold hover:bg-rose-100 transition-colors flex items-center justify-center shrink-0"
+                                    aria-label="첨부 기도제목 삭제"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
