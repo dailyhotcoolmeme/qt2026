@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon } from "lucide-react";
@@ -806,6 +806,66 @@ export default function PrayerPage() {
 
   const isToday = selectedDateKey === todayDateKey;
 
+  const voicePressedStorageKey = useMemo(() => {
+    const uid = user?.id || "guest";
+    return `prayer:pressed:${uid}:${selectedDateKey}:voice`;
+  }, [selectedDateKey, user?.id]);
+
+  const heartPressedStorageKey = useMemo(() => {
+    const uid = user?.id || "guest";
+    return `prayer:pressed:${uid}:${selectedDateKey}:heart`;
+  }, [selectedDateKey, user?.id]);
+
+  const [voicePrayedOnce, setVoicePrayedOnce] = useState(false);
+  const [heartPrayedOnce, setHeartPrayedOnce] = useState(false);
+
+  useEffect(() => {
+    const hasVoiceRecord = selectedDateRecords.some((record: any) => record?.audio_url && record.audio_url !== "amen");
+    const hasHeartRecord = selectedDateRecords.some((record: any) => record?.audio_url === "amen");
+
+    let voiceLocal = false;
+    let heartLocal = false;
+    try {
+      voiceLocal = localStorage.getItem(voicePressedStorageKey) === "1";
+      heartLocal = localStorage.getItem(heartPressedStorageKey) === "1";
+    } catch {
+      // ignore
+    }
+
+    setVoicePrayedOnce(hasVoiceRecord || voiceLocal);
+    setHeartPrayedOnce(hasHeartRecord || heartLocal);
+  }, [selectedDateRecords, voicePressedStorageKey, heartPressedStorageKey]);
+
+  const markPrayerPressed = (key: string) => {
+    try {
+      localStorage.setItem(key, "1");
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleVoicePrayerClick = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!isToday) return;
+    markPrayerPressed(voicePressedStorageKey);
+    setVoicePrayedOnce(true);
+    handleStartPrayerMode();
+  };
+
+  const handleHeartPrayerClick = () => {
+    if (!user) {
+      setShowLoginModal(true);
+      return;
+    }
+    if (!isToday) return;
+    markPrayerPressed(heartPressedStorageKey);
+    setHeartPrayedOnce(true);
+    void handleAmenClick();
+  };
+
   const visibleMyTopics = myTopics.filter((topic) => {
     const createdDateKey = toLocalDateKey(topic.created_at) || selectedDateKey;
     const deletedDateKey = topic.is_public === null ? toLocalDateKey(topic.updated_at) : null;
@@ -813,7 +873,7 @@ export default function PrayerPage() {
   });
 
   return (
-    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-x-hidden px-2 pt-[var(--app-page-top)] pb-4">
+    <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-x-hidden overflow-y-auto px-4 pt-[var(--app-page-top)] pb-4">
       <header className="relative mb-3 flex w-full flex-col items-center px-4 text-center">
         <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -862,17 +922,53 @@ export default function PrayerPage() {
                     className="mt-1 font-semibold text-zinc-400"
                     style={{ fontSize: `${Math.max(11, fontSize * 0.78)}px` }}
                   >
-                    나의 기도를 보관하고 공유할 수 있습니다.
+                    나의 기도 음성을 보관하고 공유할 수 있습니다.
                   </p>
                 </div>
-                <button
-                  onClick={handleStartPrayerMode}
-                  className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
-                  style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
-                >
-                  <Mic size={22} strokeWidth={2} />
-                  <span className="leading-none">기도하기</span>
-                </button>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <AnimatePresence>
+                      {voicePrayedOnce && (
+                        <>
+                          <motion.div
+                            initial={{ scale: 1, opacity: 0.5 }}
+                            animate={{ scale: 1.5, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 2.2, ease: "easeOut" }}
+                            className="absolute inset-0 bg-[#4A6741] rounded-full"
+                          />
+                          <motion.div
+                            initial={{ scale: 1, opacity: 0.4 }}
+                            animate={{ scale: 1.2, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+                            className="absolute inset-0 bg-[#4A6741] rounded-full"
+                          />
+                        </>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.button
+                      onClick={handleVoicePrayerClick}
+                      whileTap={{ scale: 0.9 }}
+                      disabled={!isToday}
+                      className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
+                        ${voicePrayedOnce
+                          ? 'bg-[#4A6741] text-white border-none'
+                          : 'bg-white text-gray-400 border border-green-50'
+                        }
+                        ${!isToday
+                          ? 'cursor-not-allowed opacity-60'
+                          : ''
+                        }`}
+                    >
+                      <Mic className={`w-5 h-5 mb-1 ${voicePrayedOnce ? 'animate-bounce' : ''}`} strokeWidth={2} />
+                      <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                        기도하기
+                      </span>
+                    </motion.button>
+                  </div>
+                </div>
               </div>
 
               <div className="h-px w-full bg-zinc-100" />
@@ -889,14 +985,53 @@ export default function PrayerPage() {
                     매일 마음 속 기도를 모아 기록을 남깁니다.
                   </p>
                 </div>
-                <button
-                  onClick={handleAmenClick}
-                  className="flex h-[92px] w-[92px] flex-col items-center justify-center gap-1.5 rounded-full bg-[#4A6741] font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
-                  style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
-                >
-                  <Heart size={22} strokeWidth={2} />
-                  <span className="leading-none">기도하기</span>
-                </button>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="relative w-24 h-24 flex items-center justify-center">
+                    <AnimatePresence>
+                      {heartPrayedOnce && (
+                        <>
+                          <motion.div
+                            initial={{ scale: 1, opacity: 0.5 }}
+                            animate={{ scale: 1.5, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 2.2, ease: "easeOut" }}
+                            className="absolute inset-0 bg-[#4A6741] rounded-full"
+                          />
+                          <motion.div
+                            initial={{ scale: 1, opacity: 0.4 }}
+                            animate={{ scale: 1.2, opacity: 0 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.8, ease: "easeOut", delay: 0.2 }}
+                            className="absolute inset-0 bg-[#4A6741] rounded-full"
+                          />
+                        </>
+                      )}
+                    </AnimatePresence>
+
+                    <motion.button
+                      onClick={handleHeartPrayerClick}
+                      whileTap={{ scale: 0.9 }}
+                      disabled={!isToday}
+                      className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10
+                        ${heartPrayedOnce
+                          ? 'bg-[#4A6741] text-white border-none'
+                          : 'bg-white text-gray-400 border border-green-50'
+                        }
+                        ${!isToday
+                          ? 'cursor-not-allowed opacity-60'
+                          : ''
+                        }`}
+                    >
+                      <Heart
+                        className={`w-5 h-5 mb-1 ${heartPrayedOnce ? 'fill-white animate-bounce' : ''}`}
+                        strokeWidth={heartPrayedOnce ? 0 : 2}
+                      />
+                      <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                        기도하기
+                      </span>
+                    </motion.button>
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1112,48 +1247,50 @@ export default function PrayerPage() {
                                       </button>
                                     </div>
                                   </div>
-	                                  <p className="mt-0.5 text-xs text-zinc-400">{formattedDate}</p>
-	                                  <div className="flex items-center gap-3 mt-2">
-	                                    <button
-	                                      onClick={() => playRecording(record.audio_url, record.id)}
-	                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
-	                                    >
+	                                  <div className="mt-0.5 flex items-center justify-between text-xs text-zinc-400">
+	                                    <span>{formattedDate}</span>
+	                                    <div className="flex items-center gap-1">
+	                                      <button
+                                        onClick={() => handleShareRecordAudio(record)}
+                                        className="h-7 px-2.5 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold"
+                                        title="공유"
+                                      >
+                                        <Share2 size={12} />
+                                        공유
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-2">
+                                    <button
+                                      onClick={() => playRecording(record.audio_url, record.id)}
+                                      className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
+                                    >
                                       {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
                                         <Pause size={16} fill="white" />
                                       ) : (
                                         <Play size={16} fill="white" />
                                       )}
                                     </button>
-	                                    <div className="flex-1 flex flex-col gap-1.5">
-	                                      <div className="flex items-center gap-2">
-	                                        <input
-	                                          type="range"
-	                                          min="0"
-	                                          max={safeDuration}
-	                                          value={recordCurrentTime[record.id] || 0}
-	                                          onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
-	                                          className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
-	                                          style={{
-	                                            background: safeDuration > 0
-	                                              ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
-	                                              : '#c8dfc4',
-	                                          }}
-	                                        />
-	                                        <button
-	                                          onClick={() => handleShareRecordAudio(record)}
-	                                          className="h-8 px-3 rounded-full bg-[#4A6741]/10 hover:bg-[#4A6741]/20 transition-colors inline-flex items-center justify-center gap-1 text-[#4A6741] text-xs font-bold shrink-0"
-	                                          title="공유"
-	                                        >
-	                                          <Share2 size={12} />
-	                                          공유
-	                                        </button>
-	                                      </div>
-	                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
-	                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-	                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
-	                                      </div>
-	                                    </div>
-	                                  </div>
+                                    <div className="flex-1 flex flex-col gap-1.5">
+                                      <input
+                                        type="range"
+                                        min="0"
+                                        max={safeDuration}
+                                        value={recordCurrentTime[record.id] || 0}
+                                        onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
+                                        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                                        style={{
+                                          background: safeDuration > 0
+                                            ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
+                                            : '#c8dfc4',
+                                        }}
+                                      />
+                                      <div className="flex justify-between text-xs text-[#4A6741]/70">
+                                        <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
+                                        <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
+                                      </div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
