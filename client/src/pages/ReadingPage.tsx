@@ -2454,13 +2454,25 @@ export default function ReadingPage() {
         </motion.button>
       </div>
       {dailyCompletedReadings.length > 0 && (
-        <div className="mx-auto mb-8 mt-1 w-full max-w-sm space-y-3">
-          <div className="px-1">
-            <h3 className="text-sm font-black text-zinc-800">이날 읽기 완료한 말씀</h3>
-            <p className="mt-1 text-xs font-medium text-zinc-400">각 장별로 완료 기록과 입력 시각을 확인할 수 있습니다.</p>
+        <div className="mx-auto mb-8 mt-6 w-full max-w-sm space-y-3">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1.5 h-4 bg-[#4A6741]/90 rounded-full" />
+            <h3 className="font-black text-medium text-[#4A6741]/90" style={{ fontSize: `${fontSize * 1.0}px` }}>
+              오늘 읽은 말씀
+            </h3>
+            <div className="flex-1" />
+            {currentDate.toDateString() === today.toDateString() && (
+              <button
+                onClick={() => setShowGroupLinkModal(true)}
+                className="inline-flex items-center gap-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 px-3 py-1.5 text-[11px] font-bold text-[#4A6741] shrink-0"
+              >
+                <Share2 size={12} />
+                모임에 연결
+              </button>
+            )}
           </div>
           <div className="space-y-3">
-            {dailyCompletedReadings.map((record, index) => {
+            {dailyCompletedReadings.map((record) => {
               const verseLabel =
                 typeof record.start_verse === "number" && typeof record.end_verse === "number"
                   ? record.start_verse === record.end_verse
@@ -2469,9 +2481,9 @@ export default function ReadingPage() {
                   : "";
 
               return (
-                <div key={record.id} className="rounded-[24px] border border-zinc-100 bg-white p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                <div key={record.id} className="rounded-[24px] border border-zinc-100 bg-white px-4 py-3 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="text-base font-black text-zinc-900">
                         {record.book_name} {record.chapter}장{verseLabel}
                       </div>
@@ -2484,20 +2496,9 @@ export default function ReadingPage() {
                         </div>
                       )}
                     </div>
-                    {index === 0 && currentDate.toDateString() === today.toDateString() && (
-                      <button
-                        onClick={() => setShowGroupLinkModal(true)}
-                        className="inline-flex items-center gap-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 px-3 py-1.5 text-[11px] font-bold text-[#4A6741] shrink-0"
-                      >
-                        <Share2 size={12} />
-                        모임에 연결
-                      </button>
-                    )}
-                  </div>
-                  <div className="mt-3 flex justify-end">
                     <button
                       onClick={() => void handleReadCancelRecord(record)}
-                      className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-100"
+                      className="inline-flex items-center self-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-100 shrink-0"
                     >
                       완료취소
                     </button>
