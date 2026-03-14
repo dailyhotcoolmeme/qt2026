@@ -3,7 +3,7 @@ import {
   Heart, Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Check, Calendar as CalendarIcon,
   ChevronLeft, ChevronRight, Pencil, NotebookPen,
-  BookX, Loader2
+  BookX, Loader2, BookOpen
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -2471,8 +2471,8 @@ export default function ReadingPage() {
               </button>
             )}
           </div>
-          <div className="space-y-3">
-            {dailyCompletedReadings.map((record) => {
+          <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+            {dailyCompletedReadings.map((record, index) => {
               const verseLabel =
                 typeof record.start_verse === "number" && typeof record.end_verse === "number"
                   ? record.start_verse === record.end_verse
@@ -2481,29 +2481,32 @@ export default function ReadingPage() {
                   : "";
 
               return (
-                <div key={record.id} className="rounded-[24px] border border-zinc-100 bg-white px-4 py-3 shadow-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-base font-black text-zinc-900">
+                <React.Fragment key={record.id}>
+                  <div className="bg-white p-4 flex items-center gap-3">
+                    <BookOpen size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
                         {record.book_name} {record.chapter}장{verseLabel}
-                      </div>
-                      <div className="mt-1 text-xs font-medium text-zinc-400">
+                      </p>
+                      <p className="text-xs text-zinc-400 mt-0.5">
                         {formatRecordDateTime(record.updated_at || record.created_at)}
-                      </div>
+                      </p>
                       {Number(record.read_count || 0) > 1 && (
-                        <div className="mt-1 text-[11px] font-bold text-[#4A6741]">
+                        <p className="text-xs text-[#4A6741] mt-0.5 font-bold">
                           완료 {record.read_count}회
-                        </div>
+                        </p>
                       )}
                     </div>
                     <button
                       onClick={() => void handleReadCancelRecord(record)}
-                      className="inline-flex items-center self-center rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-500 transition-colors hover:bg-rose-100 shrink-0"
+                      className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
+                      title="완료취소"
                     >
-                      완료취소
+                      <X size={16} />
                     </button>
                   </div>
-                </div>
+                  {index !== dailyCompletedReadings.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
+                </React.Fragment>
               );
             })}
           </div>
