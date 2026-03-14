@@ -851,19 +851,20 @@ export default function PrayerPage() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="relative z-10 flex aspect-[4/5] w-[82%] max-w-sm touch-none cursor-grab flex-col overflow-hidden rounded-[32px] border border-white bg-white px-8 py-7 text-center shadow-[0_15px_45px_rgba(0,0,0,0.06)] active:cursor-grabbing"
-          >
-            <div className="mb-3 flex flex-1 flex-col items-center justify-center">
-              <div className="mb-6 flex w-full flex-col items-center gap-4">
-                <div className="flex items-center gap-3 text-[#4A6741]">
-                  <Heart size={28} strokeWidth={1.4} />
+	          >
+	            <div className="mb-3 flex flex-1 flex-col items-center justify-center">
+	              <div className="mb-6 flex w-full flex-col items-center gap-4">
+                <div className="flex items-center justify-center">
                   <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
                     마음기도
                   </p>
                 </div>
                 <button
                   onClick={handleAmenClick}
-                  className="flex h-20 w-20 items-center justify-center rounded-full bg-[#4A6741] text-sm font-bold text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  className="inline-flex w-full max-w-[240px] items-center justify-center gap-2 rounded-2xl bg-[#4A6741] px-6 py-3 font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
+                  <Heart size={18} strokeWidth={2} />
                   기도하기
                 </button>
               </div>
@@ -871,22 +872,23 @@ export default function PrayerPage() {
               <div className="my-2 h-px w-full bg-zinc-100" />
 
               <div className="mt-6 flex w-full flex-col items-center gap-4">
-                <div className="flex items-center gap-3 text-[#4A6741]">
-                  <Mic size={28} strokeWidth={1.4} />
+                <div className="flex items-center justify-center">
                   <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.18}px` }}>
                     음성기도
                   </p>
                 </div>
                 <button
                   onClick={handleStartPrayerMode}
-                  className="flex h-20 w-20 items-center justify-center rounded-full border border-[#4A6741]/15 bg-[#4A6741]/8 text-sm font-bold text-[#4A6741] transition-transform active:scale-95"
+                  className="inline-flex w-full max-w-[240px] items-center justify-center gap-2 rounded-2xl bg-[#4A6741] px-6 py-3 font-black text-white shadow-lg shadow-green-900/10 transition-transform active:scale-95"
+                  style={{ fontSize: `${Math.max(15, fontSize * 1.05)}px` }}
                 >
+                  <Mic size={18} strokeWidth={2} />
                   기도하기
                 </button>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+	          </motion.div>
+	        </AnimatePresence>
         <div className="absolute right-[-75%] z-0 aspect-[4/5] w-[82%] max-w-sm scale-90 rounded-[32px] bg-white blur-[0.5px]" />
       </div>
 
