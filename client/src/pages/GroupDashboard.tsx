@@ -322,13 +322,6 @@ function getTopicAttachments(topic: GroupPrayerTopic): GroupPrayerTopicAttachmen
   return [];
 }
 
-function formatDurationLabel(totalSeconds?: number | null) {
-  const seconds = Math.max(0, Math.round(Number(totalSeconds || 0)));
-  const minutes = Math.floor(seconds / 60);
-  const remain = seconds % 60;
-  return `${minutes}:${String(remain).padStart(2, "0")}`;
-}
-
 function ensureHttpsUrl(url?: string | null) {
   if (!url) return null;
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
@@ -2020,7 +2013,25 @@ export default function GroupDashboard() {
             sort_order: index,
           }))
         );
-        if (attachmentError) throw attachmentError;
+        if (attachmentError) {
+          if (attachmentError.code === "42P01" || attachmentError.code === "42703") {
+            const firstAttachment = uploaded[0];
+            if (firstAttachment) {
+              const { error: legacyAttachmentError } = await supabase
+                .from("group_prayer_topics")
+                .update({
+                  attachment_url: firstAttachment.attachment_url,
+                  attachment_name: firstAttachment.attachment_name,
+                  attachment_type: firstAttachment.attachment_type,
+                  attachment_kind: firstAttachment.attachment_kind,
+                })
+                .eq("id", createdTopic.id);
+              if (legacyAttachmentError) throw legacyAttachmentError;
+            }
+          } else {
+            throw attachmentError;
+          }
+        }
       }
 
       setNewPrayerTopic("");
@@ -3555,7 +3566,7 @@ export default function GroupDashboard() {
           </div>
         </div>
 
-        <div className="space-y-4 pb-3 px-5">
+        <div className="space-y-4 pb-5 px-5">
           {textTopics.length > 0 && (
             <div className="space-y-4">
               {textTopics.map((topic) => (
@@ -3634,7 +3645,6 @@ export default function GroupDashboard() {
                       <div className="flex items-center gap-1.5 text-[12px] font-bold text-emerald-700">
                         <Mic size={12} /> {pname}
                         <span className="text-[10px] text-zinc-500 font-bold ml-1">{formatDateTime(vp.created_at)}</span>
-                        <span className="text-[10px] text-zinc-400 font-bold">· {formatDurationLabel(vp.audio_duration)}</span>
                       </div>
                       {canDelete && (
                         <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
@@ -3790,7 +3800,7 @@ export default function GroupDashboard() {
                 onPointerUp={clearLongPress}
                 onPointerCancel={clearLongPress}
                 onPointerLeave={clearLongPress}
-                className="p-2 bg-zinc-100 text-zinc-400 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center touch-none"
+                className="relative z-10 p-2 bg-zinc-100 text-zinc-400 rounded-lg text-xs font-bold hover:bg-zinc-200 transition-colors flex items-center justify-center touch-none"
                 aria-label="기도제목 순서 조정"
                 type="button"
               >
@@ -3865,7 +3875,7 @@ export default function GroupDashboard() {
             onPointerUp={clearLongPress}
             onPointerCancel={clearLongPress}
             onPointerLeave={clearLongPress}
-            className="p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none"
+            className="relative z-10 p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none"
             aria-label="기도제목 박스 순서 조정"
             type="button"
           >
@@ -5017,15 +5027,6 @@ export default function GroupDashboard() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowPrayerTopicOrderModal(false);
-                }
-              }}
               className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden mt-auto sm:mt-0"
             >
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
@@ -5065,16 +5066,6 @@ export default function GroupDashboard() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowPrayerTopicModal(false);
-                  cancelEditingPrayerTopic();
-                }
-              }}
               className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0"
             >
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
