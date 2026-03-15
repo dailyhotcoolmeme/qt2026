@@ -154,7 +154,7 @@ export function AudioRecordPlayer({
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="h-7 w-7 shrink-0 rounded-full text-red-300 transition-colors hover:bg-red-50"
+                className="h-8 w-8 shrink-0 rounded-full text-red-300 transition-colors hover:bg-red-50"
                 title={deleteTitle}
                 type="button"
               >

@@ -1035,7 +1035,7 @@ export default function PrayerPage() {
                               </button>
                             </div>
                           ) : (
-                            <div className="bg-white py-4 pr-4 pl-1.5">
+                            <div className="bg-white p-4">
                               <AudioRecordPlayer
                                 src={record.audio_url}
                                 title={record.title || '음성 기도'}
@@ -1044,6 +1044,7 @@ export default function PrayerPage() {
                                 onDelete={() => handleDeleteRecord(record.id, record.audio_url)}
                                 deleteIcon={<Trash2 size={16} />}
                                 deleteTitle="기도 기록 삭제"
+                                className="border-0 bg-white p-0 shadow-none"
                               />
                             </div>
                           )}
