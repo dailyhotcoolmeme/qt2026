@@ -31,11 +31,18 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
-
-const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
-const PENDING_GROUP_INVITE_REDIRECTED_KEY = "pending_group_invite_redirected";
-const GROUP_INVITE_QUERY_KEY = "invite_group";
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import {
+  clearInviteGroupId,
+  GROUP_INVITE_QUERY_KEY,
+  isAlreadyJoinedInviteError,
+  joinInviteGroup,
+  PENDING_GROUP_INVITE_KEY,
+  PENDING_GROUP_INVITE_REDIRECTED_KEY,
+  persistInviteGroupId,
+  readInviteGroupIdFromUrl,
+  resolveJoinedGroupId,
+  UUID_REGEX,
+} from "./lib/groupInvite";
 const REGISTER_HASH_PATH = "#/register";
 const NATIVE_OAUTH_CALLBACK_PREFIX = "com.myamen.app://auth/callback";
 const NATIVE_OAUTH_BRIDGE_QUERY_KEY = "native_oauth";
@@ -69,22 +76,6 @@ function buildNativeCallbackUrlFromBrowserLocation(rawUrl: string) {
   currentUrl.searchParams.delete(NATIVE_OAUTH_BRIDGE_QUERY_KEY);
   const nextSearch = currentUrl.searchParams.toString();
   return `${NATIVE_OAUTH_CALLBACK_PREFIX}${nextSearch ? `?${nextSearch}` : ""}${currentUrl.hash || ""}`;
-}
-
-function readInviteGroupIdFromUrl(): string | null {
-  const searchParams = new URLSearchParams(window.location.search);
-  const fromSearch = String(searchParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
-  if (UUID_REGEX.test(fromSearch)) return fromSearch;
-
-  const hash = window.location.hash || "";
-  const queryIdx = hash.indexOf("?");
-  if (queryIdx >= 0) {
-    const hashParams = new URLSearchParams(hash.substring(queryIdx + 1));
-    const fromHash = String(hashParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
-    if (UUID_REGEX.test(fromHash)) return fromHash;
-  }
-
-  return null;
 }
 
 function AppContent() {
@@ -175,8 +166,7 @@ export default function App() {
       const inviteGroupId = readInviteGroupIdFromUrl();
       if (!inviteGroupId) return;
       try {
-        localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
-        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
+        persistInviteGroupId(inviteGroupId);
         // Legacy shared links may include "#/register?invite_group=...".
         // Keep invite id in storage and normalize hash to "/register" to avoid route mismatch.
         if (window.location.hash.startsWith("#/register?")) {
@@ -194,26 +184,6 @@ export default function App() {
       if (currentUrl !== targetUrl) {
         window.location.href = targetUrl;
       }
-    };
-
-    const isAlreadyJoinedInviteError = (error: any) => {
-      const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
-      return /already|duplicate|exists|member|joined/i.test(msg);
-    };
-
-    const resolveJoinedGroupId = (rpcData: unknown, fallbackGroupId: string) => {
-      const direct = String(rpcData ?? "").trim();
-      if (UUID_REGEX.test(direct)) return direct;
-      if (rpcData && typeof rpcData === "object") {
-        const candidate = String(
-          (rpcData as any).group_id ??
-          (rpcData as any).id ??
-          (rpcData as any).groupId ??
-          ""
-        ).trim();
-        if (UUID_REGEX.test(candidate)) return candidate;
-      }
-      return fallbackGroupId;
     };
 
     const resolveSessionUserId = async (fallbackUserId?: string | null) => {
@@ -268,20 +238,20 @@ export default function App() {
 
       inviteJoinInFlight = true;
       try {
-        const { data, error } = await supabase.rpc("join_group_by_invite_link", {
-          p_group_id: pendingGroupId,
-        });
-
-        if (error && !isAlreadyJoinedInviteError(error)) {
-          console.error("join pending invite failed:", error);
-          return;
+        let joinedGroupId = "";
+        try {
+          joinedGroupId = await joinInviteGroup(pendingGroupId);
+        } catch (error) {
+          if (!isAlreadyJoinedInviteError(error)) {
+            console.error("join pending invite failed:", error);
+            return;
+          }
+          joinedGroupId = resolveJoinedGroupId("", pendingGroupId);
         }
 
-        const joinedGroupId = resolveJoinedGroupId(data, pendingGroupId);
         if (!UUID_REGEX.test(joinedGroupId)) return;
 
-        localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-        localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY);
+        clearInviteGroupId();
 
         const targetPath = `/group/${joinedGroupId}`;
         const targetHash = `#${targetPath}`;
@@ -604,4 +574,3 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-

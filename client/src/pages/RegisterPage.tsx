@@ -24,44 +24,18 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { isEmbeddedInAppBrowser, openUrlInExternalBrowser } from "../lib/appUrl";
+import {
+  GROUP_INVITE_QUERY_KEY,
+  joinInviteGroupAndRedirect,
+  persistInviteGroupId,
+  readInviteGroupIdFromUrl,
+} from "../lib/groupInvite";
 
 /** 가입 관련 고정 텍스트 데이터 */
 const adjectives = ["새로운", "온유한", "지혜로운", "거룩한", "빛나는", "강건한"];
 const nouns = ["양", "증인", "제자", "파수꾼", "등불", "반석"];
 const ranks = ["성도", "교사", "청년", "집사", "권사", "장로", "전도사", "목사", "기타"];
 const emailDomains = ["naver.com", "gmail.com", "daum.net", "hanmail.net", "kakao.com", "직접 입력"];
-const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
-const GROUP_INVITE_QUERY_KEY = "invite_group";
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function readInviteGroupIdFromUrl(): string | null {
-  const searchParams = new URLSearchParams(window.location.search);
-  const fromSearch = String(searchParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
-  if (UUID_REGEX.test(fromSearch)) return fromSearch;
-
-  const hash = window.location.hash || "";
-  const queryIdx = hash.indexOf("?");
-  if (queryIdx >= 0) {
-    const hashParams = new URLSearchParams(hash.substring(queryIdx + 1));
-    const fromHash = String(hashParams.get(GROUP_INVITE_QUERY_KEY) || "").trim();
-    if (UUID_REGEX.test(fromHash)) return fromHash;
-  }
-
-  try {
-    const fromStorage = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
-    if (UUID_REGEX.test(fromStorage)) return fromStorage;
-  } catch {
-    // ignore storage errors
-  }
-
-  return null;
-}
-
-function isAlreadyJoinedInviteError(error: any) {
-  const msg = `${error?.message || ""} ${error?.details || ""} ${error?.hint || ""}`;
-  return /already|duplicate|exists|이미|참여 중|가입.*되어/i.test(msg);
-}
-
 export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { fontSize = 16 } = useDisplaySettings();
@@ -112,33 +86,6 @@ export default function RegisterPage() {
   // 실시간 입력값 감시
   const watchAll = watch();
   const isPasswordMatch = watchAll.passwordConfirm && watchAll.password === watchAll.passwordConfirm;
-
-  const joinInviteGroupAndRedirect = useCallback(async (inviteGroupId: string) => {
-    if (!UUID_REGEX.test(inviteGroupId)) return false;
-
-    const { data: joinedData, error: joinError } = await supabase.rpc("join_group_by_invite_link", {
-      p_group_id: inviteGroupId,
-    });
-
-    if (joinError && !isAlreadyJoinedInviteError(joinError)) {
-      console.error("join invite after register failed:", joinError);
-      return false;
-    }
-
-    const joinedGroupIdCandidate = String(joinedData ?? "").trim();
-    const joinedGroupId = UUID_REGEX.test(joinedGroupIdCandidate) ? joinedGroupIdCandidate : inviteGroupId;
-    if (!UUID_REGEX.test(joinedGroupId)) return false;
-
-    try {
-      localStorage.removeItem(PENDING_GROUP_INVITE_KEY);
-    } catch {
-      // ignore storage errors
-    }
-
-    window.location.href = `${window.location.origin}/#/group/${joinedGroupId}`;
-    return true;
-  }, []);
-
   useEffect(() => {
     let alive = true;
     const handleSignedInInviteOnRegisterPage = async () => {
@@ -156,7 +103,7 @@ export default function RegisterPage() {
     return () => {
       alive = false;
     };
-  }, [joinInviteGroupAndRedirect]);
+  }, []);
 
   /** 랜덤 닉네임 생성 */
   const generateNickname = useCallback(() => {
@@ -264,11 +211,7 @@ export default function RegisterPage() {
     const inviteGroupId = readInviteGroupIdFromUrl();
 
     if (inviteGroupId) {
-      try {
-        localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
-      } catch {
-        // ignore storage errors
-      }
+      persistInviteGroupId(inviteGroupId);
     }
 
     if (provider === "google" && isEmbeddedInAppBrowser()) {
@@ -327,11 +270,7 @@ export default function RegisterPage() {
 
       const inviteGroupId = readInviteGroupIdFromUrl();
       if (inviteGroupId) {
-        try {
-          localStorage.setItem(PENDING_GROUP_INVITE_KEY, inviteGroupId);
-        } catch {
-          // ignore storage errors
-        }
+        persistInviteGroupId(inviteGroupId);
       }
 
       let userId = signUpData.user?.id ?? signUpData.session?.user?.id ?? null;

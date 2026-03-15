@@ -9,28 +9,16 @@ import { useHashLocation } from "wouter/use-hash-location";
 import { Link } from "wouter";
 import { Eye, EyeOff, X, Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
+import {
+  GROUP_INVITE_QUERY_KEY,
+  joinInviteGroupAndRedirect,
+  readInviteGroupId,
+} from "../lib/groupInvite";
 
 type LoginFormValues = {
   username: string;
   password: string;
 };
-
-const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
-const GROUP_INVITE_QUERY_KEY = "invite_group";
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function readInviteGroupId() {
-  const params = new URLSearchParams(window.location.search);
-  const fromSearch = String(params.get(GROUP_INVITE_QUERY_KEY) || "").trim();
-  if (UUID_REGEX.test(fromSearch)) return fromSearch;
-  try {
-    const fromStorage = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
-    if (UUID_REGEX.test(fromStorage)) return fromStorage;
-  } catch {
-    // ignore storage errors
-  }
-  return "";
-}
 
 function AuthPage() {
   const [, setLocation] = useHashLocation();
@@ -57,7 +45,11 @@ function AuthPage() {
       const { data, error } = await supabase.auth.getSession();
       if (error) return;
       if (data.session?.user) {
-        if (readInviteGroupId()) return;
+        const currentInviteGroupId = readInviteGroupId();
+        if (currentInviteGroupId) {
+          await joinInviteGroupAndRedirect(currentInviteGroupId);
+          return;
+        }
         window.location.replace(`${window.location.origin}/#/`);
       }
     };
@@ -66,7 +58,11 @@ function AuthPage() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        if (readInviteGroupId()) return;
+        const currentInviteGroupId = readInviteGroupId();
+        if (currentInviteGroupId) {
+          void joinInviteGroupAndRedirect(currentInviteGroupId);
+          return;
+        }
         window.location.replace(`${window.location.origin}/#/`);
       }
     });
@@ -128,6 +124,7 @@ function AuthPage() {
       if (returnTo) {
         window.location.href = resolveOAuthReturnTo(returnTo);
       } else if (readInviteGroupId()) {
+        await joinInviteGroupAndRedirect(readInviteGroupId());
         return;
       } else {
         setLocation("/");

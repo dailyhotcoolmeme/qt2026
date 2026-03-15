@@ -7,6 +7,7 @@ import { startOAuthSignIn } from "../lib/oauth";
 import { isEmbeddedInAppBrowser, isNativeApp, openUrlInExternalBrowser } from "../lib/appUrl";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
+import { GROUP_INVITE_QUERY_KEY, readInviteGroupId } from "../lib/groupInvite";
 
 interface LoginModalProps {
   open: boolean;
@@ -96,7 +97,9 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     } catch {
       // ignore storage errors
     }
-    setLocation(`/auth?loginModal=true&returnTo=${encodeURIComponent(targetReturnTo)}`);
+    const inviteGroupId = readInviteGroupId();
+    const inviteQuery = inviteGroupId ? `&${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
+    setLocation(`/auth?loginModal=true&returnTo=${encodeURIComponent(targetReturnTo)}${inviteQuery}`);
   };
 
   return (
@@ -178,7 +181,9 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
               <button
                 onClick={() => {
                   onOpenChange(false);
-                  setLocation("/register");
+                  const inviteGroupId = readInviteGroupId();
+                  const inviteQuery = inviteGroupId ? `?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
+                  setLocation(`/register${inviteQuery}`);
                 }}
                 className="w-full py-3 text-sm font-medium text-zinc-500 hover:text-zinc-700"
               >
