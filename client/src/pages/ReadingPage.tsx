@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Pencil, NotebookPen,
   BookX, Loader2, BookOpen, Trash2
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { incrementVerseBookmark } from "../utils/verseBookmarks";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -186,6 +186,7 @@ export default function ReadingPage() {
   const [showPlayModePopup, setShowPlayModePopup] = useState(false);
   const [isContinuousPlayMode, setIsContinuousPlayMode] = useState(false);
   const nextChapterAudioCache = useRef<HTMLAudioElement | null>(null);
+  const readingRangeModalDragControls = useDragControls();
 
   const { fontSize = 16 } = useDisplaySettings();
 
@@ -2528,6 +2529,8 @@ export default function ReadingPage() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               drag="y"
+              dragControls={readingRangeModalDragControls}
+              dragListener={false}
               dragDirectionLock
               dragConstraints={{ top: 0, bottom: 240 }}
               dragElastic={{ top: 0, bottom: 0.2 }}
@@ -2539,7 +2542,16 @@ export default function ReadingPage() {
               className="relative bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mx-auto -mt-2 mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="sticky top-0 z-10 -mx-8 -mt-8 mb-4 flex justify-center bg-white/96 px-8 pt-3 pb-2 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onPointerDown={(event) => readingRangeModalDragControls.start(event)}
+                  className="touch-none"
+                  aria-label="팝업 닫기"
+                >
+                  <div className="h-1.5 w-12 rounded-full bg-zinc-200" />
+                </button>
+              </div>
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="absolute right-6 top-6 text-zinc-400 transition-colors hover:text-zinc-600"
