@@ -46,7 +46,6 @@ export default function PrayerPage() {
   const [showPlayback, setShowPlayback] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveTitle, setSaveTitle] = useState("");
-  const [saveHashtags, setSaveHashtags] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [savingProgress, setSavingProgress] = useState(0);
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
@@ -355,10 +354,6 @@ export default function PrayerPage() {
       setSavingProgress(70);
 
       // 3단계: DB 저장 (70% → 90%)
-      const hashtags = saveHashtags.trim()
-        ? saveHashtags.split('#').filter(tag => tag.trim()).map(tag => tag.trim())
-        : [];
-
       const { data: insertedRecord, error } = await supabase
         .from('prayer_records')
         .insert({
@@ -367,7 +362,7 @@ export default function PrayerPage() {
           audio_duration: recordingTime,
           date: kstDate,
           title: saveTitle.trim() || '음성 기도',
-          hashtags
+          hashtags: []
         })
         .select('id, title, audio_url, audio_duration, created_at')
         .single();
@@ -525,7 +520,6 @@ export default function PrayerPage() {
     setShowPlayback(false);
     setShowSaveModal(false);
     setSaveTitle("");
-    setSaveHashtags("");
   };
 
   // 기도 기록 삭제 (모달 열기)
@@ -1041,7 +1035,7 @@ export default function PrayerPage() {
                               </button>
                             </div>
                           ) : (
-                            <div className="bg-white p-4">
+                            <div className="bg-white py-4 pr-4 pl-1.5">
                               <AudioRecordPlayer
                                 src={record.audio_url}
                                 title={record.title || '음성 기도'}
@@ -1051,15 +1045,6 @@ export default function PrayerPage() {
                                 deleteIcon={<Trash2 size={16} />}
                                 deleteTitle="기도 기록 삭제"
                               />
-                              {record.hashtags && record.hashtags.length > 0 && (
-                                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-12">
-                                  {record.hashtags.map((tag: string, idx: number) => (
-                                    <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
-                                      #{tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
                             </div>
                           )}
                           {index !== selectedDateRecords.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
@@ -1230,7 +1215,6 @@ export default function PrayerPage() {
                 <AudioRecordPlayer
                   blob={audioBlob}
                   title="음성 기도 미리듣기"
-                  subtitle={formatTime(recordingTime)}
                   downloadName="prayer-preview.webm"
                   className="w-full bg-white/95 border-white/20 shadow-xl"
                 />
@@ -1282,17 +1266,6 @@ export default function PrayerPage() {
                           value={saveTitle}
                           onChange={(e) => setSaveTitle(e.target.value)}
                           placeholder="제목을 입력하세요"
-                          className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm text-zinc-600 mb-1">해그태그 (선택)</label>
-                        <input
-                          type="text"
-                          value={saveHashtags}
-                          onChange={(e) => setSaveHashtags(e.target.value)}
-                          placeholder="#감사 #회개"
                           className="w-full px-4 py-2 border border-zinc-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20"
                         />
                       </div>
