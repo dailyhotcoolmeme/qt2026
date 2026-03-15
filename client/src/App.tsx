@@ -31,6 +31,7 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
+import InsightsDashboardPage from "./pages/InsightsDashboardPage";
 import {
   clearInviteGroupId,
   GROUP_INVITE_QUERY_KEY,
@@ -89,6 +90,7 @@ function AppContent() {
           <Route path="/register" component={RegisterPage} />
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
+          <Route path="/insights" component={InsightsDashboardPage} />
           <Route>
             <Layout>
               <TopBar />
