@@ -3816,10 +3816,10 @@ export default function GroupDashboard() {
                 {isManager && (
                   <button
                     onClick={() => setActiveTab("admin")}
-                    className="w-10 h-10 text-white/80 hover:text-white transition-colors flex items-center justify-center bg-white/0 hover:bg-white/10 rounded-full"
+                    className="h-7 w-7 text-white/80 hover:text-white inline-flex items-center justify-center"
                     title="모임 관리"
                   >
-                    <Settings size={20} strokeWidth={2.5} />
+                    <Settings size={16} strokeWidth={2.25} />
                   </button>
                 )}
               </div>
@@ -3834,7 +3834,7 @@ export default function GroupDashboard() {
                 title="회원 조회"
                 type="button"
               >
-                모임 회원수 : {members.length}명
+                모임 회원수 : <span className="underline underline-offset-2">{members.length}명</span>
               </button>
               <span>나의 등급 : {toLabel(role)}</span>
             </div>
