@@ -1,26 +1,43 @@
 import { create } from "zustand";
-import type { DashboardScope, TimeframeDays } from "../lib/dashboard";
+import type { DashboardContextKind, DashboardNetworkMode, TimeframeDays } from "../lib/dashboard";
 
-export type DashboardSection = "overview" | "personal" | "groups" | "access";
+export type DashboardSubtab = "summary" | "records" | "participation" | "manage" | "overview" | "compare";
 
 type DashboardShellState = {
   mobileMenuOpen: boolean;
-  activeSection: DashboardSection;
   timeframe: TimeframeDays;
-  groupScope: DashboardScope;
+  contextKind: DashboardContextKind;
+  selectedGroupId: string | null;
+  networkMode: DashboardNetworkMode;
+  activeSubtab: DashboardSubtab;
   setMobileMenuOpen: (open: boolean) => void;
-  setActiveSection: (section: DashboardSection) => void;
   setTimeframe: (timeframe: TimeframeDays) => void;
-  setGroupScope: (scope: DashboardScope) => void;
+  setNetworkMode: (mode: DashboardNetworkMode) => void;
+  setActiveSubtab: (tab: DashboardSubtab) => void;
+  setContext: (contextKind: DashboardContextKind, groupId?: string | null) => void;
 };
+
+function defaultSubtabForContext(contextKind: DashboardContextKind): DashboardSubtab {
+  if (contextKind === "personal") return "summary";
+  if (contextKind === "network") return "overview";
+  return "participation";
+}
 
 export const useDashboardShellStore = create<DashboardShellState>((set) => ({
   mobileMenuOpen: false,
-  activeSection: "overview",
   timeframe: 30,
-  groupScope: "managed",
+  contextKind: "personal",
+  selectedGroupId: null,
+  networkMode: "managed",
+  activeSubtab: "summary",
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
-  setActiveSection: (section) => set({ activeSection: section }),
   setTimeframe: (timeframe) => set({ timeframe }),
-  setGroupScope: (scope) => set({ groupScope: scope }),
+  setNetworkMode: (mode) => set({ networkMode: mode }),
+  setActiveSubtab: (tab) => set({ activeSubtab: tab }),
+  setContext: (contextKind, groupId = null) =>
+    set({
+      contextKind,
+      selectedGroupId: contextKind === "group" ? groupId : null,
+      activeSubtab: defaultSubtabForContext(contextKind),
+    }),
 }));
