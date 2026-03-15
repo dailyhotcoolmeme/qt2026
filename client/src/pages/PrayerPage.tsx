@@ -1034,7 +1034,7 @@ export default function PrayerPage() {
       </div>
 
       {/* 하단: 서브탭(기도 제목/기도 보관함) + 함께 기도해요 */}
-      <div className="mx-auto mt-2 w-full max-w-sm px-0">
+      <div className="mx-auto mt-4 w-full max-w-sm px-0">
         <div className="mb-4 bg-white shadow-sm rounded-2xl border border-zinc-100 p-1.5 flex">
           <button
             onClick={() => setPrayerSubTab('topics')}
