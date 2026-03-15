@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { clearInviteGroupId } from "../lib/groupInvite";
 import { supabase } from "../lib/supabase";
 
 // User 타입 정의 (Supabase profiles 테이블 기반)
@@ -123,8 +124,9 @@ async function fetchUser(): Promise<User | null> {
 }
 
 async function logout(): Promise<void> {
+  clearInviteGroupId();
   await supabase.auth.signOut();
-  window.location.href = "/";
+  window.location.href = `${window.location.origin}${window.location.pathname}${window.location.hash || "#/"}`;
 }
 
 export function useAuth() {

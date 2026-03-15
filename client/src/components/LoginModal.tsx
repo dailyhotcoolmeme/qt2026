@@ -15,6 +15,8 @@ interface LoginModalProps {
   returnTo?: string;
 }
 
+const EXTERNAL_OAUTH_QUERY_KEY = "external_oauth";
+
 export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const { fontSize = 16 } = useDisplaySettings();
   const { isAuthenticated } = useAuth();
@@ -69,7 +71,9 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     const targetReturnTo = resolveTargetReturnTo();
     if (isEmbeddedInAppBrowser()) {
       alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
-      openUrlInExternalBrowser(window.location.href);
+      const externalUrl = new URL(window.location.href);
+      externalUrl.searchParams.set(EXTERNAL_OAUTH_QUERY_KEY, "google");
+      openUrlInExternalBrowser(externalUrl.toString());
       return;
     }
     try {

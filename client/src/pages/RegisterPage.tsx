@@ -31,6 +31,8 @@ import {
   readInviteGroupIdFromUrl,
 } from "../lib/groupInvite";
 
+const EXTERNAL_OAUTH_QUERY_KEY = "external_oauth";
+
 /** 가입 관련 고정 텍스트 데이터 */
 const adjectives = ["새로운", "온유한", "지혜로운", "거룩한", "빛나는", "강건한"];
 const nouns = ["양", "증인", "제자", "파수꾼", "등불", "반석"];
@@ -86,6 +88,23 @@ export default function RegisterPage() {
   // 실시간 입력값 감시
   const watchAll = watch();
   const isPasswordMatch = watchAll.passwordConfirm && watchAll.password === watchAll.passwordConfirm;
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get(EXTERNAL_OAUTH_QUERY_KEY);
+    if (!provider || isEmbeddedInAppBrowser()) return;
+    if (provider !== "google" && provider !== "kakao" && provider !== "apple") return;
+
+    params.delete(EXTERNAL_OAUTH_QUERY_KEY);
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`,
+    );
+
+    void startOAuthSignUp(provider);
+  }, []);
   useEffect(() => {
     let alive = true;
     const handleSignedInInviteOnRegisterPage = async () => {
@@ -216,7 +235,9 @@ export default function RegisterPage() {
 
     if (provider === "google" && isEmbeddedInAppBrowser()) {
       alert("카카오톡 같은 앱 내 브라우저에서는 구글 회원가입이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
-      openUrlInExternalBrowser(window.location.href);
+      const externalUrl = new URL(window.location.href);
+      externalUrl.searchParams.set(EXTERNAL_OAUTH_QUERY_KEY, provider);
+      openUrlInExternalBrowser(externalUrl.toString());
       return;
     }
 

@@ -16,6 +16,8 @@ import {
   readInviteGroupId,
 } from "../lib/groupInvite";
 
+const EXTERNAL_OAUTH_QUERY_KEY = "external_oauth";
+
 type LoginFormValues = {
   username: string;
   password: string;
@@ -39,6 +41,23 @@ function AuthPage() {
     if (params.get("loginModal") === "true") {
       setIsLoginOpen(true);
     }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get(EXTERNAL_OAUTH_QUERY_KEY);
+    if (!provider || isEmbeddedInAppBrowser()) return;
+    if (provider !== "google" && provider !== "kakao") return;
+
+    params.delete(EXTERNAL_OAUTH_QUERY_KEY);
+    const nextSearch = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`,
+    );
+
+    void handleSocialLogin(provider);
   }, []);
 
   useEffect(() => {
@@ -89,7 +108,9 @@ function AuthPage() {
   const handleSocialLogin = async (provider: "kakao" | "google") => {
     if (provider === "google" && isEmbeddedInAppBrowser()) {
       alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
-      openUrlInExternalBrowser(window.location.href);
+      const externalUrl = new URL(window.location.href);
+      externalUrl.searchParams.set(EXTERNAL_OAUTH_QUERY_KEY, provider);
+      openUrlInExternalBrowser(externalUrl.toString());
       return;
     }
     try {

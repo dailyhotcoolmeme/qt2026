@@ -111,7 +111,6 @@ export function TopBar() {
 
   const confirmLogout = () => {
     logout();
-    setLocation("/");
     setIsMenuOpen(false);
     setShowLogoutConfirm(false);
   };
