@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, ChevronDown, ChevronUp, Headphones, Calendar as CalendarIcon } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, Calendar as CalendarIcon } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
+import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
 import { shareContent } from "../lib/nativeShare";
 import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
 import { shareBlobFile } from "../lib/nativeFileShare";
@@ -51,11 +52,6 @@ export default function PrayerPage() {
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
   const [deleteRecordUrl, setDeleteRecordUrl] = useState<string | null>(null);
-  const [playingRecordId, setPlayingRecordId] = useState<number | null>(null);
-  const [recordDuration, setRecordDuration] = useState<{ [key: number]: number }>({});
-  const [recordCurrentTime, setRecordCurrentTime] = useState<{ [key: number]: number }>({});
-  const [expandedRecordId, setExpandedRecordId] = useState<number | null>(null);
-  const [showKeywords, setShowKeywords] = useState<number | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
@@ -74,10 +70,6 @@ export default function PrayerPage() {
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
   const recordingTimerRef = useRef<any>(null);
-  const recordedAudioRef = useRef<any>(null);
-  const audioProgressRef = useRef<any>(null);
-  const audioRef = useRef<any>(null);
-
   // 모임 연결 관련 useEffect 제거
 
   // 상태 변수 선언 바로 아래에 함수 선언
@@ -309,47 +301,6 @@ export default function PrayerPage() {
       setShowPlayback(true);
     }
   };
-
-
-
-  // 재생
-  const playRecordedAudio = () => {
-    if (!audioBlob) return;
-
-    if (recordedAudioRef.current) {
-      if (recordedAudioRef.current.paused) {
-        recordedAudioRef.current.play();
-      } else {
-        recordedAudioRef.current.pause();
-      }
-      return;
-    }
-
-    const audio = new Audio(URL.createObjectURL(audioBlob));
-    recordedAudioRef.current = audio;
-
-    audio.addEventListener('timeupdate', () => {
-      if (audioProgressRef.current) {
-        audioProgressRef.current.value = String(audio.currentTime);
-      }
-    });
-
-    audio.addEventListener('ended', () => {
-      if (audioProgressRef.current) {
-        audioProgressRef.current.value = '0';
-      }
-    });
-
-    audio.play();
-  };
-
-  // 재생 위치 변경
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (recordedAudioRef.current) {
-      recordedAudioRef.current.currentTime = parseFloat(e.target.value);
-    }
-  };
-
   // 저장 모달 열기
   const handleOpenSaveModal = () => {
     setShowPlayback(false);
@@ -476,70 +427,6 @@ export default function PrayerPage() {
     }
   };
 
-  const handleShareRecordAudio = async (record: any) => {
-    if (!record?.audio_url || record.audio_url === "amen") return;
-
-    const title = record.title || "음성 기도";
-    const shareText = "기도 음성을 공유합니다.";
-
-    try {
-      if (isNativeApp()) {
-        await shareContent({
-          title,
-          text: shareText,
-          url: record.audio_url,
-          dialogTitle: "기도 공유",
-        });
-        return;
-      }
-
-      const shared = await shareContent({
-        title,
-        text: shareText,
-        url: record.audio_url,
-        dialogTitle: "기도 공유",
-      });
-      if (shared) return;
-
-      if (navigator.share) {
-        try {
-          const response = await fetch(record.audio_url);
-          if (response.ok) {
-            const blob = await response.blob();
-            const extension = blob.type.includes("mpeg")
-              ? "mp3"
-              : blob.type.includes("ogg")
-                ? "ogg"
-                : "webm";
-            const file = new File([blob], `${title}.${extension}`, { type: blob.type || "audio/webm" });
-
-            if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title,
-                text: shareText,
-                files: [file],
-              });
-              return;
-            }
-          }
-        } catch (error) {
-          console.error("audio file share fallback:", error);
-        }
-
-        await navigator.clipboard.writeText(record.audio_url);
-        alert("공유 링크를 복사했습니다.");
-        return;
-      }
-
-      await navigator.clipboard.writeText(record.audio_url);
-      alert("공유 링크를 복사했습니다.");
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") return;
-      console.error("record share failed:", error);
-      alert("공유에 실패했습니다.");
-    }
-  };
-
   const handleOpenGroupLinkModal = () => {
     if (!user) {
       setShowLoginModal(true);
@@ -639,48 +526,6 @@ export default function PrayerPage() {
     setShowSaveModal(false);
     setSaveTitle("");
     setSaveHashtags("");
-    if (recordedAudioRef.current) {
-      recordedAudioRef.current.pause();
-      recordedAudioRef.current = null;
-    }
-  };
-
-  // 기도 기록 재생
-  const playRecording = (audioUrl: string, recordId: number) => {
-    if (playingRecordId === recordId && audioRef.current) {
-      if (audioRef.current.paused) {
-        audioRef.current.play();
-      } else {
-        audioRef.current.pause();
-      }
-      return;
-    }
-
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-
-    const audio = new Audio(audioUrl);
-    audioRef.current = audio;
-    setPlayingRecordId(recordId);
-
-    audio.addEventListener('loadedmetadata', () => {
-      const duration = audio.duration;
-      if (Number.isFinite(duration) && duration > 0) {
-        setRecordDuration(prev => ({ ...prev, [recordId]: duration }));
-      }
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      setRecordCurrentTime(prev => ({ ...prev, [recordId]: audio.currentTime }));
-    });
-
-    audio.addEventListener('ended', () => {
-      setPlayingRecordId(null);
-      setRecordCurrentTime(prev => ({ ...prev, [recordId]: 0 }));
-    });
-
-    audio.play();
   };
 
   // 기도 기록 삭제 (모달 열기)
@@ -750,15 +595,6 @@ export default function PrayerPage() {
       alert('기도 기록 삭제 중 오류가 발생했습니다.');
     }
   };
-
-  // 재생바 시크
-  const handleRecordSeek = (recordId: number, value: number) => {
-    if (audioRef.current && playingRecordId === recordId) {
-      audioRef.current.currentTime = value;
-      setRecordCurrentTime(prev => ({ ...prev, [recordId]: value }));
-    }
-  };
-
   // 텍스트 복사
   const handleCopyText = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -1186,10 +1022,6 @@ export default function PrayerPage() {
                         month: 'short', day: 'numeric',
                         hour: 'numeric', minute: '2-digit', hour12: true,
                       }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
-                      const rawDuration = recordDuration[record.id];
-                      const safeDuration = Number.isFinite(rawDuration) && rawDuration > 0
-                        ? rawDuration
-                        : (record.audio_duration || 0);
 
                       return (
                         <React.Fragment key={record.id}>
@@ -1208,92 +1040,28 @@ export default function PrayerPage() {
                                 <Trash2 size={16} />
                               </button>
                             </div>
-		                          ) : (
-		                            <div className="bg-white p-4">
-		                              <div className="grid grid-cols-[22px_1fr] gap-x-3 gap-y-1">
-		                                {/* (A) 헤더: 아이콘 + (제목/작성일) */}
-		                                <div className="self-center">
-		                                  <Headphones size={22} className="text-[#4A6741]/90" strokeWidth={1.5} />
-		                                </div>
-		                                <div className="min-w-0">
-		                                  <div className="flex items-center justify-between gap-2">
-		                                    <h4
-		                                      className="flex-1 min-w-0 truncate font-bold leading-tight text-[#4A6741]/90"
-		                                      style={{ fontSize: `${fontSize * 0.90}px` }}
-		                                    >
-		                                      {record.title || '음성 기도'}
-		                                    </h4>
-		                                    <div className="flex shrink-0 items-center gap-1.5 min-w-0 max-w-[60%] flex-nowrap">
-		                                      {record.hashtags && record.hashtags.length > 0 && (
-		                                        <div className="flex min-w-0 items-center justify-end gap-1 overflow-hidden">
-		                                          {record.hashtags.map((tag: string, idx: number) => (
-		                                            <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
-		                                              #{tag}
-		                                            </span>
-		                                          ))}
-		                                        </div>
-		                                      )}
-		                                    </div>
-		                                  </div>
-		                                  <p className="text-xs text-zinc-400 mt-1">{formattedDate}</p>
-		                                </div>
-
-		                                {/* (B) 재생: 버튼 + 재생바(한 줄) */}
-		                                <div aria-hidden="true" />
-		                                <div className="flex items-center gap-3">
-		                                  <button
-		                                    onClick={() => playRecording(record.audio_url, record.id)}
-		                                    className="w-8 h-8 flex-shrink-0 rounded-full bg-[#4A6741] text-white flex items-center justify-center"
-		                                  >
-		                                    {playingRecordId === record.id && audioRef.current && !audioRef.current.paused ? (
-		                                      <Pause size={16} fill="white" />
-		                                    ) : (
-		                                      <Play size={16} fill="white" />
-		                                    )}
-		                                  </button>
-		                                  <div className="flex-1 min-w-0">
-		                                    <input
-		                                      type="range"
-		                                      min="0"
-		                                      max={safeDuration}
-		                                      value={recordCurrentTime[record.id] || 0}
-		                                      onChange={(e) => handleRecordSeek(record.id, Number(e.target.value))}
-		                                      className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-		                                      style={{
-		                                        background: safeDuration > 0
-		                                          ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 ${((recordCurrentTime[record.id] || 0) / safeDuration) * 100}%, #c8dfc4 100%)`
-		                                          : '#c8dfc4',
-		                                      }}
-		                                    />
-		                                    <div className="mt-1 flex justify-between text-xs text-[#4A6741]/70">
-		                                      <span>{Math.floor((recordCurrentTime[record.id] || 0) / 60)}:{String(Math.floor((recordCurrentTime[record.id] || 0) % 60)).padStart(2, '0')}</span>
-		                                      <span>{Math.floor(safeDuration / 60)}:{String(Math.floor(safeDuration % 60)).padStart(2, '0')}</span>
-		                                    </div>
-		                                  </div>
-		                                </div>
-
-		                                {/* (C) 액션: 공유/삭제 (재생바 아래 우측) */}
-		                                <div aria-hidden="true" />
-		                                <div className="flex items-center justify-end gap-2">
-		                                  <button
-		                                    onClick={() => handleShareRecordAudio(record)}
-		                                    className="inline-flex items-center gap-1 text-[#4A6741] text-sm font-bold hover:underline"
-		                                    title="공유"
-		                                  >
-		                                    <Share2 size={16} />
-		                                    공유
-		                                  </button>
-		                                  <button
-		                                    onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-		                                    className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
-		                                    title="삭제"
-		                                  >
-		                                    <Trash2 size={16} />
-		                                  </button>
-		                                </div>
-		                              </div>
-		                            </div>
-		                          )}
+                          ) : (
+                            <div className="bg-white p-4">
+                              <AudioRecordPlayer
+                                src={record.audio_url}
+                                title={record.title || '음성 기도'}
+                                subtitle={formattedDate}
+                                downloadName={`${record.title || 'prayer-record'}.webm`}
+                                onDelete={() => handleDeleteRecord(record.id, record.audio_url)}
+                                deleteIcon={<Trash2 size={16} />}
+                                deleteTitle="기도 기록 삭제"
+                              />
+                              {record.hashtags && record.hashtags.length > 0 && (
+                                <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-12">
+                                  {record.hashtags.map((tag: string, idx: number) => (
+                                    <span key={idx} className="text-xs text-[#4A6741] whitespace-nowrap">
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {index !== selectedDateRecords.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
                         </React.Fragment>
                       );
@@ -1459,38 +1227,21 @@ export default function PrayerPage() {
                 className="text-center px-6 w-full max-w-md flex flex-col items-center"
               >
                 <h3 className="text-white opacity-50 text-lg font-bold mb-4">다시 듣기</h3>
-
-                {/* 재생 버튼 */}
-                <button
-                  onClick={playRecordedAudio}
-                  className="w-16 h-16 rounded-full bg-[#4A6741] opacity-50 text-white flex items-center justify-center mb-10"
-                >
-                  {recordedAudioRef.current && !recordedAudioRef.current.paused ? (
-                    <Pause size={24} />
-                  ) : (
-                    <Play size={24} />
-                  )}
-                </button>
-
-                {/* 재생바 */}
-                <input
-                  ref={audioProgressRef}
-                  type="range"
-                  min="0"
-                  max={recordingTime}
-                  step="0.1"
-                  defaultValue="0"
-                  onChange={handleSeek}
-                  className="w-full mb-8"
+                <AudioRecordPlayer
+                  blob={audioBlob}
+                  title="음성 기도 미리듣기"
+                  subtitle={formatTime(recordingTime)}
+                  downloadName="prayer-preview.webm"
+                  className="w-full bg-white/95 border-white/20 shadow-xl"
                 />
 
                 {/* 버튼들 */}
-                <div className="flex gap-2 w-full">
+                <div className="mt-6 flex gap-2 w-full">
                   <button
                     onClick={handleOpenSaveModal}
                     className="flex-1 py-3 rounded-full bg-black text-white opacity-50 font-medium flex items-center justify-center gap-1"
                   >
-                    <Download size={16} />
+                    <Check size={16} />
                     저장
                   </button>
 

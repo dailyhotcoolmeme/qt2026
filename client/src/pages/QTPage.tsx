@@ -27,6 +27,7 @@ import { uploadFileToR2 } from "../utils/upload";
 
 
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
+import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
 
 function formatLocalDate(date: Date) {
   const y = date.getFullYear();
@@ -90,9 +91,6 @@ export default function QTPage() {
   const [editingRecord, setEditingRecord] = useState<any>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRecordId, setDeletingRecordId] = useState<number | null>(null);
-  const [playingAudioId, setPlayingAudioId] = useState<number | null>(null);
-  const [audioProgress, setAudioProgress] = useState(0);
-  const [audioDuration, setAudioDuration] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
 
 
@@ -108,7 +106,6 @@ export default function QTPage() {
   const verseRowRefs = useRef<Record<number, HTMLParagraphElement | null>>({});
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const recordAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // 오디오 컨트롤 표시 상태 (TTS 재생용)
   const [showAudioControl, setShowAudioControl] = useState(false);
@@ -626,46 +623,6 @@ export default function QTPage() {
     } catch (error) {
       console.error('Error deleting meditation:', error);
       alert('묵상 기록 삭제 중 오류가 발생했습니다.');
-    }
-  };
-
-  // 음성 재생
-  const playRecordAudio = (audioUrl: string, recordId: number) => {
-    if (playingAudioId === recordId && recordAudioRef.current) {
-      recordAudioRef.current.pause();
-      setPlayingAudioId(null);
-      return;
-    }
-
-    if (recordAudioRef.current) {
-      recordAudioRef.current.pause();
-    }
-
-    const audio = new Audio(audioUrl);
-    recordAudioRef.current = audio;
-    setPlayingAudioId(recordId);
-    setAudioProgress(0);
-
-    audio.addEventListener('loadedmetadata', () => {
-      setAudioDuration(audio.duration);
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      setAudioProgress(audio.currentTime);
-    });
-
-    audio.addEventListener('ended', () => {
-      setPlayingAudioId(null);
-      setAudioProgress(0);
-    });
-
-    audio.play();
-  };
-
-  // 음성 진행바 클릭
-  const seekAudio = (progress: number) => {
-    if (recordAudioRef.current) {
-      recordAudioRef.current.currentTime = progress;
     }
   };
 
@@ -1350,53 +1307,18 @@ export default function QTPage() {
 
                 {/* 음성 재생 */}
 	                {record.audio_url && (
-	                  <div className="bg-[#4A6741]/5 rounded-lg p-3 mb-2">
-	                    <div className="flex items-center gap-3">
-	                      <button
-	                        onClick={() => playRecordAudio(record.audio_url, record.id)}
-	                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full"
-	                      >
-	                        {playingAudioId === record.id ? (
-	                          <Pause size={16} fill="white" />
-	                        ) : (
-	                          <Play size={16} fill="white" />
-	                        )}
-	                      </button>
-	                      <div className="flex-1 flex flex-col gap-1.5">
-	                        <input
-	                          type="range"
-	                          min="0"
-	                          max={playingAudioId === record.id ? (audioDuration || 0) : (record.audio_duration || 0)}
-	                          value={playingAudioId === record.id ? (audioProgress || 0) : 0}
-	                          onChange={(e) => {
-	                            if (playingAudioId !== record.id) return;
-	                            seekAudio(Number(e.target.value));
-	                          }}
-	                          className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
-	                          style={{
-	                            background:
-	                              playingAudioId === record.id && audioDuration > 0
-	                                ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${(audioProgress / audioDuration) * 100}%, #c8dfc4 ${(audioProgress / audioDuration) * 100}%, #c8dfc4 100%)`
-	                                : '#c8dfc4',
-	                          }}
-	                        />
-	                        <div className="flex justify-between text-xs text-[#4A6741]/70">
-	                          <span>
-	                            {playingAudioId === record.id ? formatTime(Math.floor(audioProgress || 0)) : "0:00"}
-	                          </span>
-	                          <span>
-	                            {formatTime(
-	                              Math.floor(
-	                                playingAudioId === record.id
-	                                  ? (audioDuration || 0)
-	                                  : (record.audio_duration || 0)
-	                              )
-	                            )}
-	                          </span>
-	                        </div>
-	                      </div>
-	                    </div>
-	                  </div>
+                    <AudioRecordPlayer
+                      src={record.audio_url}
+                      title="음성 묵상 기록"
+                      subtitle={new Date(record.created_at).toLocaleString('ko-KR', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                      }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                      className="mb-2"
+                    />
 	                )}
 
                 {/* 수정/삭제 버튼 */}
@@ -1555,37 +1477,14 @@ export default function QTPage() {
 
                 {/* 기존 음성 파일 (수정 모드) */}
                 {editingRecord?.audio_url && !audioBlob && (
-                  <div className="bg-white rounded-xl p-4 border border-zinc-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#4A6741]/10 rounded-full flex items-center justify-center">
-                          <Mic size={20} className="text-[#4A6741]" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-700" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                            기존 음성 녹음
-                          </p>
-                          <p className="text-zinc-400 text-sm">{formatTime(editingRecord.audio_duration || 0)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => playRecordAudio(editingRecord.audio_url, -1)}
-                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full"
-                      >
-                        {playingAudioId === -1 ? (
-                          <Pause size={14} fill="white" />
-                        ) : (
-                          <Play size={14} fill="white" />
-                        )}
-                      </button>
-                    </div>
-                    <button
-                      onClick={deleteExistingAudio}
-                      className="w-full py-2 text-red-500 font-medium text-sm"
-                    >
-                      기존 음성 삭제
-                    </button>
-                  </div>
+                  <AudioRecordPlayer
+                    src={editingRecord.audio_url}
+                    title="기존 음성 녹음"
+                    subtitle={formatTime(editingRecord.audio_duration || 0)}
+                    onDelete={deleteExistingAudio}
+                    deleteIcon={<Trash2 size={16} />}
+                    deleteTitle="기존 음성 삭제"
+                  />
                 )}
 
                 {!audioBlob && (!editingRecord || !editingRecord.audio_url) ? (
@@ -1610,43 +1509,13 @@ export default function QTPage() {
                     )}
                   </button>
                 ) : audioBlob ? (
-                  <div className="bg-white rounded-xl p-4 border border-zinc-200">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-[#4A6741]/10 rounded-full flex items-center justify-center">
-                          <Mic size={20} className="text-[#4A6741]" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-zinc-700" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                            음성 기록 녹음 완료
-                          </p>
-                          <p className="text-zinc-400 text-sm">{formatTime(recordingTime)}</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => {
-                          const url = URL.createObjectURL(audioBlob);
-                          playRecordAudio(url, -2);
-                        }}
-                        className="w-8 h-8 flex items-center justify-center bg-[#4A6741] text-white rounded-full mr-2"
-                      >
-                        {playingAudioId === -2 ? (
-                          <Pause size={14} fill="white" />
-                        ) : (
-                          <Play size={14} fill="white" />
-                        )}
-                      </button>
-                    </div>
-                    <div className="flex justify-end w-full px-2"> {/* 오른쪽 정렬을 위한 감싸는 div */}
-                      <button
-                        onClick={deleteAudio}
-                        className="p-2 text-red-300 hover:bg-red-50 rounded-full transition-colors"
-                        title="삭제"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
+                  <AudioRecordPlayer
+                    blob={audioBlob}
+                    title="음성 기록 녹음 완료"
+                    subtitle={formatTime(recordingTime)}
+                    onDelete={deleteAudio}
+                    deleteIcon={<Trash2 size={16} />}
+                  />
                 ) : null}
               </div>
 
