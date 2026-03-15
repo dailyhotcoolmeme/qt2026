@@ -1298,53 +1298,58 @@ export default function QTPage() {
           <div className="space-y-3">
             {meditationRecords.map((record) => (
               <div key={record.id} className="bg-white rounded-2xl p-4 shadow-sm border border-zinc-100">
-                {/* 텍스트 내용 */}
-                {record.meditation_text && (
-                  <p className="text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap" style={{ fontSize: `${fontSize * 0.9}px` }}>
-                    {record.meditation_text}
-                  </p>
-                )}
+                <div className="flex gap-3">
+                  <div className="flex-1 min-w-0">
+                    {/* 텍스트 내용 */}
+                    {record.meditation_text && (
+                      <p className="text-zinc-700 leading-relaxed mb-3 whitespace-pre-wrap" style={{ fontSize: `${fontSize * 0.9}px` }}>
+                        {record.meditation_text}
+                      </p>
+                    )}
 
-                {/* 음성 재생 */}
-	                {record.audio_url && (
-                    <div className="flex items-start gap-3 mb-2">
-                      <Headphones size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                          음성 묵상 기록
-                        </p>
-                        <p className="text-xs text-zinc-400 mt-0.5">
-                          {new Date(record.created_at).toLocaleString('ko-KR', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true
-                          }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
-                        </p>
-                        <AudioRecordPlayer
-                          variant="controlsOnly"
-                          src={record.audio_url}
-                          title="음성 묵상 기록"
-                          downloadName="qt-audio-record.webm"
-                          className="mt-2"
-                        />
+                    {/* 음성 재생 (PrayerPage 음성기도 리스트 스타일) */}
+                    {record.audio_url && (
+                      <div className="flex items-start gap-3">
+                        <Headphones size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                            음성 묵상 기록
+                          </p>
+                          <p className="text-xs text-zinc-400 mt-0.5">
+                            {new Date(record.created_at).toLocaleString('ko-KR', {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: 'numeric',
+                              minute: '2-digit',
+                              hour12: true
+                            }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                          </p>
+                          <AudioRecordPlayer
+                            variant="controlsOnly"
+                            src={record.audio_url}
+                            title="음성 묵상 기록"
+                            downloadName="qt-audio-record.webm"
+                            className="mt-2"
+                          />
+                        </div>
                       </div>
-                    </div>
-	                )}
+                    )}
 
-                {/* 수정/삭제 버튼 */}
-                <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
-                  <span className="text-xs text-zinc-400">
-                    {!record.audio_url ? new Date(record.created_at).toLocaleString('ko-KR', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                      hour12: true
-                    }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:') : ""}
-                  </span>
-                  <div className="flex gap-1">
+                    {!record.audio_url && (
+                      <div className="pt-3 text-xs text-zinc-400">
+                        {new Date(record.created_at).toLocaleString('ko-KR', {
+                          month: 'short',
+                          day: 'numeric',
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 수정/삭제 버튼: 오른쪽 세로 2줄, 세로 가운데 정렬 */}
+                  <div className="flex flex-col gap-2 self-center shrink-0">
                     <button
                       onClick={() => startEditRecord(record)}
                       className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741]/50 hover:bg-[#4A6741]/10 transition-colors"
@@ -1524,7 +1529,6 @@ export default function QTPage() {
                   <AudioRecordPlayer
                     blob={audioBlob}
                     title="음성 기록 녹음 완료"
-                    subtitle={formatTime(recordingTime)}
                     onDelete={deleteAudio}
                     deleteIcon={<Trash2 size={16} />}
                   />
