@@ -1035,17 +1035,28 @@ export default function PrayerPage() {
                               </button>
                             </div>
                           ) : (
-                            <div className="bg-white p-4">
-                              <AudioRecordPlayer
-                                src={record.audio_url}
-                                title={record.title || '음성 기도'}
-                                subtitle={formattedDate}
-                                downloadName={`${record.title || 'prayer-record'}.webm`}
-                                onDelete={() => handleDeleteRecord(record.id, record.audio_url)}
-                                deleteIcon={<Trash2 size={16} />}
-                                deleteTitle="기도 기록 삭제"
-                                className="border-0 bg-white p-0 shadow-none"
-                              />
+                            <div className="bg-white p-4 flex items-center gap-3">
+                              <Mic size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                                  {record.title || '음성 기도'}
+                                </p>
+                                <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
+                                <AudioRecordPlayer
+                                  variant="controlsOnly"
+                                  src={record.audio_url}
+                                  title={record.title || "음성 기도"}
+                                  downloadName={`${record.title || 'prayer-record'}.webm`}
+                                  className="mt-2"
+                                />
+                              </div>
+                              <button
+                                onClick={() => handleDeleteRecord(record.id, record.audio_url)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
+                                title="삭제"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           )}
                           {index !== selectedDateRecords.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}

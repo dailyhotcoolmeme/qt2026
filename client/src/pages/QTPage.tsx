@@ -1307,30 +1307,42 @@ export default function QTPage() {
 
                 {/* 음성 재생 */}
 	                {record.audio_url && (
-                    <AudioRecordPlayer
-                      src={record.audio_url}
-                      title="음성 묵상 기록"
-                      subtitle={new Date(record.created_at).toLocaleString('ko-KR', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                        hour12: true
-                      }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
-                      className="mb-2"
-                    />
+                    <div className="flex items-start gap-3 mb-2">
+                      <Headphones size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
+                          음성 묵상 기록
+                        </p>
+                        <p className="text-xs text-zinc-400 mt-0.5">
+                          {new Date(record.created_at).toLocaleString('ko-KR', {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true
+                          }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                        </p>
+                        <AudioRecordPlayer
+                          variant="controlsOnly"
+                          src={record.audio_url}
+                          title="음성 묵상 기록"
+                          downloadName="qt-audio-record.webm"
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
 	                )}
 
                 {/* 수정/삭제 버튼 */}
                 <div className="flex items-center justify-between pt-3 border-t border-zinc-100">
                   <span className="text-xs text-zinc-400">
-                    {new Date(record.created_at).toLocaleString('ko-KR', {
+                    {!record.audio_url ? new Date(record.created_at).toLocaleString('ko-KR', {
                       month: 'short',
                       day: 'numeric',
                       hour: 'numeric',
                       minute: '2-digit',
                       hour12: true
-                    }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:')}
+                    }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:') : ""}
                   </span>
                   <div className="flex gap-1">
                     <button

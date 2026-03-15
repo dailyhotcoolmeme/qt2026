@@ -11,6 +11,7 @@ function formatTimeLabel(seconds: number) {
 type AudioRecordPlayerProps = {
   src?: string | null;
   blob?: Blob | null;
+  variant?: "card" | "controlsOnly";
   title: string;
   subtitle?: string;
   onDelete?: () => void;
@@ -24,6 +25,7 @@ type AudioRecordPlayerProps = {
 export function AudioRecordPlayer({
   src,
   blob,
+  variant = "card",
   title,
   subtitle,
   onDelete,
@@ -137,6 +139,88 @@ export function AudioRecordPlayer({
     setShowMenu(false);
   };
 
+  const controls = (
+    <div className="flex items-center gap-2.5">
+      <button
+        onClick={() => void togglePlay()}
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#4A6741] text-white"
+        type="button"
+      >
+        {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <input
+          type="range"
+          min="0"
+          max={duration || 0}
+          value={currentTime}
+          onChange={handleSeek}
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full"
+          style={{
+            background:
+              duration > 0
+                ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${(currentTime / duration) * 100}%, #c8dfc4 ${(currentTime / duration) * 100}%, #c8dfc4 100%)`
+                : "#c8dfc4",
+          }}
+        />
+        <div className="mt-1 flex items-center justify-between text-xs text-[#4A6741]/70">
+          <span>{formatTimeLabel(currentTime)}</span>
+          <span>{formatTimeLabel(duration)}</span>
+        </div>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          onClick={() => setIsMuted((prev) => !prev)}
+          className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-white hover:text-zinc-600"
+          type="button"
+          title={isMuted ? "음소거 해제" : "음소거"}
+        >
+          {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
+        </button>
+        <button
+          onClick={cyclePlaybackRate}
+          className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-[#4A6741]"
+          type="button"
+        >
+          {playbackRate.toFixed(2).replace(/\.00$/, "")}x
+        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu((prev) => !prev)}
+            className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-white hover:text-zinc-600"
+            type="button"
+            title="더보기"
+          >
+            <MoreVertical size={15} />
+          </button>
+          {showMenu && (
+            <div className="absolute right-0 top-8 z-20 rounded-xl border border-zinc-100 bg-white p-1 shadow-lg">
+              <button
+                onClick={handleDownload}
+                className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
+                type="button"
+              >
+                <Download size={14} />
+                다운로드
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (variant === "controlsOnly") {
+    return (
+      <div className={className}>
+        <audio ref={audioRef} src={resolvedSrc || undefined} preload="metadata" />
+        {controls}
+      </div>
+    );
+  }
+
   return (
     <div className={`rounded-xl border border-zinc-100 bg-[#f1f3f4] p-2.5 shadow-sm ${className}`}>
       <audio ref={audioRef} src={resolvedSrc || undefined} preload="metadata" />
@@ -165,76 +249,7 @@ export function AudioRecordPlayer({
         </div>
 
         <div aria-hidden="true" />
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => void togglePlay()}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#4A6741] text-white"
-            type="button"
-          >
-            {isPlaying ? <Pause size={16} fill="white" /> : <Play size={16} fill="white" />}
-          </button>
-
-          <div className="min-w-0 flex-1">
-            <input
-              type="range"
-              min="0"
-              max={duration || 0}
-              value={currentTime}
-              onChange={handleSeek}
-              className="h-1.5 w-full cursor-pointer appearance-none rounded-full"
-              style={{
-                background:
-                  duration > 0
-                    ? `linear-gradient(to right, #4A6741 0%, #4A6741 ${(currentTime / duration) * 100}%, #c8dfc4 ${(currentTime / duration) * 100}%, #c8dfc4 100%)`
-                    : "#c8dfc4",
-              }}
-            />
-            <div className="mt-1 flex items-center justify-between text-xs text-[#4A6741]/70">
-              <span>{formatTimeLabel(currentTime)}</span>
-              <span>{formatTimeLabel(duration)}</span>
-            </div>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              onClick={() => setIsMuted((prev) => !prev)}
-              className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-white hover:text-zinc-600"
-              type="button"
-              title={isMuted ? "음소거 해제" : "음소거"}
-            >
-              {isMuted ? <VolumeX size={15} /> : <Volume2 size={15} />}
-            </button>
-            <button
-              onClick={cyclePlaybackRate}
-              className="rounded-full bg-white px-2 py-1 text-[11px] font-bold text-[#4A6741]"
-              type="button"
-            >
-              {playbackRate.toFixed(2).replace(/\.00$/, "")}x
-            </button>
-            <div className="relative">
-              <button
-                onClick={() => setShowMenu((prev) => !prev)}
-                className="flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 hover:bg-white hover:text-zinc-600"
-                type="button"
-                title="더보기"
-              >
-                <MoreVertical size={15} />
-              </button>
-              {showMenu && (
-                <div className="absolute right-0 top-8 z-20 rounded-xl border border-zinc-100 bg-white p-1 shadow-lg">
-                  <button
-                    onClick={handleDownload}
-                    className="flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50"
-                    type="button"
-                  >
-                    <Download size={14} />
-                    다운로드
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        {controls}
       </div>
     </div>
   );
