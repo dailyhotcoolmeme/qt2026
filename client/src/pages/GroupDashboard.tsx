@@ -3811,6 +3811,14 @@ export default function GroupDashboard() {
                       회원수 {members.length}명
                     </span>
                   </button>
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="px-3 py-1 rounded-full bg-[#FEE500] text-sm sm:text-sm font-black text-[#3C1E1E] flex-shrink-0 inline-flex items-center justify-center gap-1.5 hover:brightness-95 transition-colors h-fit shadow-sm"
+                    title="모임 초대"
+                  >
+                    <UserPlus size={14} />
+                    <span>초대하기</span>
+                  </button>
                   {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
                 </div>
 
@@ -4343,17 +4351,6 @@ export default function GroupDashboard() {
                 })}
               </div>
             </div>
-
-            {(
-              <button
-                onClick={() => setShowInviteModal(true)}
-                className="fixed right-6 bottom-28 z-[120] w-12 h-12 rounded-full bg-[#4A6741] opacity-90 text-white shadow-2xl flex items-center justify-center"
-                aria-label="회원 초대"
-              >
-                <UserPlus size={24} />
-              </button>
-            )}
-
             <div className="bg-[#F6F7F8] p-2">
               {role !== "owner" && (
                 <button
