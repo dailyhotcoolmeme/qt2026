@@ -2,58 +2,59 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useHashLocation } from "wouter/use-hash-location";
 import {
-  Activity,
-  ArrowLeft,
-  BarChart3,
-  BookMarked,
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ChevronRight,
-  Clock3,
-  Crown,
-  Flame,
-  LayoutDashboard,
-  Link2,
-  Menu,
-  Mic,
-  Network,
-  Search,
-  ShieldCheck,
-  Sparkles,
-  Users,
-  UserRound,
-} from "lucide-react";
-import {
   Area,
   AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  Cell,
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  ArrowLeft,
+  BarChart3,
+  BookMarked,
+  BookOpen,
+  Crown,
+  LayoutDashboard,
+  Link2,
+  Menu,
+  Mic,
+  Network,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { useAuth } from "../hooks/use-auth";
 import {
   fetchDashboardActivityDetail,
   fetchDashboardContexts,
-  fetchGroupDashboardData,
-  fetchNetworkDashboardData,
-  fetchPersonalDashboardData,
   type DashboardActivityDetail,
   type DashboardActivityItem,
-  type DashboardActivityType,
   type DashboardContextKind,
   type DashboardGroupContext,
   type DashboardGroupRole,
 } from "../lib/dashboard";
+import {
+  INSIGHT_PILLAR_META,
+  fetchInsightsGroupData,
+  fetchInsightsNetworkData,
+  fetchInsightsPersonalData,
+  type InsightTone,
+  type InsightsCareMember,
+  type InsightsGroupData,
+  type InsightsGroupSignal,
+  type InsightsNetworkData,
+  type InsightsPillarCard,
+  type InsightsPillarKey,
+  type InsightsPersonalData,
+} from "../lib/insights-dashboard";
 import { cn } from "../lib/utils";
-import { useDashboardShellStore, type DashboardSubtab } from "../stores/dashboard-shell-store";
+import {
+  useDashboardShellStore,
+  type DashboardSubtab,
+} from "../stores/dashboard-shell-store";
 import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -63,31 +64,17 @@ import { Separator } from "../components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "../components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 
-const PERSONAL_DAILY_CONFIG = {
-  qt: { label: "QT", color: "#48624E" },
-  prayer: { label: "기도", color: "#C47D2C" },
-  reading: { label: "성경읽기", color: "#2F5B91" },
-  bookmark: { label: "말씀저장", color: "#8A4F33" },
+const CORE_CHART_CONFIG = {
+  reading: { label: "성경읽기", color: INSIGHT_PILLAR_META.reading.color },
+  qt: { label: "QT", color: INSIGHT_PILLAR_META.qt.color },
+  prayer: { label: "기도", color: INSIGHT_PILLAR_META.prayer.color },
 };
 
-const PERSONAL_RHYTHM_CONFIG = {
-  weekday: { label: "활동 수", color: "#48624E" },
-  time: { label: "활동 수", color: "#C47D2C" },
+const CONNECTION_CHART_CONFIG = {
+  personalOnly: { label: "개인 보관", color: "#D8CDBA" },
+  linked: { label: "모임 연결", color: "#48624E" },
+  direct: { label: "모임 안 직접 기록", color: "#C47D2C" },
 };
-
-const GROUP_COMPARE_CONFIG = {
-  myTotal: { label: "내 활동", color: "#48624E" },
-  groupTotal: { label: "모임 전체", color: "#C47D2C" },
-};
-
-const NETWORK_TIMELINE_CONFIG = {
-  prayer: { label: "음성기도", color: "#48624E" },
-  faith: { label: "신앙기록", color: "#C47D2C" },
-  posts: { label: "교제나눔", color: "#2F5B91" },
-  linked: { label: "연결 활동", color: "#8A4F33" },
-};
-
-const MIX_COLORS = ["#48624E", "#C47D2C", "#2F5B91", "#8A4F33"];
 
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("ko-KR", {
@@ -98,8 +85,11 @@ function formatDateTime(value: string) {
   }).format(new Date(value));
 }
 
-function formatShortDate(value: string) {
-  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric" }).format(new Date(value));
+function formatDateOnly(value: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    month: "numeric",
+    day: "numeric",
+  }).format(new Date(value));
 }
 
 function roleLabel(role: DashboardGroupRole) {
@@ -114,41 +104,85 @@ function roleTone(role: DashboardGroupRole) {
   return "bg-[#EFEAE1] text-[#7B6D5C]";
 }
 
-function getContextTitle(kind: DashboardContextKind, group?: DashboardGroupContext | null, networkMode?: "managed" | "scope") {
+function toneClasses(tone: InsightTone) {
+  if (tone === "warm") {
+    return {
+      border: "border-[#D5E4D1]",
+      background: "bg-[#F2F7EF]",
+      chip: "bg-[#E3EFDE] text-[#48624E]",
+      label: "함께 이어짐",
+    };
+  }
+  if (tone === "watch") {
+    return {
+      border: "border-[#EAD7BA]",
+      background: "bg-[#FFF7EA]",
+      chip: "bg-[#F5E7CC] text-[#A16726]",
+      label: "천천히 살핌",
+    };
+  }
+  return {
+    border: "border-[#DED7CB]",
+    background: "bg-[#F8F4EE]",
+    chip: "bg-[#ECE4D8] text-[#7B6D5C]",
+    label: "조용한 기간",
+  };
+}
+
+function getContextTitle(
+  kind: DashboardContextKind,
+  group?: DashboardGroupContext | null,
+  networkMode?: "managed" | "scope",
+) {
   if (kind === "personal") {
     return {
       badge: "내 활동",
-      title: "개인 수행 리듬",
-      description: "얼마나 꾸준히 기록했고, 어떤 시간대와 어떤 활동에 더 집중하는지 한 화면에서 봅니다.",
+      title: "내 신앙 리듬",
+      description:
+        "성경읽기, QT, 기도가 개인 안에서 어떻게 이어지고 있는지, 그리고 어느 모임과 함께 흐르는지 차분히 살핍니다.",
     };
   }
   if (kind === "network") {
     return {
-      badge: networkMode === "scope" ? "상위리더 범위" : "관리 범위",
-      title: networkMode === "scope" ? "조직 비교 인사이트" : "운영 흐름 인사이트",
+      badge: networkMode === "scope" ? "상위리더 범위" : "리더 범위",
+      title:
+        networkMode === "scope" ? "상위리더 돌봄 대시보드" : "리더 돌봄 대시보드",
       description:
         networkMode === "scope"
-          ? "여러 모임의 흐름을 비교하고, 어떤 조직이 올라오고 내려가는지 먼저 확인합니다."
-          : "내가 관리하는 모임들의 참여 흐름과 운영 부담이 어디에 몰리는지 빠르게 훑습니다.",
+          ? "모임끼리 경쟁시키기보다, 어느 곳에서 읽기·QT·기도가 조용해졌는지와 어디를 먼저 돌보면 좋을지를 봅니다."
+          : "내가 맡은 모임들 안에서 읽기·QT·기도가 어떻게 이어지는지, 그리고 어느 모임을 먼저 살피면 좋을지를 봅니다.",
     };
   }
   return {
-    badge: group ? roleLabel(group.role) : "선택한 모임",
-    title: group?.name || "모임 인사이트",
-    description: "선택한 모임 안에서 내가 어떤 활동을 남겼고, 리더라면 누가 뜨고 누가 쉬고 있는지까지 이어서 봅니다.",
+    badge: group ? roleLabel(group.role) : "모임",
+    title: group?.name || "모임 흐름",
+    description:
+      "이 모임 안에서 내가 남긴 성경읽기, QT, 기도의 흐름을 보고, 리더라면 조용한 시간을 보내는 분들의 안부 신호까지 함께 살핍니다.",
   };
 }
 
-function iconForActivity(type: DashboardActivityType) {
+function iconForPillar(key: InsightsPillarKey, className = "h-4 w-4") {
+  if (key === "reading") return <BookOpen className={className} />;
+  if (key === "qt") return <Sparkles className={className} />;
+  return <Mic className={className} />;
+}
+
+function iconForActivity(type: DashboardActivityItem["type"]) {
+  if (type === "reading") return <BookOpen className="h-4 w-4" />;
   if (type === "qt") return <Sparkles className="h-4 w-4" />;
   if (type === "prayer") return <Mic className="h-4 w-4" />;
-  if (type === "reading") return <BookOpen className="h-4 w-4" />;
   return <BookMarked className="h-4 w-4" />;
 }
 
-function EmptyPanel({ title, description }: { title: string; description: string }) {
+function EmptyPanel({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
   return (
-    <Card className="rounded-[28px] border-dashed border-[#D5CCBB] bg-white/80 shadow-none">
+    <Card className="rounded-[28px] border-dashed border-[#D5CCBB] bg-white/85 shadow-none">
       <CardContent className="flex min-h-[220px] flex-col items-center justify-center gap-4 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F1EBDC] text-[#8D7A63]">
           <BarChart3 className="h-5 w-5" />
@@ -159,24 +193,6 @@ function EmptyPanel({ title, description }: { title: string; description: string
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  note,
-}: {
-  label: string;
-  value: string;
-  note: string;
-}) {
-  return (
-    <div className="rounded-[26px] border border-white/70 bg-white/85 p-4 shadow-sm">
-      <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">{label}</div>
-      <div className="mt-3 text-3xl font-black leading-none text-zinc-900">{value}</div>
-      <div className="mt-3 text-sm leading-6 text-zinc-500">{note}</div>
-    </div>
   );
 }
 
@@ -196,45 +212,116 @@ function SectionHeading({
           <span className="h-6 w-1.5 rounded-full bg-[#48624E]" />
           <h2 className="text-xl font-black text-zinc-900">{title}</h2>
         </div>
-        {description && <p className="mt-3 pl-4 text-sm leading-6 text-zinc-500">{description}</p>}
+        {description ? (
+          <p className="mt-3 pl-4 text-sm leading-6 text-zinc-500">{description}</p>
+        ) : null}
       </div>
       {action}
     </div>
   );
 }
 
-function HeatmapGrid({
-  cells,
+function GroupRolePill({ role }: { role: DashboardGroupRole }) {
+  return (
+    <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-black", roleTone(role))}>
+      {roleLabel(role)}
+    </span>
+  );
+}
+
+function LegendRow({
+  items,
 }: {
-  cells: Array<{ date: string; label: string; total: number; level: 0 | 1 | 2 | 3 | 4 }>;
+  items: Array<{ label: string; color: string }>;
 }) {
   return (
-    <div className="grid grid-cols-7 gap-2">
-      {cells.map((cell) => (
-        <div
-          key={cell.date}
-          title={`${cell.label} · ${cell.total}회`}
-          className={cn(
-            "flex h-11 items-end rounded-2xl border border-white/70 px-2 py-2 text-[11px] font-bold transition-transform hover:-translate-y-0.5",
-            cell.level === 0 && "bg-[#F7F2E9] text-[#B4A28C]",
-            cell.level === 1 && "bg-[#EAF1E4] text-[#6A7D65]",
-            cell.level === 2 && "bg-[#D6E5D0] text-[#48624E]",
-            cell.level === 3 && "bg-[#BDD4B6] text-[#35503A]",
-            cell.level === 4 && "bg-[#48624E] text-white",
-          )}
-        >
-          <div className="w-full">
-            <div>{cell.label}</div>
-            <div className="mt-1 text-right">{cell.total}</div>
-          </div>
+    <div className="flex flex-wrap gap-3">
+      {items.map((item) => (
+        <div key={item.label} className="inline-flex items-center gap-2 text-xs font-bold text-zinc-600">
+          <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+          {item.label}
         </div>
       ))}
     </div>
   );
 }
 
-function GroupRolePill({ role }: { role: DashboardGroupRole }) {
-  return <span className={cn("rounded-full px-2.5 py-1 text-[11px] font-black", roleTone(role))}>{roleLabel(role)}</span>;
+function OverviewStory({
+  title,
+  body,
+}: {
+  title: string;
+  body: string;
+}) {
+  return (
+    <Card className="rounded-[30px] border-[#DDD2C1] bg-white/92 shadow-sm">
+      <CardContent className="px-6 py-5">
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+          흐름 메모
+        </div>
+        <div className="mt-3 text-xl font-black text-zinc-900">{title}</div>
+        <p className="mt-3 text-sm leading-7 text-zinc-600">{body}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PillarCard({
+  pillar,
+}: {
+  pillar: InsightsPillarCard;
+}) {
+  const color = INSIGHT_PILLAR_META[pillar.key].color;
+
+  return (
+    <Card className="overflow-hidden rounded-[30px] border-[#DDD2C1] bg-white/95 shadow-sm">
+      <div className="h-1.5" style={{ backgroundColor: color }} />
+      <CardContent className="space-y-4 px-5 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3EEE4]" style={{ color }}>
+              {iconForPillar(pillar.key, "h-5 w-5")}
+            </div>
+            <div>
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                Core Pillar
+              </div>
+              <div className="mt-1 text-xl font-black text-zinc-900">{pillar.label}</div>
+            </div>
+          </div>
+          <div className="rounded-full bg-[#F4EEE3] px-3 py-1 text-sm font-black text-zinc-800">
+            {pillar.total}건
+          </div>
+        </div>
+
+        <p className="text-sm leading-7 text-zinc-600">{pillar.note}</p>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {[
+            { label: "활동한 날", value: `${pillar.activeDays}일` },
+            {
+              label: "마지막 흔적",
+              value: pillar.lastActivityAt ? formatDateOnly(pillar.lastActivityAt) : "없음",
+            },
+            { label: "모임 연결", value: `${pillar.connectedRate}%` },
+          ].map((item) => (
+            <div key={item.label} className="rounded-[18px] bg-[#F8F3EB] px-3 py-3">
+              <div className="text-[11px] font-black uppercase tracking-[0.14em] text-[#8D7A63]">
+                {item.label}
+              </div>
+              <div className="mt-2 text-base font-black text-zinc-900">{item.value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-2 text-xs font-bold text-zinc-500 sm:grid-cols-3">
+          <div className="rounded-[16px] bg-[#F8F3EB] px-3 py-2">개인 보관 {pillar.personalOnlyCount}</div>
+          <div className="rounded-[16px] bg-[#EDF5E8] px-3 py-2 text-[#48624E]">모임 연결 {pillar.linkedCount}</div>
+          <div className="rounded-[16px] bg-[#FFF1DE] px-3 py-2 text-[#A16726]">모임 직접 {pillar.directCount}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function ContextButton({
@@ -264,71 +351,15 @@ function ContextButton({
       type="button"
     >
       <div className="flex items-start justify-between gap-3">
-        <div className={cn("rounded-2xl p-2.5", active ? "bg-white/15" : "bg-[#F3EEE4] text-[#48624E]")}>{icon}</div>
+        <div className={cn("rounded-2xl p-2.5", active ? "bg-white/15" : "bg-[#F3EEE4] text-[#48624E]")}>
+          {icon}
+        </div>
         {badge}
       </div>
       <div className="mt-4">
         <div className="font-black">{title}</div>
-        <div className={cn("mt-1 text-sm leading-6", active ? "text-white/72" : "text-zinc-500")}>{subtitle}</div>
-      </div>
-    </button>
-  );
-}
-
-function ActivityRow({
-  item,
-  onClick,
-}: {
-  item: DashboardActivityItem;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="w-full rounded-[24px] border border-[#E5DDCF] bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-[#D6CCBC]"
-      type="button"
-    >
-      <div className="flex items-start gap-3">
-        <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F3EEE4] text-[#48624E]">
-          {iconForActivity(item.type)}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="truncate text-sm font-black text-zinc-900">{item.title}</div>
-                {item.audioUrl && (
-                  <span className="rounded-full bg-[#EAF1E4] px-2 py-0.5 text-[11px] font-bold text-[#48624E]">오디오</span>
-                )}
-                {item.sourceKind === "group_direct" && (
-                  <span className="rounded-full bg-[#F4EADA] px-2 py-0.5 text-[11px] font-bold text-[#A16726]">직접</span>
-                )}
-                {item.linkedGroups.length > 0 && (
-                  <span className="rounded-full bg-[#E8EEF7] px-2 py-0.5 text-[11px] font-bold text-[#2F5B91]">
-                    연결 {item.linkedGroups.length}
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 text-sm leading-6 text-zinc-600">{item.summary}</div>
-            </div>
-            <div className="shrink-0 text-xs font-bold text-zinc-400">{formatDateTime(item.occurredAt)}</div>
-          </div>
-
-          {(item.reference || item.sourceGroupName || item.linkedGroups.length > 0) && (
-            <div className="mt-3 flex flex-wrap gap-2">
-              {item.reference && (
-                <span className="rounded-full bg-[#F5F0E6] px-2.5 py-1 text-[11px] font-bold text-[#7B6D5C]">{item.reference}</span>
-              )}
-              {item.sourceGroupName && (
-                <span className="rounded-full bg-[#EAF1E4] px-2.5 py-1 text-[11px] font-bold text-[#48624E]">{item.sourceGroupName}</span>
-              )}
-              {item.linkedGroups.map((group) => (
-                <span key={`${item.id}-${group.id}`} className="rounded-full bg-[#E8EEF7] px-2.5 py-1 text-[11px] font-bold text-[#2F5B91]">
-                  {group.name}
-                </span>
-              ))}
-            </div>
-          )}
+        <div className={cn("mt-1 text-sm leading-6", active ? "text-white/72" : "text-zinc-500")}>
+          {subtitle}
         </div>
       </div>
     </button>
@@ -360,49 +391,65 @@ function SidebarMenu({
   return (
     <div className="flex h-full flex-col gap-5">
       <div className="rounded-[30px] border border-white/70 bg-white/90 p-5 shadow-sm">
-        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Insights</div>
-        <div className="mt-3 font-['Noto_Serif_KR'] text-2xl font-black leading-tight text-zinc-900">활동 인사이트</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+          Insights
+        </div>
+        <div className="mt-3 font-['Noto_Serif_KR'] text-2xl font-black leading-tight text-zinc-900">
+          활동 인사이트
+        </div>
         <div className="mt-2 text-sm leading-6 text-zinc-500">
-          앱에서 바로 이어지는 분석 화면을 염두에 두고 만든 독립형 대시보드입니다.
+          성경읽기, QT, 기도의 흐름을 개인과 모임 맥락에서 함께 살피는 독립형 대시보드입니다.
         </div>
       </div>
 
       <div className="rounded-[30px] border border-white/70 bg-white/85 p-3 shadow-sm">
-        <div className="px-3 pt-2 text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Context</div>
+        <div className="px-3 pt-2 text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+          Context
+        </div>
         <div className="mt-3 space-y-3">
           <ContextButton
             active={contextKind === "personal"}
             icon={<Sparkles className="h-4 w-4" />}
             title="내 활동"
-            subtitle="개인 수행 패턴, 최근 기록, 연결된 모임 흐름"
+            subtitle="세 축의 개인 흐름과 모임 연결 구조"
             onClick={() => onContextChange("personal")}
           />
 
-          {hasNetwork && (
+          {hasNetwork ? (
             <ContextButton
               active={contextKind === "network"}
               icon={networkMode === "scope" ? <Crown className="h-4 w-4" /> : <Network className="h-4 w-4" />}
-              title={networkMode === "scope" ? "상위리더 범위" : "관리 범위"}
-              subtitle={networkMode === "scope" ? "조직 비교, 그룹 간 온도 차이" : "내가 관리하는 모임들의 운영 흐름"}
+              title={networkMode === "scope" ? "상위리더 범위" : "리더 범위"}
+              subtitle={
+                networkMode === "scope"
+                  ? "모임 사이 경쟁이 아니라 돌봄 신호 보기"
+                  : "내가 맡은 모임들의 흐름과 안부 신호"
+              }
               badge={
                 hasScope ? (
-                  <div className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-black tracking-[0.16em] text-white">scope</div>
+                  <div className="rounded-full bg-white/15 px-2 py-1 text-[10px] font-black tracking-[0.16em] text-white">
+                    scope
+                  </div>
                 ) : undefined
               }
               onClick={() => onContextChange("network")}
             />
-          )}
+          ) : null}
         </div>
 
-        {hasNetwork && (
+        {hasNetwork ? (
           <div className="mt-5 px-3">
-            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Mode</div>
+            <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+              Range
+            </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button
                 onClick={() => onNetworkModeChange("managed")}
                 className={cn(
                   "rounded-2xl px-3 py-2 text-sm font-black transition",
-                  networkMode === "managed" ? "bg-[#48624E] text-white" : "bg-[#F3EEE4] text-[#7B6D5C]",
+                  networkMode === "managed"
+                    ? "bg-[#48624E] text-white"
+                    : "bg-[#F3EEE4] text-[#7B6D5C]",
                 )}
                 type="button"
               >
@@ -413,7 +460,9 @@ function SidebarMenu({
                 disabled={!hasScope}
                 className={cn(
                   "rounded-2xl px-3 py-2 text-sm font-black transition",
-                  networkMode === "scope" ? "bg-[#2E4C4C] text-white" : "bg-[#F3EEE4] text-[#7B6D5C]",
+                  networkMode === "scope"
+                    ? "bg-[#2E4C4C] text-white"
+                    : "bg-[#F3EEE4] text-[#7B6D5C]",
                   !hasScope && "cursor-not-allowed opacity-40",
                 )}
                 type="button"
@@ -422,11 +471,13 @@ function SidebarMenu({
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
         <Separator className="my-5 bg-[#E7DDCC]" />
 
-        <div className="px-3 text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Groups</div>
+        <div className="px-3 text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+          Groups
+        </div>
         <ScrollArea className="mt-3 h-[320px] pr-2">
           <div className="space-y-2">
             {contexts.groups.map((group) => (
@@ -444,8 +495,15 @@ function SidebarMenu({
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="truncate font-black">{group.name}</div>
-                    <div className={cn("mt-1 text-xs", contextKind === "group" && selectedGroupId === group.id ? "text-white/70" : "text-zinc-500")}>
-                      {group.scopeDepth !== null ? `상위리더 범위 depth ${group.scopeDepth}` : "개인 모임 컨텍스트"}
+                    <div
+                      className={cn(
+                        "mt-1 text-xs",
+                        contextKind === "group" && selectedGroupId === group.id
+                          ? "text-white/70"
+                          : "text-zinc-500",
+                      )}
+                    >
+                      이 모임 안에서 남긴 읽기·QT·기도 흐름
                     </div>
                   </div>
                   <GroupRolePill role={group.role} />
@@ -457,7 +515,9 @@ function SidebarMenu({
       </div>
 
       <div className="rounded-[30px] border border-white/70 bg-white/85 p-4 shadow-sm">
-        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Window</div>
+        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+          Window
+        </div>
         <div className="mt-3 grid grid-cols-3 gap-2">
           {[7, 30, 90].map((days) => (
             <button
@@ -465,7 +525,9 @@ function SidebarMenu({
               onClick={() => onTimeframeChange(days as 7 | 30 | 90)}
               className={cn(
                 "rounded-2xl px-3 py-2 text-sm font-black transition",
-                timeframe === days ? "bg-zinc-900 text-white" : "bg-[#F3EEE4] text-[#7B6D5C]",
+                timeframe === days
+                  ? "bg-zinc-900 text-white"
+                  : "bg-[#F3EEE4] text-[#7B6D5C]",
               )}
               type="button"
             >
@@ -473,6 +535,749 @@ function SidebarMenu({
             </button>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivityRow({
+  item,
+  onClick,
+}: {
+  item: DashboardActivityItem;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full rounded-[24px] border border-[#E5DDCF] bg-white px-4 py-4 text-left transition hover:-translate-y-0.5 hover:border-[#D6CCBC]"
+      type="button"
+    >
+      <div className="flex items-start gap-3">
+        <div className="mt-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#F3EEE4] text-[#48624E]">
+          {iconForActivity(item.type)}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="truncate text-sm font-black text-zinc-900">{item.title}</div>
+                {item.audioUrl ? (
+                  <span className="rounded-full bg-[#EAF1E4] px-2 py-0.5 text-[11px] font-bold text-[#48624E]">
+                    오디오
+                  </span>
+                ) : null}
+                {item.sourceKind === "group_direct" ? (
+                  <span className="rounded-full bg-[#F4EADA] px-2 py-0.5 text-[11px] font-bold text-[#A16726]">
+                    모임 안 직접
+                  </span>
+                ) : null}
+                {item.linkedGroups.length > 0 ? (
+                  <span className="rounded-full bg-[#E8EEF7] px-2 py-0.5 text-[11px] font-bold text-[#2F5B91]">
+                    모임 연결 {item.linkedGroups.length}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-2 text-sm leading-6 text-zinc-600">{item.summary}</div>
+            </div>
+            <div className="shrink-0 text-xs font-bold text-zinc-400">
+              {formatDateTime(item.occurredAt)}
+            </div>
+          </div>
+
+          {(item.reference || item.sourceGroupName || item.linkedGroups.length > 0) ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {item.reference ? (
+                <span className="rounded-full bg-[#F5F0E6] px-2.5 py-1 text-[11px] font-bold text-[#7B6D5C]">
+                  {item.reference}
+                </span>
+              ) : null}
+              {item.sourceGroupName ? (
+                <span className="rounded-full bg-[#EAF1E4] px-2.5 py-1 text-[11px] font-bold text-[#48624E]">
+                  {item.sourceGroupName}
+                </span>
+              ) : null}
+              {item.linkedGroups.map((group) => (
+                <span
+                  key={`${item.id}-${group.id}`}
+                  className="rounded-full bg-[#E8EEF7] px-2.5 py-1 text-[11px] font-bold text-[#2F5B91]"
+                >
+                  {group.name}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function CoreTrendCard({
+  title,
+  description,
+  data,
+}: {
+  title: string;
+  description: string;
+  data: InsightsPersonalData["trend"] | InsightsGroupData["groupTimeline"] | InsightsNetworkData["timeline"];
+}) {
+  return (
+    <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-xl font-black">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <LegendRow
+          items={[
+            { label: "성경읽기", color: CORE_CHART_CONFIG.reading.color },
+            { label: "QT", color: CORE_CHART_CONFIG.qt.color },
+            { label: "기도", color: CORE_CHART_CONFIG.prayer.color },
+          ]}
+        />
+        {data.some((point) => point.total > 0) ? (
+          <ChartContainer className="h-[320px] w-full aspect-auto" config={CORE_CHART_CONFIG}>
+            <AreaChart data={data}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={18} />
+              <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={28} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Area
+                type="monotone"
+                dataKey="reading"
+                stroke="var(--color-reading)"
+                fill="var(--color-reading)"
+                fillOpacity={0.15}
+                strokeWidth={2.6}
+              />
+              <Area
+                type="monotone"
+                dataKey="qt"
+                stroke="var(--color-qt)"
+                fill="var(--color-qt)"
+                fillOpacity={0.18}
+                strokeWidth={2.6}
+              />
+              <Area
+                type="monotone"
+                dataKey="prayer"
+                stroke="var(--color-prayer)"
+                fill="var(--color-prayer)"
+                fillOpacity={0.14}
+                strokeWidth={2.6}
+              />
+            </AreaChart>
+          </ChartContainer>
+        ) : (
+          <EmptyPanel title="아직 흐름이 보이지 않습니다" description="기록이 쌓이면 어느 날 읽기, QT, 기도가 함께 이어졌는지 이곳에 그려집니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ConnectionBreakdownCard({
+  title,
+  description,
+  data,
+}: {
+  title: string;
+  description: string;
+  data: InsightsPersonalData["connectionBreakdown"] | InsightsGroupData["connectionBreakdown"];
+}) {
+  return (
+    <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-xl font-black">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <LegendRow
+          items={[
+            { label: "개인 보관", color: CONNECTION_CHART_CONFIG.personalOnly.color },
+            { label: "모임 연결", color: CONNECTION_CHART_CONFIG.linked.color },
+            { label: "모임 안 직접 기록", color: CONNECTION_CHART_CONFIG.direct.color },
+          ]}
+        />
+        {data.some((point) => point.total > 0) ? (
+          <ChartContainer className="h-[320px] w-full aspect-auto" config={CONNECTION_CHART_CONFIG}>
+            <BarChart data={data}>
+              <CartesianGrid vertical={false} strokeDasharray="3 3" />
+              <XAxis dataKey="label" tickLine={false} axisLine={false} />
+              <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={28} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="personalOnly" stackId="a" fill="var(--color-personalOnly)" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="linked" stackId="a" fill="var(--color-linked)" />
+              <Bar dataKey="direct" stackId="a" fill="var(--color-direct)" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <EmptyPanel title="아직 연결 구조가 없습니다" description="개인 기록이나 모임 기록이 쌓이면 세 축별로 어떤 방식으로 이어졌는지 보이게 됩니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GroupShareCard({
+  title,
+  description,
+  rows,
+}: {
+  title: string;
+  description: string;
+  rows: InsightsPersonalData["groupShares"] | InsightsGroupData["groupShares"];
+}) {
+  return (
+    <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-xl font-black">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <LegendRow
+          items={[
+            { label: "성경읽기", color: CORE_CHART_CONFIG.reading.color },
+            { label: "QT", color: CORE_CHART_CONFIG.qt.color },
+            { label: "기도", color: CORE_CHART_CONFIG.prayer.color },
+          ]}
+        />
+        {rows.length > 0 ? (
+          <ChartContainer className="h-[360px] w-full aspect-auto" config={CORE_CHART_CONFIG}>
+            <BarChart data={rows} layout="vertical" margin={{ left: 8, right: 8 }}>
+              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+              <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
+              <YAxis type="category" dataKey="groupName" tickLine={false} axisLine={false} width={110} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <Bar dataKey="reading" stackId="a" fill="var(--color-reading)" radius={[0, 8, 8, 0]} />
+              <Bar dataKey="qt" stackId="a" fill="var(--color-qt)" />
+              <Bar dataKey="prayer" stackId="a" fill="var(--color-prayer)" radius={[0, 8, 8, 0]} />
+            </BarChart>
+          </ChartContainer>
+        ) : (
+          <EmptyPanel title="아직 이어진 모임이 없습니다" description="개인 기록을 모임에 연결하거나 모임 안에서 직접 남긴 기록이 생기면 어떤 모임과 자주 이어지는지 보이게 됩니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ActivityListPanel({
+  title,
+  description,
+  items,
+  onOpenActivity,
+}: {
+  title: string;
+  description: string;
+  items: DashboardActivityItem[];
+  onOpenActivity: (activity: DashboardActivityItem) => void;
+}) {
+  return (
+    <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
+      <CardHeader>
+        <CardTitle className="text-xl font-black">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length > 0 ? (
+          items.map((activity) => (
+            <ActivityRow key={activity.id} item={activity} onClick={() => onOpenActivity(activity)} />
+          ))
+        ) : (
+          <EmptyPanel title="아직 보여줄 기록이 없습니다" description="이 활동을 시작하면 이곳에서 바로 상세 drill-down 할 수 있게 됩니다." />
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function PillarDetailPanel({
+  pillar,
+  items,
+  contextCard,
+  onOpenActivity,
+}: {
+  pillar: InsightsPillarCard;
+  items: DashboardActivityItem[];
+  contextCard?: React.ReactNode;
+  onOpenActivity: (activity: DashboardActivityItem) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <SectionHeading
+        title={`${pillar.label} 상세 흐름`}
+        description={pillar.note}
+        action={
+          <div className="rounded-full bg-[#F3EEE4] px-3 py-1 text-xs font-black text-[#7B6D5C]">
+            {pillar.total}건
+          </div>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "활동한 날", value: `${pillar.activeDays}일`, note: "이 활동이 실제로 남은 날짜" },
+          { label: "이어진 흐름", value: `${pillar.streak}일`, note: "오늘 기준으로 이어진 연속 흐름" },
+          {
+            label: "마지막 흔적",
+            value: pillar.lastActivityAt ? formatDateOnly(pillar.lastActivityAt) : "없음",
+            note: "가장 최근에 남긴 기록",
+          },
+          {
+            label: "모임 연결",
+            value: `${pillar.connectedRate}%`,
+            note: "개인 기록이 모임과 맞물린 비중",
+          },
+        ].map((item) => (
+          <Card key={item.label} className="rounded-[28px] border-[#DDD2C1] bg-white/92 shadow-sm">
+            <CardContent className="px-5 py-5">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                {item.label}
+              </div>
+              <div className="mt-3 text-3xl font-black text-zinc-900">{item.value}</div>
+              <div className="mt-3 text-sm leading-6 text-zinc-500">{item.note}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {contextCard}
+
+      <ActivityListPanel
+        title={`${pillar.label} 최근 기록`}
+        description="클릭하면 음성은 바로 재생하고, 읽기/QT/기도 기록은 상세 내용까지 내려가서 봅니다."
+        items={items}
+        onOpenActivity={onOpenActivity}
+      />
+    </div>
+  );
+}
+
+function CareMemberCard({
+  member,
+}: {
+  member: InsightsCareMember;
+}) {
+  const tone = toneClasses(member.tone);
+  return (
+    <div className={cn("rounded-[26px] border px-4 py-4", tone.border, tone.background)}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-white/70 text-[#48624E]">
+            {member.avatarUrl ? (
+              <img src={member.avatarUrl} alt={member.name} className="h-full w-full object-cover" />
+            ) : (
+              <UserRound className="h-5 w-5" />
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="truncate font-black text-zinc-900">{member.name}</div>
+              <GroupRolePill role={member.role} />
+            </div>
+            <div className="mt-2 text-sm leading-6 text-zinc-600">{member.note}</div>
+          </div>
+        </div>
+        <div className={cn("rounded-full px-3 py-1 text-xs font-black", tone.chip)}>
+          {tone.label}
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-2 text-xs font-bold text-zinc-600 sm:grid-cols-4">
+        <div className="rounded-[16px] bg-white/70 px-3 py-2">성경읽기 {member.readingCount}</div>
+        <div className="rounded-[16px] bg-white/70 px-3 py-2">QT {member.qtCount}</div>
+        <div className="rounded-[16px] bg-white/70 px-3 py-2">기도 {member.prayerCount}</div>
+        <div className="rounded-[16px] bg-white/70 px-3 py-2">
+          {member.lastActivityAt ? `최근 ${formatDateOnly(member.lastActivityAt)}` : `${member.quietDays}일 조용함`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NetworkGroupCard({
+  group,
+  canOpenGroup,
+  onOpenGroup,
+}: {
+  group: InsightsGroupSignal;
+  canOpenGroup: boolean;
+  onOpenGroup: () => void;
+}) {
+  const tone = toneClasses(group.tone);
+  return (
+    <Card className={cn("rounded-[30px] border bg-white/92 shadow-sm", tone.border)}>
+      <CardContent className="space-y-4 px-5 py-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="truncate text-lg font-black text-zinc-900">{group.groupName}</div>
+              {group.depth > 0 ? (
+                <span className="rounded-full bg-[#F3EEE4] px-2.5 py-1 text-[11px] font-black text-[#7B6D5C]">
+                  depth {group.depth}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-3 text-sm leading-6 text-zinc-600">{group.note}</p>
+          </div>
+          <div className={cn("rounded-full px-3 py-1 text-xs font-black", tone.chip)}>{tone.label}</div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-[20px] bg-[#F8F3EB] px-4 py-4">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+              핵심 활동
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-sm font-black text-zinc-900">
+              <div>읽기 {group.readingCount}</div>
+              <div>QT {group.qtCount}</div>
+              <div>기도 {group.prayerCount}</div>
+            </div>
+          </div>
+          <div className="rounded-[20px] bg-[#F8F3EB] px-4 py-4">
+            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+              돌봄 신호
+            </div>
+            <div className="mt-3 text-sm font-bold leading-6 text-zinc-700">
+              최근 함께 기록한 분 {group.activeMemberCount}명 / 조용한 분 {group.quietMemberCount}명 / 가입 대기 {group.pendingCount}명
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-zinc-500">
+          <span className="rounded-full bg-[#EDF5E8] px-3 py-1 text-[#48624E]">모임 연결 {group.linkedCount}</span>
+          <span className="rounded-full bg-[#FFF1DE] px-3 py-1 text-[#A16726]">모임 안 직접 기록 {group.directCount}</span>
+          {group.lastActivityAt ? (
+            <span className="rounded-full bg-[#F3EEE4] px-3 py-1">최근 {formatDateOnly(group.lastActivityAt)}</span>
+          ) : null}
+        </div>
+
+        {canOpenGroup ? (
+          <div className="flex justify-end">
+            <Button onClick={onOpenGroup} variant="outline" className="rounded-2xl">
+              내 모임 컨텍스트 열기
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function buildStoryFromPillars(pillars: InsightsPillarCard[]) {
+  const sorted = [...pillars].sort((a, b) => b.total - a.total);
+  const strongest = sorted[0];
+  const quietest = [...pillars].sort((a, b) => {
+    const aTime = a.lastActivityAt ? new Date(a.lastActivityAt).getTime() : 0;
+    const bTime = b.lastActivityAt ? new Date(b.lastActivityAt).getTime() : 0;
+    return aTime - bTime;
+  })[0];
+
+  if (!strongest || strongest.total === 0) {
+    return {
+      title: "아직 세 축의 첫 흔적을 기다리고 있습니다",
+      body: "성경읽기, QT, 기도 중 어느 한 축이라도 시작되면 개인 흐름과 모임 연결 구조가 이곳에서 바로 살아납니다.",
+    };
+  }
+
+  if (quietest && quietest.total === 0) {
+    return {
+      title: `${strongest.label} 흐름이 먼저 보입니다`,
+      body: `${strongest.label}은 최근까지 이어지고 있고, ${quietest.label}은 아직 흔적이 적어 다음 한 걸음을 부드럽게 시작해 보기 좋습니다.`,
+    };
+  }
+
+  return {
+    title: `${strongest.label}이 가장 또렷하게 보입니다`,
+    body: `${strongest.label} 쪽 기록이 가장 먼저 보이고, ${
+      quietest.label
+    }은 마지막 흔적이 ${
+      quietest.lastActivityAt ? formatDateOnly(quietest.lastActivityAt) : "아직 없음"
+    }이라 천천히 다시 살피기 좋은 축으로 보입니다.`,
+  };
+}
+
+function PersonalOverviewView({
+  data,
+  onOpenActivity,
+}: {
+  data: InsightsPersonalData;
+  onOpenActivity: (activity: DashboardActivityItem) => void;
+}) {
+  const story = buildStoryFromPillars(data.pillars);
+  return (
+    <div className="space-y-6">
+      <OverviewStory title={story.title} body={story.body} />
+
+      <SectionHeading
+        title="세 축의 상태"
+        description="성경읽기, QT, 기도가 각각 얼마나 이어지고 있는지, 그리고 모임과 얼마나 맞물리는지를 먼저 봅니다."
+      />
+      <div className="grid gap-4 xl:grid-cols-3">
+        {data.pillars.map((pillar) => (
+          <PillarCard key={pillar.key} pillar={pillar} />
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
+        <CoreTrendCard
+          title="세 축의 흐름"
+          description="어느 날에 성경읽기, QT, 기도가 함께 이어졌는지 날짜 흐름으로 봅니다."
+          data={data.trend}
+        />
+        <ConnectionBreakdownCard
+          title="개인 기록과 모임 연결 구조"
+          description="세 축 각각이 개인에 머물렀는지, 모임에 연결됐는지, 모임 안에서 직접 남겨졌는지를 나눠 봅니다."
+          data={data.connectionBreakdown}
+        />
+      </div>
+
+      <GroupShareCard
+        title="모임별로 이어진 흔적"
+        description="개인 활동이 어떤 모임과 자주 맞물렸는지, 그리고 그 모임에서 어떤 축이 더 많이 이어졌는지 보여줍니다."
+        rows={data.groupShares}
+      />
+
+      <ActivityListPanel
+        title="최근 기록"
+        description="음성은 바로 재생하고, 텍스트 기록은 상세 내용까지 바로 내려가서 확인할 수 있습니다."
+        items={data.recent.slice(0, 8)}
+        onOpenActivity={onOpenActivity}
+      />
+    </div>
+  );
+}
+
+function GroupOverviewView({
+  data,
+  onOpenActivity,
+}: {
+  data: InsightsGroupData;
+  onOpenActivity: (activity: DashboardActivityItem) => void;
+}) {
+  const story = data.groupSignal
+    ? { title: data.groupSignal.groupName, body: data.groupSignal.note }
+    : buildStoryFromPillars(data.pillars);
+
+  return (
+    <div className="space-y-6">
+      <OverviewStory title={story.title} body={story.body} />
+
+      {data.groupSignal ? (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: "모임 회원수", value: `${data.groupSignal.memberCount}명`, note: "현재 이 모임에 함께 있는 인원" },
+            { label: "최근 함께 기록한 분", value: `${data.groupSignal.activeMemberCount}명`, note: "선택한 기간에 읽기·QT·기도 흔적이 보인 분" },
+            { label: "조용한 분", value: `${data.groupSignal.quietMemberCount}명`, note: "선택한 기간에 핵심 활동 흔적이 거의 보이지 않은 분" },
+            { label: "가입 대기", value: `${data.groupSignal.pendingCount}명`, note: "함께 맞이할 준비가 필요한 신청" },
+          ].map((item) => (
+            <Card key={item.label} className="rounded-[28px] border-[#DDD2C1] bg-white/92 shadow-sm">
+              <CardContent className="px-5 py-5">
+                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                  {item.label}
+                </div>
+                <div className="mt-3 text-3xl font-black text-zinc-900">{item.value}</div>
+                <div className="mt-3 text-sm leading-6 text-zinc-500">{item.note}</div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : null}
+
+      <SectionHeading
+        title="이 모임 안에서의 내 흐름"
+        description="선택한 모임과 맞물린 내 성경읽기, QT, 기도 흐름을 세 축별로 먼저 봅니다."
+      />
+      <div className="grid gap-4 xl:grid-cols-3">
+        {data.pillars.map((pillar) => (
+          <PillarCard key={pillar.key} pillar={pillar} />
+        ))}
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[1.2fr_0.95fr]">
+        <CoreTrendCard
+          title="모임 안에서 함께 남겨진 세 축"
+          description="이 모임 전체에서 읽기, QT, 기도가 어느 날 함께 이어졌는지 보여줍니다."
+          data={data.groupTimeline}
+        />
+        <ConnectionBreakdownCard
+          title="내 기록이 이 모임과 이어진 방식"
+          description="내 기록이 개인 보관, 모임 연결, 모임 안 직접 기록 중 어떤 방식으로 남았는지 나눠 봅니다."
+          data={data.connectionBreakdown}
+        />
+      </div>
+
+      <ActivityListPanel
+        title="이 모임과 이어진 최근 기록"
+        description="이 모임 안에서 남긴 읽기·QT·기도 기록과 연결된 개인 기록을 한 흐름으로 모아 봅니다."
+        items={data.recent.slice(0, 8)}
+        onOpenActivity={onOpenActivity}
+      />
+    </div>
+  );
+}
+
+function GroupCareView({
+  data,
+}: {
+  data: InsightsGroupData;
+}) {
+  const careFirst = data.careMembers.filter((member) => member.tone !== "warm");
+  const steady = data.careMembers.filter((member) => member.tone === "warm");
+
+  return (
+    <div className="space-y-6">
+      <SectionHeading
+        title="안부를 먼저 떠올려 볼 분들"
+        description="잘하고 못하고를 가르는 화면이 아니라, 최근 조용했던 분이나 안부를 먼저 나누면 좋을 분들을 살피는 용도입니다."
+      />
+      <div className="space-y-3">
+        {careFirst.length > 0 ? (
+          careFirst.map((member) => <CareMemberCard key={member.userId} member={member} />)
+        ) : (
+          <div className="rounded-[24px] bg-[#EDF5E8] px-4 py-4 text-sm font-bold text-[#48624E]">
+            지금은 특별히 먼저 살펴볼 신호가 강한 분이 많지 않습니다.
+          </div>
+        )}
+      </div>
+
+      <SectionHeading
+        title="최근 함께 기록을 이어간 분들"
+        description="여러 축에서 흔적이 이어지고 있는 분들을 부드럽게 훑어보는 영역입니다."
+      />
+      <div className="space-y-3">
+        {steady.length > 0 ? (
+          steady.map((member) => <CareMemberCard key={member.userId} member={member} />)
+        ) : (
+          <EmptyPanel title="아직 함께 이어진 기록이 많지 않습니다" description="핵심 활동이 쌓이면 이 영역에서 자연스럽게 함께 이어가는 분들의 흐름이 보입니다." />
+        )}
+      </div>
+
+      <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-xl font-black">가입 대기</CardTitle>
+          <CardDescription>지금 함께 맞이할 준비가 필요한 신청들입니다.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.pendingRequests.length > 0 ? (
+            data.pendingRequests.map((request) => (
+              <div key={request.id} className="rounded-[22px] bg-[#F7F2E8] px-4 py-4">
+                <div className="font-black text-zinc-900">{request.name}</div>
+                <div className="mt-1 text-sm text-zinc-500">{formatDateTime(request.createdAt)} 신청</div>
+              </div>
+            ))
+          ) : (
+            <div className="rounded-[22px] bg-[#F1F5F9] px-4 py-4 text-sm font-bold text-slate-600">
+              지금은 대기 중인 가입 신청이 없습니다.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function NetworkOverviewView({
+  data,
+}: {
+  data: InsightsNetworkData;
+}) {
+  const strongest = [...data.pillars].sort((a, b) => b.total - a.total)[0];
+  const storyTitle =
+    strongest && strongest.total > 0
+      ? `${strongest.label} 흐름이 가장 먼저 보입니다`
+      : "아직 범위 안 핵심 활동이 조용합니다";
+  const storyBody =
+    strongest && strongest.total > 0
+      ? `${strongest.note} 이 화면은 경쟁이나 순위가 아니라, 어느 곳에서 함께 읽고 묵상하고 기도하고 있는지를 부드럽게 살피기 위한 요약입니다.`
+      : "최근 기간 안에는 읽기, QT, 기도 흐름이 아직 많지 않아 보입니다. 조용한 모임을 천천히 살펴보는 출발점으로 볼 수 있습니다.";
+
+  return (
+    <div className="space-y-6">
+      {data.limitedMessage ? <OverviewStory title="데이터 준비 중" body={data.limitedMessage} /> : <OverviewStory title={storyTitle} body={storyBody} />}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: "돌보고 있는 모임", value: `${data.summary.groupCount}개`, note: "현재 이 범위에 포함된 모임 수" },
+          { label: "함께 기록한 모임원", value: `${data.summary.activeMemberCount}명`, note: "선택한 기간에 읽기·QT·기도 흔적이 보인 분" },
+          { label: "조용한 모임원", value: `${data.summary.quietMemberCount}명`, note: "기간 안에 핵심 활동 흔적이 적었던 분" },
+          { label: "가입 대기", value: `${data.summary.pendingCount}명`, note: "함께 맞이할 준비가 필요한 신청" },
+        ].map((item) => (
+          <Card key={item.label} className="rounded-[28px] border-[#DDD2C1] bg-white/92 shadow-sm">
+            <CardContent className="px-5 py-5">
+              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">{item.label}</div>
+              <div className="mt-3 text-3xl font-black text-zinc-900">{item.value}</div>
+              <div className="mt-3 text-sm leading-6 text-zinc-500">{item.note}</div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-3">
+        {data.pillars.map((pillar) => (
+          <Card key={pillar.key} className="rounded-[30px] border-[#DDD2C1] bg-white/92 shadow-sm">
+            <CardContent className="space-y-4 px-5 py-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3EEE4]" style={{ color: INSIGHT_PILLAR_META[pillar.key].color }}>
+                  {iconForPillar(pillar.key, "h-5 w-5")}
+                </div>
+                <div>
+                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">Core Pillar</div>
+                  <div className="mt-1 text-xl font-black text-zinc-900">{pillar.label}</div>
+                </div>
+              </div>
+              <div className="text-3xl font-black text-zinc-900">{pillar.total}건</div>
+              <div className="text-sm leading-7 text-zinc-600">{pillar.note}</div>
+              <div className="grid gap-2 text-xs font-bold text-zinc-500 sm:grid-cols-2">
+                <div className="rounded-[16px] bg-[#F8F3EB] px-3 py-2">{pillar.groupCount}개 모임에서 보임</div>
+                <div className="rounded-[16px] bg-[#F8F3EB] px-3 py-2">
+                  {pillar.lastActivityAt ? `최근 ${formatDateOnly(pillar.lastActivityAt)}` : "최근 기록 없음"}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <CoreTrendCard
+        title="범위 안에서 함께 남겨진 세 축"
+        description="여러 모임을 순위로 세우기보다, 읽기·QT·기도가 어느 날 함께 이어졌는지 전체 흐름을 봅니다."
+        data={data.timeline}
+      />
+    </div>
+  );
+}
+
+function NetworkGroupsView({
+  data,
+  joinedGroupIds,
+  onOpenGroup,
+}: {
+  data: InsightsNetworkData;
+  joinedGroupIds: Set<string>;
+  onOpenGroup: (groupId: string) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <SectionHeading
+        title="모임 살펴보기"
+        description="모임을 줄 세우기보다, 어디에서 읽기·QT·기도가 이어지고 있고 어디에서 조금 더 안부를 먼저 살피면 좋을지를 보는 카드입니다."
+      />
+      <div className="grid gap-4 xl:grid-cols-2">
+        {data.groups.length > 0 ? (
+          data.groups.map((group) => (
+            <NetworkGroupCard
+              key={group.groupId}
+              group={group}
+              canOpenGroup={joinedGroupIds.has(group.groupId)}
+              onOpenGroup={() => onOpenGroup(group.groupId)}
+            />
+          ))
+        ) : (
+          <EmptyPanel title="아직 살펴볼 모임 데이터가 없습니다" description="모임 기록이 쌓이면 이곳에서 모임별로 읽기·QT·기도의 흐름과 돌봄 신호를 함께 볼 수 있습니다." />
+        )}
       </div>
     </div>
   );
@@ -493,9 +1298,14 @@ function ActivityDetailSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full border-l border-[#E7DDCC] bg-[#F7F1E7] px-0 sm:max-w-[560px]">
+      <SheetContent
+        side="right"
+        className="w-full border-l border-[#E7DDCC] bg-[#F7F1E7] px-0 sm:max-w-[560px]"
+      >
         <SheetHeader className="border-b border-[#E7DDCC] px-6 py-5 text-left">
-          <SheetTitle className="font-['Noto_Serif_KR'] text-2xl font-black text-zinc-900">기록 상세</SheetTitle>
+          <SheetTitle className="font-['Noto_Serif_KR'] text-2xl font-black text-zinc-900">
+            기록 상세
+          </SheetTitle>
         </SheetHeader>
 
         <ScrollArea className="h-[calc(100vh-88px)]">
@@ -507,625 +1317,78 @@ function ActivityDetailSheet({
                 </CardContent>
               </Card>
             ) : (
-              <>
-                <Card className="overflow-hidden rounded-[30px] border-[#DCD0BE] bg-white/95">
-                  <CardContent className="p-0">
-                    <div className="bg-gradient-to-r from-[#48624E] via-[#5F7A64] to-[#B17935] px-6 py-6 text-white">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
-                          {iconForActivity(activity.type)}
+              <Card className="overflow-hidden rounded-[30px] border-[#DCD0BE] bg-white/95">
+                <CardContent className="p-0">
+                  <div className="bg-gradient-to-r from-[#48624E] via-[#5F7A64] to-[#B17935] px-6 py-6 text-white">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
+                        {iconForActivity(activity.type)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="truncate text-xl font-black">
+                          {detail?.title || activity.title}
                         </div>
-                        <div className="min-w-0">
-                          <div className="truncate text-xl font-black">{detail?.title || activity.title}</div>
-                          <div className="mt-1 text-sm text-white/75">{detail?.subtitle || formatDateTime(activity.occurredAt)}</div>
+                        <div className="mt-1 text-sm text-white/75">
+                          {detail?.subtitle || formatDateTime(activity.occurredAt)}
                         </div>
                       </div>
-
-                      {(activity.sourceGroupName || activity.linkedGroups.length > 0) && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {activity.sourceGroupName && (
-                            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">{activity.sourceGroupName}</span>
-                          )}
-                          {activity.linkedGroups.map((group) => (
-                            <span key={`${activity.id}-detail-${group.id}`} className="rounded-full bg-white/15 px-3 py-1 text-xs font-black">
-                              {group.name}
-                            </span>
-                          ))}
-                        </div>
-                      )}
                     </div>
+                  </div>
 
-                    <div className="space-y-5 px-6 py-6">
-                      {(detail?.audioUrl || activity.audioUrl) && (
-                        <div className="rounded-[24px] bg-[#F7F2E8] p-3">
-                          <AudioRecordPlayer
-                            src={detail?.audioUrl || activity.audioUrl || undefined}
-                            title={detail?.title || activity.title}
-                            subtitle={detail?.subtitle || formatDateTime(activity.occurredAt)}
-                            className="border-none bg-white shadow-none"
-                          />
+                  <div className="space-y-5 px-6 py-6">
+                    {(detail?.audioUrl || activity.audioUrl) ? (
+                      <div className="rounded-[24px] bg-[#F7F2E8] p-3">
+                        <AudioRecordPlayer
+                          src={detail?.audioUrl || activity.audioUrl || undefined}
+                          title={detail?.title || activity.title}
+                          subtitle={detail?.subtitle || formatDateTime(activity.occurredAt)}
+                          className="border-none bg-white shadow-none"
+                        />
+                      </div>
+                    ) : null}
+
+                    {(detail?.reference || activity.reference) ? (
+                      <div className="rounded-[24px] border border-[#E7DDCC] bg-[#F7F2E8] px-4 py-4">
+                        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+                          Reference
                         </div>
-                      )}
-
-                      {(detail?.reference || activity.reference) && (
-                        <div className="rounded-[24px] border border-[#E7DDCC] bg-[#F7F2E8] px-4 py-4">
-                          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Reference</div>
-                          <div className="mt-2 text-base font-bold text-zinc-900">{detail?.reference || activity.reference}</div>
+                        <div className="mt-2 text-base font-bold text-zinc-900">
+                          {detail?.reference || activity.reference}
                         </div>
-                      )}
+                      </div>
+                    ) : null}
 
-                      {detail?.body && (
-                        <div className="rounded-[28px] border border-[#E7DDCC] bg-white px-5 py-5">
-                          <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">Content</div>
-                          <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-700">{detail.body}</div>
+                    {detail?.body ? (
+                      <div className="rounded-[28px] border border-[#E7DDCC] bg-white px-5 py-5">
+                        <div className="text-[11px] font-black uppercase tracking-[0.22em] text-[#8D7A63]">
+                          Content
                         </div>
-                      )}
+                        <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-zinc-700">
+                          {detail.body}
+                        </div>
+                      </div>
+                    ) : null}
 
-                      {detail?.meta?.length ? (
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {detail.meta.map((item) => (
-                            <div key={`${item.label}-${item.value}`} className="rounded-[22px] border border-[#E7DDCC] bg-white px-4 py-4">
-                              <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">{item.label}</div>
-                              <div className="mt-2 text-sm font-bold text-zinc-900">{item.value}</div>
+                    {detail?.meta?.length ? (
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        {detail.meta.map((item) => (
+                          <div key={`${item.label}-${item.value}`} className="rounded-[22px] border border-[#E7DDCC] bg-white px-4 py-4">
+                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                              {item.label}
                             </div>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
+                            <div className="mt-2 text-sm font-bold text-zinc-900">{item.value}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
             )}
           </div>
         </ScrollArea>
       </SheetContent>
     </Sheet>
-  );
-}
-
-function PersonalSummaryView({
-  data,
-  onOpenActivity,
-}: {
-  data: Awaited<ReturnType<typeof fetchPersonalDashboardData>>;
-  onOpenActivity: (activity: DashboardActivityItem) => void;
-}) {
-  const mixData = data.mix.filter((item) => item.value > 0).map((item) => ({ name: item.label, value: item.value, fill: item.color }));
-
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="총 기록" value={`${data.totals.total}`} note="선택한 기간 동안 남긴 전체 활동 수" />
-        <StatCard label="연속 수행" value={`${data.totals.streak}일`} note="오늘까지 이어진 개인 수행 흐름" />
-        <StatCard label="활동한 날" value={`${data.totals.activeDays}일`} note="기록이 실제로 남은 날짜 수" />
-        <StatCard label="모임 연결율" value={`${data.totals.groupTiedRate}%`} note="모임과 연결되었거나 모임 안에서 직접 남긴 기록 비중" />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">활동 온도 히트맵</CardTitle>
-            <CardDescription>날짜별로 어느 날이 뜨겁고 어느 날이 조용했는지 바로 보이게 만들었습니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <HeatmapGrid cells={data.heatmap} />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">이번 기간의 결</CardTitle>
-            <CardDescription>가장 많이 한 활동과 상대적으로 약한 영역을 짧게 요약합니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: "가장 강한 영역", value: data.highlights.strongestLabel, icon: Sparkles },
-              { label: "가장 약한 영역", value: data.highlights.weakestLabel, icon: Search },
-              { label: "가장 잘 움직이는 요일", value: data.highlights.bestWeekdayLabel, icon: CalendarDays },
-              { label: "가장 잘 움직이는 시간대", value: data.highlights.bestTimeLabel, icon: Clock3 },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[24px] bg-[#F7F2E8] px-4 py-4">
-                <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
-                  <item.icon className="h-3.5 w-3.5" />
-                  {item.label}
-                </div>
-                <div className="mt-3 text-lg font-black text-zinc-900">{item.value}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">날짜별 활동 흐름</CardTitle>
-            <CardDescription>QT, 기도, 읽기, 말씀저장이 어떤 조합으로 이어졌는지 확인합니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.daily.some((item) => item.total > 0) ? (
-              <ChartContainer className="h-[300px] w-full aspect-auto" config={PERSONAL_DAILY_CONFIG}>
-                <AreaChart data={data.daily}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={18} />
-                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={28} />
-                  <ChartTooltip content={<ChartTooltipContent hideIndicator={false} />} />
-                  <Area type="monotone" dataKey="qt" stroke="var(--color-qt)" fill="var(--color-qt)" fillOpacity={0.24} strokeWidth={2.4} />
-                  <Area type="monotone" dataKey="prayer" stroke="var(--color-prayer)" fill="var(--color-prayer)" fillOpacity={0.18} strokeWidth={2.2} />
-                  <Area type="monotone" dataKey="reading" stroke="var(--color-reading)" fill="var(--color-reading)" fillOpacity={0.14} strokeWidth={2.1} />
-                  <Area type="monotone" dataKey="bookmark" stroke="var(--color-bookmark)" fill="var(--color-bookmark)" fillOpacity={0.12} strokeWidth={2.1} />
-                </AreaChart>
-              </ChartContainer>
-            ) : (
-              <EmptyPanel title="아직 개인 활동 흐름이 없습니다" description="기록을 남기기 시작하면 어떤 날에 어떤 활동이 몰리는지 이곳에 그려집니다." />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">활동 구성 비중</CardTitle>
-            <CardDescription>무엇에 시간을 가장 많이 썼는지 비중으로 보게 해 줍니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {mixData.length > 0 ? (
-              <ChartContainer
-                className="mx-auto h-[280px] w-full max-w-[360px] aspect-auto"
-                config={Object.fromEntries(data.mix.map((item) => [item.key, { label: item.label, color: item.color }]))}
-              >
-                <PieChart>
-                  <Pie data={mixData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={90} paddingAngle={5}>
-                    {mixData.map((entry, index) => (
-                      <Cell key={entry.name} fill={entry.fill || MIX_COLORS[index % MIX_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent hideIndicator nameKey="name" />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <EmptyPanel title="활동 비중이 아직 없습니다" description="한두 개라도 기록이 쌓이면 여기서 패턴이 바로 보이기 시작합니다." />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">요일/시간대 패턴</CardTitle>
-            <CardDescription>언제 가장 자연스럽게 수행하는지 패턴을 분리해서 보여줍니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-6 md:grid-cols-2">
-            <ChartContainer className="h-[250px] w-full aspect-auto" config={PERSONAL_RHYTHM_CONFIG}>
-              <BarChart data={data.weekdayPattern}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={22} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="total" fill="var(--color-weekday)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-
-            <ChartContainer className="h-[250px] w-full aspect-auto" config={PERSONAL_RHYTHM_CONFIG}>
-              <BarChart data={data.timePattern}>
-                <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} />
-                <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={22} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="total" fill="var(--color-time)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">자주 연결한 모임</CardTitle>
-            <CardDescription>개인 기록을 어떤 모임들과 함께 움직이는지 바로 보이도록 정리했습니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.linkedGroups.length > 0 ? (
-              data.linkedGroups.map((group, index) => (
-                <div key={group.id} className="rounded-[24px] bg-[#F7F2E8] px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">Top {index + 1}</div>
-                      <div className="mt-2 truncate text-base font-black text-zinc-900">{group.name}</div>
-                    </div>
-                    <div className="rounded-full bg-[#EAF1E4] px-3 py-1 text-sm font-black text-[#48624E]">{group.count}회</div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyPanel title="아직 연결된 모임 흐름이 없습니다" description="모임에 연결한 활동이 생기면 여기서 어떤 모임과 가장 많이 맞물리는지 보입니다." />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl font-black">최근 기록 미리보기</CardTitle>
-          <CardDescription>클릭하면 음성 재생이나 기록 원문까지 바로 내려가서 볼 수 있습니다.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.recent.length > 0 ? (
-            data.recent.slice(0, 6).map((activity) => (
-              <ActivityRow key={activity.id} item={activity} onClick={() => onOpenActivity(activity)} />
-            ))
-          ) : (
-            <EmptyPanel title="최근 기록이 아직 없습니다" description="개인 기록이 쌓이면 최근 기록에서 바로 drill-down 할 수 있게 됩니다." />
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function PersonalRecordsView({
-  data,
-  onOpenActivity,
-}: {
-  data: Awaited<ReturnType<typeof fetchPersonalDashboardData>>;
-  onOpenActivity: (activity: DashboardActivityItem) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <SectionHeading
-        title="최근 개인 기록"
-        description="음성 기도, 음성 묵상, 읽기 완료, 말씀 저장까지 모두 한 흐름으로 묶었습니다."
-        action={<div className="rounded-full bg-[#F3EEE4] px-3 py-1 text-xs font-black text-[#7B6D5C]">{data.recent.length}건</div>}
-      />
-      <div className="space-y-3">
-        {data.recent.length > 0 ? (
-          data.recent.map((activity) => <ActivityRow key={activity.id} item={activity} onClick={() => onOpenActivity(activity)} />)
-        ) : (
-          <EmptyPanel title="아직 보여줄 기록이 없습니다" description="기록이 생기면 여기서 상세 보기까지 바로 이어집니다." />
-        )}
-      </div>
-    </div>
-  );
-}
-
-function GroupParticipationView({
-  data,
-  onOpenActivity,
-}: {
-  data: Awaited<ReturnType<typeof fetchGroupDashboardData>>;
-  onOpenActivity: (activity: DashboardActivityItem) => void;
-}) {
-  const mixData = data.mix.filter((item) => item.value > 0).map((item) => ({ name: item.label, value: item.value, fill: item.color }));
-
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="내 활동" value={`${data.summary.myTotal}`} note="선택한 모임 안에서 남긴 전체 활동 수" />
-        <StatCard label="모임 전체" value={`${data.summary.groupTotal}`} note="같은 기간 모임 전체에서 발생한 활동 수" />
-        <StatCard label="내 비중" value={`${data.summary.shareRate}%`} note="이 모임 흐름 안에서 내가 차지하는 활동 비중" />
-        <StatCard label="모임 연결 구조" value={`${data.summary.linkedCount} / ${data.summary.directCount}`} note="연결한 활동과 모임 안에서 직접 남긴 활동의 대비" />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">내 참여 vs 모임 전체</CardTitle>
-            <CardDescription>내가 움직인 날과 모임 전체가 움직인 날의 간극을 한 번에 비교합니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.daily.some((item) => item.groupTotal > 0 || item.total > 0) ? (
-              <ChartContainer className="h-[300px] w-full aspect-auto" config={GROUP_COMPARE_CONFIG}>
-                <LineChart data={data.daily}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={18} />
-                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={24} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line type="monotone" dataKey="groupTotal" stroke="var(--color-groupTotal)" strokeWidth={2.6} dot={false} />
-                  <Line type="monotone" dataKey="total" name="myTotal" stroke="var(--color-myTotal)" strokeWidth={3.2} dot={false} />
-                </LineChart>
-              </ChartContainer>
-            ) : (
-              <EmptyPanel title="아직 이 모임과 연결된 활동이 없습니다" description="개인 기록을 연결하거나 모임 안에서 직접 기록을 남기면 이 비교선이 살아납니다." />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">이 모임 안에서의 활동 구성</CardTitle>
-            <CardDescription>선택한 모임 안에서 내가 실제로 어떤 종류의 활동을 더 많이 남기는지 보여줍니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {mixData.length > 0 ? (
-              <ChartContainer
-                className="mx-auto h-[280px] w-full max-w-[360px] aspect-auto"
-                config={Object.fromEntries(data.mix.map((item) => [item.key, { label: item.label, color: item.color }]))}
-              >
-                <PieChart>
-                  <Pie data={mixData} dataKey="value" nameKey="name" innerRadius={58} outerRadius={90} paddingAngle={4}>
-                    {mixData.map((entry, index) => (
-                      <Cell key={entry.name} fill={entry.fill || MIX_COLORS[index % MIX_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent hideIndicator nameKey="name" />} />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <EmptyPanel title="아직 모임 내 활동 구성이 없습니다" description="선택한 모임 안에서 한 번이라도 기록이 쌓이면 구성이 바로 보입니다." />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl font-black">이 모임에서의 최근 기록</CardTitle>
-          <CardDescription>음성 기도는 바로 재생할 수 있고, 읽기/QT/말씀저장은 상세 시트로 내려가서 확인할 수 있습니다.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {data.recent.length > 0 ? (
-            data.recent.map((activity) => <ActivityRow key={activity.id} item={activity} onClick={() => onOpenActivity(activity)} />)
-          ) : (
-            <EmptyPanel title="아직 이 모임 관련 최근 기록이 없습니다" description="선택한 모임과 연결된 기록이 생기면 이 리스트가 drill-down 출발점이 됩니다." />
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function GroupManageView({
-  data,
-}: {
-  data: Awaited<ReturnType<typeof fetchGroupDashboardData>>;
-}) {
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="활성 멤버" value={`${data.summary.activeContributorCount}명`} note="기간 안에 최소 1회 이상 활동이 잡힌 인원 수" />
-        <StatCard label="모임 회원수" value={data.summary.memberCount !== null ? `${data.summary.memberCount}명` : "-"} note="리더 권한으로 볼 수 있는 현재 모임원 수" />
-        <StatCard label="가입 대기" value={`${data.summary.pendingCount}명`} note="아직 승인되지 않은 가입 신청 수" />
-        <StatCard label="모임 총 활동" value={`${data.summary.groupTotal}`} note="기도, 신앙기록, 교제, 연결 활동을 모두 포함한 총합" />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">이번 기간 가장 활발한 멤버</CardTitle>
-            <CardDescription>누가 모임 안에서 기록을 끌어올리고 있는지 바로 보도록 정리했습니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {data.leaderboard.length > 0 ? (
-              data.leaderboard.map((member, index) => (
-                <div key={member.userId} className="rounded-[24px] border border-[#E7DDCC] bg-white px-4 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex items-center gap-3">
-                      <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl bg-[#F3EEE4] text-[#48624E]">
-                        {member.avatarUrl ? (
-                          <img src={member.avatarUrl} alt={member.name} className="h-full w-full object-cover" />
-                        ) : (
-                          <UserRound className="h-5 w-5" />
-                        )}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <div className="truncate font-black text-zinc-900">{index + 1}. {member.name}</div>
-                          <GroupRolePill role={member.role} />
-                        </div>
-                        <div className="mt-1 text-sm text-zinc-500">
-                          연결 {member.linked} · 기도 {member.prayer} · 신앙기록 {member.faith} · 교제 {member.posts}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="rounded-full bg-[#EAF1E4] px-3 py-1 text-sm font-black text-[#48624E]">{member.total}</div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <EmptyPanel title="아직 리더보드가 비어 있습니다" description="모임 활동이 쌓이면 여기서 바로 상위 참여 멤버가 보입니다." />
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl font-black">최근 쉬고 있는 멤버</CardTitle>
-              <CardDescription>이번 기간에 활동이 잡히지 않은 멤버를 빠르게 체크합니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data.inactiveMembers.length > 0 ? (
-                data.inactiveMembers.map((member) => (
-                  <div key={member.userId} className="rounded-[22px] bg-[#F7F2E8] px-4 py-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="truncate font-black text-zinc-900">{member.name}</div>
-                        <div className="mt-1 text-sm text-zinc-500">이번 기간 기록 0건</div>
-                      </div>
-                      <GroupRolePill role={member.role} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-[22px] bg-[#EAF1E4] px-4 py-4 text-sm font-bold text-[#48624E]">이번 기간은 모든 멤버에게 최소 1건 이상의 활동이 있습니다.</div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-xl font-black">가입 대기</CardTitle>
-              <CardDescription>바로 관리가 필요한 최근 대기 신청입니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {data.pendingRequests.length > 0 ? (
-                data.pendingRequests.map((request) => (
-                  <div key={request.id} className="rounded-[22px] bg-[#F7F2E8] px-4 py-4">
-                    <div className="font-black text-zinc-900">{request.name}</div>
-                    <div className="mt-1 text-sm text-zinc-500">{formatDateTime(request.createdAt)} 신청</div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-[22px] bg-[#F1F5F9] px-4 py-4 text-sm font-bold text-slate-600">지금은 대기 중인 가입 신청이 없습니다.</div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function NetworkOverviewView({
-  data,
-}: {
-  data: Awaited<ReturnType<typeof fetchNetworkDashboardData>>;
-}) {
-  return (
-    <div className="space-y-6">
-      {data.limitedMessage && (
-        <Card className="rounded-[28px] border-[#E4D5C0] bg-[#FFF7EB]">
-          <CardContent className="px-5 py-4 text-sm leading-6 text-[#8A5C22]">{data.limitedMessage}</CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="관리 모임" value={`${data.summary.groupCount}`} note="현재 이 범위에 포함된 전체 모임 수" />
-        <StatCard label="전체 멤버" value={`${data.summary.memberCount}`} note="범위 안의 멤버 총합" />
-        <StatCard label="총 활동" value={`${data.summary.totalActivities}`} note="기도, 신앙기록, 교제, 연결 활동의 합" />
-        <StatCard label="가입 대기" value={`${data.summary.pendingCount}`} note="운영 리소스가 더 필요한 대기 신청 수" />
-      </div>
-
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.95fr]">
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">날짜별 조직 흐름</CardTitle>
-            <CardDescription>어떤 종류의 조직 활동이 어느 날짜에 몰렸는지 층으로 분해해 보여줍니다.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {data.timeline.some((point) => point.total > 0) ? (
-              <ChartContainer className="h-[320px] w-full aspect-auto" config={NETWORK_TIMELINE_CONFIG}>
-                <AreaChart data={data.timeline}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={18} />
-                  <YAxis tickLine={false} axisLine={false} allowDecimals={false} width={28} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Area type="monotone" dataKey="prayer" stroke="var(--color-prayer)" fill="var(--color-prayer)" fillOpacity={0.22} strokeWidth={2.2} />
-                  <Area type="monotone" dataKey="faith" stroke="var(--color-faith)" fill="var(--color-faith)" fillOpacity={0.18} strokeWidth={2.1} />
-                  <Area type="monotone" dataKey="posts" stroke="var(--color-posts)" fill="var(--color-posts)" fillOpacity={0.14} strokeWidth={2} />
-                  <Area type="monotone" dataKey="linked" stroke="var(--color-linked)" fill="var(--color-linked)" fillOpacity={0.12} strokeWidth={2} />
-                </AreaChart>
-              </ChartContainer>
-            ) : (
-              <EmptyPanel title="아직 범위 내 활동이 없습니다" description="모임 기록이 쌓이면 여기서 어느 날짜에 어디가 움직였는지 곡선으로 보입니다." />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-xl font-black">먼저 봐야 할 모임</CardTitle>
-            <CardDescription>이번 범위에서 제일 뜨거운 곳, 신호가 꺾인 곳, 대기가 많은 곳을 바로 집어줍니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {[
-              { label: "가장 뜨거운 모임", value: data.highlights.strongest?.name || "없음", note: data.highlights.strongest ? `${data.highlights.strongest.activityScore}건` : "데이터 없음" },
-              { label: "주의가 필요한 모임", value: data.highlights.attention?.name || "없음", note: data.highlights.attention ? `변화 ${data.highlights.attention.trendDelta}` : "데이터 없음" },
-              { label: "가입 대기 많은 모임", value: data.highlights.pending?.name || "없음", note: data.highlights.pending ? `${data.highlights.pending.pendingCount}명 대기` : "데이터 없음" },
-            ].map((item) => (
-              <div key={item.label} className="rounded-[24px] bg-[#F7F2E8] px-4 py-4">
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">{item.label}</div>
-                <div className="mt-2 text-lg font-black text-zinc-900">{item.value}</div>
-                <div className="mt-1 text-sm text-zinc-500">{item.note}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-function NetworkCompareView({
-  data,
-  joinedGroupIds,
-  onOpenGroup,
-}: {
-  data: Awaited<ReturnType<typeof fetchNetworkDashboardData>>;
-  joinedGroupIds: Set<string>;
-  onOpenGroup: (groupId: string) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <SectionHeading
-        title="모임별 비교"
-        description="활동 점수, 가입 대기, 멤버 수를 한 번에 비교해서 어느 모임부터 drill-down 할지 판단하게 합니다."
-      />
-
-      <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-xl font-black">활동 점수 비교</CardTitle>
-          <CardDescription>기도, 신앙기록, 교제, 연결 활동을 합친 단순 점수입니다.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {data.groups.length > 0 ? (
-            <ChartContainer
-              className="h-[360px] w-full aspect-auto"
-              config={{ activityScore: { label: "활동 점수", color: "#48624E" } }}
-            >
-              <BarChart data={data.groups.slice(0, 8)} layout="vertical" margin={{ left: 12, right: 12 }}>
-                <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-                <XAxis type="number" tickLine={false} axisLine={false} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={96} />
-                <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="activityScore" fill="var(--color-activityScore)" radius={[0, 10, 10, 0]} />
-              </BarChart>
-            </ChartContainer>
-          ) : (
-            <EmptyPanel title="비교할 모임이 없습니다" description="관리 범위에 모임이 생기면 비교 막대가 바로 만들어집니다." />
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        {data.groups.map((group) => (
-          <button
-            key={group.id}
-            onClick={() => onOpenGroup(group.id)}
-            className="rounded-[28px] border border-[#DDD2C1] bg-white px-5 py-5 text-left transition hover:-translate-y-0.5 hover:border-[#CDBEAA]"
-            type="button"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="truncate text-lg font-black text-zinc-900">{group.name}</div>
-                  {joinedGroupIds.has(group.id) ? (
-                    <span className="rounded-full bg-[#EAF1E4] px-2.5 py-1 text-[11px] font-black text-[#48624E]">내 모임</span>
-                  ) : (
-                    <span className="rounded-full bg-[#F3EEE4] px-2.5 py-1 text-[11px] font-black text-[#7B6D5C]">범위 보기</span>
-                  )}
-                </div>
-                <div className="mt-2 text-sm text-zinc-500">활동 {group.activityScore} · 멤버 {group.memberCount} · 가입 대기 {group.pendingCount}</div>
-              </div>
-              <ChevronRight className="h-5 w-5 shrink-0 text-zinc-300" />
-            </div>
-
-            <div className="mt-4 grid grid-cols-4 gap-2">
-              {[
-                { label: "기도", value: group.prayerCount },
-                { label: "신앙", value: group.faithCount },
-                { label: "교제", value: group.postCount },
-                { label: "연결", value: group.linkedCount },
-              ].map((item) => (
-                <div key={item.label} className="rounded-[18px] bg-[#F7F2E8] px-3 py-3">
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">{item.label}</div>
-                  <div className="mt-2 text-lg font-black text-zinc-900">{item.value}</div>
-                </div>
-              ))}
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -1148,15 +1411,15 @@ export default function InsightsDashboardPage() {
   } = useDashboardShellStore();
 
   const contextsQuery = useQuery({
-    queryKey: ["dashboard", "contexts", user?.id],
+    queryKey: ["insights", "contexts", user?.id],
     queryFn: () => fetchDashboardContexts(user!.id),
     enabled: !!user,
     staleTime: 1000 * 60 * 5,
   });
 
   const personalQuery = useQuery({
-    queryKey: ["dashboard", "personal-v2", user?.id, timeframe],
-    queryFn: () => fetchPersonalDashboardData(user!.id, timeframe),
+    queryKey: ["insights", "personal-v3", user?.id, timeframe],
+    queryFn: () => fetchInsightsPersonalData(user!.id, timeframe),
     enabled: !!user,
     staleTime: 1000 * 60,
   });
@@ -1167,35 +1430,27 @@ export default function InsightsDashboardPage() {
   );
 
   const groupQuery = useQuery({
-    queryKey: ["dashboard", "group-v2", user?.id, selectedGroup?.id, selectedGroup?.role, timeframe],
-    queryFn: () => fetchGroupDashboardData(user!.id, selectedGroup!, timeframe),
+    queryKey: ["insights", "group-v3", user?.id, selectedGroup?.id, timeframe],
+    queryFn: () => fetchInsightsGroupData(user!.id, selectedGroup!, timeframe),
     enabled: !!user && contextKind === "group" && !!selectedGroup,
     staleTime: 1000 * 60,
   });
 
   const networkQuery = useQuery({
-    queryKey: [
-      "dashboard",
-      "network-v2",
-      user?.id,
-      networkMode,
-      timeframe,
-      contextsQuery.data?.managedGroups.map((group) => group.id).join(","),
-      contextsQuery.data?.scopeGroups.map((group) => group.id).join(","),
-    ],
-    queryFn: () =>
-      fetchNetworkDashboardData({
-        mode: networkMode,
-        managedGroupIds: contextsQuery.data?.managedGroups.map((group) => group.id) ?? [],
-        scopeGroupIds: contextsQuery.data?.scopeGroups.map((group) => group.id) ?? [],
-        days: timeframe,
-      }),
+    queryKey: ["insights", "network-v3", user?.id, networkMode, timeframe],
+    queryFn: () => fetchInsightsNetworkData({ mode: networkMode, days: timeframe }),
     enabled: !!user && contextKind === "network" && !!contextsQuery.data?.summary.hasNetworkAccess,
     staleTime: 1000 * 60,
   });
 
   const detailQuery = useQuery({
-    queryKey: ["dashboard", "activity-detail", selectedActivity?.id, selectedActivity?.sourceTable, selectedActivity?.sourceRowId],
+    queryKey: [
+      "insights",
+      "activity-detail",
+      selectedActivity?.id,
+      selectedActivity?.sourceTable,
+      selectedActivity?.sourceRowId,
+    ],
     queryFn: () => fetchDashboardActivityDetail(selectedActivity!),
     enabled: !!selectedActivity,
   });
@@ -1228,6 +1483,18 @@ export default function InsightsDashboardPage() {
     }
   }, [contextKind, contextsQuery.data, networkMode, selectedGroupId, setContext, setNetworkMode]);
 
+  const personalPillarMap = useMemo(() => {
+    const map = new Map<InsightsPillarKey, InsightsPillarCard>();
+    personalQuery.data?.pillars.forEach((pillar) => map.set(pillar.key, pillar));
+    return map;
+  }, [personalQuery.data?.pillars]);
+
+  const groupPillarMap = useMemo(() => {
+    const map = new Map<InsightsPillarKey, InsightsPillarCard>();
+    groupQuery.data?.pillars.forEach((pillar) => map.set(pillar.key, pillar));
+    return map;
+  }, [groupQuery.data?.pillars]);
+
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#EFE6D7]">
@@ -1245,11 +1512,19 @@ export default function InsightsDashboardPage() {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-[24px] bg-[#F3EEE4] text-[#48624E]">
                 <ShieldCheck className="h-7 w-7" />
               </div>
-              <h1 className="mt-6 font-['Noto_Serif_KR'] text-3xl font-black text-zinc-900">로그인 후 대시보드를 확인할 수 있습니다</h1>
-              <p className="mt-3 text-sm leading-6 text-zinc-500">앱에서 웹 대시보드로 연결되는 화면을 염두에 두고 만든 독립형 페이지라서, 먼저 인증이 필요합니다.</p>
+              <h1 className="mt-6 font-['Noto_Serif_KR'] text-3xl font-black text-zinc-900">
+                로그인 후 대시보드를 확인할 수 있습니다
+              </h1>
+              <p className="mt-3 text-sm leading-6 text-zinc-500">
+                앱에서 웹 대시보드로 이어지는 화면을 염두에 둔 독립 페이지라서, 먼저 인증이 필요합니다.
+              </p>
               <div className="mt-7 flex justify-center gap-3">
-                <Button onClick={() => setLocation("/auth")} className="rounded-2xl bg-zinc-900 px-5 text-white">로그인</Button>
-                <Button variant="outline" onClick={() => setLocation("/")} className="rounded-2xl px-5">홈으로</Button>
+                <Button onClick={() => setLocation("/auth")} className="rounded-2xl bg-zinc-900 px-5 text-white">
+                  로그인
+                </Button>
+                <Button variant="outline" onClick={() => setLocation("/")} className="rounded-2xl px-5">
+                  홈으로
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1261,6 +1536,22 @@ export default function InsightsDashboardPage() {
   const contexts = contextsQuery.data;
   const joinedGroupIds = new Set(contexts?.groups.map((group) => group.id) ?? []);
   const headerInfo = getContextTitle(contextKind, selectedGroup, networkMode);
+  const personalTabValue =
+    activeSubtab === "reading" ||
+    activeSubtab === "qt" ||
+    activeSubtab === "prayer" ||
+    activeSubtab === "recent"
+      ? activeSubtab
+      : "overview";
+  const groupTabValue =
+    activeSubtab === "reading" ||
+    activeSubtab === "qt" ||
+    activeSubtab === "prayer" ||
+    activeSubtab === "recent" ||
+    (activeSubtab === "care" && groupQuery.data?.canManage)
+      ? activeSubtab
+      : "overview";
+
   const contentLoading =
     contextsQuery.isLoading ||
     (contextKind === "personal" && personalQuery.isLoading) ||
@@ -1270,9 +1561,7 @@ export default function InsightsDashboardPage() {
   const openGroupFromNetwork = (groupId: string) => {
     if (joinedGroupIds.has(groupId)) {
       setContext("group", groupId);
-      return;
     }
-    setLocation(`/group/${groupId}`);
   };
 
   return (
@@ -1280,7 +1569,7 @@ export default function InsightsDashboardPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.9),_transparent_40%),radial-gradient(circle_at_bottom_right,_rgba(72,98,78,0.12),_transparent_36%)]" />
       <div className="relative mx-auto flex min-h-screen max-w-[1700px]">
         <aside className="hidden w-[340px] shrink-0 border-r border-white/40 bg-white/45 px-5 py-6 backdrop-blur-xl lg:block">
-          {contexts && (
+          {contexts ? (
             <SidebarMenu
               contexts={contexts}
               contextKind={contextKind}
@@ -1291,7 +1580,7 @@ export default function InsightsDashboardPage() {
               onNetworkModeChange={setNetworkMode}
               onTimeframeChange={setTimeframe}
             />
-          )}
+          ) : null}
         </aside>
 
         <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -1300,7 +1589,7 @@ export default function InsightsDashboardPage() {
               <SheetTitle className="font-['Noto_Serif_KR'] text-xl font-black">Dashboard Menu</SheetTitle>
             </SheetHeader>
             <div className="p-5">
-              {contexts && (
+              {contexts ? (
                 <SidebarMenu
                   contexts={contexts}
                   contextKind={contextKind}
@@ -1314,7 +1603,7 @@ export default function InsightsDashboardPage() {
                   onNetworkModeChange={setNetworkMode}
                   onTimeframeChange={setTimeframe}
                 />
-              )}
+              ) : null}
             </div>
           </SheetContent>
         </Sheet>
@@ -1343,24 +1632,46 @@ export default function InsightsDashboardPage() {
                       <div className="inline-flex items-center gap-2 rounded-full bg-white/14 px-3 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-white/80">
                         {headerInfo.badge}
                       </div>
-                      <h1 className="mt-4 font-['Noto_Serif_KR'] text-[2rem] font-black leading-tight lg:text-[2.6rem]">{headerInfo.title}</h1>
-                      <p className="mt-3 max-w-3xl text-sm leading-7 text-white/80 lg:text-base">{headerInfo.description}</p>
+                      <h1 className="mt-4 font-['Noto_Serif_KR'] text-[2rem] font-black leading-tight lg:text-[2.6rem]">
+                        {headerInfo.title}
+                      </h1>
+                      <p className="mt-3 max-w-3xl text-sm leading-7 text-white/80 lg:text-base">
+                        {headerInfo.description}
+                      </p>
                     </div>
                   </div>
 
                   <div className="hidden shrink-0 rounded-[28px] bg-white/12 px-4 py-3 text-right lg:block">
-                    <div className="text-[11px] font-black uppercase tracking-[0.22em] text-white/70">Window</div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.22em] text-white/70">
+                      Window
+                    </div>
                     <div className="mt-1 text-2xl font-black">{timeframe}일</div>
-                    <div className="text-xs text-white/70">{contextKind === "network" ? (networkMode === "scope" ? "상위리더 비교 범위" : "리더 관리 범위") : "개인 / 모임 drill-down"}</div>
+                    <div className="text-xs text-white/70">
+                      {contextKind === "network"
+                        ? networkMode === "scope"
+                          ? "상위리더 돌봄 범위"
+                          : "리더 돌봄 범위"
+                        : contextKind === "group"
+                          ? "모임 안 세 축 흐름"
+                          : "개인 세 축 흐름"}
+                    </div>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 border-t border-[#E7DDCC] bg-[#FCFAF5] px-5 py-4 lg:px-7">
                 {[
-                  { icon: LayoutDashboard, label: "독립 대시보드" },
+                  { icon: LayoutDashboard, label: "성경읽기 / QT / 기도" },
                   { icon: Users, label: `${contexts?.summary.joinedGroupCount ?? 0}개 모임 연결` },
-                  { icon: contextKind === "network" ? Network : Link2, label: contextKind === "group" && selectedGroup ? `${selectedGroup.name} 선택됨` : contextKind === "network" ? "관리 범위 분석" : "개인 활동 분석" },
+                  {
+                    icon: contextKind === "network" ? Network : Link2,
+                    label:
+                      contextKind === "group" && selectedGroup
+                        ? `${selectedGroup.name} 흐름`
+                        : contextKind === "network"
+                          ? "돌봄 범위 살피기"
+                          : "개인 기록 흐름",
+                  },
                 ].map((item) => (
                   <div key={item.label} className="inline-flex items-center gap-2 rounded-full bg-[#F3EEE4] px-3 py-1.5 text-xs font-black text-[#6F604E]">
                     <item.icon className="h-3.5 w-3.5" />
@@ -1379,72 +1690,189 @@ export default function InsightsDashboardPage() {
             ) : contextsQuery.error ? (
               <EmptyPanel
                 title="대시보드 컨텍스트를 불러오지 못했습니다"
-                description={contextsQuery.error instanceof Error ? contextsQuery.error.message : "모임/권한 정보를 확인하지 못했습니다."}
+                description={
+                  contextsQuery.error instanceof Error
+                    ? contextsQuery.error.message
+                    : "모임/권한 정보를 확인하지 못했습니다."
+                }
               />
             ) : contextKind === "personal" && personalQuery.data ? (
-              <Tabs value={activeSubtab === "records" ? "records" : "summary"} onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}>
+              <Tabs value={personalTabValue} onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}>
                 <TabsList className="h-auto flex-wrap justify-start rounded-[24px] bg-white/85 p-1.5">
-                  <TabsTrigger value="summary" className="rounded-[18px] px-4 py-2.5 text-sm font-black">요약</TabsTrigger>
-                  <TabsTrigger value="records" className="rounded-[18px] px-4 py-2.5 text-sm font-black">최근 기록</TabsTrigger>
+                  <TabsTrigger value="overview" className="rounded-[18px] px-4 py-2.5 text-sm font-black">한눈에</TabsTrigger>
+                  <TabsTrigger value="reading" className="rounded-[18px] px-4 py-2.5 text-sm font-black">성경읽기</TabsTrigger>
+                  <TabsTrigger value="qt" className="rounded-[18px] px-4 py-2.5 text-sm font-black">QT</TabsTrigger>
+                  <TabsTrigger value="prayer" className="rounded-[18px] px-4 py-2.5 text-sm font-black">기도</TabsTrigger>
+                  <TabsTrigger value="recent" className="rounded-[18px] px-4 py-2.5 text-sm font-black">최근 기록</TabsTrigger>
                 </TabsList>
-                <TabsContent value="summary" className="mt-6">
-                  <PersonalSummaryView data={personalQuery.data} onOpenActivity={setSelectedActivity} />
+
+                <TabsContent value="overview" className="mt-6">
+                  <PersonalOverviewView data={personalQuery.data} onOpenActivity={setSelectedActivity} />
                 </TabsContent>
-                <TabsContent value="records" className="mt-6">
-                  <PersonalRecordsView data={personalQuery.data} onOpenActivity={setSelectedActivity} />
+                <TabsContent value="reading" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={personalPillarMap.get("reading")!}
+                    items={personalQuery.data.recent.filter((item) => item.type === "reading")}
+                    contextCard={
+                      <GroupShareCard
+                        title="어느 모임과 읽기가 이어졌는지"
+                        description="성경읽기 기록이 어느 모임과 자주 이어졌는지 따로 모아 봅니다."
+                        rows={personalQuery.data.groupShares.filter((row) => row.reading > 0)}
+                      />
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                <TabsContent value="qt" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={personalPillarMap.get("qt")!}
+                    items={personalQuery.data.recent.filter((item) => item.type === "qt")}
+                    contextCard={
+                      <GroupShareCard
+                        title="어느 모임과 QT가 이어졌는지"
+                        description="QT 기록이 어떤 모임과 자주 연결되었는지 따로 모아 봅니다."
+                        rows={personalQuery.data.groupShares.filter((row) => row.qt > 0)}
+                      />
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                <TabsContent value="prayer" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={personalPillarMap.get("prayer")!}
+                    items={personalQuery.data.recent.filter((item) => item.type === "prayer")}
+                    contextCard={
+                      <GroupShareCard
+                        title="어느 모임과 기도가 이어졌는지"
+                        description="개인 기도 기록이 어떤 모임과 자주 이어졌는지 따로 모아 봅니다."
+                        rows={personalQuery.data.groupShares.filter((row) => row.prayer > 0)}
+                      />
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                <TabsContent value="recent" className="mt-6">
+                  <ActivityListPanel
+                    title="전체 최근 기록"
+                    description="성경읽기, QT, 기도뿐 아니라 말씀 저장까지 최근 흐름을 한 번에 훑어볼 수 있습니다."
+                    items={personalQuery.data.recent}
+                    onOpenActivity={setSelectedActivity}
+                  />
                 </TabsContent>
               </Tabs>
-            ) : contextKind === "group" && selectedGroup && groupQuery.data ? (
-              <Tabs
-                value={
-                  activeSubtab === "records"
-                    ? "records"
-                    : activeSubtab === "manage" && groupQuery.data.canManage
-                      ? "manage"
-                      : "participation"
-                }
-                onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}
-              >
+            ) : contextKind === "group" && groupQuery.data ? (
+              <Tabs value={groupTabValue} onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}>
                 <TabsList className="h-auto flex-wrap justify-start rounded-[24px] bg-white/85 p-1.5">
-                  <TabsTrigger value="participation" className="rounded-[18px] px-4 py-2.5 text-sm font-black">내 참여</TabsTrigger>
-                  <TabsTrigger value="records" className="rounded-[18px] px-4 py-2.5 text-sm font-black">최근 기록</TabsTrigger>
-                  {groupQuery.data.canManage && <TabsTrigger value="manage" className="rounded-[18px] px-4 py-2.5 text-sm font-black">운영 인사이트</TabsTrigger>}
+                  <TabsTrigger value="overview" className="rounded-[18px] px-4 py-2.5 text-sm font-black">한눈에</TabsTrigger>
+                  <TabsTrigger value="reading" className="rounded-[18px] px-4 py-2.5 text-sm font-black">성경읽기</TabsTrigger>
+                  <TabsTrigger value="qt" className="rounded-[18px] px-4 py-2.5 text-sm font-black">QT</TabsTrigger>
+                  <TabsTrigger value="prayer" className="rounded-[18px] px-4 py-2.5 text-sm font-black">기도</TabsTrigger>
+                  <TabsTrigger value="recent" className="rounded-[18px] px-4 py-2.5 text-sm font-black">최근 기록</TabsTrigger>
+                  {groupQuery.data.canManage ? (
+                    <TabsTrigger value="care" className="rounded-[18px] px-4 py-2.5 text-sm font-black">돌봄 신호</TabsTrigger>
+                  ) : null}
                 </TabsList>
-                <TabsContent value="participation" className="mt-6">
-                  <GroupParticipationView data={groupQuery.data} onOpenActivity={setSelectedActivity} />
+
+                <TabsContent value="overview" className="mt-6">
+                  <GroupOverviewView data={groupQuery.data} onOpenActivity={setSelectedActivity} />
                 </TabsContent>
-                <TabsContent value="records" className="mt-6">
-                  <Card className="rounded-[32px] border-[#DDD2C1] bg-white/92 shadow-sm">
-                    <CardHeader>
-                      <CardTitle className="text-xl font-black">선택한 모임과 연결된 내 기록</CardTitle>
-                      <CardDescription>여기서 클릭하면 음성은 바로 재생하고, 읽기/QT/말씀은 상세 시트로 drill-down 됩니다.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      {groupQuery.data.recent.length > 0 ? (
-                        groupQuery.data.recent.map((activity) => <ActivityRow key={activity.id} item={activity} onClick={() => setSelectedActivity(activity)} />)
-                      ) : (
-                        <EmptyPanel title="이 모임에 연결된 내 기록이 아직 없습니다" description="개인 기록을 모임에 연결하거나 모임 안에서 직접 남긴 활동이 생기면 이 리스트가 살아납니다." />
-                      )}
-                    </CardContent>
-                  </Card>
+                <TabsContent value="reading" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={groupPillarMap.get("reading")!}
+                    items={groupQuery.data.recent.filter((item) => item.type === "reading")}
+                    contextCard={
+                      groupQuery.data.groupSignal ? (
+                        <Card className="rounded-[30px] border-[#DDD2C1] bg-white/92 shadow-sm">
+                          <CardContent className="px-5 py-5">
+                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                              모임 안 읽기 흐름
+                            </div>
+                            <div className="mt-3 text-xl font-black text-zinc-900">
+                              최근 {groupQuery.data.groupSignal.readingCount}건
+                            </div>
+                            <div className="mt-3 text-sm leading-7 text-zinc-600">
+                              이 모임 전체에서는 성경읽기 흔적이 {groupQuery.data.groupSignal.readingCount}건 남았고, 최근 기록은 {groupQuery.data.groupSignal.lastReadingAt ? formatDateOnly(groupQuery.data.groupSignal.lastReadingAt) : "아직 없음"}입니다.
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : undefined
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
                 </TabsContent>
-                {groupQuery.data.canManage && (
-                  <TabsContent value="manage" className="mt-6">
-                    <GroupManageView data={groupQuery.data} />
+                <TabsContent value="qt" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={groupPillarMap.get("qt")!}
+                    items={groupQuery.data.recent.filter((item) => item.type === "qt")}
+                    contextCard={
+                      groupQuery.data.groupSignal ? (
+                        <Card className="rounded-[30px] border-[#DDD2C1] bg-white/92 shadow-sm">
+                          <CardContent className="px-5 py-5">
+                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                              모임 안 QT 흐름
+                            </div>
+                            <div className="mt-3 text-xl font-black text-zinc-900">
+                              최근 {groupQuery.data.groupSignal.qtCount}건
+                            </div>
+                            <div className="mt-3 text-sm leading-7 text-zinc-600">
+                              이 모임 전체에서는 QT 흔적이 {groupQuery.data.groupSignal.qtCount}건 남았고, 최근 기록은 {groupQuery.data.groupSignal.lastQtAt ? formatDateOnly(groupQuery.data.groupSignal.lastQtAt) : "아직 없음"}입니다.
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : undefined
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                <TabsContent value="prayer" className="mt-6">
+                  <PillarDetailPanel
+                    pillar={groupPillarMap.get("prayer")!}
+                    items={groupQuery.data.recent.filter((item) => item.type === "prayer")}
+                    contextCard={
+                      groupQuery.data.groupSignal ? (
+                        <Card className="rounded-[30px] border-[#DDD2C1] bg-white/92 shadow-sm">
+                          <CardContent className="px-5 py-5">
+                            <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[#8D7A63]">
+                              모임 안 기도 흐름
+                            </div>
+                            <div className="mt-3 text-xl font-black text-zinc-900">
+                              최근 {groupQuery.data.groupSignal.prayerCount}건
+                            </div>
+                            <div className="mt-3 text-sm leading-7 text-zinc-600">
+                              이 모임 전체에서는 기도 흔적이 {groupQuery.data.groupSignal.prayerCount}건 남았고, 최근 기록은 {groupQuery.data.groupSignal.lastPrayerAt ? formatDateOnly(groupQuery.data.groupSignal.lastPrayerAt) : "아직 없음"}입니다.
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ) : undefined
+                    }
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                <TabsContent value="recent" className="mt-6">
+                  <ActivityListPanel
+                    title="이 모임과 이어진 전체 최근 기록"
+                    description="이 모임에 연결된 개인 기록과 모임 안에서 직접 남긴 기록을 함께 훑어봅니다."
+                    items={groupQuery.data.recent}
+                    onOpenActivity={setSelectedActivity}
+                  />
+                </TabsContent>
+                {groupQuery.data.canManage ? (
+                  <TabsContent value="care" className="mt-6">
+                    <GroupCareView data={groupQuery.data} />
                   </TabsContent>
-                )}
+                ) : null}
               </Tabs>
             ) : contextKind === "network" && networkQuery.data ? (
-              <Tabs value={activeSubtab === "compare" ? "compare" : "overview"} onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}>
+              <Tabs value={activeSubtab === "care" ? "care" : "overview"} onValueChange={(value) => setActiveSubtab(value as DashboardSubtab)}>
                 <TabsList className="h-auto flex-wrap justify-start rounded-[24px] bg-white/85 p-1.5">
-                  <TabsTrigger value="overview" className="rounded-[18px] px-4 py-2.5 text-sm font-black">개요</TabsTrigger>
-                  <TabsTrigger value="compare" className="rounded-[18px] px-4 py-2.5 text-sm font-black">모임 비교</TabsTrigger>
+                  <TabsTrigger value="overview" className="rounded-[18px] px-4 py-2.5 text-sm font-black">한눈에</TabsTrigger>
+                  <TabsTrigger value="care" className="rounded-[18px] px-4 py-2.5 text-sm font-black">모임 살펴보기</TabsTrigger>
                 </TabsList>
                 <TabsContent value="overview" className="mt-6">
                   <NetworkOverviewView data={networkQuery.data} />
                 </TabsContent>
-                <TabsContent value="compare" className="mt-6">
-                  <NetworkCompareView data={networkQuery.data} joinedGroupIds={joinedGroupIds} onOpenGroup={openGroupFromNetwork} />
+                <TabsContent value="care" className="mt-6">
+                  <NetworkGroupsView data={networkQuery.data} joinedGroupIds={joinedGroupIds} onOpenGroup={openGroupFromNetwork} />
                 </TabsContent>
               </Tabs>
             ) : (

@@ -1,7 +1,17 @@
 import { create } from "zustand";
-import type { DashboardContextKind, DashboardNetworkMode, TimeframeDays } from "../lib/dashboard";
+import type {
+  DashboardContextKind,
+  DashboardNetworkMode,
+  TimeframeDays,
+} from "../lib/dashboard";
 
-export type DashboardSubtab = "summary" | "records" | "participation" | "manage" | "overview" | "compare";
+export type DashboardSubtab =
+  | "overview"
+  | "reading"
+  | "qt"
+  | "prayer"
+  | "recent"
+  | "care";
 
 type DashboardShellState = {
   mobileMenuOpen: boolean;
@@ -18,9 +28,8 @@ type DashboardShellState = {
 };
 
 function defaultSubtabForContext(contextKind: DashboardContextKind): DashboardSubtab {
-  if (contextKind === "personal") return "summary";
   if (contextKind === "network") return "overview";
-  return "participation";
+  return "overview";
 }
 
 export const useDashboardShellStore = create<DashboardShellState>((set) => ({
@@ -29,7 +38,7 @@ export const useDashboardShellStore = create<DashboardShellState>((set) => ({
   contextKind: "personal",
   selectedGroupId: null,
   networkMode: "managed",
-  activeSubtab: "summary",
+  activeSubtab: "overview",
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
   setTimeframe: (timeframe) => set({ timeframe }),
   setNetworkMode: (mode) => set({ networkMode: mode }),
