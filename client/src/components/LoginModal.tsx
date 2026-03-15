@@ -7,7 +7,7 @@ import { startOAuthSignIn } from "../lib/oauth";
 import { isEmbeddedInAppBrowser, isNativeApp, openUrlInExternalBrowser } from "../lib/appUrl";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
-import { GROUP_INVITE_QUERY_KEY, readInviteGroupId } from "../lib/groupInvite";
+import { buildInviteLandingUrl, GROUP_INVITE_QUERY_KEY, readInviteGroupId } from "../lib/groupInvite";
 
 interface LoginModalProps {
   open: boolean;
@@ -26,7 +26,9 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   }, [open, isAuthenticated, onOpenChange]);
 
   const resolveTargetReturnTo = () => {
-    const raw = returnTo || window.location.href;
+    const inviteGroupId = readInviteGroupId();
+    const fallbackRaw = inviteGroupId ? buildInviteLandingUrl(inviteGroupId) : window.location.href;
+    const raw = returnTo || fallbackRaw;
     if (!isNativeApp()) return raw;
 
     if (raw.startsWith("/#/")) return raw.slice(1);

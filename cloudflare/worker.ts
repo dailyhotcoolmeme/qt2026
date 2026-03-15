@@ -349,7 +349,14 @@ async function handleUserDelete(request: Request, env: Env) {
   const supabaseUrl = env.SUPABASE_URL || "";
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceKey) {
-    return json(503, { message: "서버 설정 오류: Supabase 서비스 키가 없습니다" });
+    return json(503, {
+      message: "서버 설정 오류",
+      detail: !supabaseUrl && !serviceKey
+        ? "SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY가 없습니다"
+        : !supabaseUrl
+          ? "SUPABASE_URL이 없습니다"
+          : "SUPABASE_SERVICE_ROLE_KEY가 없습니다",
+    });
   }
 
   const authHeader = request.headers.get("authorization") || "";

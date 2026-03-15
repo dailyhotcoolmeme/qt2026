@@ -1,5 +1,6 @@
 import { Browser } from "@capacitor/browser";
 import { getBrowserOrigin, getPublicWebOrigin, isKnownAppOrigin, isNativeApp } from "./appUrl";
+import { GROUP_INVITE_QUERY_KEY, readInviteGroupId } from "./groupInvite";
 import { supabase } from "./supabase";
 
 export type OAuthProvider = "kakao" | "google" | "apple";
@@ -64,17 +65,21 @@ function resolveNativeOAuthReturnTo(rawReturnTo?: string | null) {
 }
 
 export function getOAuthRedirectTo(targetReturnTo?: string | null, options?: OAuthStartOptions) {
+  const inviteGroupId = readInviteGroupId();
+
   if (isNativeApp() || options?.forceNativeBridge) {
     if (isNativeApp()) {
       return NATIVE_CALLBACK_URL;
     }
 
     const returnTo = resolveNativeOAuthReturnTo(targetReturnTo);
-    return `${getPublicWebOrigin()}/?${NATIVE_OAUTH_BRIDGE_QUERY_KEY}=1&returnTo=${encodeURIComponent(returnTo)}`;
+    const inviteQuery = inviteGroupId ? `&${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
+    return `${getPublicWebOrigin()}/?${NATIVE_OAUTH_BRIDGE_QUERY_KEY}=1&returnTo=${encodeURIComponent(returnTo)}${inviteQuery}`;
   }
 
   const returnTo = resolveOAuthReturnTo(targetReturnTo);
-  return `${getBrowserOrigin()}/?returnTo=${encodeURIComponent(returnTo)}`;
+  const inviteQuery = inviteGroupId ? `&${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
+  return `${getBrowserOrigin()}/?returnTo=${encodeURIComponent(returnTo)}${inviteQuery}`;
 }
 
 export function getHostedNativeOAuthStartUrl(provider: OAuthProvider, targetReturnTo?: string | null) {

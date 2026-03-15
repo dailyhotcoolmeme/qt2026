@@ -40,6 +40,15 @@ export function readInviteGroupId() {
   return readInviteGroupIdFromUrl() || readStoredInviteGroupId();
 }
 
+export function buildInviteLandingUrl(inviteGroupId?: string | null) {
+  const resolvedInviteGroupId = String(inviteGroupId || readInviteGroupId()).trim();
+  if (!isValidInviteGroupId(resolvedInviteGroupId)) {
+    return `${window.location.origin}/#/`;
+  }
+
+  return `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(resolvedInviteGroupId)}`;
+}
+
 export function persistInviteGroupId(inviteGroupId: string) {
   if (!isValidInviteGroupId(inviteGroupId)) return;
   try {

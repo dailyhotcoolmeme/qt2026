@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { Eye, EyeOff, X, Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import {
+  buildInviteLandingUrl,
   GROUP_INVITE_QUERY_KEY,
   joinInviteGroupAndRedirect,
   readInviteGroupId,
@@ -72,7 +73,17 @@ function AuthPage() {
 
   const getTargetReturnTo = () => {
     const params = new URLSearchParams(window.location.search);
-    return resolveOAuthReturnTo(params.get("returnTo"));
+    const explicitReturnTo = params.get("returnTo");
+    if (explicitReturnTo) {
+      return resolveOAuthReturnTo(explicitReturnTo);
+    }
+
+    const currentInviteGroupId = readInviteGroupId();
+    if (currentInviteGroupId) {
+      return buildInviteLandingUrl(currentInviteGroupId);
+    }
+
+    return resolveOAuthReturnTo(null);
   };
 
   const handleSocialLogin = async (provider: "kakao" | "google") => {
