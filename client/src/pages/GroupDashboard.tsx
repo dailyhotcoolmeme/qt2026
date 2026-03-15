@@ -3797,28 +3797,10 @@ export default function GroupDashboard() {
       >
         <div className="max-w-2xl mx-auto px-4 min-h-[160px] flex flex-col justify-center h-full pt-[var(--app-topbar-height)]">
           <div className="text-white py-8">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="text-2xl sm:text-2xl font-black truncate leading-tight drop-shadow-sm">{group.name}</div>
-                  <button
-                    onClick={() => setActiveTab("members")}
-                    className="px-3 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold flex-shrink-0 inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors h-fit"
-                    title="회원 조회"
-                  >
-                    <Users size={14} />
-                    <span className="underline underline-offset-2 decoration-white/60">
-                      회원수 {members.length}명
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setShowInviteModal(true)}
-                    className="px-3 py-1 rounded-full bg-[#FEE500] text-sm sm:text-sm font-black text-[#3C1E1E] flex-shrink-0 inline-flex items-center justify-center gap-1.5 hover:brightness-95 transition-colors h-fit shadow-sm"
-                    title="모임 초대"
-                  >
-                    <UserPlus size={14} />
-                    <span>초대하기</span>
-                  </button>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="min-w-0 flex-1 text-2xl sm:text-2xl font-black truncate leading-tight drop-shadow-sm">{group.name}</div>
                   {group.is_closed && <span className="px-2 py-0.5 rounded-sm bg-rose-500/90 text-sm font-bold shadow-sm shrink-0">폐쇄됨</span>}
                 </div>
 
@@ -3829,15 +3811,35 @@ export default function GroupDashboard() {
                 </div>
               </div>
 
-              {isManager && (
-                <button
-                  onClick={() => setActiveTab("admin")}
-                  className="w-10 h-10 -mr-2 text-white/80 hover:text-white transition-colors flex items-center justify-center bg-white/0 hover:bg-white/10 rounded-full shrink-0"
-                  title="모임 관리"
-                >
-                  <Settings size={20} strokeWidth={2.5} />
-                </button>
-              )}
+              <div className="flex items-center gap-2 shrink-0 self-center">
+                  <button
+                    onClick={() => setActiveTab("members")}
+                    className="px-3 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold inline-flex items-center justify-center gap-1 hover:bg-white/30 transition-colors"
+                    title="회원 조회"
+                  >
+                    <Users size={14} />
+                    <span className="underline underline-offset-2 decoration-white/60">
+                      회원수 {members.length}명
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setShowInviteModal(true)}
+                    className="px-3 py-1 rounded-full bg-[#FEE500] text-sm sm:text-sm font-black text-[#3C1E1E] inline-flex items-center justify-center gap-1.5 hover:brightness-95 transition-colors shadow-sm"
+                    title="모임 초대"
+                  >
+                    <UserPlus size={14} />
+                    <span>초대하기</span>
+                  </button>
+                  {isManager && (
+                    <button
+                      onClick={() => setActiveTab("admin")}
+                      className="w-10 h-10 text-white/80 hover:text-white transition-colors flex items-center justify-center bg-white/0 hover:bg-white/10 rounded-full"
+                      title="모임 관리"
+                    >
+                      <Settings size={20} strokeWidth={2.5} />
+                    </button>
+                  )}
+              </div>
             </div>
           </div>
         </div>
