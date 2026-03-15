@@ -3109,7 +3109,7 @@ export default function GroupDashboard() {
 
   const buildInviteUrl = () => {
     if (!group?.id) return "";
-    return `${window.location.origin}/#/register?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
+    return `${window.location.origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
   };
 
   const buildInviteMessage = (includeUrl = true) => {
@@ -5803,7 +5803,7 @@ export default function GroupDashboard() {
             >
               <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-black text-zinc-900 text-lg">회원 초대</h3>
+                <h3 className="font-black text-zinc-900 text-lg">모임 초대</h3>
                 <button
                   onClick={() => setShowInviteModal(false)}
                   className="w-9 h-9 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center hover:bg-zinc-200 transition-colors"
@@ -5838,16 +5838,10 @@ export default function GroupDashboard() {
               <div className="grid grid-cols-1 gap-2.5 pt-2">
                 <button
                   onClick={() => void shareInviteMessage()}
-                  className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-black text-base shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98] flex items-center justify-center gap-2"
+                  className="w-full py-4 rounded-2xl bg-[#FEE500] text-[#3C1E1E] font-black text-base shadow-lg hover:brightness-95 transition-all active:scale-[0.98] flex items-center justify-center gap-2"
                 >
-                  <SendHorizontal size={18} />
-                  카카오톡으로 초대장 보내기
-                </button>
-                <button
-                  onClick={() => void copyInviteMessage()}
-                  className="w-full py-4 rounded-2xl bg-zinc-900 text-white font-black text-base hover:bg-zinc-800 transition-all active:scale-[0.98]"
-                >
-                  초대장 복사하기
+                  <img src="/kakao-login.png" alt="카카오톡" className="h-5 w-5" />
+                  카카오톡으로 초대하기
                 </button>
               </div>
             </motion.div>

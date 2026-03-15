@@ -261,7 +261,6 @@ export default function RegisterPage() {
       return;
     }
     const inviteGroupId = readInviteGroupIdFromUrl();
-    const inviteQuery = inviteGroupId ? `?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
 
     if (inviteGroupId) {
       try {
@@ -272,7 +271,9 @@ export default function RegisterPage() {
     }
 
     try {
-      const targetReturnTo = `${window.location.origin}/#/${inviteQuery}`;
+      const targetReturnTo = inviteGroupId
+        ? `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}`
+        : `${window.location.origin}/#/`;
       await startOAuthSignIn(provider, targetReturnTo);
     } catch (e) {
       console.error(`${provider} OAuth start error:`, e);
@@ -840,6 +841,4 @@ export default function RegisterPage() {
     </div>
   );
 }
-
-
 

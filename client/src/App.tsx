@@ -188,9 +188,11 @@ export default function App() {
       }
     };
 
-    const redirectToRegisterForInvite = () => {
-      if (!window.location.hash.startsWith(REGISTER_HASH_PATH)) {
-        window.location.href = `${getBrowserOrigin()}/${REGISTER_HASH_PATH}`;
+    const redirectToAuthForInvite = (inviteGroupId: string) => {
+      const targetUrl = `${getBrowserOrigin()}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}#/auth`;
+      const currentUrl = `${window.location.origin}${window.location.pathname}${window.location.search}${window.location.hash}`;
+      if (currentUrl !== targetUrl) {
+        window.location.href = targetUrl;
       }
     };
 
@@ -256,11 +258,11 @@ export default function App() {
         if (isOAuthInProgress) return;
 
         const inviteFromCurrentUrl = readInviteGroupIdFromUrl();
-        if (inviteFromCurrentUrl !== pendingGroupId) return;
+        if (inviteFromCurrentUrl && inviteFromCurrentUrl !== pendingGroupId) return;
         const redirected = localStorage.getItem(PENDING_GROUP_INVITE_REDIRECTED_KEY) === "1";
         if (redirected) return;
         localStorage.setItem(PENDING_GROUP_INVITE_REDIRECTED_KEY, "1");
-        redirectToRegisterForInvite();
+        redirectToAuthForInvite(pendingGroupId);
         return;
       }
 
@@ -602,5 +604,4 @@ export default function App() {
     </QueryClientProvider>
   );
 }
-
 

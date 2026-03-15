@@ -14,6 +14,23 @@ type LoginFormValues = {
   password: string;
 };
 
+const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
+const GROUP_INVITE_QUERY_KEY = "invite_group";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function readInviteGroupId() {
+  const params = new URLSearchParams(window.location.search);
+  const fromSearch = String(params.get(GROUP_INVITE_QUERY_KEY) || "").trim();
+  if (UUID_REGEX.test(fromSearch)) return fromSearch;
+  try {
+    const fromStorage = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
+    if (UUID_REGEX.test(fromStorage)) return fromStorage;
+  } catch {
+    // ignore storage errors
+  }
+  return "";
+}
+
 function AuthPage() {
   const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
@@ -22,6 +39,8 @@ function AuthPage() {
   const [showPw, setShowPw] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const inviteGroupId = readInviteGroupId();
+  const registerHref = inviteGroupId ? `/register?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "/register";
 
   const { register, getValues } = useForm<LoginFormValues>();
 
@@ -37,6 +56,7 @@ function AuthPage() {
       const { data, error } = await supabase.auth.getSession();
       if (error) return;
       if (data.session?.user) {
+        if (readInviteGroupId()) return;
         window.location.replace(`${window.location.origin}/#/`);
       }
     };
@@ -45,6 +65,7 @@ function AuthPage() {
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        if (readInviteGroupId()) return;
         window.location.replace(`${window.location.origin}/#/`);
       }
     });
@@ -100,6 +121,8 @@ function AuthPage() {
       const returnTo = params.get("returnTo");
       if (returnTo) {
         window.location.href = resolveOAuthReturnTo(returnTo);
+      } else if (readInviteGroupId()) {
+        return;
       } else {
         setLocation("/");
       }
@@ -162,7 +185,7 @@ function AuthPage() {
             아이디로 로그인
           </button>
           <span className="h-3 w-[1px] bg-zinc-300" />
-          <Link href="/register" className="font-semibold text-zinc-500" style={{ fontSize: `${fontSize * 0.9}px` }}>
+          <Link href={registerHref} className="font-semibold text-zinc-500" style={{ fontSize: `${fontSize * 0.9}px` }}>
             회원가입
           </Link>
         </div>
@@ -248,7 +271,7 @@ function AuthPage() {
 
                 <div className="flex items-center justify-between px-2 pt-2 text-sm text-zinc-500">
                   <Link href="/find-account">계정 찾기</Link>
-                  <Link href="/register">회원가입</Link>
+                  <Link href={registerHref}>회원가입</Link>
                 </div>
               </div>
             </motion.div>
