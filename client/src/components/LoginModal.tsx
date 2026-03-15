@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { useLocation } from "wouter";
 import { startOAuthSignIn } from "../lib/oauth";
-import { isNativeApp } from "../lib/appUrl";
+import { isEmbeddedInAppBrowser, isNativeApp, openUrlInExternalBrowser } from "../lib/appUrl";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 
@@ -64,6 +64,11 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
 
   const handleGoogleLogin = async () => {
     const targetReturnTo = resolveTargetReturnTo();
+    if (isEmbeddedInAppBrowser()) {
+      alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
+      openUrlInExternalBrowser(window.location.href);
+      return;
+    }
     try {
       localStorage.setItem("qt_return", targetReturnTo);
       if (targetReturnTo.includes("autoOpenWrite=true")) {

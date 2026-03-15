@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { isEmbeddedInAppBrowser, openUrlInExternalBrowser } from "../lib/appUrl";
 
 /** 가입 관련 고정 텍스트 데이터 */
 const adjectives = ["새로운", "온유한", "지혜로운", "거룩한", "빛나는", "강건한"];
@@ -270,6 +271,12 @@ export default function RegisterPage() {
       }
     }
 
+    if (provider === "google" && isEmbeddedInAppBrowser()) {
+      alert("카카오톡 같은 앱 내 브라우저에서는 구글 회원가입이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
+      openUrlInExternalBrowser(window.location.href);
+      return;
+    }
+
     try {
       const targetReturnTo = inviteGroupId
         ? `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}`
@@ -338,9 +345,13 @@ export default function RegisterPage() {
         }
       }
 
-      if (inviteGroupId && userId) {
-        const joined = await joinInviteGroupAndRedirect(inviteGroupId);
-        if (joined) return;
+      if (inviteGroupId) {
+        if (userId) {
+          const joined = await joinInviteGroupAndRedirect(inviteGroupId);
+          if (joined) return;
+        }
+        window.location.href = `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}#/auth`;
+        return;
       }
 
       setModal({ show: true, title: "가입 완료", msg: "정상적으로 가입되었습니다! 환영합니다.", type: "success" });
@@ -775,7 +786,14 @@ export default function RegisterPage() {
               <button
                 onClick={() => {
                   setModal({ ...modal, show: false });
-                  if (modal.type === 'success' && modal.title === '가입 완료') setLocation("/");
+                  if (modal.type === 'success' && modal.title === '가입 완료') {
+                    const inviteGroupId = readInviteGroupIdFromUrl();
+                    if (inviteGroupId) {
+                      window.location.href = `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}#/auth`;
+                      return;
+                    }
+                    setLocation("/");
+                  }
                 }}
                 className="w-full py-6 bg-zinc-900 text-white rounded-[24px] font-black text-[18px] shadow-lg active:scale-[0.96] transition-all"
               >
@@ -841,4 +859,3 @@ export default function RegisterPage() {
     </div>
   );
 }
-

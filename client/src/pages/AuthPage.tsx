@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { supabase } from "../lib/supabase";
 import { resolveOAuthReturnTo, startOAuthSignIn } from "../lib/oauth";
+import { isEmbeddedInAppBrowser, openUrlInExternalBrowser } from "../lib/appUrl";
 import { useHashLocation } from "wouter/use-hash-location";
 import { Link } from "wouter";
 import { Eye, EyeOff, X, Loader2 } from "lucide-react";
@@ -79,6 +80,11 @@ function AuthPage() {
   };
 
   const handleSocialLogin = async (provider: "kakao" | "google") => {
+    if (provider === "google" && isEmbeddedInAppBrowser()) {
+      alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
+      openUrlInExternalBrowser(window.location.href);
+      return;
+    }
     try {
       await startOAuthSignIn(provider, getTargetReturnTo());
     } catch (error) {
