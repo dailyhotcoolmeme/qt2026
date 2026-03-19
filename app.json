@@ -1,0 +1,76 @@
+{
+  "expo": {
+    "name": "myamen",
+    "slug": "myamen",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myamen",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAFAFA"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.myamen.app",
+      "entitlements": {
+        "aps-environment": "development"
+      },
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "기도와 QT 음성 녹음을 위해 마이크 접근이 필요합니다.",
+        "NSPhotoLibraryUsageDescription": "프로필 사진 및 이미지 업로드를 위해 사진 라이브러리 접근이 필요합니다.",
+        "NSCameraUsageDescription": "프로필 사진 촬영을 위해 카메라 접근이 필요합니다.",
+        "NSLocationWhenInUseUsageDescription": "가까운 교회 및 그룹 위치 안내를 위해 위치 접근이 필요합니다.",
+        "NSUserNotificationsUsageDescription": "기도 알림 및 그룹 활동 알림을 보내기 위해 알림 권한이 필요합니다."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FAFAFA"
+      },
+      "package": "com.myamen.app",
+      "permissions": [
+        "RECORD_AUDIO",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "CAMERA",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-apple-authentication",
+      "expo-image-picker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#4F6EF7"
+        }
+      ],
+      [
+        "@react-native-kakao/core",
+        {
+          "nativeAppKey": "$KAKAO_NATIVE_APP_KEY",
+          "ios": {
+            "handleUniversalLink": false
+          },
+          "android": {}
+        }
+      ]
+    ]
+  }
+}
