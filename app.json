@@ -60,16 +60,6 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#4F6EF7"
         }
-      ],
-      [
-        "@react-native-kakao/core",
-        {
-          "nativeAppKey": "$KAKAO_NATIVE_APP_KEY",
-          "ios": {
-            "handleUniversalLink": false
-          },
-          "android": {}
-        }
       ]
     ],
     "extra": {
