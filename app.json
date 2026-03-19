@@ -71,6 +71,12 @@
           "android": {}
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8ee86518-d54b-4eb0-8643-9523037f0209"
+      }
+    },
+    "owner": "dailyhotcoolmeme"
   }
 }
