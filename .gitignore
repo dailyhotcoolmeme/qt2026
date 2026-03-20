@@ -29,3 +29,7 @@ client/ios/
 # Signing material
 *.jks
 *.keystore
+
+# Firebase
+client/firebase-adminsdk.json
+client/GoogleService-Info.plist

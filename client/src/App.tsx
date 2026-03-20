@@ -312,7 +312,8 @@ export default function App() {
           || "알 수 없는 오류가 발생했습니다.";
         console.error('[OAuth Error]', decodeURIComponent(errorDesc));
 
-        window.history.replaceState(null, "", getBrowserOrigin() + '/');
+        window.history.replaceState(null, "", getBrowserOrigin() + '/#/');
+        window.dispatchEvent(new Event('hashchange'));
         return;
       }
 
