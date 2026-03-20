@@ -1,40 +1,24 @@
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useForm } from "react-hook-form";
+import { motion } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { supabase } from "../lib/supabase";
 import { resolveOAuthReturnTo, startOAuthSignIn } from "../lib/oauth";
 import { isEmbeddedInAppBrowser, openUrlInExternalBrowser } from "../lib/appUrl";
 import { useHashLocation } from "wouter/use-hash-location";
-import { Link } from "wouter";
-import { Eye, EyeOff, X, Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import {
   buildInviteLandingUrl,
-  GROUP_INVITE_QUERY_KEY,
   joinInviteGroupAndRedirect,
   readInviteGroupId,
 } from "../lib/groupInvite";
 
 const EXTERNAL_OAUTH_QUERY_KEY = "external_oauth";
 
-type LoginFormValues = {
-  username: string;
-  password: string;
-};
-
 function AuthPage() {
   const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
 
-  const [isLoginOpen, setIsLoginOpen] = useState(false);
-  const [showPw, setShowPw] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const inviteGroupId = readInviteGroupId();
-  const registerHref = inviteGroupId ? `/register?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "/register";
-
-  const { register, getValues } = useForm<LoginFormValues>();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -121,53 +105,6 @@ function AuthPage() {
     }
   };
 
-  const handleManualLogin = async () => {
-    const values = getValues();
-    if (!values.username || !values.password) {
-      setErrorMsg("아이디와 비밀번호를 입력해 주세요.");
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMsg("");
-
-    try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("email")
-        .eq("username", values.username)
-        .maybeSingle();
-
-      if (!profile?.email) {
-        throw new Error("아이디를 확인해 주세요.");
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: profile.email,
-        password: values.password,
-      });
-
-      if (error) {
-        throw new Error("비밀번호가 올바르지 않습니다.");
-      }
-
-      const params = new URLSearchParams(window.location.search);
-      const returnTo = params.get("returnTo");
-      if (returnTo) {
-        window.location.href = resolveOAuthReturnTo(returnTo);
-      } else if (readInviteGroupId()) {
-        await joinInviteGroupAndRedirect(readInviteGroupId());
-        return;
-      } else {
-        setLocation("/");
-      }
-    } catch (error: any) {
-      setErrorMsg(error?.message || "로그인에 실패했습니다.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#F8F8F8] px-8 pb-12 pt-24 text-left">
       <style
@@ -194,7 +131,7 @@ function AuthPage() {
         </p>
       </motion.div>
 
-      <div className="mb-auto mt-20 flex w-full max-w-sm flex-col items-center gap-6">
+      <div className="mb-auto mt-20 flex w-full max-w-sm flex-col items-center gap-4">
         <button
           onClick={() => void handleSocialLogin("kakao")}
           className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95"
@@ -211,108 +148,16 @@ function AuthPage() {
           구글로 로그인하기
         </button>
 
-        <div className="flex items-center justify-center gap-5">
-          <button
-            onClick={() => setIsLoginOpen(true)}
-            className="font-semibold text-zinc-500"
-            style={{ fontSize: `${fontSize * 0.9}px` }}
-          >
-            아이디로 로그인
-          </button>
-          <span className="h-3 w-[1px] bg-zinc-300" />
-          <Link href={registerHref} className="font-semibold text-zinc-500" style={{ fontSize: `${fontSize * 0.9}px` }}>
-            회원가입
-          </Link>
-        </div>
+        <button
+          onClick={() => alert("Apple 로그인은 준비 중입니다.")}
+          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95"
+        >
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="white" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15.769 11.348c-.026-2.666 2.18-3.958 2.279-4.02-1.243-1.817-3.177-2.065-3.862-2.088-1.638-.167-3.21.974-4.041.974-.846 0-2.135-.952-3.516-.925-1.8.027-3.468 1.053-4.393 2.663-1.882 3.257-.481 8.075 1.349 10.716.898 1.293 1.963 2.742 3.363 2.69 1.357-.054 1.868-.869 3.508-.869 1.641 0 2.11.869 3.534.84 1.458-.024 2.38-1.315 3.267-2.614.753-1.08 1.323-2.161 1.611-3.178-3.553-1.35-3.098-5.189-3.099-5.19zM13.108 3.614C13.845 2.72 14.35 1.488 14.21.23c-1.083.048-2.44.724-3.21 1.617-.713.8-1.335 2.081-1.168 3.295 1.199.094 2.428-.612 3.276-1.528z"/>
+          </svg>
+          Apple로 로그인하기
+        </button>
       </div>
-
-      <AnimatePresence>
-        {isLoginOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsLoginOpen(false)}
-              className="fixed inset-0 z-[90] bg-black/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setIsLoginOpen(false);
-                }
-              }}
-              className="fixed bottom-0 left-0 right-0 z-[100] rounded-t-[40px] bg-white px-8 pb-28 pt-10 shadow-2xl"
-            >
-              <div className="mx-auto -mt-4 mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
-              <div className="mb-8 flex items-center justify-between px-2">
-                <h3 className="font-black text-zinc-900" style={{ fontSize: `${fontSize * 1.3}px` }}>
-                  아이디 로그인
-                </h3>
-                <button onClick={() => setIsLoginOpen(false)} className="p-2 text-zinc-400">
-                  <X size={24} />
-                </button>
-              </div>
-
-              <div className="space-y-4 px-2">
-                <div className="rounded-[22px] border-2 border-transparent bg-zinc-50 p-5 focus-within:border-[#4A6741]">
-                  <label className="mb-2 block text-[11px] font-bold text-[#4A6741]">아이디</label>
-                  <input
-                    {...register("username")}
-                    className="w-full bg-transparent font-bold text-zinc-900 outline-none"
-                    placeholder="아이디 입력"
-                  />
-                </div>
-
-                <div className="relative flex flex-col rounded-[22px] border-2 border-transparent bg-zinc-50 p-5 focus-within:border-[#4A6741]">
-                  <label className="mb-2 block text-[11px] font-bold text-[#4A6741]">비밀번호</label>
-                  <input
-                    {...register("password")}
-                    type={showPw ? "text" : "password"}
-                    className="w-full bg-transparent pr-12 font-bold text-zinc-900 outline-none"
-                    placeholder="비밀번호 입력"
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        void handleManualLogin();
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPw((prev) => !prev)}
-                    className="absolute right-5 top-[42px] text-zinc-400"
-                  >
-                    {showPw ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-
-                {errorMsg ? <p className="px-1 text-sm font-medium text-red-500">{errorMsg}</p> : null}
-
-                <button
-                  onClick={() => void handleManualLogin()}
-                  disabled={isLoading}
-                  className="mt-4 flex h-[60px] w-full items-center justify-center rounded-[22px] bg-[#4A6741] font-bold text-white transition-all active:scale-95 disabled:opacity-60"
-                >
-                  {isLoading ? <Loader2 size={20} className="animate-spin" /> : "로그인"}
-                </button>
-
-                <div className="flex items-center justify-between px-2 pt-2 text-sm text-zinc-500">
-                  <Link href="/find-account">계정 찾기</Link>
-                  <Link href={registerHref}>회원가입</Link>
-                </div>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
