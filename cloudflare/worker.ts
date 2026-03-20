@@ -12,6 +12,10 @@ interface Env {
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
   KAKAO_ADMIN_KEY?: string;
+  FCM_PROJECT_ID?: string;
+  FCM_CLIENT_EMAIL?: string;
+  FCM_PRIVATE_KEY?: string;
+  PUSH_INTERNAL_SECRET?: string;
 }
 
 const CORS_HEADERS = {
@@ -529,6 +533,216 @@ async function handleUserDelete(request: Request, env: Env) {
   }
 }
 
+// ── FCM 푸시 알림 ──────────────────────────────────────────────
+
+function base64urlEncode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function objToBase64url(obj: object): string {
+  return btoa(JSON.stringify(obj)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+async function makeFCMJWT(clientEmail: string, privateKeyPem: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = objToBase64url({ alg: 'RS256', typ: 'JWT' });
+  const payload = objToBase64url({
+    iss: clientEmail,
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  });
+  const signingInput = `${header}.${payload}`;
+  const pemBody = privateKeyPem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/\s/g, '');
+  const keyBuffer = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8', keyBuffer.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false, ['sign']
+  );
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5', cryptoKey,
+    new TextEncoder().encode(signingInput)
+  );
+  return `${signingInput}.${base64urlEncode(signature)}`;
+}
+
+let _fcmAccessToken: string | null = null;
+let _fcmTokenExpiry = 0;
+
+async function getFCMAccessToken(env: Env): Promise<string> {
+  if (_fcmAccessToken && Date.now() < _fcmTokenExpiry) return _fcmAccessToken;
+  const pem = (env.FCM_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+  const jwt = await makeFCMJWT(env.FCM_CLIENT_EMAIL!, pem);
+  const res = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  const data = await res.json() as { access_token?: string; expires_in?: number };
+  if (!data.access_token) throw new Error('FCM 액세스 토큰 획득 실패');
+  _fcmAccessToken = data.access_token;
+  _fcmTokenExpiry = Date.now() + ((data.expires_in || 3600) - 60) * 1000;
+  return _fcmAccessToken;
+}
+
+async function sendFCMMessage(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>,
+  env: Env
+): Promise<boolean> {
+  try {
+    const accessToken = await getFCMAccessToken(env);
+    const res = await fetch(
+      `https://fcm.googleapis.com/v1/projects/${env.FCM_PROJECT_ID}/messages:send`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: { title, body },
+            data,
+            android: { priority: 'high', notification: { channel_id: 'myamen_default' } },
+            apns: { payload: { aps: { sound: 'default' } } },
+          },
+        }),
+      }
+    );
+    return res.ok;
+  } catch (e) {
+    console.error('FCM send error:', e);
+    return false;
+  }
+}
+
+async function getSupabaseUserId(token: string, env: Env): Promise<string | null> {
+  const res = await fetch(`${env.SUPABASE_URL}/auth/v1/user`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: env.SUPABASE_SERVICE_ROLE_KEY!,
+    },
+  });
+  if (!res.ok) return null;
+  const user = await res.json() as { id?: string };
+  return user.id || null;
+}
+
+async function handlePushSubscribe(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const authHeader = request.headers.get('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) return json(401, { message: '인증이 필요합니다' });
+
+  const userId = await getSupabaseUserId(authHeader.slice(7), env);
+  if (!userId) return json(401, { message: '유효하지 않은 토큰입니다' });
+
+  const body = await parseJson<{ channel: string; token?: string; platform?: string; subscription?: object }>(request);
+  const supaUrl = env.SUPABASE_URL!;
+  const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const headers = {
+    Authorization: `Bearer ${svcKey}`,
+    apikey: svcKey,
+    'Content-Type': 'application/json',
+    Prefer: 'resolution=merge-duplicates',
+  };
+
+  if (body.channel === 'fcm' && body.token) {
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ user_id: userId, channel: 'fcm', platform: body.platform || 'android', device_token: body.token }),
+    });
+  } else if (body.channel === 'webpush' && body.subscription) {
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ user_id: userId, channel: 'webpush', platform: 'web', subscription: body.subscription }),
+    });
+  }
+  return json(200, { success: true });
+}
+
+async function handlePushUnsubscribe(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const authHeader = request.headers.get('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) return json(401, { message: '인증이 필요합니다' });
+
+  const userId = await getSupabaseUserId(authHeader.slice(7), env);
+  if (!userId) return json(401, { message: '유효하지 않은 토큰입니다' });
+
+  const body = await parseJson<{ channel: string; token?: string; endpoint?: string }>(request);
+  const supaUrl = env.SUPABASE_URL!;
+  const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const headers = { Authorization: `Bearer ${svcKey}`, apikey: svcKey };
+
+  if (body.channel === 'fcm' && body.token) {
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.fcm&device_token=eq.${encodeURIComponent(body.token)}`, {
+      method: 'DELETE', headers,
+    });
+  } else if (body.channel === 'webpush') {
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.webpush`, {
+      method: 'DELETE', headers,
+    });
+  }
+  return json(200, { success: true });
+}
+
+async function handlePushSend(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const secret = request.headers.get('x-push-secret') || '';
+  if (!env.PUSH_INTERNAL_SECRET || secret !== env.PUSH_INTERNAL_SECRET) {
+    return json(401, { message: '인증 실패' });
+  }
+
+  const body = await parseJson<{
+    userId: string;
+    title: string;
+    body: string;
+    targetPath?: string;
+  }>(request);
+
+  const supaUrl = env.SUPABASE_URL!;
+  const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const headers = { Authorization: `Bearer ${svcKey}`, apikey: svcKey };
+
+  const res = await fetch(
+    `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${body.userId}&channel=eq.fcm`,
+    { headers }
+  );
+  const subscriptions = await res.json() as Array<{ device_token: string }>;
+
+  const data: Record<string, string> = {};
+  if (body.targetPath) data.targetPath = body.targetPath;
+
+  const results = await Promise.allSettled(
+    subscriptions.map(s => sendFCMMessage(s.device_token, body.title, body.body, data, env))
+  );
+
+  const sent = results.filter(r => r.status === 'fulfilled' && r.value).length;
+  return json(200, { success: true, sent, total: subscriptions.length });
+}
+
 async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname.startsWith("/api/card-backgrounds/")) {
     return handleCardBackgrounds(request, url);
@@ -553,6 +767,15 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === "/api/user/delete") {
     return handleUserDelete(request, env);
+  }
+  if (url.pathname === '/api/push/subscribe') {
+    return handlePushSubscribe(request, env);
+  }
+  if (url.pathname === '/api/push/unsubscribe') {
+    return handlePushUnsubscribe(request, env);
+  }
+  if (url.pathname === '/api/push/send') {
+    return handlePushSend(request, env);
   }
 
   if (request.method === "OPTIONS") {
