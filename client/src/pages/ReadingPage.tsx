@@ -2467,13 +2467,23 @@ export default function ReadingPage() {
             )}
           </div>
           <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-            {dailyCompletedReadings.map((record, index) => {
+            {(() => {
+              // 장별 읽기 순서 계산 (오래된 순서대로 1회, 2회, 3회...)
+              const chapterCounter: Record<string, number> = {};
+              const seqMap = new Map<string, number>();
+              [...dailyCompletedReadings].reverse().forEach(r => {
+                const key = `${r.book_name}_${r.chapter}`;
+                chapterCounter[key] = (chapterCounter[key] || 0) + 1;
+                seqMap.set(r.id, chapterCounter[key]);
+              });
+              return dailyCompletedReadings.map((record, index) => {
               const verseLabel =
                 typeof record.start_verse === "number" && typeof record.end_verse === "number"
                   ? record.start_verse === record.end_verse
                     ? ` ${record.start_verse}절`
                     : ` ${record.start_verse}-${record.end_verse}절`
                   : "";
+              const seq = seqMap.get(record.id) || 1;
 
               return (
                 <React.Fragment key={record.id}>
@@ -2484,6 +2494,11 @@ export default function ReadingPage() {
                         <p className="font-bold text-[#4A6741]/90 truncate" style={{ fontSize: `${fontSize * 0.90}px` }}>
                           {record.book_name} {record.chapter}장{verseLabel}
                         </p>
+                        {seq >= 2 && (
+                          <span className="shrink-0 rounded-full bg-[#4A6741]/10 px-2 py-0.5 text-xs font-bold text-[#4A6741]/70">
+                            {seq}회
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
                         {formatRecordDateTime(record.updated_at || record.created_at)}
@@ -2500,7 +2515,8 @@ export default function ReadingPage() {
                   {index !== dailyCompletedReadings.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
                 </React.Fragment>
               );
-            })}
+              });
+            })()}
           </div>
         </div>
       )}
