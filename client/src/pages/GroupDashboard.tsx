@@ -41,6 +41,7 @@ import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
 import { shareContent } from "../lib/nativeShare";
 import { resolveApiUrl } from "../lib/appUrl";
+import { useRefresh } from "../lib/refreshContext";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
@@ -824,6 +825,7 @@ export default function GroupDashboard() {
   const initialTab = urlTabMatch ? urlTabMatch[1] : null;
   const [location, setLocation] = useLocation();
 
+  const { refreshKey } = useRefresh();
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<any | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
@@ -1037,7 +1039,7 @@ export default function GroupDashboard() {
       }
     }
     void loadAll(groupId, user?.id ?? null);
-  }, [groupId, user?.id, location, authReady]);
+  }, [groupId, user?.id, location, authReady, refreshKey]);
 
   useEffect(() => {
     return () => {
@@ -3832,13 +3834,15 @@ export default function GroupDashboard() {
       <AnimatePresence>
         {heartPrayerToast && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed bottom-36 left-1/2 z-[300] -translate-x-1/2 bg-[#4A6741] text-white px-6 py-3 rounded-2xl shadow-lg text-sm font-bold text-center whitespace-pre-line"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-none"
           >
-            {heartPrayerToast}
+            <div className="bg-black/60 text-white px-8 py-4 rounded-2xl shadow-xl text-sm font-bold text-center whitespace-pre-line backdrop-blur-sm">
+              {heartPrayerToast}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

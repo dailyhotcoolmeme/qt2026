@@ -27,6 +27,7 @@ import { shareContent } from "../lib/nativeShare";
 import { getPublicWebOrigin } from "../lib/appUrl";
 
 import { useLocation } from "wouter";
+import { useRefresh } from "../lib/refreshContext";
 
 function formatLocalDate(date: Date) {
   const y = date.getFullYear();
@@ -103,6 +104,7 @@ export default function ReadingPage() {
   }, [location]);
   const today = new Date();
   const { user, isLoading: isAuthLoading } = useAuth();
+  const { refreshKey } = useRefresh();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -227,7 +229,7 @@ export default function ReadingPage() {
     return () => {
       alive = false;
     };
-  }, [user?.id, currentDate, isReadCompleted]);
+  }, [user?.id, currentDate, isReadCompleted, refreshKey]);
 
   useEffect(() => {
     let alive = true;

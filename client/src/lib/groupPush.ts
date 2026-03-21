@@ -16,6 +16,7 @@ export async function sendPushToGroupMembers(params: {
   title: string;
   body: string;
   targetPath?: string;
+  notificationType?: "groupActivity" | "system";
 }): Promise<void> {
   try {
     const auth = await getAuthHeader();
@@ -32,6 +33,7 @@ export async function sendPushToGroupMembers(params: {
         title: params.title,
         body: params.body,
         targetPath: params.targetPath,
+        notificationType: params.notificationType ?? "groupActivity",
       }),
     });
   } catch {
@@ -49,6 +51,7 @@ export async function sendPushToGroupUsers(params: {
   title: string;
   body: string;
   targetPath?: string;
+  notificationType?: "groupActivity" | "system";
 }): Promise<void> {
   try {
     const auth = await getAuthHeader();
@@ -66,6 +69,7 @@ export async function sendPushToGroupUsers(params: {
         title: params.title,
         body: params.body,
         targetPath: params.targetPath,
+        notificationType: params.notificationType ?? "groupActivity",
       }),
     });
   } catch {

@@ -7,6 +7,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Layout } from "./components/Layout";
 import { DisplaySettingsProvider } from "./components/DisplaySettingsProvider";
+import { RefreshProvider } from "./lib/refreshContext";
 import { TopBar } from "./components/TopBar";
 import { BottomNav } from "./components/BottomNav";
 import DailyWordPage from "./pages/DailyWordPage";
@@ -587,7 +588,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <DisplaySettingsProvider>
-        <AppContent />
+        <RefreshProvider>
+          <AppContent />
+        </RefreshProvider>
       </DisplaySettingsProvider>
     </QueryClientProvider>
   );

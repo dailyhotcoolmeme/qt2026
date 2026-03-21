@@ -856,12 +856,34 @@ async function handlePushSend(request: Request, env: Env) {
     title: string;
     body: string;
     targetPath?: string;
+    notificationType?: "groupActivity" | "system";
   }>(request);
 
 
   const supaUrl = env.SUPABASE_URL!;
   const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
   const headers = { Authorization: `Bearer ${svcKey}`, apikey: svcKey };
+
+  // 수신자 알림 설정 확인
+  if (body.notificationType) {
+    const settingsRes = await fetch(
+      `${supaUrl}/rest/v1/user_notification_settings?user_id=eq.${body.userId}&select=push_enabled,group_activity_enabled,system_enabled`,
+      { headers }
+    );
+    const settingsRows = await settingsRes.json() as Array<{
+      push_enabled: boolean;
+      group_activity_enabled: boolean;
+      system_enabled: boolean;
+    }>;
+    if (settingsRows.length > 0) {
+      const s = settingsRows[0];
+      if (!s.push_enabled) return json(200, { success: true, sent: 0, total: 0 });
+      if (body.notificationType === "groupActivity" && !s.group_activity_enabled)
+        return json(200, { success: true, sent: 0, total: 0 });
+      if (body.notificationType === "system" && !s.system_enabled)
+        return json(200, { success: true, sent: 0, total: 0 });
+    }
+  }
 
   const data: Record<string, string> = {};
   if (body.targetPath) data.targetPath = body.targetPath;
@@ -910,6 +932,7 @@ async function handlePushSendGroup(request: Request, env: Env) {
     body: string;
     targetPath?: string;
     targetUserIds?: string[];  // 지정 시 해당 유저들에게만 발송
+    notificationType?: "groupActivity" | "system";
   }>(request);
 
   if (!body.groupId) return json(400, { message: 'groupId가 필요합니다' });
@@ -962,6 +985,30 @@ async function handlePushSendGroup(request: Request, env: Env) {
 
   const data: Record<string, string> = {};
   if (body.targetPath) data.targetPath = body.targetPath;
+
+  // 수신자별 알림 설정 일괄 조회
+  const notifType = body.notificationType || "groupActivity";
+  if (targetIds.length > 0) {
+    const settingsRes = await fetch(
+      `${supaUrl}/rest/v1/user_notification_settings?user_id=in.(${targetIds.join(",")})&select=user_id,push_enabled,group_activity_enabled,system_enabled`,
+      { headers }
+    );
+    const settingsRows = await settingsRes.json() as Array<{
+      user_id: string;
+      push_enabled: boolean;
+      group_activity_enabled: boolean;
+      system_enabled: boolean;
+    }>;
+    const settingsMap = new Map(settingsRows.map(s => [s.user_id, s]));
+    targetIds = targetIds.filter(userId => {
+      const s = settingsMap.get(userId);
+      if (!s) return true; // 설정 없으면 기본값(허용)
+      if (!s.push_enabled) return false;
+      if (notifType === "groupActivity" && !s.group_activity_enabled) return false;
+      if (notifType === "system" && !s.system_enabled) return false;
+      return true;
+    });
+  }
 
   let sent = 0;
   for (const userId of targetIds) {

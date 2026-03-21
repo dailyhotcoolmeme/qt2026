@@ -10,6 +10,7 @@ import { VerseCardMakerModal } from "../components/VerseCardMakerModal";
 import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import { shareContent } from "../lib/nativeShare";
 import { getPublicWebOrigin } from "../lib/appUrl";
+import { useRefresh } from "../lib/refreshContext";
 
 function cleanContent(text: string) {
   return String(text || "")
@@ -101,6 +102,7 @@ export default function DailyWordPage() {
   const today = useMemo(() => new Date(), []);
   const { fontSize = 16 } = useDisplaySettings();
   const { user } = useAuth();
+  const { refreshKey } = useRefresh();
 
   useEffect(() => {
     const fetchVerse = async () => {
@@ -131,7 +133,7 @@ export default function DailyWordPage() {
     };
 
     fetchVerse();
-  }, [currentDate]);
+  }, [currentDate, refreshKey]);
 
   const handleDateChange = (selectedDate: Date) => {
     if (!isNaN(selectedDate.getTime())) {

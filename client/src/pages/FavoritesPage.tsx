@@ -6,6 +6,7 @@ import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { LoginModal } from "../components/LoginModal";
 import { shareContent } from "../lib/nativeShare";
 import { getPublicWebOrigin } from "../lib/appUrl";
+import { useRefresh } from "../lib/refreshContext";
 
 type VerseBookmarkRow = {
   id: string;
@@ -54,6 +55,7 @@ function formatContentWithVerseNumbers(source: string | null, content: string): 
 
 export default function FavoritesPage() {
   const { user, isLoading } = useAuth();
+  const { refreshKey } = useRefresh();
   const { fontSize } = useDisplaySettings();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [rows, setRows] = useState<VerseBookmarkRow[]>([]);
@@ -123,7 +125,7 @@ export default function FavoritesPage() {
     return () => {
       alive = false;
     };
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
   return (
     <div className="w-full px-5 pb-24 pt-[var(--app-page-top)] sm:px-6 lg:px-10">

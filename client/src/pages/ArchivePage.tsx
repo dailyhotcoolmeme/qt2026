@@ -5,6 +5,7 @@ import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, L
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
+import { useRefresh } from "../lib/refreshContext";
 
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
 type MenuType = "all" | ActivityType | "group";
@@ -267,6 +268,7 @@ function getMenuDateUrl(log: any) {
 
 export default function ArchivePage() {
   const { user, isLoading } = useAuth();
+  const { refreshKey } = useRefresh();
   const [, setLocation] = useLocation();
 
   const now = new Date();
@@ -311,7 +313,7 @@ export default function ArchivePage() {
       return;
     }
     void loadData(user.id);
-  }, [user?.id, startDate, endDate]);
+  }, [user?.id, startDate, endDate, refreshKey]);
 
   useEffect(() => {
     if (!user?.id) {

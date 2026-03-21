@@ -28,6 +28,7 @@ import { uploadFileToR2 } from "../utils/upload";
 
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
+import { useRefresh } from "../lib/refreshContext";
 
 function formatLocalDate(date: Date) {
   const y = date.getFullYear();
@@ -60,6 +61,7 @@ export default function QTPage() {
   }, [location]);
   const today = new Date();
   const { user } = useAuth();
+  const { refreshKey } = useRefresh();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
 
@@ -121,7 +123,7 @@ export default function QTPage() {
   useEffect(() => {
     checkMeditationStatus();
     loadMeditationRecords();
-  }, [user?.id, currentDate]);
+  }, [user?.id, currentDate, refreshKey]);
 
   useEffect(() => {
     let alive = true;

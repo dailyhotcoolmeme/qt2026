@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, Plus, Search, Loader2, Users, X } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { LoginModal } from "../components/LoginModal";
+import { useRefresh } from "../lib/refreshContext";
 
 type GroupRow = {
   id: string;
@@ -92,6 +93,7 @@ async function resizeImageFile(file: File, maxSize = 900, quality = 0.82): Promi
 
 export default function CommunityPage() {
   const [location, setLocation] = useLocation();
+  const { refreshKey } = useRefresh();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isInitialLoading, setIsInitialLoading] = useState(true); // 최초 로딩 상태
@@ -157,7 +159,7 @@ export default function CommunityPage() {
     }
     setLoading(true); // 로그인 후 안내 메시지 노출 방지
     void initialize(user.id);
-  }, [user?.id]);
+  }, [user?.id, refreshKey]);
 
   const initialize = async (userId: string) => {
     setLoading(true);

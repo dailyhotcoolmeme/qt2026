@@ -834,6 +834,18 @@ export function TopBar() {
             )}
 
             {isAuthenticated && (
+              <button
+                onClick={() => { setShowNotificationSettings(true); setIsMenuOpen(false); }}
+                className="group mt-2 flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-700 transition-colors hover:bg-zinc-50"
+              >
+                <div className="text-zinc-400 transition-colors group-hover:text-zinc-600">
+                  <Bell className="h-5 w-5" />
+                </div>
+                <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-800">알림 설정</span>
+              </button>
+            )}
+
+            {isAuthenticated && (
               <button onClick={handleLogout} className="group mt-2 flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-red-600 transition-colors hover:bg-red-50">
                 <div className="text-red-400 transition-colors group-hover:text-red-600">
                   <LogOut className="h-5 w-5" />

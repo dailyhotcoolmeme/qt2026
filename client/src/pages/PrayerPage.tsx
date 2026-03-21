@@ -11,6 +11,7 @@ import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
 import { shareContent } from "../lib/nativeShare";
 import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
 import { shareBlobFile } from "../lib/nativeFileShare";
+import { useRefresh } from "../lib/refreshContext";
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
@@ -29,6 +30,7 @@ function toLocalDateKey(value?: string | null) {
 export default function PrayerPage() {
   // 최상단에 상태 변수, ref, useEffect 선언
   const { user } = useAuth();
+  const { refreshKey } = useRefresh();
   const { fontSize } = useDisplaySettings();
   const [publicTopics, setPublicTopics] = useState<any[]>([]);
   const [publicTopicAuthors, setPublicTopicAuthors] = useState<Record<string, string>>({});
@@ -153,7 +155,7 @@ export default function PrayerPage() {
       loadMyTopics();
       loadPrayerRecords();
     }
-  }, [user]);
+  }, [user, refreshKey]);
 
   // ...기존 handler, 함수, JSX, return 등 전체 코드...
   // (기존 코드 전체를 함수 내부에 위치시키고, 함수 밖에는 import/export만 남도록 정리)
@@ -1424,14 +1426,15 @@ export default function PrayerPage() {
       <AnimatePresence>
         {showAmenToast && (
           <motion.div
-            initial={{ opacity: 0, x: "-50%", y: 20 }}
-            animate={{ opacity: 1, x: "-50%", y: 0 }}
-            exit={{ opacity: 0, x: "-50%", y: 20 }}
-            transition={{ duration: 0.3 }}
-            className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold text-center whitespace-nowrap"
-            style={{ left: '50%', transform: 'translateX(-50%)' }}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
           >
-            아멘! 기도했습니다 🙏
+            <div className="bg-black/60 text-white px-8 py-4 rounded-2xl shadow-xl text-base font-bold text-center whitespace-nowrap backdrop-blur-sm">
+              아멘! 기도했습니다 🙏
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
