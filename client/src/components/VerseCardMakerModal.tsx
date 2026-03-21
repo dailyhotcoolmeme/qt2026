@@ -679,7 +679,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
             </div>
 
             <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center gap-1.5">
                 <div className="relative flex w-full justify-center px-8 sm:px-0" style={{ touchAction: "none" }}>
                   <div
                     className="absolute inset-y-0 left-0"
