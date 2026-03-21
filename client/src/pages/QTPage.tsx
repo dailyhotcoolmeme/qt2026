@@ -1283,7 +1283,7 @@ export default function QTPage() {
 	              onClick={() => setShowWriteSheet(true)}
 	              className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
 	            >
-	              <NotebookPen size={12} /> 묵상일기 기록
+	              <NotebookPen size={12} /> 묵상일기
 	            </button>
 	          </div>
 	        </div>
@@ -1298,13 +1298,6 @@ export default function QTPage() {
               묵상 기록
 	            </h3>
 	            <div className="flex-1" />
-	            <button
-	              onClick={() => setShowWriteSheet(true)}
-	              className="w-8 h-8 flex items-center justify-center rounded-full text-[#4A6741] hover:bg-[#4A6741]/10 transition-colors"
-	              title="묵상 기록 추가"
-	            >
-              <NotebookPen size={18} />
-            </button>
           </div>
           <div className="space-y-3">
             {meditationRecords.map((record) => (
