@@ -790,18 +790,15 @@ export default function ReadingPage() {
   const checkCurrentChapterReadStatus = async () => {
     if (!user || !bibleData) return;
 
-    const { data } = await supabase
+    const { count } = await supabase
       .from('user_reading_records')
-      .select('read_count')
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('book_name', bibleData.bible_name)
-      .eq('chapter', bibleData.chapter)
-      .maybeSingle();
+      .eq('chapter', bibleData.chapter);
 
-    const totalCount = data?.read_count || 0;
+    const totalCount = count || 0;
     setReadCount(totalCount);
-
-
     setIsReadCompleted(totalCount > 0);
   };
 
@@ -2171,30 +2168,17 @@ export default function ReadingPage() {
         }
 
 
-        const { data: existing } = await supabase
-          .from('user_reading_records')
-          .select('read_count')
-          .eq('user_id', user.id)
-          .eq('book_name', chapterData.bible_name)
-          .eq('chapter', chapterData.chapter)
-          .maybeSingle();
-
-        const newReadCount = existing ? existing.read_count + 1 : 1;
-
         const { data: savedRecord, error: upsertError } = await supabase
           .from('user_reading_records')
-          .upsert({
+          .insert({
             user_id: user.id,
             date: dateStr,
             book_name: chapterData.bible_name,
             chapter: chapterData.chapter,
             start_verse: startVerse,
             end_verse: endVerse,
-            read_count: newReadCount,
+            read_count: 1,
             updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'user_id,book_name,chapter',
-            ignoreDuplicates: false
           })
           .select('id')
           .single();
@@ -2500,11 +2484,6 @@ export default function ReadingPage() {
                         <p className="font-bold text-[#4A6741]/90 truncate" style={{ fontSize: `${fontSize * 0.90}px` }}>
                           {record.book_name} {record.chapter}장{verseLabel}
                         </p>
-                        {Number(record.read_count || 0) > 1 && (
-                          <span className="shrink-0 rounded-full bg-[#4A6741]/10 px-2 py-0.5 text-xs font-bold text-[#4A6741]">
-                            {record.read_count}회
-                          </span>
-                        )}
                       </div>
                       <p className="text-xs text-zinc-400 mt-0.5">
                         {formatRecordDateTime(record.updated_at || record.created_at)}
