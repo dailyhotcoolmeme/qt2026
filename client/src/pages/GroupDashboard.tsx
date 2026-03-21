@@ -3979,12 +3979,9 @@ export default function GroupDashboard() {
                 placeholder="마음을 담아 기도를 글로 남겨보세요..."
                 value={textPrayerContent}
                 onChange={(e) => setTextPrayerContent(e.target.value)}
-                maxLength={2000}
                 autoFocus
               />
-              <div className="flex justify-between items-center mt-1 mb-4">
-                <span className="text-[11px] text-zinc-400">{textPrayerContent.length}/2000</span>
-              </div>
+              <div className="mb-4" />
               <button
                 onClick={saveTextPrayer}
                 disabled={textPrayerSaving || !textPrayerContent.trim()}
