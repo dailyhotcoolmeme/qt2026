@@ -401,19 +401,23 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const previewBodyFontPx = Math.max(12, Math.round((BODY_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH) + 2);
   const previewRefFontPx = Math.max(10, Math.round((REFERENCE_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
 
-  // 글자수 넘치면 폰트 축소 (스크롤바 방지)
+  // 내용 바뀌면 폰트 리셋
   useEffect(() => {
     setContentFontPx(previewBodyFontPx);
   }, [editedContent, previewBodyFontPx]);
 
+  // JS로 실제 높이 적용 후 8줄 초과 시 폰트 축소
   useEffect(() => {
     const ta = contentTextareaRef.current;
     if (!ta) return;
-    // overflow 없으면 OK, 있으면 1px 줄이기
-    if (ta.scrollHeight > ta.clientHeight + 2 && contentFontPx > 7) {
+    ta.style.height = "auto";
+    ta.style.height = `${ta.scrollHeight}px`;
+    const fontSize = contentFontPx || previewBodyFontPx;
+    const maxH = fontSize * 1.5 * 8; // 최대 8줄
+    if (ta.scrollHeight > maxH + 4 && fontSize > 7) {
       setContentFontPx((prev) => Math.max(7, prev - 1));
     }
-  }, [contentFontPx, editedContent]);
+  }, [contentFontPx, editedContent, previewBodyFontPx]);
 
   useEffect(() => {
     if (!open) {
@@ -711,7 +715,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                     ) : null}
                     <div className="relative h-full flex flex-col">
-                      <div className="flex-1 flex flex-col items-center justify-center gap-1 overflow-hidden">
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
                         <textarea
                           ref={contentTextareaRef}
                           value={editedContent}
@@ -726,8 +730,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
                             caretColor: effectiveTextColor,
                             overflowY: "hidden",
-                            height: "auto",
-                            minHeight: "80px",
+                            minHeight: "60px",
                           }}
                         />
                         <textarea
