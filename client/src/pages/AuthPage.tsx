@@ -17,15 +17,7 @@ const EXTERNAL_OAUTH_QUERY_KEY = "external_oauth";
 function AuthPage() {
   const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
-
-  const inviteGroupId = readInviteGroupId();
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("loginModal") === "true") {
-      setIsLoginOpen(true);
-    }
-  }, []);
+  const [termsAgreed, setTermsAgreed] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -90,6 +82,10 @@ function AuthPage() {
   };
 
   const handleSocialLogin = async (provider: "kakao" | "google" | "apple") => {
+    if (!termsAgreed) {
+      alert("이용약관 및 개인정보처리방침에 동의해 주세요.");
+      return;
+    }
     if (provider === "google" && isEmbeddedInAppBrowser()) {
       alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
       const externalUrl = new URL(window.location.href);
@@ -131,10 +127,43 @@ function AuthPage() {
         </p>
       </motion.div>
 
-      <div className="mb-auto mt-20 flex w-full max-w-sm flex-col items-center gap-4">
+      {/* 약관 동의 */}
+      <div className="mb-6 mt-16 flex w-full max-w-sm items-start gap-3">
+        <button
+          type="button"
+          onClick={() => setTermsAgreed(!termsAgreed)}
+          className={`mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-2 transition-all ${
+            termsAgreed ? "border-[#4A6741] bg-[#4A6741]" : "border-zinc-300 bg-white"
+          }`}
+        >
+          {termsAgreed && (
+            <svg width="12" height="9" viewBox="0 0 12 9" fill="none">
+              <path d="M1 4L4.5 7.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+        <p className="text-sm leading-relaxed text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
+          <span
+            className="cursor-pointer font-semibold text-zinc-700 underline underline-offset-2"
+            onClick={() => setLocation("/terms/service")}
+          >
+            이용약관
+          </span>
+          {" "}및{" "}
+          <span
+            className="cursor-pointer font-semibold text-zinc-700 underline underline-offset-2"
+            onClick={() => setLocation("/terms/privacy")}
+          >
+            개인정보처리방침
+          </span>
+          에 동의합니다. (필수)
+        </p>
+      </div>
+
+      <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <button
           onClick={() => void handleSocialLogin("kakao")}
-          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95"
+          className={`flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95 ${!termsAgreed ? "opacity-50" : ""}`}
         >
           <img src="/kakao-login.png" className="h-6 w-6" alt="카카오" />
           카카오로 시작하기
@@ -142,7 +171,7 @@ function AuthPage() {
 
         <button
           onClick={() => void handleSocialLogin("google")}
-          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] border-2 border-zinc-200 bg-white font-bold text-zinc-900 shadow-sm transition-all active:scale-95"
+          className={`flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] border-2 border-zinc-200 bg-white font-bold text-zinc-900 shadow-sm transition-all active:scale-95 ${!termsAgreed ? "opacity-50" : ""}`}
         >
           <FcGoogle size={24} />
           구글로 시작하기
@@ -150,7 +179,7 @@ function AuthPage() {
 
         <button
           onClick={() => void handleSocialLogin("apple")}
-          className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95"
+          className={`flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95 ${!termsAgreed ? "opacity-50" : ""}`}
         >
           <svg width="22" height="22" viewBox="0 0 22 22" fill="white" xmlns="http://www.w3.org/2000/svg">
             <path d="M15.769 11.348c-.026-2.666 2.18-3.958 2.279-4.02-1.243-1.817-3.177-2.065-3.862-2.088-1.638-.167-3.21.974-4.041.974-.846 0-2.135-.952-3.516-.925-1.8.027-3.468 1.053-4.393 2.663-1.882 3.257-.481 8.075 1.349 10.716.898 1.293 1.963 2.742 3.363 2.69 1.357-.054 1.868-.869 3.508-.869 1.641 0 2.11.869 3.534.84 1.458-.024 2.38-1.315 3.267-2.614.753-1.08 1.323-2.161 1.611-3.178-3.553-1.35-3.098-5.189-3.099-5.19zM13.108 3.614C13.845 2.72 14.35 1.488 14.21.23c-1.083.048-2.44.724-3.21 1.617-.713.8-1.335 2.081-1.168 3.295 1.199.094 2.428-.612 3.276-1.528z"/>

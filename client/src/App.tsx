@@ -86,6 +86,13 @@ function OnboardingRedirect() {
   useEffect(() => {
     try {
       if (localStorage.getItem("myamen_onboarding_done") !== "1") {
+        // localStorage에 초대 대기 중인지 확인
+        const storedInvite = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
+        if (storedInvite && UUID_REGEX.test(storedInvite)) return;
+        // URL에 초대 파라미터가 있는지 직접 확인 (App.useEffect보다 먼저 실행되므로)
+        if (readInviteGroupIdFromUrl()) return;
+        // OAuth 콜백 진행 중
+        if (window.location.search.includes("code=") || window.location.search.includes("state=")) return;
         setLocation("/onboarding");
       }
     } catch { /* ignore */ }
@@ -136,6 +143,9 @@ function AppContent() {
     </WouterRouter>
   );
 }
+
+// 그룹 가입 후 네비게이션이 시작됐으면 다른 네비게이션이 덮어쓰지 못하게 막는 플래그
+let groupNavigationDone = false;
 
 export default function App() {
   useEffect(() => {
@@ -270,10 +280,13 @@ export default function App() {
         if (!UUID_REGEX.test(joinedGroupId)) return;
 
         clearInviteGroupId();
+        // 초대 흐름으로 가입한 경우 온보딩 완료 표시
+        try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
 
         const targetPath = `/group/${joinedGroupId}`;
         const targetHash = `#${targetPath}`;
         if (!window.location.hash.startsWith(targetHash)) {
+          groupNavigationDone = true;
           window.location.href = `${getBrowserOrigin()}/#${targetPath}`;
         }
       } finally {
@@ -311,6 +324,7 @@ export default function App() {
     };
 
     const navigateAfterOAuth = (rawReturnTo?: string | null) => {
+      if (groupNavigationDone) return;
       const fromQuery = safeDecodeURIComponent(rawReturnTo);
       const fromStorage = consumeStoredReturnTo();
       const target = fromQuery || fromStorage || `${getBrowserOrigin()}/#/`;
@@ -360,6 +374,7 @@ export default function App() {
             const joinedGroupId = await joinInviteGroup(pendingGroupId);
             if (joinedGroupId && UUID_REGEX.test(joinedGroupId)) {
               clearInviteGroupId();
+              try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
               window.location.href = `${getBrowserOrigin()}/#/group/${joinedGroupId}`;
               return;
             }
@@ -369,6 +384,7 @@ export default function App() {
             const pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
             if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
               clearInviteGroupId();
+              try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
               window.location.href = `${getBrowserOrigin()}/#/group/${pendingGroupId}`;
               return;
             }
@@ -400,6 +416,9 @@ export default function App() {
         } catch {
           // ignore storage errors
         }
+
+        // onAuthStateChange에서 이미 그룹 페이지로 이동했으면 덮어쓰지 않음
+        if (groupNavigationDone) return;
 
         // Remove code params while preserving hash routing.
         const clean = getBrowserOrigin() + "/#/";
@@ -488,7 +507,14 @@ export default function App() {
 
       await new Promise((resolve) => setTimeout(resolve, 120));
       await syncAgreements();
-      await joinPendingInviteGroup();
+
+      // 그룹 초대 대기 중이면 가입 후 그룹 페이지로 이동 (navigateAfterOAuth 건너뜀)
+      const pendingInviteBeforeJoin = String(localStorage.getItem(PENDING_GROUP_INVITE_KEY) || "").trim();
+      if (pendingInviteBeforeJoin && UUID_REGEX.test(pendingInviteBeforeJoin)) {
+        try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
+        await joinPendingInviteGroup();
+        return;
+      }
 
       const callbackUrl = new URL(incomingUrl);
       navigateAfterOAuth(callbackUrl.searchParams.get("returnTo"));
