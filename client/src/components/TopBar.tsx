@@ -699,19 +699,31 @@ export function TopBar() {
                 </button>
               </div>
 
-              <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
-                <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-                  <Smartphone className="h-4 w-4" />
-                  <span>{isNativeApp() ? "앱 권한 상태" : "브라우저 권한 상태"}</span>
+              {isNativeApp() ? (
+                <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                    <Smartphone className="h-4 w-4" />
+                    <span>앱 알림 권한</span>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    {notificationPermission === "granted"
+                      ? "알림 권한이 허용되어 있습니다."
+                      : notificationPermission === "denied"
+                        ? "알림이 거부되어 있습니다. 기기 설정 > 앱 > 마이아멘 > 알림에서 허용해 주세요."
+                        : "알림 권한이 아직 허용되지 않았습니다."}
+                  </p>
                 </div>
-                <p className="mt-2 text-sm text-zinc-500">
-                  {notificationPermission === "granted"
-                    ? "알림 권한이 허용되어 있습니다."
-                    : notificationPermission === "denied"
-                      ? "알림 권한이 거부되어 있습니다. 기기 설정에서 다시 허용해 주세요."
-                      : "알림 권한이 아직 요청되지 않았습니다."}
-                </p>
-              </div>
+              ) : (
+                <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                    <Smartphone className="h-4 w-4" />
+                    <span>푸시 알림 안내</span>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-500">
+                    푸시 알림은 마이아멘 앱에서만 지원됩니다. 앱을 설치하면 모임 활동과 공지를 실시간으로 받을 수 있어요.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-3">
                 <NotificationToggle
