@@ -558,7 +558,7 @@ export default function PrayerPage() {
           if (shouldOpenGroupLinkModal) {
             setTimeout(() => setShowGroupLinkModal(true), 250);
           }
-        }, 1800);
+        }, 2800);
       }
     } catch (err) {
       console.error('Amen 저장 실패:', err);
@@ -1433,7 +1433,7 @@ export default function PrayerPage() {
             className="fixed inset-0 z-[200] flex items-center justify-center pointer-events-none"
           >
             <div className="bg-black/60 text-white px-8 py-4 rounded-2xl shadow-xl text-base font-bold text-center whitespace-nowrap backdrop-blur-sm">
-              아멘! 기도했습니다 🙏
+              마음으로 기도합니다. 아멘
             </div>
           </motion.div>
         )}

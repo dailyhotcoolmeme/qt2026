@@ -3540,8 +3540,8 @@ export default function GroupDashboard() {
       await loadGroupPrayers(group.id);
       if (window.navigator?.vibrate) window.navigator.vibrate([20, 50, 20]);
       const targetName = authorMap[targetUserId]?.nickname || authorMap[targetUserId]?.username || "상대방";
-      setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님이 확인할 수 있어요`);
-      setTimeout(() => setHeartPrayerToast(null), 2500);
+      setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님만 확인할 수 있어요`);
+      setTimeout(() => setHeartPrayerToast(null), 3500);
     } catch (err) {
       console.error(err);
       alert("마음기도 저장에 실패했습니다.");

@@ -1277,6 +1277,15 @@ export default function QTPage() {
 	              </button>
 	            </div>
 	          )}
+
+	          <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
+	            <button
+	              onClick={() => setShowWriteSheet(true)}
+	              className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
+	            >
+	              <NotebookPen size={12} /> 묵상일기 기록
+	            </button>
+	          </div>
 	        </div>
 	      )}
 
