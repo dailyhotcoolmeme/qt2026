@@ -232,6 +232,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const dragControls = useDragControls();
   const swipeStartRef = useRef<{ x: number; y: number } | null>(null);
   const [mode, setMode] = useState<ThemeMode>("image");
+  const [editedContent, setEditedContent] = useState("");
+  const [editedTitle, setEditedTitle] = useState("");
   const [selectedId, setSelectedId] = useState<string>("i1");
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
@@ -402,6 +404,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       setActiveRecord(null);
       return;
     }
+    setEditedContent(normalizeVerseText(content));
+    setEditedTitle(title);
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     const randomized = pool[Math.floor(Math.random() * pool.length)] || pool[0];
     if (randomized) setSelectedId(randomized.id);
@@ -445,7 +449,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     }
 
     const maxWidth = 700;
-    const chunks = cleanContent.split("\n");
+    const chunks = (editedContent || cleanContent).split("\n");
     const allLines: string[] = [];
     chunks.forEach((chunk, idx) => {
       const words = chunk.split(" ");
@@ -478,7 +482,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     ctx.fillStyle = effectiveSubColor;
     ctx.font = `bold ${REFERENCE_FONT_PX}px serif`;
     const titleY = Math.min(canvas.height - 80, y + Math.max(24, Math.round(BODY_FONT_PX * 0.8)));
-    ctx.fillText(title, x, titleY);
+    ctx.fillText(editedTitle || title, x, titleY);
     ctx.shadowColor = "transparent";
     ctx.shadowBlur = 0;
     ctx.shadowOffsetX = 0;
@@ -691,29 +695,37 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                     ) : null}
                     <div className="relative h-full flex flex-col">
-                      <div className="flex-1 flex flex-col items-center justify-center">
-                        <p
-                          className="whitespace-pre-wrap break-keep text-center leading-[1.5] font-bold"
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                        <textarea
+                          value={editedContent}
+                          onChange={(e) => setEditedContent(e.target.value)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          rows={4}
+                          className="w-full bg-transparent border-none outline-none resize-none text-center leading-[1.5] font-bold break-keep"
                           style={{
                             color: effectiveTextColor,
                             fontSize: previewBodyFontPx,
                             fontFamily: "serif",
                             textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
+                            caretColor: effectiveTextColor,
                           }}
-                        >
-                          {cleanContent}
-                        </p>
-                        <p
-                          className="mt-2 text-center font-bold"
+                        />
+                        <textarea
+                          value={editedTitle}
+                          onChange={(e) => setEditedTitle(e.target.value)}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
+                          rows={1}
+                          className="w-full bg-transparent border-none outline-none resize-none text-center font-bold"
                           style={{
                             color: effectiveSubColor,
                             fontSize: previewRefFontPx,
                             fontFamily: "serif",
                             textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
+                            caretColor: effectiveSubColor,
                           }}
-                        >
-                          {title}
-                        </p>
+                        />
                       </div>
                     </div>
                   </div>
