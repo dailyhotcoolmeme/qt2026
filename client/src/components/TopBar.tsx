@@ -149,6 +149,8 @@ export function TopBar() {
       }
 
       await supabase.auth.signOut();
+      // 탈퇴 시 로컬스토리지 초기화 (재가입 시 온보딩부터 시작하도록)
+      try { localStorage.clear(); } catch { /* ignore */ }
       setShowDeleteConfirm(false);
       setIsMenuOpen(false);
 
