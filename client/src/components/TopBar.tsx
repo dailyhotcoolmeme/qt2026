@@ -690,9 +690,9 @@ export function TopBar() {
               <div className="mb-6 flex items-start justify-between">
                 <div>
                   <h4 className="text-xl font-bold text-zinc-900">알림 설정</h4>
-                  <p className="mt-1 text-[15px] text-zinc-500">
-                    {isNativeApp() ? "앱 푸시와 앱 내 알림을 관리합니다." : "사이트 접속 중 알림과 푸시 알림을 관리합니다."}
-                  </p>
+                  {isNativeApp() && (
+                    <p className="mt-1 text-[15px] text-zinc-500">앱 푸시와 앱 내 알림을 관리합니다.</p>
+                  )}
                 </div>
                 <button onClick={() => setShowNotificationSettings(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
                   <X className="h-5 w-5" />
