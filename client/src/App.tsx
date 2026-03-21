@@ -349,6 +349,9 @@ export default function App() {
 
       // PKCE code flow (e.g. Google): exchange `?code=...` for a session.
       if (search.includes("code=")) {
+        // OAuth 콜백이 감지되면 리다이렉트 플래그 즉시 제거 (실패해도 다음번 초대 흐름 재사용 가능)
+        try { localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY); } catch { /* ignore */ }
+
         try {
           const authAny: any = supabase.auth as any;
           if (typeof authAny.exchangeCodeForSession === "function") {
@@ -368,28 +371,12 @@ export default function App() {
         await new Promise(resolve => setTimeout(resolve, 100));
 
         // 초대 링크로 온 경우: returnTo보다 먼저 그룹 가입 처리
-        try {
-          const pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
-          if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
-            const joinedGroupId = await joinInviteGroup(pendingGroupId);
-            if (joinedGroupId && UUID_REGEX.test(joinedGroupId)) {
-              clearInviteGroupId();
-              try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
-              window.location.href = `${getBrowserOrigin()}/#/group/${joinedGroupId}`;
-              return;
-            }
-          }
-        } catch (inviteErr) {
-          if (isAlreadyJoinedInviteError(inviteErr)) {
-            const pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
-            if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
-              clearInviteGroupId();
-              try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
-              window.location.href = `${getBrowserOrigin()}/#/group/${pendingGroupId}`;
-              return;
-            }
-          }
-          console.error("invite join in handleSupabaseHash failed:", inviteErr);
+        // joinPendingInviteGroup 사용 → inviteJoinInFlight 보호, clearInviteGroupId, 온보딩 처리 일괄 위임
+        const pendingGroupIdForHash = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
+        if (pendingGroupIdForHash && UUID_REGEX.test(pendingGroupIdForHash)) {
+          await joinPendingInviteGroup();
+          // joinPendingInviteGroup 내부에서 navigate 후 groupNavigationDone = true 세팅됨
+          if (groupNavigationDone) return;
         }
 
         // Preserve returnTo behavior for code flow too.
@@ -600,6 +587,13 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+
+        // code= URL이 있으면 handleSupabaseHash()가 처리 중이므로 여기서 초대 처리 스킵
+        // (중복 rpc 호출 및 경쟁 방지)
+        if (window.location.search.includes('code=')) {
+          // handleSupabaseHash에 위임 — 아무것도 하지 않음
+          return;
+        }
 
         // 초대 링크로 접속한 경우 → 그룹 가입 & 리다이렉트를 최우선 처리
         if (session?.user?.id) {
