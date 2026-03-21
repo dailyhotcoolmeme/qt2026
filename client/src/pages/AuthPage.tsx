@@ -33,7 +33,17 @@ function AuthPage() {
       `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}${window.location.hash || ""}`,
     );
 
-    void handleSocialLogin(provider);
+    // 이미 로그인된 상태면 OAuth 재시작하지 않고 홈으로 (세션 덮어쓰기 방지)
+    const handleExternalOAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data.session?.user) {
+        window.location.replace(`${window.location.origin}/#/`);
+        return;
+      }
+      // 미로그인 상태: 카카오 인앱브라우저에서 이미 동의하고 넘어온 것이므로 바로 OAuth 시작
+      void startOAuthSignIn(provider as "kakao" | "google", getTargetReturnTo());
+    };
+    void handleExternalOAuth();
   }, []);
 
   useEffect(() => {
