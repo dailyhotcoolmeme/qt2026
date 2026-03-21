@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -86,6 +86,7 @@ type GroupPrayerRecord = {
   title: string | null;
   audio_url: string;
   audio_duration: number;
+  prayer_text: string | null;
   created_at: string;
 };
 
@@ -938,6 +939,11 @@ export default function GroupDashboard() {
 
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false);
   const [heartPrayerToast, setHeartPrayerToast] = useState<string | null>(null);
+  const [showTextPrayerModal, setShowTextPrayerModal] = useState(false);
+  const [textPrayerTargetUserId, setTextPrayerTargetUserId] = useState<string | null>(null);
+  const [textPrayerContent, setTextPrayerContent] = useState("");
+  const [textPrayerEditId, setTextPrayerEditId] = useState<number | null>(null);
+  const [textPrayerSaving, setTextPrayerSaving] = useState(false);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
@@ -1285,7 +1291,7 @@ export default function GroupDashboard() {
   const loadGroupPrayers = async (targetGroupId: string) => {
     const { data } = await supabase
       .from("group_prayer_records")
-      .select("id, group_id, user_id, source_type, source_prayer_record_id, title, audio_url, audio_duration, created_at")
+      .select("id, group_id, user_id, source_type, source_prayer_record_id, title, audio_url, audio_duration, prayer_text, created_at")
       .eq("group_id", targetGroupId)
       .order("created_at", { ascending: false });
 
@@ -3554,6 +3560,51 @@ export default function GroupDashboard() {
     setShowPrayerComposer(true);
   };
 
+  const openTextPrayerModal = (targetUserId: string, editRecord?: GroupPrayerRecord) => {
+    setTextPrayerTargetUserId(targetUserId);
+    setTextPrayerContent(editRecord?.prayer_text || "");
+    setTextPrayerEditId(editRecord?.id ?? null);
+    setShowTextPrayerModal(true);
+  };
+
+  const saveTextPrayer = async () => {
+    if (!group || !user || !textPrayerTargetUserId) return;
+    const content = textPrayerContent.trim();
+    if (!content) { alert("기도 내용을 입력해 주세요."); return; }
+    setTextPrayerSaving(true);
+    try {
+      if (textPrayerEditId) {
+        const { error } = await supabase
+          .from("group_prayer_records")
+          .update({ prayer_text: content })
+          .eq("id", textPrayerEditId)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("group_prayer_records").insert({
+          group_id: group.id,
+          user_id: user.id,
+          source_type: "direct",
+          title: `[user:${textPrayerTargetUserId}] 글기도`,
+          audio_url: "text",
+          audio_duration: 0,
+          prayer_text: content,
+        });
+        if (error) throw error;
+      }
+      await loadGroupPrayers(group.id);
+      setShowTextPrayerModal(false);
+      setTextPrayerContent("");
+      setTextPrayerEditId(null);
+      setTextPrayerTargetUserId(null);
+    } catch (err) {
+      console.error(err);
+      alert("글기도 저장에 실패했습니다.");
+    } finally {
+      setTextPrayerSaving(false);
+    }
+  };
+
   const deleteAllPrayerTopicsByAuthor = async (authorId: string) => {
     if (!group || !user) return;
     const canDelete = isManager || authorId === user.id;
@@ -3697,8 +3748,11 @@ export default function GroupDashboard() {
   const PrayerTopicAuthorCard = ({ userId, topics, author }: (typeof topicsByAuthor)[number]) => {
     const relatedPrayers = prayersByTargetUser.get(userId) || [];
     const voicePrayers = relatedPrayers
-      .filter((p) => p.audio_url && p.audio_url !== "amen")
+      .filter((p) => p.audio_url && p.audio_url !== "amen" && p.audio_url !== "text")
       .filter((vp) => vp.user_id === user.id || userId === user.id);
+    const textPrayers = relatedPrayers
+      .filter((p) => p.audio_url === "text")
+      .filter((tp) => tp.user_id === user.id || userId === user.id);
     const textTopics = topics.filter((topic) => {
       const attachments = getTopicAttachments(topic);
       return hasVisiblePrayerTopicContent(topic.content) || attachments.some((attachment) => !isImageAttachment(attachment));
@@ -3791,12 +3845,53 @@ export default function GroupDashboard() {
               </button>
             )}
             <button
+              onClick={() => openTextPrayerModal(userId)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-500 text-xs font-bold transition-all active:scale-95"
+            >
+              <PenLine size={12} /> 글기도
+            </button>
+            <button
               onClick={() => startVoicePrayerForUser(userId)}
               className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
             >
               <Mic size={12} /> 음성기도
             </button>
           </div>
+
+          {textPrayers.length > 0 && (
+            <div className="mt-3 space-y-2">
+              {textPrayers.map((tp) => {
+                const prayingUser = authorMap[tp.user_id];
+                const pname = prayingUser?.nickname || prayingUser?.username || "모임원";
+                const canDelete = isManager || tp.user_id === user.id;
+                const canEdit = tp.user_id === user.id;
+
+                return (
+                  <div key={tp.id} className="bg-blue-50 rounded-xl border border-blue-100 p-2.5 shadow-sm">
+                    <div className="flex justify-between items-center mb-1.5">
+                      <div className="flex items-center gap-1.5 text-[12px] font-bold text-blue-600">
+                        <PenLine size={12} /> {pname}
+                        <span className="text-[10px] text-zinc-500 font-bold ml-1">{formatDateTime(tp.created_at)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        {canEdit && (
+                          <button onClick={() => openTextPrayerModal(userId, tp)} className="text-blue-400 p-1 hover:text-blue-600 rounded-full">
+                            <Pencil size={12} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => removeGroupPrayer(tp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <p className="text-[13px] text-zinc-700 whitespace-pre-wrap leading-relaxed">{tp.prayer_text}</p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {voicePrayers.length > 0 && (
             <div className="mt-3 space-y-2">
@@ -3844,6 +3939,60 @@ export default function GroupDashboard() {
             <div className="bg-black/60 text-white px-8 py-4 rounded-2xl shadow-xl text-sm font-bold text-center whitespace-pre-line backdrop-blur-sm">
               {heartPrayerToast}
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 글기도 작성 모달 */}
+      <AnimatePresence>
+        {showTextPrayerModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40"
+            onClick={(e) => { if (e.target === e.currentTarget) { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); } }}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="w-full max-w-lg bg-white rounded-t-3xl px-5 pb-8 pt-5 shadow-2xl"
+              style={{ paddingBottom: "calc(32px + var(--safe-bottom-inset, 0px))" }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2 text-blue-600 font-black text-base">
+                  <PenLine size={18} /> {textPrayerEditId ? "글기도 수정" : "글기도 작성"}
+                </div>
+                <button onClick={() => { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); }} className="text-zinc-400 hover:text-zinc-600">
+                  <X size={20} />
+                </button>
+              </div>
+              {textPrayerTargetUserId && (
+                <p className="text-xs text-zinc-400 mb-3 font-medium">
+                  {authorMap[textPrayerTargetUserId]?.nickname || authorMap[textPrayerTargetUserId]?.username || "상대방"}님의 기도제목을 위한 글기도 — 해당 분과 나만 볼 수 있어요
+                </p>
+              )}
+              <textarea
+                className="w-full min-h-[140px] rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+                placeholder="마음을 담아 기도를 글로 남겨보세요..."
+                value={textPrayerContent}
+                onChange={(e) => setTextPrayerContent(e.target.value)}
+                maxLength={2000}
+                autoFocus
+              />
+              <div className="flex justify-between items-center mt-1 mb-4">
+                <span className="text-[11px] text-zinc-400">{textPrayerContent.length}/2000</span>
+              </div>
+              <button
+                onClick={saveTextPrayer}
+                disabled={textPrayerSaving || !textPrayerContent.trim()}
+                className="w-full h-[52px] rounded-2xl bg-blue-500 text-white font-bold text-base disabled:opacity-50 transition-all active:scale-95"
+              >
+                {textPrayerSaving ? "저장 중..." : textPrayerEditId ? "수정 완료" : "글기도 남기기"}
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
