@@ -353,6 +353,29 @@ export default function App() {
         // Give SDK a moment to persist the session before checking returnTo.
         await new Promise(resolve => setTimeout(resolve, 100));
 
+        // 초대 링크로 온 경우: returnTo보다 먼저 그룹 가입 처리
+        try {
+          const pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
+          if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
+            const joinedGroupId = await joinInviteGroup(pendingGroupId);
+            if (joinedGroupId && UUID_REGEX.test(joinedGroupId)) {
+              clearInviteGroupId();
+              window.location.href = `${getBrowserOrigin()}/#/group/${joinedGroupId}`;
+              return;
+            }
+          }
+        } catch (inviteErr) {
+          if (isAlreadyJoinedInviteError(inviteErr)) {
+            const pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
+            if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
+              clearInviteGroupId();
+              window.location.href = `${getBrowserOrigin()}/#/group/${pendingGroupId}`;
+              return;
+            }
+          }
+          console.error("invite join in handleSupabaseHash failed:", inviteErr);
+        }
+
         // Preserve returnTo behavior for code flow too.
         const params = new URLSearchParams(window.location.search);
         const returnTo = params.get("returnTo");
