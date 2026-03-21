@@ -93,7 +93,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     }
   };
 
-  const handleEmailLogin = () => {
+  const handleAppleLogin = async () => {
     const targetReturnTo = resolveTargetReturnTo();
     try {
       localStorage.setItem("qt_return", targetReturnTo);
@@ -103,10 +103,15 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
     } catch {
       // ignore storage errors
     }
-    const inviteGroupId = readInviteGroupId();
-    const inviteQuery = inviteGroupId ? `&${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(inviteGroupId)}` : "";
-    setLocation(`/auth?loginModal=true&returnTo=${encodeURIComponent(targetReturnTo)}${inviteQuery}`);
+
+    try {
+      await startOAuthSignIn("apple", targetReturnTo);
+    } catch (error) {
+      console.error("LoginModal apple start error", error);
+      setLocation(`/auth?returnTo=${encodeURIComponent(targetReturnTo)}`);
+    }
   };
+
 
   return (
     <AnimatePresence>
@@ -145,7 +150,7 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
               <X size={24} />
             </button>
 
-            <div className="flex flex-col items-center gap-6">
+            <div className="flex flex-col items-center gap-4">
               <div className="text-center">
                 <h2
                   className="leading-[1.3] tracking-tighter text-zinc-900 font-black"
@@ -171,17 +176,14 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
                 구글로 로그인하기
               </button>
 
-              <div className="flex w-full items-center justify-center gap-3">
-                <div className="h-px flex-1 bg-zinc-200" />
-                <span className="text-sm font-medium text-zinc-400">또는</span>
-                <div className="h-px flex-1 bg-zinc-200" />
-              </div>
-
               <button
-                onClick={handleEmailLogin}
-                className="h-[64px] w-full rounded-[22px] border-2 border-zinc-300 bg-white font-bold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95"
+                onClick={handleAppleLogin}
+                className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95"
               >
-                아이디로 로그인
+                <svg width="22" height="22" viewBox="0 0 22 22" fill="white" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M15.769 11.348c-.026-2.666 2.18-3.958 2.279-4.02-1.243-1.817-3.177-2.065-3.862-2.088-1.638-.167-3.21.974-4.041.974-.846 0-2.135-.952-3.516-.925-1.8.027-3.468 1.053-4.393 2.663-1.882 3.257-.481 8.075 1.349 10.716.898 1.293 1.963 2.742 3.363 2.69 1.357-.054 1.868-.869 3.508-.869 1.641 0 2.11.869 3.534.84 1.458-.024 2.38-1.315 3.267-2.614.753-1.08 1.323-2.161 1.611-3.178-3.553-1.35-3.098-5.189-3.099-5.19zM13.108 3.614C13.845 2.72 14.35 1.488 14.21.23c-1.083.048-2.44.724-3.21 1.617-.713.8-1.335 2.081-1.168 3.295 1.199.094 2.428-.612 3.276-1.528z"/>
+                </svg>
+                Apple로 로그인하기
               </button>
 
               <button

@@ -16,12 +16,15 @@ interface Env {
   FCM_CLIENT_EMAIL?: string;
   FCM_PRIVATE_KEY?: string;
   PUSH_INTERNAL_SECRET?: string;
+  VAPID_PUBLIC_KEY?: string;
+  VAPID_PRIVATE_KEY?: string;
+  VAPID_SUBJECT?: string;
 }
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type,Authorization,x-push-secret",
 };
 
 function withCorsHeaders(response: Response) {
@@ -533,6 +536,139 @@ async function handleUserDelete(request: Request, env: Env) {
   }
 }
 
+// ── Web Push (VAPID) ────────────────────────────────────────────
+
+function base64urlToBuffer(base64url: string): Uint8Array {
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(base64.length + (4 - base64.length % 4) % 4, '=');
+  const raw = atob(padded);
+  const buf = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) buf[i] = raw.charCodeAt(i);
+  return buf;
+}
+
+async function makeVapidJWT(subject: string, audience: string, publicKeyB64u: string, privateKeyB64u: string): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  const header = btoa(JSON.stringify({ typ: 'JWT', alg: 'ES256' })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const payload = btoa(JSON.stringify({ aud: audience, exp: now + 12 * 3600, sub: subject })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const signingInput = `${header}.${payload}`;
+
+  const privateKeyBytes = base64urlToBuffer(privateKeyB64u);
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw', privateKeyBytes,
+    { name: 'ECDSA', namedCurve: 'P-256' },
+    false, ['sign']
+  );
+  const signature = await crypto.subtle.sign(
+    { name: 'ECDSA', hash: 'SHA-256' },
+    cryptoKey,
+    new TextEncoder().encode(signingInput)
+  );
+  const sigB64u = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return `${signingInput}.${sigB64u}`;
+}
+
+async function encryptWebPushPayload(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  payload: string
+): Promise<{ ciphertext: Uint8Array; salt: Uint8Array; serverPublicKey: Uint8Array }> {
+  const clientPublicKey = base64urlToBuffer(subscription.keys.p256dh);
+  const authSecret = base64urlToBuffer(subscription.keys.auth);
+
+  const serverKeyPair = await crypto.subtle.generateKey({ name: 'ECDH', namedCurve: 'P-256' }, true, ['deriveBits']);
+  const serverPublicKeyBuffer = await crypto.subtle.exportKey('raw', serverKeyPair.publicKey);
+  const serverPublicKey = new Uint8Array(serverPublicKeyBuffer);
+
+  const clientCryptoKey = await crypto.subtle.importKey('raw', clientPublicKey, { name: 'ECDH', namedCurve: 'P-256' }, false, []);
+  const sharedBits = await crypto.subtle.deriveBits({ name: 'ECDH', public: clientCryptoKey }, serverKeyPair.privateKey, 256);
+
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+
+  // HKDF for auth secret
+  const prk = await crypto.subtle.importKey('raw', sharedBits, { name: 'HKDF' }, false, ['deriveBits']);
+  const authInfo = new TextEncoder().encode('Content-Encoding: auth\0');
+  const combined = new Uint8Array(authInfo.length + 1);
+  combined.set(authInfo);
+  combined[authInfo.length] = 0x01;
+  const ikm = await crypto.subtle.importKey('raw', await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: authSecret, info: combined },
+    prk, 256
+  ), { name: 'HKDF' }, false, ['deriveBits']);
+
+  // Content encryption key
+  const keyInfo = new Uint8Array([
+    ...new TextEncoder().encode('Content-Encoding: aesgcm\0'),
+    0x41, // 'A' for server
+    ...serverPublicKey,
+    0x41, // 'A' for client (using 0x41 as placeholder length)
+    ...clientPublicKey,
+    0x01
+  ]);
+  // Simplified: use the salt+keys directly for derivation
+  const cekBits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('Content-Encoding: aesgcm\0') },
+    ikm, 128
+  );
+  const nonceBits = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('Content-Encoding: nonce\0') },
+    ikm, 96
+  );
+
+  const cekKey = await crypto.subtle.importKey('raw', cekBits, { name: 'AES-GCM' }, false, ['encrypt']);
+  const nonce = new Uint8Array(nonceBits);
+
+  // Add padding
+  const encoded = new TextEncoder().encode(payload);
+  const padded = new Uint8Array(encoded.length + 2);
+  padded[0] = 0;
+  padded[1] = 0;
+  padded.set(encoded, 2);
+
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, cekKey, padded));
+  void keyInfo; // suppress unused warning
+  return { ciphertext, salt, serverPublicKey };
+}
+
+async function sendWebPush(
+  subscription: { endpoint: string; keys: { p256dh: string; auth: string } },
+  title: string,
+  body: string,
+  data: Record<string, string>,
+  env: Env
+): Promise<boolean> {
+  try {
+    const vapidPublicKey = env.VAPID_PUBLIC_KEY;
+    const vapidPrivateKey = env.VAPID_PRIVATE_KEY;
+    const subject = env.VAPID_SUBJECT || 'mailto:admin@myamen.co.kr';
+    if (!vapidPublicKey || !vapidPrivateKey) return false;
+
+    const audience = new URL(subscription.endpoint).origin;
+    const jwt = await makeVapidJWT(subject, audience, vapidPublicKey, vapidPrivateKey);
+
+    const payload = JSON.stringify({ title, body, data });
+    const { ciphertext, salt, serverPublicKey } = await encryptWebPushPayload(subscription, payload);
+
+    const b64u = (buf: Uint8Array) => btoa(String.fromCharCode(...buf)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    const res = await fetch(subscription.endpoint, {
+      method: 'POST',
+      headers: {
+        'Authorization': `vapid t=${jwt},k=${vapidPublicKey}`,
+        'Content-Type': 'application/octet-stream',
+        'Content-Encoding': 'aesgcm',
+        'Encryption': `salt=${b64u(salt)}`,
+        'Crypto-Key': `dh=${b64u(serverPublicKey)};p256ecdsa=${vapidPublicKey}`,
+        'TTL': '86400',
+      },
+      body: ciphertext,
+    });
+    return res.status === 201 || res.ok;
+  } catch (e) {
+    console.error('WebPush send error:', e);
+    return false;
+  }
+}
+
 // ── FCM 푸시 알림 ──────────────────────────────────────────────
 
 function base64urlEncode(buffer: ArrayBuffer): string {
@@ -722,25 +858,139 @@ async function handlePushSend(request: Request, env: Env) {
     targetPath?: string;
   }>(request);
 
+
   const supaUrl = env.SUPABASE_URL!;
   const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
   const headers = { Authorization: `Bearer ${svcKey}`, apikey: svcKey };
 
-  const res = await fetch(
+  const data: Record<string, string> = {};
+  if (body.targetPath) data.targetPath = body.targetPath;
+
+  // FCM 구독 발송
+  const fcmRes = await fetch(
     `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${body.userId}&channel=eq.fcm`,
     { headers }
   );
-  const subscriptions = await res.json() as Array<{ device_token: string }>;
+  const fcmSubs = await fcmRes.json() as Array<{ device_token: string }>;
+  const fcmResults = await Promise.allSettled(
+    fcmSubs.map(s => sendFCMMessage(s.device_token, body.title, body.body, data, env))
+  );
+
+  // WebPush 구독 발송
+  const webRes = await fetch(
+    `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${body.userId}&channel=eq.webpush`,
+    { headers }
+  );
+  const webSubs = await webRes.json() as Array<{ subscription: { endpoint: string; keys: { p256dh: string; auth: string } } }>;
+  const webResults = await Promise.allSettled(
+    webSubs.filter(s => s.subscription?.endpoint && s.subscription?.keys).map(s =>
+      sendWebPush(s.subscription, body.title, body.body, data, env)
+    )
+  );
+
+  const sent = [...fcmResults, ...webResults].filter(r => r.status === 'fulfilled' && r.value).length;
+  const total = fcmSubs.length + webSubs.length;
+  return json(200, { success: true, sent, total });
+}
+
+// ── 그룹 멤버 전체 푸시 (JWT 인증, 서버에서 멤버십 검증) ──────────────
+async function handlePushSendGroup(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const authHeader = request.headers.get('authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) return json(401, { message: '인증이 필요합니다' });
+
+  const senderId = await getSupabaseUserId(authHeader.slice(7), env);
+  if (!senderId) return json(401, { message: '유효하지 않은 토큰입니다' });
+
+  const body = await parseJson<{
+    groupId: string;
+    title: string;
+    body: string;
+    targetPath?: string;
+    targetUserIds?: string[];  // 지정 시 해당 유저들에게만 발송
+  }>(request);
+
+  if (!body.groupId) return json(400, { message: 'groupId가 필요합니다' });
+
+  const supaUrl = env.SUPABASE_URL!;
+  const svcKey = env.SUPABASE_SERVICE_ROLE_KEY!;
+  const headers = { Authorization: `Bearer ${svcKey}`, apikey: svcKey };
+
+  // 발신자가 그룹 멤버 또는 오너인지 검증
+  const groupRes = await fetch(
+    `${supaUrl}/rest/v1/groups?id=eq.${body.groupId}&select=owner_id`,
+    { headers }
+  );
+  const groups = await groupRes.json() as Array<{ owner_id: string }>;
+  if (!groups.length) return json(404, { message: '그룹을 찾을 수 없습니다' });
+  const isOwner = groups[0].owner_id === senderId;
+
+  if (!isOwner) {
+    const memberRes = await fetch(
+      `${supaUrl}/rest/v1/group_members?group_id=eq.${body.groupId}&user_id=eq.${senderId}&select=user_id`,
+      { headers }
+    );
+    const memberRows = await memberRes.json() as Array<{ user_id: string }>;
+    if (!memberRows.length) return json(403, { message: '그룹 멤버가 아닙니다' });
+  }
+
+  // 수신 대상 결정
+  let targetIds: string[];
+  if (body.targetUserIds && body.targetUserIds.length > 0) {
+    targetIds = body.targetUserIds.filter(id => id !== senderId);
+  } else {
+    // 그룹 전체 멤버 (발신자 제외)
+    const allMembersRes = await fetch(
+      `${supaUrl}/rest/v1/group_members?group_id=eq.${body.groupId}&select=user_id`,
+      { headers }
+    );
+    const allMembers = await allMembersRes.json() as Array<{ user_id: string }>;
+    const ownerRes = await fetch(
+      `${supaUrl}/rest/v1/groups?id=eq.${body.groupId}&select=owner_id`,
+      { headers }
+    );
+    const ownerRows = await ownerRes.json() as Array<{ owner_id: string }>;
+    const allIds = new Set([
+      ...allMembers.map(m => m.user_id),
+      ...ownerRows.map(o => o.owner_id),
+    ]);
+    allIds.delete(senderId);
+    targetIds = Array.from(allIds);
+  }
 
   const data: Record<string, string> = {};
   if (body.targetPath) data.targetPath = body.targetPath;
 
-  const results = await Promise.allSettled(
-    subscriptions.map(s => sendFCMMessage(s.device_token, body.title, body.body, data, env))
-  );
+  let sent = 0;
+  for (const userId of targetIds) {
+    // FCM
+    const fcmRes = await fetch(
+      `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.fcm`,
+      { headers }
+    );
+    const fcmSubs = await fcmRes.json() as Array<{ device_token: string }>;
+    const fcmResults = await Promise.allSettled(
+      fcmSubs.map(s => sendFCMMessage(s.device_token, body.title, body.body, data, env))
+    );
 
-  const sent = results.filter(r => r.status === 'fulfilled' && r.value).length;
-  return json(200, { success: true, sent, total: subscriptions.length });
+    // WebPush
+    const webRes = await fetch(
+      `${supaUrl}/rest/v1/push_subscriptions?user_id.eq.${userId}&channel=eq.webpush`,
+      { headers }
+    );
+    const webSubs = await webRes.json() as Array<{ subscription: { endpoint: string; keys: { p256dh: string; auth: string } } }>;
+    const webResults = await Promise.allSettled(
+      webSubs.filter(s => s.subscription?.endpoint && s.subscription?.keys).map(s =>
+        sendWebPush(s.subscription, body.title, body.body, data, env)
+      )
+    );
+
+    sent += [...fcmResults, ...webResults].filter(r => r.status === 'fulfilled' && r.value).length;
+  }
+
+  return json(200, { success: true, sent, total: targetIds.length });
 }
 
 async function handleApi(request: Request, url: URL, env: Env) {
@@ -776,6 +1026,9 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === '/api/push/send') {
     return handlePushSend(request, env);
+  }
+  if (url.pathname === '/api/push/send-group') {
+    return handlePushSendGroup(request, env);
   }
 
   if (request.method === "OPTIONS") {

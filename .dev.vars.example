@@ -3,3 +3,22 @@ R2_ACCESS_KEY_ID=your-r2-access-key-id
 R2_SECRET_ACCESS_KEY=your-r2-secret-access-key
 R2_BUCKET_NAME=myamen-assets
 R2_PUBLIC_URL=https://audio.myamen.co.kr
+
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+KAKAO_ADMIN_KEY=your-kakao-admin-key
+
+# FCM (Firebase Cloud Messaging) - Android / iOS
+FCM_PROJECT_ID=your-firebase-project-id
+FCM_CLIENT_EMAIL=firebase-adminsdk@your-project.iam.gserviceaccount.com
+FCM_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----
+
+# VAPID (Web Push) - 브라우저 푸시
+# 생성: npx web-push generate-vapid-keys
+VAPID_PUBLIC_KEY=your-vapid-public-key
+VAPID_PRIVATE_KEY=your-vapid-private-key
+VAPID_SUBJECT=mailto:admin@myamen.co.kr
+
+# 내부 푸시 발송 시크릿 (임의 문자열)
+PUSH_INTERNAL_SECRET=your-random-secret

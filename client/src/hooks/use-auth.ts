@@ -78,7 +78,14 @@ async function fetchUser(): Promise<User | null> {
   const updates: { username?: string; avatar_url?: string } = {};
   const rawUsername = profile?.username ?? null;
   if (rawUsername?.startsWith("user_")) {
+    // user_ 접두사 → myamen_ 으로 보정
     updates.username = `myamen_${rawUsername.slice(5)}`;
+  } else if (rawUsername && !rawUsername.startsWith("myamen_")) {
+    // 닉네임/풀네임이 username에 잘못 저장된 경우 (구 트리거 버그) → ID로 재생성
+    updates.username = `myamen_${(data.user.id as string).replace(/-/g, "").slice(0, 10)}`;
+  } else if (!rawUsername) {
+    // username 자체가 없는 경우 → ID로 생성
+    updates.username = `myamen_${(data.user.id as string).replace(/-/g, "").slice(0, 10)}`;
   }
 
   // 카카오 로그인 시 avatar 자동 동기화 (프로필 레코드가 없을 때만)

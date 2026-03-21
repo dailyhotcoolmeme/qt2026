@@ -52,6 +52,7 @@ export default function PrayerPage() {
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
   const [deleteRecordUrl, setDeleteRecordUrl] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
+  const [showAmenToast, setShowAmenToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showGroupLinkModal, setShowGroupLinkModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
@@ -547,11 +548,15 @@ export default function PrayerPage() {
       });
       if (!error) {
         await loadPrayerRecords();
-        setPrayerSubTab('archive');
         if (window.navigator?.vibrate) window.navigator.vibrate([20, 40, 20]);
-        if (shouldOpenGroupLinkModal) {
-          setTimeout(() => setShowGroupLinkModal(true), 250);
-        }
+        setShowAmenToast(true);
+        setTimeout(() => {
+          setShowAmenToast(false);
+          setPrayerSubTab('archive');
+          if (shouldOpenGroupLinkModal) {
+            setTimeout(() => setShowGroupLinkModal(true), 250);
+          }
+        }, 1800);
       }
     } catch (err) {
       console.error('Amen 저장 실패:', err);
@@ -1414,6 +1419,22 @@ export default function PrayerPage() {
       {/* 모임 연결 관련 모달 제거 */}
 
       {/* 모임 연결 관련 모달 제거 */}
+
+      {/* 마음기도 완료 토스트 */}
+      <AnimatePresence>
+        {showAmenToast && (
+          <motion.div
+            initial={{ opacity: 0, x: "-50%", y: 20 }}
+            animate={{ opacity: 1, x: "-50%", y: 0 }}
+            exit={{ opacity: 0, x: "-50%", y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[200] bg-[#4A6741] text-white px-6 py-3 rounded-full shadow-lg text-sm font-bold text-center whitespace-nowrap"
+            style={{ left: '50%', transform: 'translateX(-50%)' }}
+          >
+            아멘! 기도했습니다 🙏
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 복사 완료 토스트 */}
       <AnimatePresence>

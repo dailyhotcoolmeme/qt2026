@@ -89,7 +89,7 @@ function AuthPage() {
     return resolveOAuthReturnTo(null);
   };
 
-  const handleSocialLogin = async (provider: "kakao" | "google") => {
+  const handleSocialLogin = async (provider: "kakao" | "google" | "apple") => {
     if (provider === "google" && isEmbeddedInAppBrowser()) {
       alert("카카오톡 같은 앱 내 브라우저에서는 구글 로그인이 차단될 수 있어요. 외부 브라우저에서 이어서 열어드릴게요.");
       const externalUrl = new URL(window.location.href);
@@ -101,7 +101,7 @@ function AuthPage() {
       await startOAuthSignIn(provider, getTargetReturnTo());
     } catch (error) {
       console.error(`${provider} OAuth start error:`, error);
-      alert(`${provider === "kakao" ? "카카오" : "구글"} 로그인 시작에 실패했습니다.`);
+      alert(`${provider === "kakao" ? "카카오" : provider === "google" ? "구글" : "Apple"} 로그인 시작에 실패했습니다.`);
     }
   };
 
@@ -149,7 +149,7 @@ function AuthPage() {
         </button>
 
         <button
-          onClick={() => alert("Apple 로그인은 준비 중입니다.")}
+          onClick={() => void handleSocialLogin("apple")}
           className="flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95"
         >
           <svg width="22" height="22" viewBox="0 0 22 22" fill="white" xmlns="http://www.w3.org/2000/svg">

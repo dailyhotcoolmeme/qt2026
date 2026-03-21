@@ -54,6 +54,7 @@ export function isKakaoInAppBrowser() {
 }
 
 export function isEmbeddedInAppBrowser() {
+  if (Capacitor.isNativePlatform()) return false;
   const ua = getUserAgent();
   return /KAKAOTALK|FBAN|FBAV|Instagram|Line|NAVER\(inapp|; wv\)|WebView/i.test(ua);
 }

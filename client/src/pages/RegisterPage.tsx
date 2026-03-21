@@ -421,6 +421,10 @@ export default function RegisterPage() {
   에 동의합니다.
 </span>
           </button>
+
+          <p className="text-[12px] text-zinc-400 text-center">
+            본 서비스는 만 14세 이상만 이용 가능합니다.
+          </p>
         </div>
 
         {/* 직접 정보 입력 가입(아이디/이메일)은 숨김 처리 */}

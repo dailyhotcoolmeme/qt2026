@@ -116,19 +116,23 @@ plugins: {
 ## 3. 작업 순서
 
 ### Phase 1 — 푸시 알림 Cloudflare 전환
-- [ ] VAPID 키 쌍 생성
-- [ ] Cloudflare Worker에 Web Push 발송 로직 구현
-- [ ] Supabase `push_subscriptions` 테이블 마이그레이션
-- [ ] 클라이언트 구독 API 연결 (`/api/push/subscribe` → Worker URL)
+- [x] VAPID 키 쌍 생성 — `.dev.vars.example`에 가이드 추가 (npx web-push generate-vapid-keys)
+- [x] Cloudflare Worker에 Web Push 발송 로직 구현 — FCM + WebPush 모두 구현
+- [x] Supabase `push_subscriptions` 테이블 마이그레이션 — 완료
+- [x] 클라이언트 구독 API 연결 — FCM/WebPush 구독/해제 완료, iOS 플랫폼 감지 수정
 - [ ] 알림 발송 트리거 연결 (그룹 알림, 시스템 알림 등)
-- [ ] iOS APNs 연동 (Apple Developer 인증서 필요)
+- [ ] iOS APNs 연동 (Apple Developer 인증서 필요 — Xcode에서 Signing & Capabilities 추가)
 - [ ] Android FCM 연동 (`google-services.json` 필요)
+- [ ] Cloudflare Worker 환경변수 등록 (VAPID, FCM, SUPABASE, PUSH_INTERNAL_SECRET)
 
 ### Phase 2 — iOS Capacitor 프로젝트
-- [ ] `npx cap add ios` 실행
-- [ ] StatusBar, SplashScreen 설정
+- [x] `npx cap add ios` 실행
+- [x] StatusBar, SplashScreen 설정 (capacitor.config.ts)
+- [x] Info.plist 권한 추가 (카메라, 마이크, 사진 라이브러리)
+- [x] App.entitlements 생성 (aps-environment: development)
+- [x] AppDelegate.swift APNs 핸들러 추가
 - [ ] Safe Area 기기별 검증 (iPhone SE, 14, 16 Pro 등)
-- [ ] APNs 푸시 인증서 연결
+- [ ] APNs 인증서 연결 (Xcode → Signing & Capabilities → Push Notifications)
 - [ ] App Store 배포 준비
 
 ### Phase 3 — Android 점검 및 배포

@@ -8,6 +8,7 @@ import { LoginModal } from "./LoginModal";
 import { Link, useLocation } from "wouter";
 import { supabase } from "../lib/supabase";
 import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
+import { Capacitor } from "@capacitor/core";
 import { defaultNotificationSettings, isNotificationTypeEnabled, loadNotificationSettings, saveNotificationSettings, type NotificationSettings } from "../lib/notificationPreferences";
 import { ensureNativePushListeners, getLatestNativePushToken, getNotificationPermissionState, registerForNativePush, requestNotificationPermission } from "../lib/pushNotifications";
 
@@ -274,7 +275,7 @@ export function TopBar() {
           body: JSON.stringify({
             channel: "fcm",
             token: nativeToken,
-            platform: "android",
+            platform: Capacitor.getPlatform(),
           }),
         });
 
@@ -750,7 +751,7 @@ export function TopBar() {
       {isMenuOpen && <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-[2px]" onClick={() => setIsMenuOpen(false)} />}
 
       <div className={`fixed left-0 top-0 z-[210] h-full w-[280px] transform bg-white shadow-2xl transition-transform duration-300 ease-in-out ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        <div className="flex h-full flex-col overflow-y-auto p-6">
+        <div className="flex h-full flex-col overflow-y-auto p-6" style={{ paddingTop: "calc(24px + var(--safe-top-inset))" }}>
 	          <div className="mb-8 pt-2">
 	            <div className="mb-4 flex items-start justify-between">
 	              {user?.avatar_url ? (

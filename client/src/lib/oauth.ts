@@ -90,7 +90,8 @@ export function getHostedNativeOAuthStartUrl(provider: OAuthProvider, targetRetu
 export async function startHostedNativeOAuthSignIn(provider: OAuthProvider, targetReturnTo?: string | null) {
   await Browser.open({
     url: getHostedNativeOAuthStartUrl(provider, targetReturnTo),
-    windowName: "_self",
+    windowName: "_blank",
+    presentationStyle: "fullscreen",
   });
 }
 
@@ -123,6 +124,7 @@ export async function startOAuthSignIn(provider: OAuthProvider, targetReturnTo?:
 
   await Browser.open({
     url: data.url,
-    windowName: "_self",
+    windowName: "_blank",
+    presentationStyle: "fullscreen",
   });
 }

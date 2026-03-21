@@ -36,6 +36,7 @@ import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHori
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
+import { sendPushToGroupMembers, sendPushToGroupUsers } from "../lib/groupPush";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
 import { shareContent } from "../lib/nativeShare";
@@ -934,6 +935,7 @@ export default function GroupDashboard() {
   const [closingGroup, setClosingGroup] = useState(false);
 
   const [showHeaderEditModal, setShowHeaderEditModal] = useState(false);
+  const [heartPrayerToast, setHeartPrayerToast] = useState<string | null>(null);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
@@ -1860,6 +1862,15 @@ export default function GroupDashboard() {
       setGuestJoinPending(true);
       alert("가입 신청이 접수되었습니다.");
       setLocation(`/community?pending_group=${group.id}`);
+
+      // 그룹 오너에게 가입 신청 알림 (비동기, 비치명적)
+      sendPushToGroupUsers({
+        groupId: group.id,
+        targetUserIds: [group.owner_id!],
+        title: group.name,
+        body: `새 가입 신청이 접수되었습니다.`,
+        targetPath: `/#/groups/${group.id}?tab=members`,
+      });
     } finally {
       setJoinSubmitting(false);
     }
@@ -2092,6 +2103,14 @@ export default function GroupDashboard() {
       setNewPrayerTopic("");
       setNewPrayerAttachments([]);
       await loadGroupPrayerTopics(group.id);
+
+      // 그룹 멤버 전체에게 새 기도제목 알림 (비동기, 비치명적)
+      sendPushToGroupMembers({
+        groupId: group.id,
+        title: group.name,
+        body: `새 기도제목이 등록되었습니다.`,
+        targetPath: `/#/groups/${group.id}?tab=prayer`,
+      });
     } catch (error) {
       await Promise.all(uploadedAttachmentUrls.map((url) => deleteFileFromR2(url)));
       console.error(error);
@@ -2632,6 +2651,14 @@ export default function GroupDashboard() {
     setShowPostComposerModal(false);
     await loadPosts(group.id);
     setIsSubmittingPost(false);
+
+    // 그룹 멤버 전체에게 새 게시글 알림 (비동기, 비치명적)
+    sendPushToGroupMembers({
+      groupId: group.id,
+      title: group.name,
+      body: `새 게시글이 등록되었습니다.`,
+      targetPath: `/#/groups/${group.id}?tab=social`,
+    });
   };
 
   const removePost = async (post: GroupPostRow) => {
@@ -2682,6 +2709,18 @@ export default function GroupDashboard() {
       const myProfile = authorMap[user.id];
       if (!myProfile && user.user_metadata) {
         setAuthorMap(prev => ({ ...prev, [user.id]: { id: user.id, username: user.user_metadata.username || "", nickname: user.user_metadata.nickname || "", avatar_url: user.user_metadata.avatar_url || "" } }));
+      }
+
+      // 게시물 작성자에게 댓글 알림 (본인 제외)
+      const post = posts.find(p => p.id === postId);
+      if (post && post.author_id !== user.id && group) {
+        sendPushToGroupUsers({
+          groupId: group.id,
+          targetUserIds: [post.author_id],
+          title: group.name,
+          body: `내 게시글에 댓글이 달렸습니다.`,
+          targetPath: `/#/groups/${group.id}?tab=social`,
+        });
       }
     }
   };
@@ -3498,6 +3537,9 @@ export default function GroupDashboard() {
       if (error) throw error;
       await loadGroupPrayers(group.id);
       if (window.navigator?.vibrate) window.navigator.vibrate([20, 50, 20]);
+      const targetName = authorMap[targetUserId]?.nickname || authorMap[targetUserId]?.username || "상대방";
+      setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님이 확인할 수 있어요`);
+      setTimeout(() => setHeartPrayerToast(null), 2500);
     } catch (err) {
       console.error(err);
       alert("마음기도 저장에 실패했습니다.");
@@ -3786,6 +3828,21 @@ export default function GroupDashboard() {
 
   return (
     <div className="min-h-screen bg-[#F6F7F8] pb-12 text-base">
+      {/* 마음기도 토스트 */}
+      <AnimatePresence>
+        {heartPrayerToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-36 left-1/2 z-[300] -translate-x-1/2 bg-[#4A6741] text-white px-6 py-3 rounded-2xl shadow-lg text-sm font-bold text-center whitespace-pre-line"
+          >
+            {heartPrayerToast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header
         className="relative overflow-hidden max-h-[320px] opacity-100 transition-all duration-250"
         style={{

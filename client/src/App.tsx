@@ -32,6 +32,7 @@ import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
 import InsightsDashboardPage from "./pages/InsightsDashboardPage";
+import OnboardingPage from "./pages/OnboardingPage";
 import {
   clearInviteGroupId,
   GROUP_INVITE_QUERY_KEY,
@@ -79,11 +80,25 @@ function buildNativeCallbackUrlFromBrowserLocation(rawUrl: string) {
   return `${NATIVE_OAUTH_CALLBACK_PREFIX}${nextSearch ? `?${nextSearch}` : ""}${currentUrl.hash || ""}`;
 }
 
+function OnboardingRedirect() {
+  const [, setLocation] = useHashLocation();
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("myamen_onboarding_done") !== "1") {
+        setLocation("/onboarding");
+      }
+    } catch { /* ignore */ }
+  }, []);
+  return null;
+}
+
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
+      <OnboardingRedirect />
       <AnimatePresence mode="wait">
         <Switch>
+          <Route path="/onboarding" component={OnboardingPage} />
           <Route path="/terms/:type" component={TermsPage} />
           {/* Auth route */}
           <Route path="/auth" component={AuthPage} />
