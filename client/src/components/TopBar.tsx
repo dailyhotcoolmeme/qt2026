@@ -720,10 +720,10 @@ export function TopBar() {
                     <span>알림 방식 안내</span>
                   </div>
                   <p className="text-[14px] text-zinc-500">
-                    사이트가 열려 있는 동안에는 모임 활동·공지 알림이 화면 상단 벨 아이콘에 표시됩니다.
+                    푸시 알림은 마이아멘 앱에서만 지원됩니다. 앱을 설치하면 화면이 꺼진 상태에서도 알림을 받을 수 있어요.
                   </p>
-                  <p className="text-[14px] text-zinc-500">
-                    앱 화면이 꺼진 상태에서도 알림을 받으려면 마이아멘 앱을 설치해 주세요.
+                  <p className="text-[14px] text-zinc-400">
+                    사이트가 열려 있는 동안에는 벨 아이콘에서 모임 활동·공지 알림을 확인할 수 있습니다.
                   </p>
                 </div>
               )}
