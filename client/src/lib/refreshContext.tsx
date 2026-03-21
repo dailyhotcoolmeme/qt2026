@@ -19,7 +19,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
-  const THRESHOLD = 150;
+  const THRESHOLD = 250;
 
   const triggerRefresh = useCallback(() => {
     setRefreshing(true);
@@ -71,13 +71,12 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
               transition={{ duration: 0.2 }}
               className="fixed top-0 left-0 right-0 z-[500] flex justify-center pt-14 pointer-events-none"
             >
-              <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg">
+              <div className="flex items-center justify-center bg-black/60 backdrop-blur-sm p-2.5 rounded-full shadow-lg">
                 <motion.div
                   animate={refreshing ? { rotate: 360 } : {}}
                   transition={refreshing ? { duration: 0.6, repeat: Infinity, ease: "linear" } : {}}
-                  className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                  className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                 />
-                {refreshing ? "새로고침 중..." : "당겨서 새로고침"}
               </div>
             </motion.div>
           )}
