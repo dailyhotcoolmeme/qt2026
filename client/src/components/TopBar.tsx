@@ -685,13 +685,13 @@ export function TopBar() {
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-[360px] rounded-[28px] bg-white p-6 shadow-2xl"
+              className="relative w-full max-w-[420px] rounded-[28px] bg-white p-7 shadow-2xl"
             >
-              <div className="mb-5 flex items-start justify-between">
+              <div className="mb-6 flex items-start justify-between">
                 <div>
-                  <h4 className="text-lg font-bold text-zinc-900">알림 설정</h4>
-                  <p className="mt-1 text-sm text-zinc-500">
-                    {isNativeApp() ? "앱 푸시와 시스템 알림을 관리합니다." : "브라우저 푸시와 시스템 알림을 관리합니다."}
+                  <h4 className="text-xl font-bold text-zinc-900">알림 설정</h4>
+                  <p className="mt-1 text-[15px] text-zinc-500">
+                    {isNativeApp() ? "앱 푸시와 앱 내 알림을 관리합니다." : "사이트 접속 중 알림과 푸시 알림을 관리합니다."}
                   </p>
                 </div>
                 <button onClick={() => setShowNotificationSettings(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
@@ -700,12 +700,12 @@ export function TopBar() {
               </div>
 
               {isNativeApp() ? (
-                <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
+                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5">
+                  <div className="flex items-center gap-2 text-[15px] font-semibold text-zinc-700">
                     <Smartphone className="h-4 w-4" />
                     <span>앱 알림 권한</span>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-500">
+                  <p className="mt-2 text-[14px] text-zinc-500">
                     {notificationPermission === "granted"
                       ? "알림 권한이 허용되어 있습니다."
                       : notificationPermission === "denied"
@@ -714,18 +714,21 @@ export function TopBar() {
                   </p>
                 </div>
               ) : (
-                <div className="mb-4 rounded-2xl bg-zinc-50 px-4 py-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-zinc-700">
-                    <Smartphone className="h-4 w-4" />
-                    <span>푸시 알림 안내</span>
+                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-2">
+                  <div className="flex items-center gap-2 text-[15px] font-semibold text-zinc-700">
+                    <Bell className="h-4 w-4" />
+                    <span>알림 방식 안내</span>
                   </div>
-                  <p className="mt-2 text-sm text-zinc-500">
-                    푸시 알림은 마이아멘 앱에서만 지원됩니다. 앱을 설치하면 모임 활동과 공지를 실시간으로 받을 수 있어요.
+                  <p className="text-[14px] text-zinc-500">
+                    사이트가 열려 있는 동안에는 모임 활동·공지 알림이 화면 상단 벨 아이콘에 표시됩니다.
+                  </p>
+                  <p className="text-[14px] text-zinc-500">
+                    앱 화면이 꺼진 상태에서도 알림을 받으려면 마이아멘 앱을 설치해 주세요.
                   </p>
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <NotificationToggle
                   label="전체 푸시 알림"
                   description="기기 푸시와 앱 내 알림을 함께 켭니다."
@@ -750,7 +753,7 @@ export function TopBar() {
               </div>
 
               {isPushSyncing && (
-                <div className="mt-4 flex items-center gap-2 text-sm text-zinc-500">
+                <div className="mt-5 flex items-center gap-2 text-[14px] text-zinc-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span>푸시 설정을 동기화하는 중입니다.</span>
                 </div>
