@@ -234,6 +234,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [mode, setMode] = useState<ThemeMode>("image");
   const [editedContent, setEditedContent] = useState("");
   const [editedTitle, setEditedTitle] = useState("");
+  const [contentFontPx, setContentFontPx] = useState(0);
+  const contentTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [selectedId, setSelectedId] = useState<string>("i1");
   const [savedCards, setSavedCards] = useState<SavedCard[]>([]);
   const [activeRecord, setActiveRecord] = useState<SavedCard | null>(null);
@@ -398,6 +400,20 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   };
   const previewBodyFontPx = Math.max(12, Math.round((BODY_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH) + 2);
   const previewRefFontPx = Math.max(10, Math.round((REFERENCE_FONT_PX * PREVIEW_WIDTH_PX) / CANVAS_WIDTH));
+
+  // 글자수 넘치면 폰트 축소 (스크롤바 방지)
+  useEffect(() => {
+    setContentFontPx(previewBodyFontPx);
+  }, [editedContent, previewBodyFontPx]);
+
+  useEffect(() => {
+    const ta = contentTextareaRef.current;
+    if (!ta) return;
+    // overflow 없으면 OK, 있으면 1px 줄이기
+    if (ta.scrollHeight > ta.clientHeight + 2 && contentFontPx > 7) {
+      setContentFontPx((prev) => Math.max(7, prev - 1));
+    }
+  }, [contentFontPx, editedContent]);
 
   useEffect(() => {
     if (!open) {
@@ -685,7 +701,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                   />
 
                   <div
-                    className="relative aspect-[4/5] rounded-none border border-zinc-200 p-5 overflow-hidden"
+                    className="relative aspect-[4/5] rounded-none border border-zinc-200 p-3 overflow-hidden"
                     style={{ ...previewStyle, width: `${PREVIEW_WIDTH_PX}px` }}
                   >
                     {currentPreset?.mode === "image" ? (
@@ -695,20 +711,23 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                       />
                     ) : null}
                     <div className="relative h-full flex flex-col">
-                      <div className="flex-1 flex flex-col items-center justify-center gap-1">
+                      <div className="flex-1 flex flex-col items-center justify-center gap-1 overflow-hidden">
                         <textarea
+                          ref={contentTextareaRef}
                           value={editedContent}
                           onChange={(e) => setEditedContent(e.target.value)}
                           onPointerDown={(e) => e.stopPropagation()}
                           onTouchStart={(e) => e.stopPropagation()}
-                          rows={4}
                           className="w-full bg-transparent border-none outline-none resize-none text-center leading-[1.5] font-bold break-keep"
                           style={{
                             color: effectiveTextColor,
-                            fontSize: previewBodyFontPx,
+                            fontSize: contentFontPx || previewBodyFontPx,
                             fontFamily: "serif",
                             textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
                             caretColor: effectiveTextColor,
+                            overflowY: "hidden",
+                            height: "auto",
+                            minHeight: "80px",
                           }}
                         />
                         <textarea
@@ -724,12 +743,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                             fontFamily: "serif",
                             textShadow: currentPreset?.mode === "image" ? "0 1px 6px rgba(0,0,0,0.45)" : "none",
                             caretColor: effectiveSubColor,
+                            overflowY: "hidden",
                           }}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
+                <p className="mt-1.5 text-center text-[10px] text-zinc-400">말씀 내용을 누르면 직접 수정할 수 있어요</p>
               </div>
 
               <div className="space-y-4">
