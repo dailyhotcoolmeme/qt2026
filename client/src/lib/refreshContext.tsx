@@ -19,7 +19,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
-  const THRESHOLD = 70;
+  const THRESHOLD = 150;
 
   const triggerRefresh = useCallback(() => {
     setRefreshing(true);
