@@ -40,7 +40,7 @@ import { sendPushToGroupMembers, sendPushToGroupUsers } from "../lib/groupPush";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "../lib/cropImage";
 import { shareContent } from "../lib/nativeShare";
-import { resolveApiUrl } from "../lib/appUrl";
+import { resolveApiUrl, getPublicWebOrigin, isNativeApp } from "../lib/appUrl";
 import { useRefresh } from "../lib/refreshContext";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
@@ -3150,7 +3150,8 @@ export default function GroupDashboard() {
 
   const buildInviteUrl = () => {
     if (!group?.id) return "";
-    return `${window.location.origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
+    const origin = isNativeApp() ? getPublicWebOrigin() : window.location.origin;
+    return `${origin}/?${GROUP_INVITE_PARAM}=${encodeURIComponent(group.id)}`;
   };
 
   const buildInviteMessage = (includeUrl = true) => {

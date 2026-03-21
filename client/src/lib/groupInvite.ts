@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { getPublicWebOrigin, isNativeApp } from "./appUrl";
 
 export const PENDING_GROUP_INVITE_KEY = "pending_group_invite";
 export const PENDING_GROUP_INVITE_REDIRECTED_KEY = "pending_group_invite_redirected";
@@ -42,11 +43,12 @@ export function readInviteGroupId() {
 
 export function buildInviteLandingUrl(inviteGroupId?: string | null) {
   const resolvedInviteGroupId = String(inviteGroupId || readInviteGroupId()).trim();
+  const origin = isNativeApp() ? getPublicWebOrigin() : window.location.origin;
   if (!isValidInviteGroupId(resolvedInviteGroupId)) {
-    return `${window.location.origin}/#/`;
+    return `${origin}/#/`;
   }
 
-  return `${window.location.origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(resolvedInviteGroupId)}`;
+  return `${origin}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(resolvedInviteGroupId)}`;
 }
 
 export function persistInviteGroupId(inviteGroupId: string) {

@@ -549,8 +549,19 @@ export default function App() {
     void syncAgreements();
     void joinPendingInviteGroup();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+
+        // 초대 링크로 접속한 경우 → 그룹 가입 & 리다이렉트를 최우선 처리
+        if (session?.user?.id) {
+          let pendingGroupId = "";
+          try { pendingGroupId = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || ""; } catch { /* ignore */ }
+          if (pendingGroupId && UUID_REGEX.test(pendingGroupId)) {
+            syncAgreements();
+            await joinPendingInviteGroup(session.user.id);
+            return;
+          }
+        }
 
         if (window.location.search.includes('code=')) {
           const params = new URLSearchParams(window.location.search);
@@ -559,7 +570,6 @@ export default function App() {
             try {
               const decoded = decodeURIComponent(returnTo);
               syncAgreements();
-              void joinPendingInviteGroup(session?.user?.id ?? null);
               localStorage.removeItem('qt_return');
               window.location.href = coerceReturnToInAppUrl(decoded);
               return;
