@@ -264,7 +264,7 @@ export default function ReadingPage() {
     return () => {
       alive = false;
     };
-  }, [user?.id, currentDate, isReadCompleted]);
+  }, [user?.id, currentDate, isReadCompleted, refreshKey]);
 
   // currentPageIdx 상태를 ref와 동기화
   useEffect(() => {
@@ -2209,6 +2209,15 @@ export default function ReadingPage() {
 
 
         await checkCurrentChapterReadStatus();
+
+        // 오늘 읽은 말씀 목록 즉시 갱신
+        const { data: updatedReadings } = await supabase
+          .from("user_reading_records")
+          .select("id, date, book_name, chapter, start_verse, end_verse, read_count, created_at, updated_at")
+          .eq("user_id", user.id)
+          .eq("date", dateStr)
+          .order("updated_at", { ascending: false });
+        setDailyCompletedReadings(updatedReadings || []);
 
         if (!silent && shouldOpenGroupLinkModal && savedRecord?.id) {
           await prepareReadingGroupLink(String(savedRecord.id), `${chapterData.bible_name} ${chapterData.chapter}장`);
