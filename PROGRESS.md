@@ -122,9 +122,10 @@ plugins: {
 - [x] 클라이언트 구독 API 연결 — FCM/WebPush 구독/해제 완료, iOS 플랫폼 감지 수정
 - [x] 알림 발송 트리거 연결 — groupPush.ts + GroupDashboard.tsx 4곳 연결 완료 (worker send-group 오타 수정 포함)
 - [ ] iOS APNs 연동 (Xcode → Signing & Capabilities → Push Notifications 추가 필요)
-- [x] Android FCM 연동 — google-services.json + Firebase BOM 연결 완료, notification channel 생성 코드 추가
-- [ ] Cloudflare Worker 환경변수 등록 (VAPID, FCM, SUPABASE, PUSH_INTERNAL_SECRET) — .dev.vars.example 참고
-- [ ] VITE_VAPID_PUBLIC_KEY 클라이언트 .env 등록 (npx web-push generate-vapid-keys)
+- [x] Android FCM 연동 — google-services.json + Firebase BOM + notification channel(myamen_alert_v2) + AndroidManifest default_notification_channel_id 설정 완료
+- [x] Cloudflare Worker 환경변수 등록 완료 (VAPID, FCM, SUPABASE, PUSH_INTERNAL_SECRET=myamen-push-test-2026)
+- [x] VITE_VAPID_PUBLIC_KEY 클라이언트 .env 등록 완료
+- [x] Android 앱 종료 상태 푸시 알림 수신 확인 완료 (소리/진동 포함)
 
 ### Phase 2 — iOS Capacitor 프로젝트
 - [x] `npx cap add ios` 실행

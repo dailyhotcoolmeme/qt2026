@@ -27,6 +27,20 @@ function ensureHttpsUrl(url?: string | null) {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
+function ProfileAvatar({ url, ensureHttps }: { url: string | null; ensureHttps: (u?: string | null) => string }) {
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) {
+    return (
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
+        <User className="h-8 w-8 text-zinc-400" />
+      </div>
+    );
+  }
+  return (
+    <img src={ensureHttps(url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" onError={() => setFailed(true)} />
+  );
+}
+
 function readStringSet(key: string): Set<string> {
   try {
     const raw = localStorage.getItem(key);
@@ -771,13 +785,7 @@ export function TopBar() {
         <div className="flex h-full flex-col overflow-y-auto p-6" style={{ paddingTop: "calc(24px + var(--safe-top-inset))" }}>
 	          <div className="mb-8 pt-2">
 	            <div className="mb-4 flex items-start justify-between">
-	              {user?.avatar_url ? (
-	                <img src={ensureHttpsUrl(user.avatar_url)} alt="프로필" className="h-14 w-14 rounded-2xl object-cover" />
-	              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-zinc-100">
-                  <User className="h-8 w-8 text-zinc-400" />
-                </div>
-              )}
+	              <ProfileAvatar url={user?.avatar_url ?? null} ensureHttps={ensureHttpsUrl} />
               <button onClick={() => setIsMenuOpen(false)} className="rounded-full p-1 transition-colors hover:bg-zinc-50">
                 <X className="h-6 w-6 text-zinc-300" />
 	              </button>

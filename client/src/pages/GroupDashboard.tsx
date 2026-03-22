@@ -108,6 +108,28 @@ type ProfileLite = {
   email?: string | null;
 };
 
+function toHttps(url?: string | null) {
+  if (!url) return "";
+  return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
+}
+
+function AvatarImg({ url, size }: { url: string | null; size: number }) {
+  const [failed, setFailed] = useState(false);
+  const cls = `rounded-full shrink-0`;
+  const dim = { width: size, height: size };
+  const src = toHttps(url);
+  if (!src || failed) {
+    return (
+      <div style={dim} className={`${cls} bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741]`}>
+        <User size={Math.round(size * 0.45)} />
+      </div>
+    );
+  }
+  return (
+    <img src={src} style={dim} className={`${cls} object-cover`} alt="avatar" onError={() => setFailed(true)} />
+  );
+}
+
 type GroupMemberRow = {
   id: string;
   user_id: string;
@@ -1877,7 +1899,7 @@ export default function GroupDashboard() {
         targetUserIds: [group.owner_id!],
         title: group.name,
         body: `새 가입 신청이 접수되었습니다.`,
-        targetPath: `/#/groups/${group.id}?tab=members`,
+        targetPath: `/#/group/${group.id}?tab=members`,
       });
     } finally {
       setJoinSubmitting(false);
@@ -2117,7 +2139,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         title: group.name,
         body: `새 기도제목이 등록되었습니다.`,
-        targetPath: `/#/groups/${group.id}?tab=prayer`,
+        targetPath: `/#/group/${group.id}?tab=prayer`,
       });
     } catch (error) {
       await Promise.all(uploadedAttachmentUrls.map((url) => deleteFileFromR2(url)));
@@ -2665,7 +2687,7 @@ export default function GroupDashboard() {
       groupId: group.id,
       title: group.name,
       body: `새 게시글이 등록되었습니다.`,
-      targetPath: `/#/groups/${group.id}?tab=social`,
+      targetPath: `/#/group/${group.id}?tab=social`,
     });
   };
 
@@ -2727,7 +2749,7 @@ export default function GroupDashboard() {
           targetUserIds: [post.author_id],
           title: group.name,
           body: `내 게시글에 댓글이 달렸습니다.`,
-          targetPath: `/#/groups/${group.id}?tab=social`,
+          targetPath: `/#/group/${group.id}?tab=social`,
         });
       }
     }
@@ -3762,13 +3784,7 @@ export default function GroupDashboard() {
     return (
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
         <div className="flex items-center justify-between gap-2 mb-2 px-5 py-2 bg-[#F6F7F8] rounded-xl mx-3">
-          {author.avatar_url ? (
-            <img src={author.avatar_url} className="w-10 h-10 rounded-full object-cover shrink-0" alt="avatar" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
-              <User size={18} />
-            </div>
-          )}
+          <AvatarImg url={author.avatar_url} size={40} />
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="font-bold text-zinc-900 text-base truncate">{author.nickname || author.username}</span>
             <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
@@ -5279,13 +5295,7 @@ export default function GroupDashboard() {
                           {({ setNodeRef, style, attributes, listeners, isDragging }) => (
                             <div ref={setNodeRef} style={style} className={`${isDragging ? "scale-[1.01]" : ""}`}>
                               <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3 shadow-sm">
-                                {item.author.avatar_url ? (
-                                  <img src={item.author.avatar_url} className="w-11 h-11 rounded-full object-cover shrink-0" alt="avatar" />
-                                ) : (
-                                  <div className="w-11 h-11 rounded-full bg-[#4A6741]/10 flex items-center justify-center text-[#4A6741] shrink-0">
-                                    <User size={18} />
-                                  </div>
-                                )}
+                                <AvatarImg url={item.author.avatar_url} size={44} />
                                 <div className="min-w-0 flex-1">
                                   <div className="font-bold text-sm text-zinc-900 truncate">{item.author.nickname || item.author.username}</div>
                                   <div className="text-xs text-zinc-400 truncate">{item.topics.length}개 기도제목</div>

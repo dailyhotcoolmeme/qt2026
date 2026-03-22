@@ -754,7 +754,7 @@ async function sendFCMMessage(
             token,
             notification: { title, body },
             data,
-            android: { priority: 'high', notification: { channel_id: 'myamen_default' } },
+            android: { priority: 'high', notification: { channel_id: 'myamen_alert_v2', sound: 'default', default_sound: true, default_vibrate_timings: true } },
             apns: { payload: { aps: { sound: 'default' } } },
           },
         }),
@@ -800,6 +800,10 @@ async function handlePushSubscribe(request: Request, env: Env) {
   };
 
   if (body.channel === 'fcm' && body.token) {
+    // 기존 구독 삭제 후 새로 등록 (중복 방지)
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.fcm`, {
+      method: 'DELETE', headers,
+    });
     await fetch(`${supaUrl}/rest/v1/push_subscriptions`, {
       method: 'POST',
       headers,

@@ -77,15 +77,22 @@ async function fetchUser(): Promise<User | null> {
 
   const updates: { username?: string; avatar_url?: string } = {};
   const rawUsername = profile?.username ?? null;
+
+  // 이메일 앞부분에서 영문자/숫자/언더스코어만 추출
+  const emailPrefix = (data.user.email ?? "")
+    .split("@")[0]
+    .replace(/[^a-zA-Z0-9_]/g, "");
+  const baseUsername = "myamen_" + (emailPrefix || (data.user.id as string).replace(/-/g, "").slice(0, 10));
+
   if (rawUsername?.startsWith("user_")) {
-    // user_ 접두사 → myamen_ 으로 보정
-    updates.username = `myamen_${rawUsername.slice(5)}`;
+    // user_ 접두사 → myamen_ 이메일 기반으로 보정
+    updates.username = baseUsername;
   } else if (rawUsername && !rawUsername.startsWith("myamen_")) {
-    // 닉네임/풀네임이 username에 잘못 저장된 경우 (구 트리거 버그) → ID로 재생성
-    updates.username = `myamen_${(data.user.id as string).replace(/-/g, "").slice(0, 10)}`;
+    // 닉네임/풀네임이 username에 잘못 저장된 경우 (구 트리거 버그) → 이메일 기반 재생성
+    updates.username = baseUsername;
   } else if (!rawUsername) {
-    // username 자체가 없는 경우 → ID로 생성
-    updates.username = `myamen_${(data.user.id as string).replace(/-/g, "").slice(0, 10)}`;
+    // username 자체가 없는 경우 → 이메일 기반 생성
+    updates.username = baseUsername;
   }
 
   // 카카오 로그인 시 avatar 자동 동기화 (프로필 레코드가 없을 때만)

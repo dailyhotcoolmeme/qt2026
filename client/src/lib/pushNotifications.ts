@@ -61,6 +61,7 @@ export async function ensureNativePushListeners(
   if (nativeListenersReady || !isNativePushAvailable()) return;
 
   await PushNotifications.addListener("registration", (token: Token) => {
+    console.log("[push] registration OK, token length:", token.value?.length);
     latestNativeToken = token.value;
     if (pendingRegisterResolve) {
       pendingRegisterResolve(token.value);
@@ -69,7 +70,7 @@ export async function ensureNativePushListeners(
   });
 
   await PushNotifications.addListener("registrationError", (error) => {
-    console.error("native push registration error:", error);
+    console.error("[push] registrationError:", JSON.stringify(error));
     if (pendingRegisterResolve) {
       pendingRegisterResolve(null);
       pendingRegisterResolve = null;
@@ -91,15 +92,21 @@ export async function registerForNativePush() {
   if (!isNativePushAvailable()) return null;
 
   const permission = await getNotificationPermissionState();
+  console.log("[push] registerForNativePush, permission:", permission);
   if (permission !== "granted") return null;
-  if (latestNativeToken) return latestNativeToken;
+  if (latestNativeToken) {
+    console.log("[push] already have token, length:", latestNativeToken.length);
+    return latestNativeToken;
+  }
 
   return new Promise<string | null>(async (resolve) => {
     pendingRegisterResolve = resolve;
     try {
+      console.log("[push] calling PushNotifications.register()");
       await PushNotifications.register();
+      console.log("[push] PushNotifications.register() called, waiting for token...");
     } catch (error) {
-      console.error("PushNotifications.register failed:", error);
+      console.error("[push] PushNotifications.register failed:", error);
       pendingRegisterResolve = null;
       resolve(null);
     }

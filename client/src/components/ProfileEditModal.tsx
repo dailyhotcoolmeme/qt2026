@@ -317,7 +317,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               <div className="relative">
                 {avatarPreview ? (
                   <img
-                    src={avatarPreview}
+                    src={avatarPreview.startsWith("http://") ? `https://${avatarPreview.slice(7)}` : avatarPreview}
                     alt="Profile"
                     className="w-24 h-24 rounded-full object-cover border-4 border-zinc-100"
                   />
