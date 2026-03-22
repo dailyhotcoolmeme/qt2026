@@ -382,7 +382,7 @@ export default function RegisterPage() {
               className="w-6 h-6"
               alt="카카오"
             />
-            카카오로 3초만에 가입하기
+            카카오로 시작하기
           </button>
 
           <button
@@ -390,15 +390,15 @@ export default function RegisterPage() {
             className="w-full h-16 bg-white border-2 border-zinc-200 text-zinc-900 font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
           >
             <FcGoogle size={24} />
-            구글로 가입하기
+            구글로 시작하기
           </button>
 
           <button
-            onClick={handleAppleLogin}
+            onClick={() => alert("준비중입니다.")}
             className="w-full h-16 bg-black text-white font-bold rounded-[22px] shadow-sm flex items-center justify-center gap-3 active:scale-[0.97] transition-all"
           >
             <FaApple size={22} />
-            애플로 가입하기
+            애플로 시작하기
           </button>
 
           <button

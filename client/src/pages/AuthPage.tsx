@@ -188,7 +188,7 @@ function AuthPage() {
         </button>
 
         <button
-          onClick={() => void handleSocialLogin("apple")}
+          onClick={() => alert("준비중입니다.")}
           className={`flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-black font-bold text-white shadow-sm transition-all active:scale-95 ${!termsAgreed ? "opacity-50" : ""}`}
         >
           <svg width="22" height="22" viewBox="0 0 22 22" fill="white" xmlns="http://www.w3.org/2000/svg">
