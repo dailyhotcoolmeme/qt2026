@@ -730,16 +730,12 @@ export function TopBar() {
                   </p>
                 </div>
               ) : (
-                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-2">
-                  <div className="flex items-center gap-2 text-[15px] font-semibold text-zinc-700">
-                    <Bell className="h-4 w-4" />
-                    <span>알림 방식 안내</span>
-                  </div>
-                  <p className="text-[14px] text-zinc-500">
-                    푸시 알림은 마이아멘 앱에서만 지원됩니다. 앱을 설치하면 화면이 꺼진 상태에서도 알림을 받을 수 있어요.
+                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-1.5">
+                  <p className="text-[13px] text-zinc-500">
+                    푸시알림은 앱 설치 후 알림 설정한 경우에 가능합니다.
                   </p>
-                  <p className="text-[14px] text-zinc-400">
-                    사이트가 열려 있는 동안에는 벨 아이콘에서 모임 활동·공지 알림을 확인할 수 있습니다.
+                  <p className="text-[13px] text-zinc-500">
+                    앱이 아닌 경우에는 본 사이트 화면에 접속된 상태에서만 벨 아이콘에 알림표시가 뜹니다.
                   </p>
                 </div>
               )}
