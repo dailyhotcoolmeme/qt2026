@@ -1024,7 +1024,7 @@ async function handlePushSendGroup(request: Request, env: Env) {
 
     // WebPush
     const webRes = await fetch(
-      `${supaUrl}/rest/v1/push_subscriptions?user_id.eq.${userId}&channel=eq.webpush`,
+      `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.webpush`,
       { headers }
     );
     const webSubs = await webRes.json() as Array<{ subscription: { endpoint: string; keys: { p256dh: string; auth: string } } }>;

@@ -352,23 +352,41 @@ export default function App() {
         // OAuth 콜백이 감지되면 리다이렉트 플래그 즉시 제거 (실패해도 다음번 초대 흐름 재사용 가능)
         try { localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY); } catch { /* ignore */ }
 
+        let codeExchangeOk = false;
         try {
           const authAny: any = supabase.auth as any;
           if (typeof authAny.exchangeCodeForSession === "function") {
             const { error } = await authAny.exchangeCodeForSession(window.location.href);
             if (error) throw error;
+            codeExchangeOk = true;
           } else if (typeof authAny.getSessionFromUrl === "function") {
             // Fallback for older SDK builds.
             const { error } = await authAny.getSessionFromUrl();
             if (error) throw error;
+            codeExchangeOk = true;
           }
         } catch (e) {
           console.error("Error exchanging OAuth code for session:", e);
-          // Don't hard-crash; user can retry login.
+          // code_verifier 소실 등으로 교환 실패 시 기존 세션 재확인
+          // (이미 다른 경로로 세션이 설정된 경우 정상 진행)
         }
 
         // Give SDK a moment to persist the session before checking returnTo.
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, codeExchangeOk ? 100 : 300));
+
+        // code exchange 실패해도 기존 세션이 있으면 계속 진행
+        if (!codeExchangeOk) {
+          const { data: sessionCheck } = await supabase.auth.getSession();
+          if (!sessionCheck?.session?.user) {
+            // 세션도 없으면: URL 정리 후 auth로 이동 (invite 파라미터 보존)
+            const pendingGroupIdOnFail = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
+            const clean = pendingGroupIdOnFail
+              ? `${getBrowserOrigin()}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(pendingGroupIdOnFail)}#/auth`
+              : `${getBrowserOrigin()}/#/auth`;
+            window.location.replace(clean);
+            return;
+          }
+        }
 
         // 초대 링크로 온 경우: returnTo보다 먼저 그룹 가입 처리
         // joinPendingInviteGroup 사용 → inviteJoinInFlight 보호, clearInviteGroupId, 온보딩 처리 일괄 위임
@@ -416,10 +434,17 @@ export default function App() {
 
       if (hash.includes("access_token") || hash.includes("provider_token")) {
         try {
-          // Prefer SDK helpers if available
-          const authAny: any = supabase.auth as any;
-          if (typeof authAny.getSessionFromUrl === "function") {
-            await authAny.getSessionFromUrl();
+          // detectSessionInUrl: false 이므로 수동으로 hash에서 세션 추출
+          const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+          const accessToken = hashParams.get("access_token");
+          const refreshToken = hashParams.get("refresh_token");
+          if (accessToken && refreshToken) {
+            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          } else {
+            const authAny: any = supabase.auth as any;
+            if (typeof authAny.getSessionFromUrl === "function") {
+              await authAny.getSessionFromUrl();
+            }
           }
         } catch (e) {
           console.error("Error handling Supabase auth hash:", e);
@@ -427,6 +452,13 @@ export default function App() {
 
         // Give SDK a moment to process the session before checking returnTo
         await new Promise(resolve => setTimeout(resolve, 100));
+
+        // 초대 링크로 온 경우: returnTo보다 먼저 그룹 가입 처리
+        const pendingGroupIdForAccess = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
+        if (pendingGroupIdForAccess && UUID_REGEX.test(pendingGroupIdForAccess)) {
+          await joinPendingInviteGroup();
+          if (groupNavigationDone) return;
+        }
 
         // If a returnTo query param was preserved, use it. Otherwise try localStorage fallback.
         const params = new URLSearchParams(window.location.search);

@@ -120,10 +120,11 @@ plugins: {
 - [x] Cloudflare Worker에 Web Push 발송 로직 구현 — FCM + WebPush 모두 구현
 - [x] Supabase `push_subscriptions` 테이블 마이그레이션 — 완료
 - [x] 클라이언트 구독 API 연결 — FCM/WebPush 구독/해제 완료, iOS 플랫폼 감지 수정
-- [ ] 알림 발송 트리거 연결 (그룹 알림, 시스템 알림 등)
-- [ ] iOS APNs 연동 (Apple Developer 인증서 필요 — Xcode에서 Signing & Capabilities 추가)
-- [ ] Android FCM 연동 (`google-services.json` 필요)
-- [ ] Cloudflare Worker 환경변수 등록 (VAPID, FCM, SUPABASE, PUSH_INTERNAL_SECRET)
+- [x] 알림 발송 트리거 연결 — groupPush.ts + GroupDashboard.tsx 4곳 연결 완료 (worker send-group 오타 수정 포함)
+- [ ] iOS APNs 연동 (Xcode → Signing & Capabilities → Push Notifications 추가 필요)
+- [x] Android FCM 연동 — google-services.json + Firebase BOM 연결 완료, notification channel 생성 코드 추가
+- [ ] Cloudflare Worker 환경변수 등록 (VAPID, FCM, SUPABASE, PUSH_INTERNAL_SECRET) — .dev.vars.example 참고
+- [ ] VITE_VAPID_PUBLIC_KEY 클라이언트 .env 등록 (npx web-push generate-vapid-keys)
 
 ### Phase 2 — iOS Capacitor 프로젝트
 - [x] `npx cap add ios` 실행
@@ -133,11 +134,12 @@ plugins: {
 - [x] AppDelegate.swift APNs 핸들러 추가
 - [ ] Safe Area 기기별 검증 (iPhone SE, 14, 16 Pro 등)
 - [ ] APNs 인증서 연결 (Xcode → Signing & Capabilities → Push Notifications)
+- [x] App.entitlements aps-environment → production 변경
 - [ ] App Store 배포 준비
 
 ### Phase 3 — Android 점검 및 배포
-- [ ] 기존 Android 프로젝트 edge-to-edge 설정 확인
-- [ ] FCM `google-services.json` 연결
+- [x] 기존 Android 프로젝트 edge-to-edge 설정 — WindowCompat.setDecorFitsSystemWindows(false) 적용
+- [x] FCM `google-services.json` 연결 + notification channel(myamen_default) 생성 코드 추가
 - [ ] Safe Area 기기별 검증
 - [ ] Play Store 배포 준비
 

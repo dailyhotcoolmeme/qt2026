@@ -11,7 +11,11 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    // SDK 자동 URL 처리 비활성화 — App.tsx의 handleSupabaseHash가 단독 처리
+    // (두 곳에서 동시에 code를 소비하면 한쪽이 실패해 세션 null → 무한 로그인 루프)
+    detectSessionInUrl: false,
+    // code_verifier를 localStorage에 저장 (sessionStorage는 카카오 앱 전환 시 소실됨)
+    storage: window.localStorage,
   }
 });
 
