@@ -937,17 +937,8 @@ export default function QTPage() {
       }
 
       const verseRange = parseVerseRange(bibleData?.verse);
-      // 절별 텍스트 오프셋 계산 (타임스탬프 매핑용)
-      const spokenRefPrefix = `${spokenRef}. `;
-      const verseOffsets: { verse: number; offset: number }[] = [];
-      let charOffset = spokenRefPrefix.length;
       const verseContent = parsedVerses.length
-        ? parsedVerses.map((v) => {
-            verseOffsets.push({ verse: v.verse, offset: charOffset });
-            const part = v.text + " ";
-            charOffset += part.length;
-            return v.text;
-          }).join(" ")
+        ? parsedVerses.map((v) => v.text).join(" ")
         : String(bibleData?.content || "")
           .replace(/\s+/g, " ")
           .replace(/\d+\.?\s*/g, " ")
@@ -993,6 +984,17 @@ export default function QTPage() {
           : `${bookName} ${c}장 ${v}절 말씀`;
       }
 
+      // 절별 텍스트 오프셋 계산 (spokenRef 확정 후)
+      const spokenRefPrefix = `${spokenRef}. `;
+      const verseOffsets: { verse: number; offset: number }[] = [];
+      if (parsedVerses.length > 0) {
+        let charOffset = spokenRefPrefix.length;
+        for (const v of parsedVerses) {
+          verseOffsets.push({ verse: v.verse, offset: charOffset });
+          charOffset += v.text.length + 1; // +1 for space separator
+        }
+      }
+
       const plainText = `${spokenRef}. ${verseContent}`;
       const keyParts = [
         String(bibleData?.date || currentDate.toISOString().slice(0, 10)),
@@ -1030,7 +1032,9 @@ export default function QTPage() {
         } catch (_) {}
       }
 
-      audioMetaRef.current = { verses: [] };
+      if (!audioMetaRef.current?.verses?.length) {
+        audioMetaRef.current = { verses: [] };
+      }
       const audioUrl = await getCachedAudioObjectUrl(ttsPayload.audio_url);
       if (audioObjectUrlRef.current?.startsWith("blob:")) URL.revokeObjectURL(audioObjectUrlRef.current);
       audioObjectUrlRef.current = audioUrl;
