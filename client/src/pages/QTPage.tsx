@@ -1066,9 +1066,15 @@ export default function QTPage() {
         const currentMs = audio.currentTime * 1000;
         const timingVerses = audioMetaRef.current?.verses;
         if (timingVerses && timingVerses.length > 0) {
-          let currentVerse = timingVerses[0].verse;
-          for (const v of timingVerses) {
-            if (v.start_ms <= currentMs) currentVerse = v.verse;
+          let currentVerse: number | null = null;
+          for (let i = 0; i < timingVerses.length; i++) {
+            const v = timingVerses[i];
+            const nextV = timingVerses[i + 1];
+            // 이 절과 다음 절의 중간 지점에서 스크롤 트리거 (마지막 절은 시작 시점)
+            const triggerMs = nextV
+              ? Math.round((v.start_ms + nextV.start_ms) / 2)
+              : v.start_ms;
+            if (triggerMs <= currentMs) currentVerse = v.verse;
             else break;
           }
           setAudioCurrentVerse(currentVerse);
@@ -1170,6 +1176,7 @@ export default function QTPage() {
                   style={{ fontSize: `${fontSize}px`, maxHeight: "320px" }}
                 >
                   {parsedVerses.map(({ verse, text }) => {
+                    const isActive = audioCurrentVerse === verse;
                     return (
                       <p
                         key={verse}
@@ -1179,7 +1186,7 @@ export default function QTPage() {
                         className="flex items-start gap-2 rounded-lg px-2 py-1 transition-colors"
                       >
                         <span className="text-[#4A6741] opacity-40 text-[0.8em] font-bold mt-[2px] flex-shrink-0">{verse}</span>
-                        <span className="flex-1">{text}</span>
+                        <span className={isActive ? "flex-1 text-[#2E5FAB] font-bold" : "flex-1"}>{text}</span>
                       </p>
                     );
                   })}
