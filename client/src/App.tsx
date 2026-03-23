@@ -34,6 +34,7 @@ import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
 import InsightsDashboardPage from "./pages/InsightsDashboardPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import AdminPage from "./pages/AdminPage";
 import {
   clearInviteGroupId,
   GROUP_INVITE_QUERY_KEY,
@@ -114,6 +115,7 @@ function AppContent() {
           <Route path="/find-account" component={FindAccountPage} />
           <Route path="/update-password" component={UpdatePasswordPage} />
           <Route path="/insights" component={InsightsDashboardPage} />
+          <Route path="/admin" component={AdminPage} />
           <Route>
             <Layout>
               <TopBar />

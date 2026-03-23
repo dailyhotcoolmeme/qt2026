@@ -11,6 +11,7 @@ import { ActivityCalendarModal } from "../components/ActivityCalendarModal";
 import { shareContent } from "../lib/nativeShare";
 import { getPublicWebOrigin } from "../lib/appUrl";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 function cleanContent(text: string) {
   return String(text || "")
@@ -103,6 +104,7 @@ export default function DailyWordPage() {
   const { fontSize = 16 } = useDisplaySettings();
   const { user } = useAuth();
   const { refreshKey } = useRefresh();
+  const logEvent = useLogEvent();
 
   useEffect(() => {
     const fetchVerse = async () => {
@@ -162,6 +164,7 @@ export default function DailyWordPage() {
 
   const handleAmenClick = async () => {
     if (hasAmened || !bibleData) return;
+    logEvent("home", "amen");
     if (window.navigator?.vibrate) window.navigator.vibrate(30);
 
     setHasAmened(true);
@@ -175,6 +178,7 @@ export default function DailyWordPage() {
 
   const handleCopy = async () => {
     if (!bibleData) return;
+    logEvent("home", "copy");
     await navigator.clipboard.writeText(cleanContent(bibleData.content));
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
     setShowCopyToast(true);
@@ -182,6 +186,7 @@ export default function DailyWordPage() {
   };
 
   const handleShare = async () => {
+    logEvent("home", "share");
     const unit = bibleData?.bible_name === "시편" ? "편" : "장";
     const verseRef = bibleData ? `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절` : "";
     const body = bibleData?.content ? cleanContent(bibleData.content) : "말씀을 공유해 보세요.";
@@ -214,6 +219,7 @@ export default function DailyWordPage() {
       return;
     }
 
+    logEvent("home", "favorite_toggle");
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${unit} ${bibleData.verse}절`;
 
@@ -246,6 +252,7 @@ export default function DailyWordPage() {
       setShowLoginModal(true);
       return;
     }
+    logEvent("home", "card_create");
     setShowCardMaker(true);
   };
 

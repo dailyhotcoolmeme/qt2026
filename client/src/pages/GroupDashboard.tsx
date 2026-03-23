@@ -42,6 +42,7 @@ import getCroppedImg from "../lib/cropImage";
 import { shareContent } from "../lib/nativeShare";
 import { resolveApiUrl, getPublicWebOrigin, isNativeApp } from "../lib/appUrl";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
@@ -442,6 +443,7 @@ const KOREAN_HOLIDAYS: Record<string, string> = {
 };
 
 function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user: any, isManager: boolean }) {
+  const logEvent = useLogEvent();
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [schedules, setSchedules] = useState<GroupSchedule[]>([]);
   const [alerts, setAlerts] = useState<string[]>([]);
@@ -484,6 +486,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       alert("모임 일정 제목을 입력해주세요.");
       return;
     }
+    logEvent("group", "schedule_add");
     setSaving(true);
     const startStr = `${formDate}T${formStartTime}:00`;
     const endStr = formEndTime ? `${formDate}T${formEndTime}:00` : startStr;
@@ -590,7 +593,7 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
 
             const daySchedules = schedules.filter(s => isSameDay(parseISO(s.start_time), day)).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
             return (
-              <div key={day.toISOString()} className={`relative border-r border-b border-zinc-200 px-0.5 py-1 min-h-[70px] ${!isCurMonth ? "bg-zinc-50/50" : isSameDay(day, new Date()) ? "bg-zinc-100/80" : "bg-white"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => setSelectedDateEvents({ dateStr, events: daySchedules })}>
+              <div key={day.toISOString()} className={`relative border-r border-b border-zinc-200 px-0.5 py-1 min-h-[70px] ${!isCurMonth ? "bg-zinc-50/50" : isSameDay(day, new Date()) ? "bg-zinc-100/80" : "bg-white"} flex flex-col items-center justify-start cursor-pointer hover:bg-zinc-50 transition-colors`} onClick={() => { logEvent("group", "schedule_view"); setSelectedDateEvents({ dateStr, events: daySchedules }); }}>
                 <div className="flex flex-col items-center mb-1 w-full mt-0.5">
                   <span className={`text-[10px] sm:text-[11px] font-bold ${!isCurMonth ? "text-zinc-300" : isRedDay ? "text-rose-500" : isSaturday ? "text-blue-500" : "text-zinc-800"}`}>
                     {format(day, "d")}
@@ -849,6 +852,7 @@ export default function GroupDashboard() {
   const [location, setLocation] = useLocation();
 
   const { refreshKey } = useRefresh();
+  const logEvent = useLogEvent();
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<any | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
@@ -2077,6 +2081,7 @@ export default function GroupDashboard() {
 
   const addPrayerTopic = async () => {
     if (!group || !user || (!newPrayerTopic.trim() && newPrayerAttachments.length === 0)) return;
+    logEvent("group", "prayer_add");
     setIsSubmittingPrayerTopic(true);
     const uploadedAttachmentUrls: string[] = [];
     try {
@@ -2441,6 +2446,9 @@ export default function GroupDashboard() {
 
     const linkedType = getLinkedFeatureForItem(item);
     if (linkedType !== "none") {
+      logEvent("group", "faith_filter", { type: linkedType });
+    }
+    if (linkedType !== "none") {
       const shouldLink = confirm("개인 활동 기록을 오늘 내역으로 연결할까요?");
       if (shouldLink) {
         await openFaithLinkModal(item);
@@ -2523,6 +2531,9 @@ export default function GroupDashboard() {
   const handlePostImageSelect = (files: FileList | null) => {
     if (!files) return;
     const selected = Array.from(files).slice(0, 10);
+    if (selected.length > 0) {
+      logEvent("group", "image_attach");
+    }
     setPostImageFiles((prev) => [...prev, ...selected].slice(0, 10));
   };
 
@@ -2537,6 +2548,9 @@ export default function GroupDashboard() {
       return;
     }
 
+    if (!editingPost) {
+      logEvent("group", "post_create");
+    }
     // @ts-ignore
     setShowPostComposerModal('submitting');
     setIsSubmittingPost(true);
@@ -2731,6 +2745,7 @@ export default function GroupDashboard() {
     const text = commentDrafts[postId]?.trim();
     if (!text) return;
 
+    logEvent("group", "comment_create");
     const { data } = await supabase.from("group_post_comments").insert({ post_id: postId, user_id: user.id, content: text }).select().single();
     if (data) {
       setPostComments(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
@@ -3556,6 +3571,7 @@ export default function GroupDashboard() {
 
   const handleHeartPrayer = async (targetUserId: string) => {
     if (!group || !user) return;
+    logEvent("group", "prayer_react");
     try {
       const { error } = await supabase.from("group_prayer_records").insert({
         group_id: group.id,
@@ -4030,7 +4046,7 @@ export default function GroupDashboard() {
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={() => setShowInviteModal(true)}
+                  onClick={() => { logEvent("group", "member_invite"); setShowInviteModal(true); }}
                   className="px-3 py-1 rounded-full bg-white/20 text-sm sm:text-sm font-bold text-white inline-flex items-center justify-center gap-1.5 hover:bg-white/30 transition-colors"
                   title="모임 초대"
                 >

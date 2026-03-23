@@ -23,6 +23,9 @@ interface Env {
   NAVER_CLIENT_SECRET?: string;
   ELEVENLABS_API_KEY?: string;
   ELEVENLABS_VOICE_ID?: string;
+  ADMIN_USERNAME?: string;
+  ADMIN_PASSWORD?: string;
+  ADMIN_SECRET?: string;
 }
 
 const CORS_HEADERS = {
@@ -1199,6 +1202,133 @@ async function handlePushSendGroup(request: Request, env: Env) {
   return json(200, { success: true, sent, total: targetIds.length });
 }
 
+async function handleAdminLogin(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const { username, password } = await request.json() as { username: string; password: string };
+  const expectedUser = env.ADMIN_USERNAME || 'ourmine';
+  const expectedPass = env.ADMIN_PASSWORD || '260401';
+
+  if (username !== expectedUser || password !== expectedPass) {
+    return json(401, { error: 'unauthorized' });
+  }
+
+  const secret = env.ADMIN_SECRET || 'myamen2026';
+  const token = btoa(`${username}:${Date.now()}:${secret}`);
+  return json(200, { token });
+}
+
+async function handleAdminStats(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'GET') return json(405, { message: 'method not allowed' });
+
+  // 토큰 검증
+  const authHeader = request.headers.get('Authorization') || '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token) return json(401, { error: 'unauthorized' });
+
+  try {
+    const decoded = atob(token);
+    const secret = env.ADMIN_SECRET || 'myamen2026';
+    if (!decoded.includes(secret)) return json(401, { error: 'unauthorized' });
+  } catch {
+    return json(401, { error: 'unauthorized' });
+  }
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!supabaseUrl || !serviceKey) {
+    return json(503, { error: 'server config error' });
+  }
+
+  const sbHeaders = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    'Content-Type': 'application/json',
+  };
+
+  // KST 기준 날짜 계산
+  const kstOffset = 9 * 60 * 60 * 1000;
+  const kstNow = new Date(Date.now() + kstOffset);
+  const todayStr = kstNow.toISOString().slice(0, 10);
+  const weekAgoStr = new Date(kstNow.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const monthAgoStr = new Date(kstNow.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const [
+    dauRes, wauRes, totalUsersRes,
+    menuStatsRes, recentEventsRes, platformRes, dailyTrendRes,
+  ] = await Promise.all([
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=user_id&created_at=gte.${todayStr}T00:00:00%2B09:00&user_id=not.is.null`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=user_id&created_at=gte.${weekAgoStr}T00:00:00%2B09:00&user_id=not.is.null`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/profiles?select=id`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=menu,action&created_at=gte.${monthAgoStr}T00:00:00%2B09:00`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=menu,action,metadata,platform,created_at,user_id&order=created_at.desc&limit=50`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=platform&created_at=gte.${monthAgoStr}T00:00:00%2B09:00`, { headers: sbHeaders }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=created_at,user_id&created_at=gte.${monthAgoStr}T00:00:00%2B09:00&order=created_at.asc`, { headers: sbHeaders }),
+  ]);
+
+  const [
+    dauData, wauData, totalUsersData,
+    menuStatsData, recentEventsData, platformData, dailyTrendData,
+  ] = await Promise.all([
+    dauRes.json(),
+    wauRes.json(),
+    totalUsersRes.json(),
+    menuStatsRes.json(),
+    recentEventsRes.json(),
+    platformRes.json(),
+    dailyTrendRes.json(),
+  ]) as any[];
+
+  // DAU / WAU 계산
+  const dau = new Set((dauData as any[]).map((r: any) => r.user_id)).size;
+  const wau = new Set((wauData as any[]).map((r: any) => r.user_id)).size;
+  const totalUsers = Array.isArray(totalUsersData) ? totalUsersData.length : 0;
+
+  // 메뉴별 이벤트 카운트 및 액션 카운트 (30일)
+  const menuCounts: Record<string, number> = {};
+  const actionCounts: Record<string, Record<string, number>> = {};
+  for (const row of (menuStatsData as any[])) {
+    const menu = row.menu || 'unknown';
+    menuCounts[menu] = (menuCounts[menu] || 0) + 1;
+    if (!actionCounts[menu]) actionCounts[menu] = {};
+    const action = row.action || 'unknown';
+    actionCounts[menu][action] = (actionCounts[menu][action] || 0) + 1;
+  }
+
+  // 플랫폼 분포
+  const platformCounts: Record<string, number> = {};
+  for (const row of (platformData as any[])) {
+    const p = row.platform || 'web';
+    platformCounts[p] = (platformCounts[p] || 0) + 1;
+  }
+
+  // 일별 트렌드 (30일)
+  const dailyCounts: Record<string, { events: number; users: Set<string> }> = {};
+  for (const row of (dailyTrendData as any[])) {
+    const day = new Date(new Date(row.created_at).getTime() + kstOffset).toISOString().slice(0, 10);
+    if (!dailyCounts[day]) dailyCounts[day] = { events: 0, users: new Set() };
+    dailyCounts[day].events++;
+    if (row.user_id) dailyCounts[day].users.add(row.user_id);
+  }
+  const dailyTrend = Object.entries(dailyCounts)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, v]) => ({ date, events: v.events, dau: v.users.size }));
+
+  return json(200, {
+    dau,
+    wau,
+    totalUsers,
+    todayEvents: (dauData as any[]).length,
+    menuCounts,
+    actionCounts,
+    platformCounts,
+    recentEvents: recentEventsData,
+    dailyTrend,
+  });
+}
+
 async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname.startsWith("/api/card-backgrounds/")) {
     return handleCardBackgrounds(request, url);
@@ -1242,6 +1372,13 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === '/api/tts/elevenlabs') {
     return handleElevenLabsTTS(request, env);
+  }
+
+  if (url.pathname === '/api/admin/login') {
+    return handleAdminLogin(request, env);
+  }
+  if (url.pathname === '/api/admin/stats') {
+    return handleAdminStats(request, env);
   }
 
   if (request.method === "OPTIONS") {

@@ -28,6 +28,7 @@ import { getPublicWebOrigin } from "../lib/appUrl";
 
 import { useLocation } from "wouter";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 function formatLocalDate(date: Date) {
   const y = date.getFullYear();
@@ -105,6 +106,7 @@ export default function ReadingPage() {
   const today = new Date();
   const { user, isLoading: isAuthLoading } = useAuth();
   const { refreshKey } = useRefresh();
+  const logEvent = useLogEvent();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -1063,6 +1065,7 @@ export default function ReadingPage() {
       return;
     }
 
+    logEvent("reading", "audio_play");
 
     if (!skipPopup && rangePages.length > 1) {
       setShowPlayModePopup(true);
@@ -1380,6 +1383,8 @@ export default function ReadingPage() {
       setShowPlayModePopup(true);
       return;
     }
+
+    logEvent("reading", "audio_play");
 
     const bookId = Number(chapterData?.bible_books?.book_order || 0);
     const chapter = Number(chapterData?.chapter || 0);
@@ -1872,6 +1877,7 @@ export default function ReadingPage() {
 
   const handleCopy = () => {
     if (bibleData) {
+      logEvent("reading", "copy");
       navigator.clipboard.writeText(cleanContent(bibleData.content));
 
 
@@ -1886,6 +1892,7 @@ export default function ReadingPage() {
   const handleShare = async () => {
     if (!bibleData) return;
 
+    logEvent("reading", "share");
     const unit = bibleData.bible_name === "시편" ? "편" : "장";
     const title = `${bibleData.bible_name} ${bibleData.chapter}${unit}`;
 
@@ -1925,6 +1932,7 @@ export default function ReadingPage() {
       return;
     }
 
+    logEvent("reading", "favorite_toggle");
     const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === "시편" ? "편" : "장"} ${bibleData.verse}절`;
     try {
       const { count } = await incrementVerseBookmark({
@@ -2130,6 +2138,12 @@ export default function ReadingPage() {
         setTimeout(() => setShowWarningToast(false), 2000);
       }
       return;
+    }
+
+    if (silent) {
+      logEvent("reading", "audio_complete");
+    } else {
+      logEvent("reading", "reading_complete");
     }
 
     if (!silent && navigator.vibrate) {

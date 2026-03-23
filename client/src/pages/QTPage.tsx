@@ -29,6 +29,7 @@ import { uploadFileToR2 } from "../utils/upload";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
 import { AudioRecordPlayer } from "../components/AudioRecordPlayer";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 function formatLocalDate(date: Date) {
   const y = date.getFullYear();
@@ -62,6 +63,7 @@ export default function QTPage() {
   const today = new Date();
   const { user } = useAuth();
   const { refreshKey } = useRefresh();
+  const logEvent = useLogEvent();
   const [showCalendarModal, setShowCalendarModal] = useState(false);
   const [activityDateKeys, setActivityDateKeys] = useState<Set<string>>(new Set());
 
@@ -379,6 +381,7 @@ export default function QTPage() {
 
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
+      logEvent("qt", "voice_record_start");
       setIsRecording(true);
       setRecordingTime(0);
 
@@ -469,6 +472,10 @@ export default function QTPage() {
       if (error) throw error;
       // inserted?.id가 없더라도 실제로 error가 없으면 성공 처리 (불필요한 throw 방지)
 
+      logEvent("qt", "meditation_save", { char_count: meditationText.length });
+      if (audioBlob) {
+        logEvent("qt", "voice_record_save", { duration_sec: Math.round(recordingTime) });
+      }
       setIsMeditationCompleted(true);
       setShowWriteSheet(false);
       setShowConfirmModal(false);
@@ -497,6 +504,7 @@ export default function QTPage() {
 
   // 기록 수정 시작
   const startEditRecord = (record: any) => {
+    logEvent("qt", "meditation_edit");
     setEditingRecord(record);
     setMeditationText(record.meditation_text || '');
     setAudioBlob(null); // 기존 음성은 URL로 관리
@@ -576,6 +584,7 @@ export default function QTPage() {
   const handleDeleteRecord = async () => {
     if (!deletingRecordId) return;
 
+    logEvent("qt", "meditation_delete");
     try {
       // 삭제할 레코드 찾기
       const recordToDelete = meditationRecords.find(r => r.id === deletingRecordId);
@@ -712,6 +721,7 @@ export default function QTPage() {
 
   const handleCopy = () => {
     if (bibleData) {
+      logEvent("qt", "copy");
       // 실제 복사 로직
       navigator.clipboard.writeText(cleanContent(bibleData.content));
 
@@ -724,6 +734,7 @@ export default function QTPage() {
     }
   };
   const handleShare = async () => {
+    logEvent("qt", "share");
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
     // 카톡 공유 시 `/#/` 해시 라우팅이 붙지 않도록 origin만 공유한다.
@@ -764,6 +775,7 @@ export default function QTPage() {
       return;
     }
 
+    logEvent("qt", "favorite_toggle");
     const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === '시편' ? '편' : '장'} ${bibleData.verse}절`;
     try {
       const { count } = await incrementVerseBookmark({
@@ -818,7 +830,11 @@ export default function QTPage() {
   }, []);
 
   const closeAudioModal = () => {
-    if (audioRef.current) audioRef.current.pause();
+    if (audioRef.current) {
+      const completionRate = audioDurationUi > 0 ? Math.round((audioCurrentTime / audioDurationUi) * 100) : 0;
+      logEvent("qt", "audio_stop", { completion_rate: completionRate });
+      audioRef.current.pause();
+    }
     setIsPlaying(false);
     setShowAudioControl(false);
     setAudioLoading(false);
@@ -923,6 +939,7 @@ export default function QTPage() {
     const chapter = Number(bibleData?.chapter || 0);
     if (!bookId || !chapter) return;
 
+    logEvent("qt", "audio_play");
     if (window.navigator?.vibrate) window.navigator.vibrate(20);
 
     try {
@@ -1067,14 +1084,8 @@ export default function QTPage() {
         const timingVerses = audioMetaRef.current?.verses;
         if (timingVerses && timingVerses.length > 0) {
           let currentVerse: number | null = null;
-          for (let i = 0; i < timingVerses.length; i++) {
-            const v = timingVerses[i];
-            const nextV = timingVerses[i + 1];
-            // 이 절과 다음 절의 중간 지점에서 스크롤 트리거 (마지막 절은 시작 시점)
-            const triggerMs = nextV
-              ? Math.round((v.start_ms + nextV.start_ms) / 2)
-              : v.start_ms;
-            if (triggerMs <= currentMs) currentVerse = v.verse;
+          for (const v of timingVerses) {
+            if (v.start_ms <= currentMs) currentVerse = v.verse;
             else break;
           }
           setAudioCurrentVerse(currentVerse);
@@ -1084,6 +1095,7 @@ export default function QTPage() {
       };
 
       audio.onended = () => {
+        logEvent("qt", "audio_complete");
         setIsPlaying(false);
       };
 
@@ -1367,7 +1379,7 @@ export default function QTPage() {
 
 	          <div className="rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10">
 	            <button
-	              onClick={() => setShowWriteSheet(true)}
+	              onClick={() => { logEvent("qt", "meditation_start"); setShowWriteSheet(true); }}
 	              className="px-3 py-1.5 text-xs font-bold text-[#4A6741] rounded-full transition-colors hover:bg-[#4A6741]/20 flex items-center gap-1"
 	            >
 	              <NotebookPen size={12} /> 묵상일기
@@ -1502,6 +1514,7 @@ export default function QTPage() {
               <div className="flex flex-col gap-3">
                 <button
                   onClick={() => {
+                    logEvent("qt", "meditation_start");
                     setShowConfirmModal(false);
                     setShowWriteSheet(true);
                   }}

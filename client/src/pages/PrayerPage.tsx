@@ -12,6 +12,7 @@ import { shareContent } from "../lib/nativeShare";
 import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
 import { shareBlobFile } from "../lib/nativeFileShare";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 function formatLocalDate(date: Date) {
   const year = date.getFullYear();
@@ -32,6 +33,7 @@ export default function PrayerPage() {
   const { user } = useAuth();
   const { refreshKey } = useRefresh();
   const { fontSize } = useDisplaySettings();
+  const logEvent = useLogEvent();
   const [publicTopics, setPublicTopics] = useState<any[]>([]);
   const [publicTopicAuthors, setPublicTopicAuthors] = useState<Record<string, string>>({});
   const [currentTopicIndex, setCurrentTopicIndex] = useState(0);
@@ -134,6 +136,7 @@ export default function PrayerPage() {
   const handleAddTopic = async () => {
     if (!user) return;
     if (!newTopic.trim()) return;
+    logEvent("prayer", "topic_add");
     const { error } = await supabase.from('prayer_topics').insert({
       user_id: user!.id,
       topic_text: newTopic.trim(),
@@ -169,6 +172,7 @@ export default function PrayerPage() {
   const handleDeleteTopic = async () => {
     if (!deleteTopicId) return;
 
+    logEvent("prayer", "topic_delete");
     const { error } = await supabase
       .from('prayer_topics')
       .update({ is_public: null })
@@ -233,6 +237,7 @@ export default function PrayerPage() {
 
   // 기도 시작 버튼 (실제 녹음 시작)
   const handleStartRecording = async () => {
+    logEvent("prayer", "voice_start");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream, {
@@ -313,6 +318,7 @@ export default function PrayerPage() {
   const handleSavePrayer = async () => {
     if (!audioBlob || !user) return;
 
+    logEvent("prayer", "voice_save", { duration_sec: Math.round(recordingTime) });
     try {
       setIsSaving(true);
       setSavingProgress(0);
@@ -438,6 +444,7 @@ export default function PrayerPage() {
       setShowLoginModal(true);
       return;
     }
+    logEvent("prayer", "group_connect");
     setShowTopicGroupLinkModal(true);
   };
 
@@ -537,6 +544,7 @@ export default function PrayerPage() {
       setShowLoginModal(true);
       return;
     }
+    logEvent("prayer", "silent_prayer");
     try {
       const kstDate = new Date(new Date().getTime() + 9 * 60 * 60 * 1000).toISOString().split('T')[0];
       const shouldOpenGroupLinkModal = await shouldAutoOpenPrayerGroupLinkModal(kstDate);
