@@ -42,7 +42,7 @@ export default function TermsPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* 상단 헤더: 앱 스타일의 뒤로가기 바 */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-zinc-50 flex items-center px-4 z-10">
+      <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-zinc-50 flex items-center px-4 z-10" style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(env(safe-area-inset-top) + 4rem)' }}>
         <button 
           onClick={() => window.history.back()}
           className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
@@ -61,7 +61,7 @@ export default function TermsPage() {
       <motion.main 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex-1 px-6 pt-24 pb-12 max-w-2xl mx-auto w-full"
+        className="flex-1 px-6 pb-12 max-w-2xl mx-auto w-full" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 5.5rem)' }}
       >
         <div 
           className="text-zinc-600 leading-[1.8] tracking-tight whitespace-pre-wrap break-keep"
@@ -70,16 +70,9 @@ export default function TermsPage() {
           {term.content}
         </div>
 
-        {/* 하단 닫기 버튼 */}
-        <div className="mt-16 pt-8 border-t border-zinc-100 text-center">
-          <button 
-            onClick={() => window.history.back()}
-            className="px-8 py-3 bg-zinc-900 text-white rounded-xl font-bold shadow-sm active:scale-95 transition-all"
-            style={{ fontSize: `${fontSize * 0.9}px` }}
-          >
-            확인하였습니다
-          </button>
-        </div>
+        {/* 개역한글 안내 */}
+        <p className="mt-10 text-[12px] text-zinc-400 text-center">본 앱에서 사용하는 성경 본문은 개역한글 버전입니다.</p>
+
       </motion.main>
     </div>
   );

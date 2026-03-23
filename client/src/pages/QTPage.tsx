@@ -937,12 +937,63 @@ export default function QTPage() {
       }
 
       const verseRange = parseVerseRange(bibleData?.verse);
-      const plainText = parsedVerses.length
-        ? parsedVerses.map((v) => v.text).join(" ")
+      // 절별 텍스트 오프셋 계산 (타임스탬프 매핑용)
+      const spokenRefPrefix = `${spokenRef}. `;
+      const verseOffsets: { verse: number; offset: number }[] = [];
+      let charOffset = spokenRefPrefix.length;
+      const verseContent = parsedVerses.length
+        ? parsedVerses.map((v) => {
+            verseOffsets.push({ verse: v.verse, offset: charOffset });
+            const part = v.text + " ";
+            charOffset += part.length;
+            return v.text;
+          }).join(" ")
         : String(bibleData?.content || "")
           .replace(/\s+/g, " ")
           .replace(/\d+\.?\s*/g, " ")
           .trim();
+
+      // 숫자 → 한글 변환
+      const numToKo = (n: number): string => {
+        const map: Record<number, string> = {
+          1:"일",2:"이",3:"삼",4:"사",5:"오",6:"육",7:"칠",8:"팔",9:"구",10:"십",
+          11:"십일",12:"십이",13:"십삼",14:"십사",15:"십오",16:"십육",17:"십칠",18:"십팔",19:"십구",20:"이십",
+          21:"이십일",22:"이십이",23:"이십삼",24:"이십사",25:"이십오",26:"이십육",27:"이십칠",28:"이십팔",29:"이십구",30:"삼십",
+          31:"삼십일",32:"삼십이",33:"삼십삼",34:"삼십사",35:"삼십오",36:"삼십육",37:"삼십칠",38:"삼십팔",39:"삼십구",40:"사십",
+          41:"사십일",42:"사십이",43:"사십삼",44:"사십사",45:"사십오",46:"사십육",47:"사십칠",48:"사십팔",49:"사십구",50:"오십",
+        };
+        if (map[n]) return map[n];
+        if (n > 50 && n <= 100) {
+          const t = Math.floor(n/10); const o = n%10;
+          return (["","","이","삼","사","오","육","칠","팔","구"][t]+"십") + (o>0 ? map[o] : "");
+        }
+        if (n > 100) {
+          const h = Math.floor(n/100); const r = n%100;
+          return (h===1?"백":numToKo(h)+"백") + (r>0 ? numToKo(r) : "");
+        }
+        return String(n);
+      };
+
+      // 참조 텍스트 한글 변환 (예: 민수기 3장 24절에서 25절 말씀)
+      const bookName = bibleData?.bible_name || "";
+      const isPsalm = bookName === "시편";
+      let spokenRef = "";
+      if (verseRange) {
+        const c = numToKo(chapter);
+        const v1 = numToKo(verseRange.start);
+        const v2 = numToKo(verseRange.end);
+        spokenRef = isPsalm
+          ? `시편 ${c}편 ${v1}절에서 ${v2}절 말씀`
+          : `${bookName} ${c}장 ${v1}절에서 ${v2}절 말씀`;
+      } else {
+        const c = numToKo(chapter);
+        const v = numToKo(Number(bibleData?.verse || 0));
+        spokenRef = isPsalm
+          ? `시편 ${c}편 ${v}절 말씀`
+          : `${bookName} ${c}장 ${v}절 말씀`;
+      }
+
+      const plainText = `${spokenRef}. ${verseContent}`;
       const keyParts = [
         String(bibleData?.date || currentDate.toISOString().slice(0, 10)),
         `b${String(bookId).padStart(3, "0")}`,
@@ -950,20 +1001,34 @@ export default function QTPage() {
         verseRange ? `v${verseRange.start}-${verseRange.end}` : "vall",
       ];
       const cacheKey = keyParts.join("_");
-      const ttsRes = await fetch("/api/tts/naver", {
+      const ttsRes = await fetch("/api/tts/elevenlabs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text: plainText,
           cacheKey,
+          verseOffsets: verseOffsets.length > 0 ? verseOffsets : undefined,
         }),
       });
       if (!ttsRes.ok) {
         const errText = await ttsRes.text();
-        throw new Error(`naver tts api failed: ${ttsRes.status} ${errText}`);
+        throw new Error(`elevenlabs tts api failed: ${ttsRes.status} ${errText}`);
       }
       const ttsPayload = await ttsRes.json();
       if (!ttsPayload?.audio_url) throw new Error("audio url missing from tts api");
+
+      // 절별 타이밍 JSON 로드
+      if (ttsPayload?.timing_url) {
+        try {
+          const timingRes = await fetch(ttsPayload.timing_url);
+          if (timingRes.ok) {
+            const verseTiming = await timingRes.json();
+            if (Array.isArray(verseTiming) && verseTiming.length > 0) {
+              audioMetaRef.current = { verses: verseTiming };
+            }
+          }
+        } catch (_) {}
+      }
 
       audioMetaRef.current = { verses: [] };
       const audioUrl = await getCachedAudioObjectUrl(ttsPayload.audio_url);
@@ -994,7 +1059,18 @@ export default function QTPage() {
 
       audio.ontimeupdate = () => {
         setAudioCurrentTime(audio.currentTime);
-        setAudioCurrentVerse(estimateCurrentVerseByProgress());
+        const currentMs = audio.currentTime * 1000;
+        const timingVerses = audioMetaRef.current?.verses;
+        if (timingVerses && timingVerses.length > 0) {
+          let currentVerse = timingVerses[0].verse;
+          for (const v of timingVerses) {
+            if (v.start_ms <= currentMs) currentVerse = v.verse;
+            else break;
+          }
+          setAudioCurrentVerse(currentVerse);
+        } else {
+          setAudioCurrentVerse(estimateCurrentVerseByProgress());
+        }
       };
 
       audio.onended = () => {

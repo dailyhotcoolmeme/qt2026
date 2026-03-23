@@ -19,6 +19,10 @@ interface Env {
   VAPID_PUBLIC_KEY?: string;
   VAPID_PRIVATE_KEY?: string;
   VAPID_SUBJECT?: string;
+  NAVER_CLIENT_ID?: string;
+  NAVER_CLIENT_SECRET?: string;
+  ELEVENLABS_API_KEY?: string;
+  ELEVENLABS_VOICE_ID?: string;
 }
 
 const CORS_HEADERS = {
@@ -779,6 +783,157 @@ async function getSupabaseUserId(token: string, env: Env): Promise<string | null
   return user.id || null;
 }
 
+async function handleNaverTTS(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const { text, cacheKey } = await request.json() as { text: string; cacheKey: string };
+  if (!text || !cacheKey) return json(400, { message: 'text and cacheKey required' });
+
+  const { publicUrl: publicBase, bucketName } = requireR2Env(env);
+  const s3 = getR2Client(env);
+  const r2Key = `tts/qt/${cacheKey}.mp3`;
+  const publicUrl = `${publicBase}/${r2Key}`;
+
+  // R2에 캐시된 파일이 있으면 바로 반환
+  try {
+    const headRes = await fetch(publicUrl, { method: 'HEAD' });
+    if (headRes.ok) {
+      return json(200, { audio_url: publicUrl, cached: true });
+    }
+  } catch (_) {}
+
+  // Naver Clova Voice API — Application 키 인증
+  const naverRes = await fetch('https://naveropenapi.apigw.ntruss.com/tts-premium/v1/tts', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-NCP-APIGW-API-KEY-ID': env.NAVER_CLIENT_ID || '',
+      'X-NCP-APIGW-API-KEY': env.NAVER_CLIENT_SECRET || '',
+    },
+    body: new URLSearchParams({
+      speaker: 'nsunkyung',
+      volume: '0',
+      speed: '1',
+      pitch: '0',
+      format: 'mp3',
+      text: text.slice(0, 5000),
+    }),
+  });
+
+  if (!naverRes.ok) {
+    const errText = await naverRes.text();
+    return json(500, { message: `naver tts error: ${naverRes.status}`, detail: errText });
+  }
+
+  const audioBuffer = await naverRes.arrayBuffer();
+
+  // R2에 저장
+  await s3.send(new PutObjectCommand({
+    Bucket: bucketName,
+    Key: r2Key,
+    Body: new Uint8Array(audioBuffer),
+    ContentType: 'audio/mpeg',
+  }));
+
+  return json(200, { audio_url: publicUrl, cached: false });
+}
+
+async function handleElevenLabsTTS(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+
+  const { text, cacheKey, verseOffsets } = await request.json() as {
+    text: string;
+    cacheKey: string;
+    verseOffsets?: { verse: number; offset: number }[];
+  };
+  if (!text || !cacheKey) return json(400, { message: 'text and cacheKey required' });
+
+  const { publicUrl: publicBase, bucketName } = requireR2Env(env);
+  const s3 = getR2Client(env);
+  const audioKey = `tts/qt/${cacheKey}.mp3`;
+  const timingKey = `tts/qt/${cacheKey}.json`;
+  const audioUrl = `${publicBase}/${audioKey}`;
+  const timingUrl = `${publicBase}/${timingKey}`;
+
+  // R2에 캐시된 파일이 있으면 바로 반환
+  try {
+    const headRes = await fetch(audioUrl, { method: 'HEAD' });
+    if (headRes.ok) {
+      return json(200, { audio_url: audioUrl, timing_url: timingUrl, cached: true });
+    }
+  } catch (_) {}
+
+  // ElevenLabs TTS with-timestamps API
+  const apiKey = env.ELEVENLABS_API_KEY || '';
+  const voiceId = env.ELEVENLABS_VOICE_ID || 'cgSgspJ2msm6clMCkdW9';
+  const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}/with-timestamps`, {
+    method: 'POST',
+    headers: {
+      'xi-api-key': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      text: text.slice(0, 5000),
+      model_id: 'eleven_multilingual_v2',
+      voice_settings: {
+        stability: 0.5,
+        similarity_boost: 0.75,
+      },
+    }),
+  });
+
+  if (!elevenRes.ok) {
+    const errText = await elevenRes.text();
+    return json(500, { message: `elevenlabs tts error: ${elevenRes.status}`, detail: errText });
+  }
+
+  const payload = await elevenRes.json() as {
+    audio_base64: string;
+    alignment: {
+      characters: string[];
+      character_start_times_seconds: number[];
+      character_end_times_seconds: number[];
+    };
+  };
+
+  // base64 오디오 디코딩
+  const binaryStr = atob(payload.audio_base64);
+  const audioBytes = new Uint8Array(binaryStr.length);
+  for (let i = 0; i < binaryStr.length; i++) {
+    audioBytes[i] = binaryStr.charCodeAt(i);
+  }
+
+  // 절별 타이밍 계산
+  const startTimes = payload.alignment?.character_start_times_seconds ?? [];
+  let verseTiming: { verse: number; start_ms: number }[] = [];
+  if (verseOffsets && verseOffsets.length > 0 && startTimes.length > 0) {
+    verseTiming = verseOffsets.map(({ verse, offset }) => {
+      const sec = startTimes[Math.min(offset, startTimes.length - 1)] ?? 0;
+      return { verse, start_ms: Math.round(sec * 1000) };
+    });
+  }
+
+  // R2에 오디오 + 타이밍 JSON 저장
+  await Promise.all([
+    s3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: audioKey,
+      Body: audioBytes,
+      ContentType: 'audio/mpeg',
+    })),
+    s3.send(new PutObjectCommand({
+      Bucket: bucketName,
+      Key: timingKey,
+      Body: JSON.stringify(verseTiming),
+      ContentType: 'application/json',
+    })),
+  ]);
+
+  return json(200, { audio_url: audioUrl, timing_url: timingUrl, cached: false });
+}
+
 async function handlePushSubscribe(request: Request, env: Env) {
   if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
   if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
@@ -1080,6 +1235,13 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === '/api/push/send-group') {
     return handlePushSendGroup(request, env);
+  }
+
+  if (url.pathname === '/api/tts/naver') {
+    return handleNaverTTS(request, env);
+  }
+  if (url.pathname === '/api/tts/elevenlabs') {
+    return handleElevenLabsTTS(request, env);
   }
 
   if (request.method === "OPTIONS") {
