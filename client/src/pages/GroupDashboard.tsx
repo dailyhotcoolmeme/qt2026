@@ -972,6 +972,7 @@ export default function GroupDashboard() {
   const [textPrayerEditId, setTextPrayerEditId] = useState<number | null>(null);
   const [textPrayerSaving, setTextPrayerSaving] = useState(false);
   const [savedPrayerTopicIds, setSavedPrayerTopicIds] = useState<Set<number>>(new Set());
+  const [prayerBoxToast, setPrayerBoxToast] = useState<string | null>(null);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
@@ -1346,11 +1347,15 @@ export default function GroupDashboard() {
     }
   };
 
+  const getPrayerBoxStorageKey = (userId: string) => `myamen_prayer_box_${userId}`;
+
+  const getPrayerBoxItems = (userId: string): Array<{ topicId: number; content: string; groupName: string; savedAt: string }> => {
+    try { return JSON.parse(localStorage.getItem(getPrayerBoxStorageKey(userId)) || "[]"); } catch { return []; }
+  };
+
   const loadSavedPrayerTopics = async (userId: string) => {
-    try {
-      const { data } = await supabase.from("prayer_box").select("topic_id").eq("user_id", userId);
-      if (data) setSavedPrayerTopicIds(new Set(data.map((r: any) => r.topic_id as number)));
-    } catch { /* prayer_box 테이블 없는 경우 조용히 무시 */ }
+    const items = getPrayerBoxItems(userId);
+    setSavedPrayerTopicIds(new Set(items.map(i => i.topicId)));
   };
 
   const loadPersonalPrayers = async (userId: string) => {
@@ -3734,15 +3739,15 @@ export default function GroupDashboard() {
     }
   };
 
-  const toggleSavePrayerTopic = async (topicId: number) => {
-    if (!user) return;
-    if (savedPrayerTopicIds.has(topicId)) {
-      await supabase.from("prayer_box").delete().eq("user_id", user.id).eq("topic_id", topicId);
-      setSavedPrayerTopicIds(prev => { const s = new Set(prev); s.delete(topicId); return s; });
-    } else {
-      await supabase.from("prayer_box").insert({ user_id: user.id, topic_id: topicId });
-      setSavedPrayerTopicIds(prev => new Set([...prev, topicId]));
-    }
+  const savePrayerTopic = (topicId: number, content: string) => {
+    if (!user || !group) return;
+    if (savedPrayerTopicIds.has(topicId)) return;
+    const items = getPrayerBoxItems(user.id);
+    items.unshift({ topicId, content, groupName: group.name, savedAt: new Date().toISOString() });
+    try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
+    setSavedPrayerTopicIds(prev => new Set([...prev, topicId]));
+    setPrayerBoxToast("기도제목함에 보관되었습니다.");
+    setTimeout(() => setPrayerBoxToast(null), 2500);
   };
 
   const deleteSingleTopic = async (topicId: number, authorId: string) => {
@@ -3915,13 +3920,13 @@ export default function GroupDashboard() {
                   </div>
                   {userId === user.id && (
                     <button
-                      onClick={() => toggleSavePrayerTopic(topic.id)}
-                      title={savedPrayerTopicIds.has(topic.id) ? "기도제목함에서 제거" : "기도제목함에 저장"}
-                      className="shrink-0 mt-0.5 p-0.5 transition-colors"
+                      onClick={() => savePrayerTopic(topic.id, topic.content || "")}
+                      title={savedPrayerTopicIds.has(topic.id) ? "기도제목함에 보관됨" : "기도제목함에 저장"}
+                      className="shrink-0 mt-0.5 p-1.5 rounded-lg transition-colors active:scale-95"
                     >
                       {savedPrayerTopicIds.has(topic.id)
-                        ? <BookmarkCheck size={15} className="text-amber-500" />
-                        : <Bookmark size={15} className="text-zinc-300 hover:text-amber-400" />
+                        ? <BookmarkCheck size={20} className="text-amber-500" />
+                        : <Bookmark size={20} className="text-zinc-300 hover:text-amber-400" />
                       }
                     </button>
                   )}
@@ -4056,6 +4061,24 @@ export default function GroupDashboard() {
           >
             <div className="bg-black/60 text-white px-8 py-4 rounded-2xl shadow-xl text-sm font-bold text-center whitespace-pre-line backdrop-blur-sm">
               {heartPrayerToast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 기도제목함 저장 토스트 */}
+      <AnimatePresence>
+        {prayerBoxToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[300] pointer-events-none"
+          >
+            <div className="bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap">
+              <BookmarkCheck size={16} />
+              {prayerBoxToast}
             </div>
           </motion.div>
         )}
