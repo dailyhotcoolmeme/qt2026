@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
-import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, Calendar as CalendarIcon } from "lucide-react";
+import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, Calendar as CalendarIcon, Bookmark, BookmarkCheck } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -55,6 +55,8 @@ export default function PrayerPage() {
   const [prayerRecords, setPrayerRecords] = useState<any[]>([]);
   const [deleteRecordId, setDeleteRecordId] = useState<number | null>(null);
   const [deleteRecordUrl, setDeleteRecordUrl] = useState<string | null>(null);
+  const [savedPrayerContentMap, setSavedPrayerContentMap] = useState<Map<number, string>>(new Map());
+  const [prayerBoxToast, setPrayerBoxToast] = useState<string | null>(null);
   const [showCopyToast, setShowCopyToast] = useState(false);
   const [showAmenToast, setShowAmenToast] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -75,6 +77,30 @@ export default function PrayerPage() {
   const mediaRecorderRef = useRef<any>(null);
   const recordingTimerRef = useRef<any>(null);
   // 모임 연결 관련 useEffect 제거
+
+  // 기도제목함 localStorage 헬퍼
+  const getPrayerBoxKey = (uid: string) => `myamen_prayer_box_${uid}`;
+  const getPrayerBoxItems = (uid: string): Array<{ topicId: number; content: string; groupName: string; savedAt: string }> => {
+    try { return JSON.parse(localStorage.getItem(getPrayerBoxKey(uid)) || "[]"); } catch { return []; }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const items = getPrayerBoxItems(user.id);
+    const map = new Map<number, string>();
+    items.forEach(i => map.set(i.topicId, i.content));
+    setSavedPrayerContentMap(map);
+  }, [user?.id]);
+
+  const saveToPrayerBox = (topicId: number, content: string) => {
+    if (!user) return;
+    const items = getPrayerBoxItems(user.id);
+    items.unshift({ topicId, content, groupName: "매일기도", savedAt: new Date().toISOString() });
+    try { localStorage.setItem(getPrayerBoxKey(user.id), JSON.stringify(items)); } catch {}
+    setSavedPrayerContentMap(prev => new Map(prev).set(topicId, content));
+    setPrayerBoxToast("기도제목함에 보관되었습니다.");
+    setTimeout(() => setPrayerBoxToast(null), 2500);
+  };
 
   // 상태 변수 선언 바로 아래에 함수 선언
   const loadMyTopics = async () => {
@@ -703,6 +729,22 @@ export default function PrayerPage() {
 
   return (
     <div className="relative w-full min-h-screen bg-[#F8F8F8] overflow-x-hidden overflow-y-auto px-4 pt-[var(--app-page-top)] pb-4">
+      <AnimatePresence>
+        {prayerBoxToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 inset-x-0 flex justify-center z-[300] pointer-events-none"
+          >
+            <div className="bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap">
+              <BookmarkCheck size={16} />
+              {prayerBoxToast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <header className="relative mb-3 flex w-full flex-col items-center px-4 text-center">
         <p className="mb-1 font-bold tracking-[0.2em] text-gray-400" style={{ fontSize: `${fontSize * 0.8}px` }}>
           {currentDate.getFullYear()}
@@ -956,6 +998,22 @@ export default function PrayerPage() {
                         공개
                       </span>
                     )}
+                    {(() => {
+                      const savedContent = savedPrayerContentMap.get(topic.id);
+                      const isSynced = savedContent !== undefined && savedContent === (topic.topic_text || "");
+                      return (
+                        <button
+                          onClick={() => saveToPrayerBox(topic.id, topic.topic_text || "")}
+                          title={isSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
+                          className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-amber-50 transition-colors"
+                        >
+                          {isSynced
+                            ? <BookmarkCheck size={16} className="text-amber-500" />
+                            : <Bookmark size={16} className="text-zinc-300 hover:text-amber-400" />
+                          }
+                        </button>
+                      );
+                    })()}
                     <button
                       onClick={() => setDeleteTopicId(topic.id)}
                       className="w-7 h-7 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
