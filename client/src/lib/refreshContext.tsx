@@ -42,9 +42,14 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     // TopBar 영역 내 터치는 PTR 무시
     if (touch.clientY < topBarHeightRef.current) return;
 
-    const scrollable = (e.target as HTMLElement).closest('[data-overscroll], .overflow-y-auto, .overflow-y-scroll, .overflow-auto, .overflow-scroll');
-    const scrollTop = scrollable ? (scrollable as HTMLElement).scrollTop : window.scrollY;
-    if (scrollTop > 2) return;
+    // DOM 전체 조상을 순회하며 scrollTop > 2 인 요소가 하나라도 있으면 PTR 비활성
+    let el: HTMLElement | null = e.target as HTMLElement;
+    while (el && el !== document.documentElement) {
+      if (el.scrollTop > 2) return;
+      el = el.parentElement;
+    }
+    if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) return;
+
     startYRef.current = touch.clientY;
     pullDistRef.current = 0;
   }, []);
