@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { LoginModal } from "../components/LoginModal";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 type VerseCardRecord = {
   id: string;
@@ -102,6 +103,7 @@ async function shareDataUrl(dataUrl: string, title: string) {
 export default function VerseCardsPage() {
   const { user, isLoading } = useAuth();
   const { fontSize } = useDisplaySettings();
+  const logEvent = useLogEvent();
   const [showLoginModal, setShowLoginModal] = useState(false);
 
   const [cards, setCards] = useState<VerseCardRecord[]>([]);
@@ -142,6 +144,7 @@ export default function VerseCardsPage() {
   }, [user?.id]);
 
   const saveCardToPhone = async (card: VerseCardRecord) => {
+    logEvent("hamburger", "card_download", { title: card.title });
     try {
       await downloadDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);
     } catch (error) {
@@ -151,6 +154,7 @@ export default function VerseCardsPage() {
   };
 
   const shareCard = async (card: VerseCardRecord) => {
+    logEvent("hamburger", "card_share", { title: card.title });
     try {
       const shared = await shareDataUrl(card.imageDataUrl, card.title || "말씀 카드");
       if (!shared) {
@@ -165,6 +169,7 @@ export default function VerseCardsPage() {
   };
 
   const deleteCard = async (card: VerseCardRecord) => {
+    logEvent("hamburger", "card_delete", { title: card.title });
     const next = cards.filter((c) => c.id !== card.id);
     setCards(next);
     if (activeCard?.id === card.id) setActiveCard(null);

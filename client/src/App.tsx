@@ -35,6 +35,7 @@ import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "
 import InsightsDashboardPage from "./pages/InsightsDashboardPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AdminPage from "./pages/AdminPage";
+import MyPrayerBoxPage from "./pages/MyPrayerBoxPage";
 import {
   clearInviteGroupId,
   GROUP_INVITE_QUERY_KEY,
@@ -137,6 +138,7 @@ function AppContent() {
                   <Route path="/bible/:book/:chapter" component={BibleViewPage} />
                   <Route path="/record/:id" component={RecordDetailPage} />
                   <Route path="/search" component={SearchPage} />
+                  <Route path="/my-prayer-box" component={MyPrayerBoxPage} />
                   <Route component={NotFound} />
                 </Switch>
               </main>

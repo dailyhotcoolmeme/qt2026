@@ -832,6 +832,9 @@ export function TopBar() {
 	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
 	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
 	            </Link>
+	            <Link href="/my-prayer-box" onClick={() => setIsMenuOpen(false)}>
+	              <SidebarItem icon={<CheckCheck className="h-5 w-5" />} label="내 기도제목함" />
+	            </Link>
 	
 	            {!isAuthenticated && (
 	              <div className="mt-2 flex flex-col gap-2">

@@ -7,6 +7,7 @@ import { LoginModal } from "../components/LoginModal";
 import { shareContent } from "../lib/nativeShare";
 import { getPublicWebOrigin } from "../lib/appUrl";
 import { useRefresh } from "../lib/refreshContext";
+import { useLogEvent } from "../hooks/useLogEvent";
 
 type VerseBookmarkRow = {
   id: string;
@@ -57,6 +58,7 @@ export default function FavoritesPage() {
   const { user, isLoading } = useAuth();
   const { refreshKey } = useRefresh();
   const { fontSize } = useDisplaySettings();
+  const logEvent = useLogEvent();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [rows, setRows] = useState<VerseBookmarkRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -190,6 +192,7 @@ export default function FavoritesPage() {
                       <div className="absolute right-3 top-3 flex items-center gap-1">
                         <button
                           onClick={async () => {
+                            logEvent("hamburger", "favorite_copy", { verse_ref: verseRef });
                             try {
                               await copyToClipboard(shareTextOnly || content || verseRef);
                               alert("복사되었습니다.");
@@ -206,6 +209,7 @@ export default function FavoritesPage() {
 
                         <button
                           onClick={async () => {
+                            logEvent("hamburger", "favorite_share", { verse_ref: verseRef });
                             try {
                               // 카톡 공유 시 title + text가 함께 노출되며, title을 절(제목)로 넣으면
                               // text에도 절이 있어 중복 표시되는 경우가 있어 title은 고정값으로 둔다.
@@ -236,6 +240,7 @@ export default function FavoritesPage() {
                             if (!user?.id) return;
                             const ok = window.confirm("즐겨찾기를 삭제할까요?");
                             if (!ok) return;
+                            logEvent("hamburger", "favorite_delete", { verse_ref: verseRef });
                             try {
                               const { error } = await supabase
                                 .from("verse_bookmarks")

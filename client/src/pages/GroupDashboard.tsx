@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -971,6 +971,7 @@ export default function GroupDashboard() {
   const [textPrayerContent, setTextPrayerContent] = useState("");
   const [textPrayerEditId, setTextPrayerEditId] = useState<number | null>(null);
   const [textPrayerSaving, setTextPrayerSaving] = useState(false);
+  const [savedPrayerTopicIds, setSavedPrayerTopicIds] = useState<Set<number>>(new Set());
   const [headerImageDraft, setHeaderImageDraft] = useState("");
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
   const [headerImageUploading, setHeaderImageUploading] = useState(false);
@@ -1246,6 +1247,7 @@ export default function GroupDashboard() {
       loadMembers(targetGroupId, groupData.owner_id),
       loadJoinRequests(targetGroupId),
       loadScopeLeaders(targetGroupId),
+      loadSavedPrayerTopics(userId!),
     ]);
 
     if (nextRole === "owner" || nextRole === "leader") {
@@ -1342,6 +1344,13 @@ export default function GroupDashboard() {
         });
       }
     }
+  };
+
+  const loadSavedPrayerTopics = async (userId: string) => {
+    try {
+      const { data } = await supabase.from("prayer_box").select("topic_id").eq("user_id", userId);
+      if (data) setSavedPrayerTopicIds(new Set(data.map((r: any) => r.topic_id as number)));
+    } catch { /* prayer_box 테이블 없는 경우 조용히 무시 */ }
   };
 
   const loadPersonalPrayers = async (userId: string) => {
@@ -3725,6 +3734,17 @@ export default function GroupDashboard() {
     }
   };
 
+  const toggleSavePrayerTopic = async (topicId: number) => {
+    if (!user) return;
+    if (savedPrayerTopicIds.has(topicId)) {
+      await supabase.from("prayer_box").delete().eq("user_id", user.id).eq("topic_id", topicId);
+      setSavedPrayerTopicIds(prev => { const s = new Set(prev); s.delete(topicId); return s; });
+    } else {
+      await supabase.from("prayer_box").insert({ user_id: user.id, topic_id: topicId });
+      setSavedPrayerTopicIds(prev => new Set([...prev, topicId]));
+    }
+  };
+
   const deleteSingleTopic = async (topicId: number, authorId: string) => {
     if (!group || !user) return;
     const canDelete = isManager || authorId === user.id;
@@ -3873,24 +3893,38 @@ export default function GroupDashboard() {
           {textTopics.length > 0 && (
             <div className="space-y-4">
               {textTopics.map((topic) => (
-                <div key={topic.id} className="text-sm">
-                  {hasVisiblePrayerTopicContent(topic.content) && (
-                    <div className="font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-snug">{topic.content}</div>
+                <div key={topic.id} className="text-sm flex items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    {hasVisiblePrayerTopicContent(topic.content) && (
+                      <div className="font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-snug">{topic.content}</div>
+                    )}
+                    {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment, index) => (
+                      <div key={attachment.id} className={hasVisiblePrayerTopicContent(topic.content) || index > 0 ? "mt-3" : ""}>
+                        <a
+                          href={attachment.file_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          download={attachment.file_name || undefined}
+                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
+                        >
+                          <Link2 size={12} />
+                          <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                  {userId === user.id && (
+                    <button
+                      onClick={() => toggleSavePrayerTopic(topic.id)}
+                      title={savedPrayerTopicIds.has(topic.id) ? "기도제목함에서 제거" : "기도제목함에 저장"}
+                      className="shrink-0 mt-0.5 p-0.5 transition-colors"
+                    >
+                      {savedPrayerTopicIds.has(topic.id)
+                        ? <BookmarkCheck size={15} className="text-amber-500" />
+                        : <Bookmark size={15} className="text-zinc-300 hover:text-amber-400" />
+                      }
+                    </button>
                   )}
-                  {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment, index) => (
-                    <div key={attachment.id} className={hasVisiblePrayerTopicContent(topic.content) || index > 0 ? "mt-3" : ""}>
-                      <a
-                        href={attachment.file_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        download={attachment.file_name || undefined}
-                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
-                      >
-                        <Link2 size={12} />
-                        <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
-                      </a>
-                    </div>
-                  ))}
                 </div>
               ))}
             </div>
