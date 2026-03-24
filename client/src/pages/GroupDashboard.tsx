@@ -4074,7 +4074,7 @@ export default function GroupDashboard() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[300] pointer-events-none"
+            className="fixed bottom-28 inset-x-0 flex justify-center z-[300] pointer-events-none"
           >
             <div className="bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap">
               <BookmarkCheck size={16} />

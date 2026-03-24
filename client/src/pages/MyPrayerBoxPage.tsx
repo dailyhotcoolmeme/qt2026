@@ -65,8 +65,8 @@ export default function MyPrayerBoxPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 pb-24">
-      <div className="flex items-center gap-2 py-4">
+    <div className="max-w-2xl mx-auto px-4 pb-24" style={{ paddingTop: "calc(4rem + var(--safe-top-inset, 0px) + 0.5rem)" }}>
+      <div className="flex items-center gap-2 pb-4">
         <button onClick={() => setLocation("/")} className="p-1 -ml-1 text-zinc-400 hover:text-zinc-700">
           <ChevronLeft size={22} />
         </button>
