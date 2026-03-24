@@ -936,6 +936,7 @@ export default function GroupDashboard() {
   const [postLikes, setPostLikes] = useState<Record<number, any[]>>({});
   const [postComments, setPostComments] = useState<Record<number, any[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [editingComment, setEditingComment] = useState<{ postId: number; commentId: number; content: string } | null>(null);
   const [authorMap, setAuthorMap] = useState<Record<string, ProfileLite>>({});
   const [expandedPosts, setExpandedPosts] = useState<Record<number, boolean>>({});
   const [showImageModal, setShowImageModal] = useState(false);
@@ -2776,6 +2777,17 @@ export default function GroupDashboard() {
     setPostComments(prev => ({ ...prev, [postId]: prev[postId].filter(c => c.id !== commentId) }));
   };
 
+  const updateComment = async (postId: number, commentId: number, content: string) => {
+    const trimmed = content.trim();
+    if (!trimmed) return;
+    await supabase.from("group_post_comments").update({ content: trimmed }).eq("id", commentId);
+    setPostComments(prev => ({
+      ...prev,
+      [postId]: prev[postId].map(c => c.id === commentId ? { ...c, content: trimmed } : c),
+    }));
+    setEditingComment(null);
+  };
+
   const changeMemberRole = async (targetUserId: string, nextRole: "leader" | "member") => {
     if (!group || !user || role !== "owner" || targetUserId === group.owner_id) return;
 
@@ -4422,6 +4434,8 @@ export default function GroupDashboard() {
                           const cAuthor = authorMap[comment.user_id];
                           const cName = cAuthor?.nickname || cAuthor?.username || "모임원";
                           const canDeleteComment = isManager || comment.user_id === user.id;
+                          const canEditComment = comment.user_id === user.id;
+                          const isEditingThis = editingComment?.commentId === comment.id && editingComment?.postId === post.id;
                           return (
                             <div key={comment.id} className="bg-zinc-50 rounded-lg p-3 text-sm">
                               <div className="flex justify-between items-start mb-1">
@@ -4429,9 +4443,36 @@ export default function GroupDashboard() {
                                   <span className="font-bold text-zinc-700 truncate">{cName}</span>
                                   <span className="text-[11px] text-zinc-400 shrink-0">{formatDateTime(comment.created_at).slice(0, 17).replace('T', ' ')}</span>
                                 </div>
-                                {canDeleteComment && <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><Trash2 size={14} /></button>}
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {canEditComment && !isEditingThis && (
+                                    <button onClick={() => setEditingComment({ postId: post.id, commentId: comment.id, content: comment.content })} className="text-zinc-400 hover:text-[#4A6741]"><Pencil size={13} /></button>
+                                  )}
+                                  {canDeleteComment && (
+                                    <button onClick={() => deleteComment(post.id, comment.id)} className="text-zinc-400 hover:text-rose-500"><Trash2 size={14} /></button>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
+                              {isEditingThis ? (
+                                <div className="flex flex-col gap-1.5 mt-1">
+                                  <textarea
+                                    autoFocus
+                                    value={editingComment.content}
+                                    onChange={e => setEditingComment(prev => prev ? { ...prev, content: e.target.value } : null)}
+                                    onKeyDown={e => {
+                                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); updateComment(post.id, comment.id, editingComment.content); }
+                                      if (e.key === 'Escape') setEditingComment(null);
+                                    }}
+                                    rows={2}
+                                    className="w-full bg-white border border-[#4A6741]/40 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#4A6741] resize-none"
+                                  />
+                                  <div className="flex justify-end gap-2">
+                                    <button onClick={() => setEditingComment(null)} className="text-xs text-zinc-400 hover:text-zinc-600 px-2 py-1">취소</button>
+                                    <button onClick={() => updateComment(post.id, comment.id, editingComment.content)} className="text-xs text-white bg-[#4A6741] hover:bg-[#3d5535] px-3 py-1 rounded-full">저장</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
+                              )}
                             </div>
                           );
                         })}

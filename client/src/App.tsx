@@ -92,8 +92,11 @@ function OnboardingRedirect() {
         if (storedInvite && UUID_REGEX.test(storedInvite)) return;
         // URL에 초대 파라미터가 있는지 직접 확인 (App.useEffect보다 먼저 실행되므로)
         if (readInviteGroupIdFromUrl()) return;
-        // OAuth 콜백 진행 중
+        // OAuth 콜백 진행 중 (search param 또는 sessionStorage 플래그)
         if (window.location.search.includes("code=") || window.location.search.includes("state=")) return;
+        if (sessionStorage.getItem('__oauth_cb') === '1') return;
+        // hash에 직접 토큰이 있는 경우 (implicit flow)
+        if (window.location.hash.includes("access_token") || window.location.hash.includes("provider_token")) return;
         setLocation("/onboarding");
       }
     } catch { /* ignore */ }
@@ -148,6 +151,20 @@ function AppContent() {
 
 // 그룹 가입 후 네비게이션이 시작됐으면 다른 네비게이션이 덮어쓰지 못하게 막는 플래그
 let groupNavigationDone = false;
+
+// ── 모듈 로드 시 즉시 실행 (React 렌더링 전) ──────────────────────────────
+// OnboardingRedirect.useEffect보다 먼저 실행되어야 하므로 useEffect 밖에 위치
+// 1) hash에 OAuth 토큰이 있으면 즉시 캡처하고 URL을 정리
+// 2) sessionStorage에 플래그 → OnboardingRedirect가 OAuth 진행 중임을 인식
+const _INITIAL_OAUTH_HASH = (typeof window !== 'undefined' ? window.location.hash : '') || '';
+if (_INITIAL_OAUTH_HASH.includes('access_token') || _INITIAL_OAUTH_HASH.includes('provider_token')) {
+  window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+  try { sessionStorage.setItem('__oauth_cb', '1'); } catch { /* ignore */ }
+}
+// PKCE code flow도 동일하게 플래그 설정
+if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
+  try { sessionStorage.setItem('__oauth_cb', '1'); } catch { /* ignore */ }
+}
 
 export default function App() {
   useEffect(() => {
@@ -335,7 +352,8 @@ export default function App() {
 
     // Handle Supabase OAuth responses that return tokens in the URL hash
     const handleSupabaseHash = async () => {
-      const hash = window.location.hash || "";
+      // _INITIAL_OAUTH_HASH: 모듈 로드 시점에 캡처한 원본 hash (OnboardingRedirect가 변경하기 전)
+      const hash = _INITIAL_OAUTH_HASH || window.location.hash || "";
       const search = window.location.search || "";
 
       if (hash.includes("error") || search.includes("error=")) {
@@ -354,11 +372,32 @@ export default function App() {
         // OAuth 콜백이 감지되면 리다이렉트 플래그 즉시 제거 (실패해도 다음번 초대 흐름 재사용 가능)
         try { localStorage.removeItem(PENDING_GROUP_INVITE_REDIRECTED_KEY); } catch { /* ignore */ }
 
+        // ★ 코드를 URL에서 즉시 제거 — 삼성 인터넷이 백그라운드 재로드할 때
+        //    동일한 code로 이중 exchange가 발생하면 "invalid grant" 오류가 남
+        //    code 파라미터만 제거하고 나머지(returnTo, invite 등)는 유지
+        const _exchangeParams = new URLSearchParams(search);
+        const _codeToExchange = _exchangeParams.get('code') || '';
+        const _stateToExchange = _exchangeParams.get('state') || '';
+        const _returnToParam = _exchangeParams.get('returnTo') || '';
+        const _inviteParam = _exchangeParams.get(GROUP_INVITE_QUERY_KEY) || '';
+        const _cleanExchangeSearch = new URLSearchParams();
+        if (_returnToParam) _cleanExchangeSearch.set('returnTo', _returnToParam);
+        if (_inviteParam) _cleanExchangeSearch.set(GROUP_INVITE_QUERY_KEY, _inviteParam);
+        const _cleanExchangeUrl = window.location.pathname
+          + (_cleanExchangeSearch.toString() ? '?' + _cleanExchangeSearch.toString() : '')
+          + (window.location.hash || '#/');
+        window.history.replaceState(null, '', _cleanExchangeUrl);
+
+        // 교환에 사용할 전체 URL(코드 포함)을 미리 저장
+        const _originalHrefWithCode = `${window.location.origin}${window.location.pathname}?${
+          _codeToExchange ? `code=${encodeURIComponent(_codeToExchange)}&` : ''}${
+          _stateToExchange ? `state=${encodeURIComponent(_stateToExchange)}&` : ''}${_cleanExchangeSearch.toString()}`;
+
         let codeExchangeOk = false;
         try {
           const authAny: any = supabase.auth as any;
           if (typeof authAny.exchangeCodeForSession === "function") {
-            const { error } = await authAny.exchangeCodeForSession(window.location.href);
+            const { error } = await authAny.exchangeCodeForSession(_originalHrefWithCode);
             if (error) throw error;
             codeExchangeOk = true;
           } else if (typeof authAny.getSessionFromUrl === "function") {
@@ -374,7 +413,14 @@ export default function App() {
         }
 
         // Give SDK a moment to persist the session before checking returnTo.
-        await new Promise(resolve => setTimeout(resolve, codeExchangeOk ? 100 : 300));
+        await new Promise(resolve => setTimeout(resolve, codeExchangeOk ? 300 : 500));
+
+        // code exchange 성공 시 온보딩 완료 마킹 (삼성 인터넷 등 새 브라우저 재방문 시 온보딩 리디렉션 방지)
+        if (codeExchangeOk) {
+          try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
+        }
+        // OAuth 플래그 제거
+        try { sessionStorage.removeItem('__oauth_cb'); } catch { /* ignore */ }
 
         // code exchange 실패해도 기존 세션이 있으면 계속 진행
         if (!codeExchangeOk) {
@@ -400,12 +446,16 @@ export default function App() {
         }
 
         // Preserve returnTo behavior for code flow too.
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(_returnToParam ? `returnTo=${encodeURIComponent(_returnToParam)}` : window.location.search);
         const returnTo = params.get("returnTo");
         if (returnTo) {
           try {
             const decoded = decodeURIComponent(returnTo);
-            window.location.href = coerceReturnToInAppUrl(decoded);
+            const targetUrl = coerceReturnToInAppUrl(decoded);
+            // replaceState로 SPA 내비게이션 (전체 리로드 없음)
+            const targetHash = new URL(targetUrl).hash || '#/';
+            window.history.replaceState(null, '', window.location.pathname + targetHash);
+            window.dispatchEvent(new Event('hashchange'));
             return;
           } catch (e) {
             console.error("Failed to decode returnTo:", e);
@@ -417,7 +467,10 @@ export default function App() {
           if (stored) {
             localStorage.removeItem('qt_return');
             localStorage.removeItem('qt_autoOpenWrite');
-            window.location.href = coerceReturnToInAppUrl(stored);
+            const targetUrl = coerceReturnToInAppUrl(stored);
+            const targetHash = new URL(targetUrl).hash || '#/';
+            window.history.replaceState(null, '', window.location.pathname + targetHash);
+            window.dispatchEvent(new Event('hashchange'));
             return;
           }
         } catch {
@@ -453,7 +506,11 @@ export default function App() {
         }
 
         // Give SDK a moment to process the session before checking returnTo
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        // 온보딩 완료 마킹 + OAuth 플래그 제거
+        try { localStorage.setItem("myamen_onboarding_done", "1"); } catch { /* ignore */ }
+        try { sessionStorage.removeItem('__oauth_cb'); } catch { /* ignore */ }
 
         // 초대 링크로 온 경우: returnTo보다 먼저 그룹 가입 처리
         const pendingGroupIdForAccess = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
@@ -468,11 +525,14 @@ export default function App() {
         if (returnTo) {
           try {
             const decoded = decodeURIComponent(returnTo);
-            window.location.href = coerceReturnToInAppUrl(decoded);
+            const targetUrl = coerceReturnToInAppUrl(decoded);
+            const targetHash = new URL(targetUrl).hash || '#/';
+            window.history.replaceState(null, '', window.location.pathname + targetHash);
+            window.dispatchEvent(new Event('hashchange'));
           } catch (e) {
             console.error("Failed to decode returnTo:", e);
-            const clean = getBrowserOrigin() + window.location.pathname;
-            window.history.replaceState(null, "", clean);
+            window.history.replaceState(null, "", getBrowserOrigin() + '/#/');
+            window.dispatchEvent(new Event('hashchange'));
           }
         } else {
           try {
@@ -480,15 +540,19 @@ export default function App() {
             if (stored) {
               localStorage.removeItem('qt_return');
               localStorage.removeItem('qt_autoOpenWrite');
-              window.location.href = coerceReturnToInAppUrl(stored);
+              const targetUrl = coerceReturnToInAppUrl(stored);
+              const targetHash = new URL(targetUrl).hash || '#/';
+              window.history.replaceState(null, '', window.location.pathname + targetHash);
+              window.dispatchEvent(new Event('hashchange'));
               return;
             }
           } catch (e) {
             // ignore storage errors
           }
           // Remove fragment while preserving path and search
-          const clean = getBrowserOrigin() + window.location.pathname + window.location.search;
+          const clean = getBrowserOrigin() + '/#/';
           window.history.replaceState(null, "", clean);
+          window.dispatchEvent(new Event('hashchange'));
         }
       }
     };
@@ -578,19 +642,6 @@ export default function App() {
     };
 
     persistPendingInviteFromUrl();
-
-
-
-    if (window.location.search.includes('code=')) {
-      if (!window.location.hash || window.location.hash === '#_=_') {
-        window.history.replaceState(
-          null,
-          '',
-          `${window.location.pathname}${window.location.search}#/`
-        );
-        window.dispatchEvent(new Event('hashchange'));
-      }
-    }
 
     if (isNativeApp()) {
       const setupNativeOAuthBridge = async () => {

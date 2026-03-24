@@ -24,8 +24,20 @@ async function waitForSupabaseInit(): Promise<void> {
   if (isSupabaseInitialized) return;
 
   if (!initPromise) {
-    initPromise = new Promise((resolve) => {
+    initPromise = new Promise<void>((resolve) => {
+      // 5초 타임아웃: 손상된 세션으로 인한 무한 pending 방지
+      const timer = setTimeout(() => {
+        console.warn('[use-auth] Supabase 초기화 타임아웃 - 강제 진행');
+        isSupabaseInitialized = true;
+        resolve();
+      }, 5000);
+
       supabase.auth.getSession().then(() => {
+        clearTimeout(timer);
+        isSupabaseInitialized = true;
+        resolve();
+      }).catch(() => {
+        clearTimeout(timer);
         isSupabaseInitialized = true;
         resolve();
       });
@@ -42,8 +54,17 @@ async function fetchUser(): Promise<User | null> {
   await waitForSupabaseInit();
 
   // 세션 확인
-  const { data: sessionData } = await supabase.auth.getSession();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   console.log('[use-auth] getSession 결과:', sessionData?.session ? '세션 있음' : '세션 없음');
+
+  if (sessionError) {
+    console.warn('[use-auth] 세션 오류 - localStorage 정리 후 비로그인 처리:', sessionError.message);
+    try {
+      // scope: 'local' = 서버 API 호출 없이 localStorage만 정리
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch { /* ignore */ }
+    return null;
+  }
 
   if (!sessionData?.session) {
     console.log('[use-auth] 세션 없음, null 반환');

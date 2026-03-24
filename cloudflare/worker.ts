@@ -30,7 +30,7 @@ interface Env {
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,POST,DELETE,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type,Authorization,x-push-secret",
 };
 
@@ -1329,6 +1329,196 @@ async function handleAdminStats(request: Request, env: Env) {
   });
 }
 
+async function verifyAdminToken(request: Request, env: Env): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization') || '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token) return false;
+  try {
+    const decoded = atob(token);
+    return decoded.includes(env.ADMIN_SECRET || 'myamen2026');
+  } catch { return false; }
+}
+
+async function handleAdminUsers(request: Request, env: Env) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const h = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+
+  const kstOffset = 9 * 60 * 60 * 1000;
+  const monthAgo = new Date(Date.now() + kstOffset - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const [profilesRes, eventsRes, groupMembersRes, authUsersRes, prayerTopicsRes] = await Promise.all([
+    fetch(`${supabaseUrl}/rest/v1/profiles?select=id,username,email,nickname,avatar_url,created_at,is_admin&order=created_at.desc`, { headers: h }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=user_id,menu,created_at,platform&user_id=not.is.null&created_at=gte.${monthAgo}T00:00:00%2B09:00`, { headers: h }),
+    fetch(`${supabaseUrl}/rest/v1/group_members?select=user_id,groups(id,name)`, { headers: h }),
+    fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1000`, { headers: h }),
+    fetch(`${supabaseUrl}/rest/v1/group_prayer_topics?select=author_id,id&is_active=eq.true`, { headers: h }),
+  ]);
+
+  const profilesData = await profilesRes.json() as any;
+  const eventsData = await eventsRes.json() as any;
+  const groupMembersData = await groupMembersRes.json() as any;
+  const authUsersData = await authUsersRes.json() as any;
+  const prayerTopicsData = await prayerTopicsRes.json() as any;
+
+  // auth provider 매핑 (user_id → provider)
+  const providerMap: Record<string, string> = {};
+  const authUsers = Array.isArray(authUsersData?.users) ? authUsersData.users : [];
+  for (const u of authUsers) {
+    const provider = u.app_metadata?.provider || u.identities?.[0]?.provider || null;
+    if (u.id && provider) providerMap[u.id] = provider;
+  }
+
+  if (!Array.isArray(profilesData)) {
+    return json(500, { error: 'profiles_fetch_failed', status: profilesRes.status, detail: profilesData });
+  }
+
+  const profiles = profilesData as any[];
+  const events = Array.isArray(eventsData) ? eventsData as any[] : [];
+  const groupMembers = Array.isArray(groupMembersData) ? groupMembersData as any[] : [];
+
+  // 유저별 기도제목 수 집계
+  const prayerTopicCountMap: Record<string, number> = {};
+  if (Array.isArray(prayerTopicsData)) {
+    for (const pt of prayerTopicsData as any[]) {
+      if (!pt.author_id) continue;
+      prayerTopicCountMap[pt.author_id] = (prayerTopicCountMap[pt.author_id] || 0) + 1;
+    }
+  }
+
+  // 유저별 그룹 집계
+  const userGroups: Record<string, { id: string; name: string }[]> = {};
+  for (const m of groupMembers) {
+    const uid = m.user_id;
+    const g = m.groups;
+    if (!uid || !g?.id) continue;
+    if (!userGroups[uid]) userGroups[uid] = [];
+    if (!userGroups[uid].find((x) => x.id === g.id)) userGroups[uid].push({ id: g.id, name: g.name });
+  }
+
+  // 유저별 이벤트 집계
+  const todayKST = new Date(Date.now() + kstOffset).toISOString().slice(0, 10);
+  const weekAgo = new Date(Date.now() + kstOffset - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  const userStats: Record<string, { total: number; dau: number; wau: number; lastAt: string; lastBrowser: string; menus: Record<string, number> }> = {};
+  for (const ev of events) {
+    const uid = ev.user_id;
+    if (!userStats[uid]) userStats[uid] = { total: 0, dau: 0, wau: 0, lastAt: '', lastBrowser: '', menus: {} };
+    userStats[uid].total++;
+    if (!userStats[uid].lastAt || ev.created_at > userStats[uid].lastAt) {
+      userStats[uid].lastAt = ev.created_at;
+      if (ev.platform) userStats[uid].lastBrowser = ev.platform;
+    }
+    userStats[uid].menus[ev.menu] = (userStats[uid].menus[ev.menu] || 0) + 1;
+    const evDateKST = new Date(new Date(ev.created_at).getTime() + kstOffset).toISOString().slice(0, 10);
+    if (evDateKST >= todayKST) userStats[uid].dau++;
+    if (evDateKST >= weekAgo) userStats[uid].wau++;
+  }
+
+  const result = profiles.map((p: any) => {
+    const s = userStats[p.id];
+    const topMenu = s ? Object.entries(s.menus).sort(([,a],[,b]) => (b as number)-(a as number))[0]?.[0] : null;
+    return {
+      ...p,
+      auth_provider: providerMap[p.id] || null,
+      totalEvents: s?.total || 0, dau: s?.dau || 0, wau: s?.wau || 0,
+      lastEventAt: s?.lastAt || null,
+      last_browser: s?.lastBrowser || null,
+      topMenu,
+      groups: userGroups[p.id] || [],
+      prayerTopicCount: prayerTopicCountMap[p.id] || 0,
+    };
+  });
+
+  return json(200, result);
+}
+
+async function handleAdminUserPrayerTopics(request: Request, env: Env, userId: string) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const h = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+
+  const res = await fetch(
+    `${supabaseUrl}/rest/v1/group_prayer_topics?select=id,content,created_at,groups(id,name)&author_id=eq.${userId}&is_active=eq.true&order=created_at.desc`,
+    { headers: h }
+  );
+  const data = await res.json();
+  return json(res.ok ? 200 : 400, data);
+}
+
+async function handleAdminUserStats(request: Request, env: Env, userId: string) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const h = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+
+  const [profileRes, eventsRes] = await Promise.all([
+    fetch(`${supabaseUrl}/rest/v1/profiles?select=id,username,nickname,avatar_url,created_at,is_admin&id=eq.${userId}`, { headers: h }),
+    fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=menu,action,metadata,platform,created_at&user_id=eq.${userId}&order=created_at.desc&limit=100`, { headers: h }),
+  ]);
+
+  const profiles = await profileRes.json() as any[];
+  const events = await eventsRes.json() as any[];
+
+  const menuCounts: Record<string, number> = {};
+  const actionCounts: Record<string, Record<string, number>> = {};
+  for (const ev of events) {
+    menuCounts[ev.menu] = (menuCounts[ev.menu] || 0) + 1;
+    if (!actionCounts[ev.menu]) actionCounts[ev.menu] = {};
+    actionCounts[ev.menu][ev.action] = (actionCounts[ev.menu][ev.action] || 0) + 1;
+  }
+
+  return json(200, { profile: profiles[0] || null, menuCounts, actionCounts, recentEvents: events.slice(0, 30) });
+}
+
+async function handleAdminUpdateUser(request: Request, env: Env, userId: string) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
+
+  const body = await request.json() as { nickname?: string; is_admin?: boolean };
+  const update: Record<string, unknown> = {};
+  if (body.nickname !== undefined) update.nickname = body.nickname;
+  if (body.is_admin !== undefined) update.is_admin = body.is_admin;
+  if (Object.keys(update).length === 0) return json(400, { error: 'no fields to update' });
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const h = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=representation' };
+
+  const res = await fetch(`${supabaseUrl}/rest/v1/profiles?id=eq.${userId}`, {
+    method: 'PATCH', headers: h, body: JSON.stringify(update),
+  });
+  const data = await res.json();
+  return json(res.ok ? 200 : 400, data);
+}
+
+async function handleAdminDeleteUser(request: Request, env: Env, userId: string) {
+  if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
+
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  const h = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' };
+
+  // Supabase auth 유저 삭제 (cascade로 profiles, 관련 데이터 삭제)
+  const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+    method: 'DELETE', headers: h,
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    return json(400, { error: err });
+  }
+  return json(200, { ok: true });
+}
+
 async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname.startsWith("/api/card-backgrounds/")) {
     return handleCardBackgrounds(request, url);
@@ -1380,6 +1570,23 @@ async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname === '/api/admin/stats') {
     return handleAdminStats(request, env);
   }
+  if (url.pathname === '/api/admin/users') {
+    return handleAdminUsers(request, env);
+  }
+  if (url.pathname.match(/^\/api\/admin\/users\/[^/]+\/stats$/)) {
+    const userId = url.pathname.split('/')[4];
+    return handleAdminUserStats(request, env, userId);
+  }
+  if (url.pathname.match(/^\/api\/admin\/users\/[^/]+\/prayer-topics$/)) {
+    const userId = url.pathname.split('/')[4];
+    return handleAdminUserPrayerTopics(request, env, userId);
+  }
+  if (url.pathname.match(/^\/api\/admin\/users\/[^/]+$/)) {
+    const userId = url.pathname.split('/')[4];
+    if (request.method === 'PATCH') return handleAdminUpdateUser(request, env, userId);
+    if (request.method === 'DELETE') return handleAdminDeleteUser(request, env, userId);
+    return json(405, { error: 'method not allowed' });
+  }
 
   if (request.method === "OPTIONS") {
     return withCorsHeaders(new Response(null, { status: 204 }));
@@ -1401,5 +1608,20 @@ export default {
     // SPA fallback (extra safety even with not_found_handling)
     const indexUrl = new URL("/index.html", url);
     return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+  },
+  async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
+    const supabaseUrl = env.SUPABASE_URL || '';
+    const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+    if (!supabaseUrl || !serviceKey) return;
+    const cutoff = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+    await fetch(`${supabaseUrl}/rest/v1/user_event_logs?created_at=lt.${encodeURIComponent(cutoff)}`, {
+      method: 'DELETE',
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+    });
   },
 };
