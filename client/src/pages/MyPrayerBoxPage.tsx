@@ -78,8 +78,8 @@ export default function MyPrayerBoxPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-2">
-                    <BookmarkCheck size={13} className="text-amber-500 shrink-0" />
-                    <span className="text-[11px] font-bold text-amber-600 truncate">{item.groupName}</span>
+                    <BookmarkCheck size={13} className={item.groupName === "매일기도" ? "text-[#4A6741] shrink-0" : "text-amber-500 shrink-0"} />
+                    <span className={`text-[11px] font-bold truncate ${item.groupName === "매일기도" ? "text-[#4A6741]" : "text-amber-600"}`}>{item.groupName}</span>
                     <span className="text-[11px] text-zinc-400 shrink-0">{formatDate(item.savedAt)}</span>
                   </div>
                   <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-relaxed font-medium">{item.content}</p>
