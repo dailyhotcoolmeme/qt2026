@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone, HandHeart } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -830,7 +830,7 @@ export function TopBar() {
 	              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
 	            </Link>
 	            <Link href="/my-prayer-box" onClick={() => setIsMenuOpen(false)}>
-	              <SidebarItem icon={<CheckCheck className="h-5 w-5" />} label="내 기도제목함" />
+	              <SidebarItem icon={<HandHeart className="h-5 w-5" />} label="내 기도제목함" />
 	            </Link>
 	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
 	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
