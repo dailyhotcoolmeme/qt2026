@@ -971,7 +971,8 @@ export default function GroupDashboard() {
   const [textPrayerContent, setTextPrayerContent] = useState("");
   const [textPrayerEditId, setTextPrayerEditId] = useState<number | null>(null);
   const [textPrayerSaving, setTextPrayerSaving] = useState(false);
-  const [savedPrayerTopicIds, setSavedPrayerTopicIds] = useState<Set<number>>(new Set());
+  // topicId → 마지막 저장 시점의 content (수정 감지용)
+  const [savedPrayerContentMap, setSavedPrayerContentMap] = useState<Map<number, string>>(new Map());
   const [prayerBoxToast, setPrayerBoxToast] = useState<string | null>(null);
   const [headerImageDraft, setHeaderImageDraft] = useState("");
   const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
@@ -1355,7 +1356,9 @@ export default function GroupDashboard() {
 
   const loadSavedPrayerTopics = async (userId: string) => {
     const items = getPrayerBoxItems(userId);
-    setSavedPrayerTopicIds(new Set(items.map(i => i.topicId)));
+    const map = new Map<number, string>();
+    items.forEach(i => map.set(i.topicId, i.content));
+    setSavedPrayerContentMap(map);
   };
 
   const loadPersonalPrayers = async (userId: string) => {
@@ -3741,11 +3744,11 @@ export default function GroupDashboard() {
 
   const savePrayerTopic = (topicId: number, content: string) => {
     if (!user || !group) return;
-    if (savedPrayerTopicIds.has(topicId)) return;
-    const items = getPrayerBoxItems(user.id);
+    // 기존 항목 제거 후 최신 내용으로 맨 앞에 upsert
+    const items = getPrayerBoxItems(user.id).filter(i => i.topicId !== topicId);
     items.unshift({ topicId, content, groupName: group.name, savedAt: new Date().toISOString() });
     try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
-    setSavedPrayerTopicIds(prev => new Set([...prev, topicId]));
+    setSavedPrayerContentMap(prev => new Map(prev).set(topicId, content));
     setPrayerBoxToast("기도제목함에 보관되었습니다.");
     setTimeout(() => setPrayerBoxToast(null), 2500);
   };
@@ -3918,18 +3921,22 @@ export default function GroupDashboard() {
                       </div>
                     ))}
                   </div>
-                  {userId === user.id && (
-                    <button
-                      onClick={() => savePrayerTopic(topic.id, topic.content || "")}
-                      title={savedPrayerTopicIds.has(topic.id) ? "기도제목함에 보관됨" : "기도제목함에 저장"}
-                      className="shrink-0 mt-0.5 p-1.5 rounded-lg transition-colors active:scale-95"
-                    >
-                      {savedPrayerTopicIds.has(topic.id)
-                        ? <BookmarkCheck size={20} className="text-amber-500" />
-                        : <Bookmark size={20} className="text-zinc-300 hover:text-amber-400" />
-                      }
-                    </button>
-                  )}
+                  {userId === user.id && (() => {
+                    const savedContent = savedPrayerContentMap.get(topic.id);
+                    const isSynced = savedContent !== undefined && savedContent === (topic.content || "");
+                    return (
+                      <button
+                        onClick={() => savePrayerTopic(topic.id, topic.content || "")}
+                        title={isSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
+                        className="shrink-0 mt-0.5 p-1.5 rounded-lg transition-colors active:scale-95"
+                      >
+                        {isSynced
+                          ? <BookmarkCheck size={20} className="text-amber-500" />
+                          : <Bookmark size={20} className="text-zinc-300 hover:text-amber-400" />
+                        }
+                      </button>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
