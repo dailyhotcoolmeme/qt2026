@@ -297,12 +297,13 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               onClose();
             }
           }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-h-[92vh] overflow-y-auto overflow-x-hidden"
-          style={{ maxWidth: "min(100%, 448px)" }}
+          className="bg-white rounded-2xl shadow-2xl w-full flex flex-col overflow-hidden"
+          style={{ maxWidth: "min(100%, 448px)", maxHeight: "92dvh" }}
         >
-          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+          {/* 드래그 핸들 - 여기서만 드래그 가능 */}
+          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 shrink-0" />
           {/* 헤더 */}
-          <div className="sticky top-0 bg-white border-b px-4 py-4 flex items-center justify-between z-10">
+          <div className="bg-white border-b px-4 py-4 flex items-center justify-between shrink-0">
             <h2 className="font-bold text-zinc-900" style={{ fontSize: `${fontSize + 2}px` }}>
               프로필 관리
             </h2>
@@ -311,6 +312,8 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             </button>
           </div>
 
+          {/* 스크롤 가능한 콘텐츠 영역 - drag 이벤트 차단 */}
+          <div className="overflow-y-auto flex-1" onPointerDown={(e) => e.stopPropagation()}>
           <form onSubmit={handleSubmit} className="px-4 py-5 space-y-5">
             {/* 1. 아바타 */}
             <div className="flex flex-col items-center gap-3">
@@ -457,6 +460,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
               {isLoading ? "저장 중..." : "저장"}
             </button>
           </form>
+          </div>
         </motion.div>
       </div>
     </>
