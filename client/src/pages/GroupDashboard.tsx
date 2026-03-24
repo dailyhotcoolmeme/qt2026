@@ -1991,6 +1991,18 @@ export default function GroupDashboard() {
 
       if (error) throw error;
 
+      // 기도 대상자에게 알림 (음성기도)
+      const voiceUserMatch = recordTitle.trim().match(/^\[user:([a-fA-F0-9-]+)\]/i);
+      if (voiceUserMatch && voiceUserMatch[1] !== user.id) {
+        sendPushToGroupUsers({
+          groupId: group.id,
+          targetUserIds: [voiceUserMatch[1]],
+          title: group.name,
+          body: `내 기도제목에 음성기도가 전달되었습니다.`,
+          targetPath: `/#/group/${group.id}?tab=prayer`,
+        });
+      }
+
       setRecordTitle("");
       setRecordedBlob(null);
       setRecordingTime(0);
@@ -2737,6 +2749,16 @@ export default function GroupDashboard() {
       const { data } = await supabase.from("group_post_likes").insert({ post_id: postId, user_id: user.id }).select().single();
       if (data) {
         setPostLikes(prev => ({ ...prev, [postId]: [...(prev[postId] || []), data] }));
+        const post = posts.find(p => p.id === postId);
+        if (post && post.author_id !== user.id) {
+          sendPushToGroupUsers({
+            groupId: group.id,
+            targetUserIds: [post.author_id],
+            title: group.name,
+            body: `내 게시글에 좋아요가 달렸습니다.`,
+            targetPath: `/#/group/${group.id}?tab=social`,
+          });
+        }
       }
     }
   };
@@ -3599,6 +3621,15 @@ export default function GroupDashboard() {
       const targetName = authorMap[targetUserId]?.nickname || authorMap[targetUserId]?.username || "상대방";
       setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님만 확인할 수 있어요`);
       setTimeout(() => setHeartPrayerToast(null), 3500);
+      if (targetUserId !== user.id) {
+        sendPushToGroupUsers({
+          groupId: group.id,
+          targetUserIds: [targetUserId],
+          title: group.name,
+          body: `내 기도제목에 마음기도가 전달되었습니다.`,
+          targetPath: `/#/group/${group.id}?tab=prayer`,
+        });
+      }
     } catch (err) {
       console.error(err);
       alert("마음기도 저장에 실패했습니다.");
@@ -3641,6 +3672,15 @@ export default function GroupDashboard() {
           prayer_text: content,
         });
         if (error) throw error;
+        if (textPrayerTargetUserId !== user.id) {
+          sendPushToGroupUsers({
+            groupId: group.id,
+            targetUserIds: [textPrayerTargetUserId],
+            title: group.name,
+            body: `내 기도제목에 글기도가 전달되었습니다.`,
+            targetPath: `/#/group/${group.id}?tab=prayer`,
+          });
+        }
       }
       await loadGroupPrayers(group.id);
       setShowTextPrayerModal(false);
