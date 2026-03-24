@@ -39,9 +39,9 @@ export default function MyPrayerBoxPage() {
     setItems(loadItems(user.id));
   }, [user?.id, isLoading]);
 
-  const removeItem = (topicId: number) => {
+  const removeItem = (savedAt: string) => {
     if (!user) return;
-    const next = items.filter(i => i.topicId !== topicId);
+    const next = items.filter(i => i.savedAt !== savedAt);
     saveItems(user.id, next);
     setItems(next);
   };
@@ -84,7 +84,7 @@ export default function MyPrayerBoxPage() {
                   </div>
                   <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-relaxed font-medium">{item.content}</p>
                 </div>
-                <button onClick={() => removeItem(item.topicId)} className="shrink-0 p-1.5 text-zinc-300 hover:text-rose-400 transition-colors" title="저장 취소">
+                <button onClick={() => removeItem(item.savedAt)} className="shrink-0 p-1.5 text-zinc-300 hover:text-rose-400 transition-colors" title="저장 취소">
                   <Trash2 size={16} />
                 </button>
               </div>

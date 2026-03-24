@@ -3744,8 +3744,8 @@ export default function GroupDashboard() {
 
   const savePrayerTopic = (topicId: number, content: string) => {
     if (!user || !group) return;
-    // 기존 항목 제거 후 최신 내용으로 맨 앞에 upsert
-    const items = getPrayerBoxItems(user.id).filter(i => i.topicId !== topicId);
+    // 기존 항목 유지 + 새 저장 내용 맨 앞에 추가 (독립 누적)
+    const items = getPrayerBoxItems(user.id);
     items.unshift({ topicId, content, groupName: group.name, savedAt: new Date().toISOString() });
     try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
     setSavedPrayerContentMap(prev => new Map(prev).set(topicId, content));
