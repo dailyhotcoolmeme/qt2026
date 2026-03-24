@@ -19,7 +19,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
-  const THRESHOLD = 250;
+  const THRESHOLD = 64; // iOS Safari / Twitter / Instagram 기준값과 동일
 
   const triggerRefresh = useCallback(() => {
     setRefreshing(true);
