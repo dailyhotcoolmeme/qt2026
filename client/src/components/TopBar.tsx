@@ -829,11 +829,11 @@ export function TopBar() {
 	            <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
 	              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
 	            </Link>
-	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
-	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
-	            </Link>
 	            <Link href="/my-prayer-box" onClick={() => setIsMenuOpen(false)}>
 	              <SidebarItem icon={<CheckCheck className="h-5 w-5" />} label="내 기도제목함" />
+	            </Link>
+	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
+	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
 	            </Link>
 	
 	            {!isAuthenticated && (

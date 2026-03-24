@@ -3885,12 +3885,44 @@ export default function GroupDashboard() {
             <span className="font-bold text-zinc-900 text-base truncate">{author.nickname || author.username}</span>
             <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
           </div>
-          <div className="flex items-center gap-1 opacity-60 shrink-0 min-w-[52px] justify-end">
+          <div className="flex items-center gap-1 opacity-60 shrink-0 justify-end">
             {user && (isManager || userId === user.id) && (
               <>
                 {userId === user.id && (
                   <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
                 )}
+                {userId === user.id && (() => {
+                  const allSynced = textTopics.length > 0 && textTopics.every(t => {
+                    const saved = savedPrayerContentMap.get(t.id);
+                    return saved !== undefined && saved === (t.content || "");
+                  });
+                  return (
+                    <button
+                      onClick={() => {
+                        if (!user || !group) return;
+                        const items = getPrayerBoxItems(user.id);
+                        textTopics.forEach(t => {
+                          items.unshift({ topicId: t.id, content: t.content || "", groupName: group.name, savedAt: new Date().toISOString() });
+                        });
+                        try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
+                        setSavedPrayerContentMap(prev => {
+                          const next = new Map(prev);
+                          textTopics.forEach(t => next.set(t.id, t.content || ""));
+                          return next;
+                        });
+                        setPrayerBoxToast("기도제목함에 보관되었습니다.");
+                        setTimeout(() => setPrayerBoxToast(null), 2500);
+                      }}
+                      title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
+                      className="p-1 hover:text-amber-500"
+                    >
+                      {allSynced
+                        ? <BookmarkCheck size={15} className="text-amber-500" />
+                        : <Bookmark size={15} className="text-zinc-400" />
+                      }
+                    </button>
+                  );
+                })()}
                 <button onClick={() => void deleteAllPrayerTopicsByAuthor(userId)} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
               </>
             )}
@@ -3901,42 +3933,24 @@ export default function GroupDashboard() {
           {textTopics.length > 0 && (
             <div className="space-y-4">
               {textTopics.map((topic) => (
-                <div key={topic.id} className="text-sm flex items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    {hasVisiblePrayerTopicContent(topic.content) && (
-                      <div className="font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-snug">{topic.content}</div>
-                    )}
-                    {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment, index) => (
-                      <div key={attachment.id} className={hasVisiblePrayerTopicContent(topic.content) || index > 0 ? "mt-3" : ""}>
-                        <a
-                          href={attachment.file_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          download={attachment.file_name || undefined}
-                          className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
-                        >
-                          <Link2 size={12} />
-                          <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                  {userId === user.id && (() => {
-                    const savedContent = savedPrayerContentMap.get(topic.id);
-                    const isSynced = savedContent !== undefined && savedContent === (topic.content || "");
-                    return (
-                      <button
-                        onClick={() => savePrayerTopic(topic.id, topic.content || "")}
-                        title={isSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
-                        className="shrink-0 mt-0.5 p-1.5 rounded-lg transition-colors active:scale-95"
+                <div key={topic.id} className="text-sm">
+                  {hasVisiblePrayerTopicContent(topic.content) && (
+                    <div className="font-bold text-medium text-[#4A6741]/90 whitespace-pre-wrap leading-snug">{topic.content}</div>
+                  )}
+                  {getTopicAttachments(topic).filter((attachment) => !isImageAttachment(attachment)).map((attachment, index) => (
+                    <div key={attachment.id} className={hasVisiblePrayerTopicContent(topic.content) || index > 0 ? "mt-3" : ""}>
+                      <a
+                        href={attachment.file_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        download={attachment.file_name || undefined}
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-100"
                       >
-                        {isSynced
-                          ? <BookmarkCheck size={20} className="text-amber-500" />
-                          : <Bookmark size={20} className="text-zinc-300 hover:text-amber-400" />
-                        }
-                      </button>
-                    );
-                  })()}
+                        <Link2 size={12} />
+                        <span className="max-w-[220px] truncate">{attachment.file_name || "첨부 파일"}</span>
+                      </a>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>
