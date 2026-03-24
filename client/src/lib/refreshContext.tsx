@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface RefreshContextValue {
@@ -19,7 +19,17 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
+  const topBarHeightRef = useRef(100); // --app-topbar-height 계산값 캐시
   const THRESHOLD = 64; // iOS Safari / Twitter / Instagram 기준값과 동일
+
+  // CSS variable --app-topbar-height 실제 px 계산
+  useEffect(() => {
+    const el = document.createElement("div");
+    el.style.cssText = "position:absolute;visibility:hidden;height:var(--app-topbar-height,100px)";
+    document.body.appendChild(el);
+    topBarHeightRef.current = el.offsetHeight || 100;
+    document.body.removeChild(el);
+  }, []);
 
   const triggerRefresh = useCallback(() => {
     setRefreshing(true);
@@ -28,10 +38,14 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    // TopBar 영역 내 터치는 PTR 무시
+    if (touch.clientY < topBarHeightRef.current) return;
+
     const scrollable = (e.target as HTMLElement).closest('[data-overscroll], .overflow-y-auto, .overflow-y-scroll, .overflow-auto, .overflow-scroll');
     const scrollTop = scrollable ? (scrollable as HTMLElement).scrollTop : window.scrollY;
     if (scrollTop > 2) return;
-    startYRef.current = e.touches[0].clientY;
+    startYRef.current = touch.clientY;
     pullDistRef.current = 0;
   }, []);
 
