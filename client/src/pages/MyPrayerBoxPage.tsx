@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { BookmarkCheck, Trash2, HandHeart } from "lucide-react";
+import { Trash2, HandHeart } from "lucide-react";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 
@@ -49,7 +49,7 @@ export default function MyPrayerBoxPage() {
   if (!isLoading && !user) {
     return (
       <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] flex flex-col items-center justify-center gap-4 px-6">
-        <BookmarkCheck size={40} className="text-zinc-300" />
+        <HandHeart size={40} className="text-zinc-300" />
         <p className="text-zinc-500 text-sm">로그인이 필요합니다.</p>
         <button onClick={() => setShowLoginModal(true)} className="px-5 py-2.5 rounded-xl bg-[#4A6741] text-white font-bold text-sm">
           로그인
@@ -68,7 +68,7 @@ export default function MyPrayerBoxPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3 text-zinc-400">
-            <BookmarkCheck size={36} className="text-zinc-200" />
+            <HandHeart size={36} className="text-zinc-200" />
             <p className="text-sm">저장된 기도제목이 없습니다.</p>
             <p className="text-xs text-zinc-300 text-center">중보모임 기도제목 옆 북마크 아이콘을 눌러 저장하세요.</p>
           </div>
@@ -78,10 +78,7 @@ export default function MyPrayerBoxPage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 mb-2">
-                    {item.groupName === "매일기도"
-                      ? <HandHeart size={13} className="text-[#4A6741] shrink-0" />
-                      : <BookmarkCheck size={13} className="text-amber-500 shrink-0" />
-                    }
+                    <HandHeart size={13} className={`shrink-0 ${item.groupName === "매일기도" ? "text-[#4A6741]" : "text-amber-500"}`} />
                     <span className={`text-[11px] font-bold truncate ${item.groupName === "매일기도" ? "text-[#4A6741]" : "text-amber-600"}`}>{item.groupName}</span>
                     <span className="text-[11px] text-zinc-400 shrink-0">{formatDate(item.savedAt)}</span>
                   </div>

@@ -89,6 +89,9 @@ export function TopBar() {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
   const [isPushSyncing, setIsPushSyncing] = useState(false);
+  const [hasVerseCards, setHasVerseCards] = useState(false);
+  const [hasPrayerBox, setHasPrayerBox] = useState(false);
+  const [hasFavorites, setHasFavorites] = useState(false);
   const logoTexts = ["마이아멘", "myAmen"];
 
   const { fontSize, setFontSize } = useDisplaySettings();
@@ -420,6 +423,52 @@ export function TopBar() {
       .then(setNotificationSettings)
       .catch(() => setNotificationSettings(defaultNotificationSettings));
   }, [user?.id]);
+
+  // 메뉴 항목 활성 여부 (저장 데이터 있으면 녹색)
+  useEffect(() => {
+    if (!user?.id) {
+      setHasVerseCards(false); setHasPrayerBox(false); setHasFavorites(false);
+      return;
+    }
+    const uid = user.id;
+    // 내 기도제목함 (localStorage)
+    try {
+      const items = JSON.parse(localStorage.getItem(`myamen_prayer_box_${uid}`) || "[]");
+      setHasPrayerBox(Array.isArray(items) && items.length > 0);
+    } catch { setHasPrayerBox(false); }
+    // 말씀카드 (IndexedDB → localStorage 폴백)
+    const cardKey = `verse-card-records:${uid}`;
+    (async () => {
+      try {
+        const db = await new Promise<IDBDatabase | null>((resolve) => {
+          const req = window.indexedDB.open("myamen_verse_cards", 1);
+          req.onsuccess = () => resolve(req.result);
+          req.onerror = () => resolve(null);
+          req.onupgradeneeded = () => resolve(null);
+        });
+        if (db) {
+          const records = await new Promise<unknown[]>((resolve) => {
+            try {
+              const tx = db.transaction("cards", "readonly");
+              const r = tx.objectStore("cards").get(cardKey);
+              r.onsuccess = () => resolve((r.result as unknown[]) ?? []);
+              r.onerror = () => resolve([]);
+            } catch { resolve([]); }
+          });
+          db.close();
+          setHasVerseCards(records.length > 0);
+          return;
+        }
+      } catch {}
+      try {
+        const raw = localStorage.getItem(cardKey);
+        setHasVerseCards(Array.isArray(raw ? JSON.parse(raw) : []) && (raw ? JSON.parse(raw) : []).length > 0);
+      } catch { setHasVerseCards(false); }
+    })();
+    // 즐겨찾기 말씀 (Supabase)
+    supabase.from("verse_bookmarks").select("id", { count: "exact", head: true }).eq("user_id", uid)
+      .then(({ count }) => setHasFavorites((count ?? 0) > 0));
+  }, [user?.id, isMenuOpen]);
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) {
@@ -827,13 +876,13 @@ export function TopBar() {
 
 	          <nav className="flex flex-col gap-1">
 	            <Link href="/verse-cards" onClick={() => setIsMenuOpen(false)}>
-	              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" />
+	              <SidebarItem icon={<Image className="h-5 w-5" />} label="말씀카드 보관함" active={hasVerseCards} />
 	            </Link>
 	            <Link href="/my-prayer-box" onClick={() => setIsMenuOpen(false)}>
-	              <SidebarItem icon={<HandHeart className="h-5 w-5" />} label="내 기도제목함" />
+	              <SidebarItem icon={<HandHeart className="h-5 w-5" />} label="내 기도제목함" active={hasPrayerBox} />
 	            </Link>
 	            <Link href="/favorites" onClick={() => setIsMenuOpen(false)}>
-	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" />
+	              <SidebarItem icon={<Bookmark className="h-5 w-5" />} label="즐겨찾기 말씀" active={hasFavorites} />
 	            </Link>
 	
 	            {!isAuthenticated && (
@@ -1043,11 +1092,11 @@ export function TopBar() {
   );
 }
 
-function SidebarItem({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
+function SidebarItem({ icon, label, onClick, active }: { icon: React.ReactNode; label: string; onClick?: () => void; active?: boolean }) {
   return (
     <button onClick={onClick} className="group flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-600 transition-colors hover:bg-zinc-50">
-      <div className="text-zinc-400 transition-colors group-hover:text-[#4A6741]">{icon}</div>
-      <span className="text-[14px] font-semibold transition-colors group-hover:text-zinc-900">{label}</span>
+      <div className={`transition-colors group-hover:text-[#4A6741] ${active ? "text-[#4A6741]" : "text-zinc-400"}`}>{icon}</div>
+      <span className={`text-[14px] font-semibold transition-colors group-hover:text-zinc-900 ${active ? "text-[#4A6741]" : ""}`}>{label}</span>
     </button>
   );
 }
