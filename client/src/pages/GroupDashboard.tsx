@@ -3914,9 +3914,9 @@ export default function GroupDashboard() {
                         setTimeout(() => setPrayerBoxToast(null), 2500);
                       }}
                       title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
-                      className={`p-1 hover:text-[#4A6741] ${allSynced ? "text-[#4A6741]" : ""}`}
+                      className={`p-1 hover:text-amber-500 ${allSynced ? "text-amber-500" : ""}`}
                     >
-                      <HandHeart size={15} />
+                      <HandHeart size={17} />
                     </button>
                   );
                 })()}
