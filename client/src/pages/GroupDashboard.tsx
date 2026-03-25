@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, HandHeart } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -3914,12 +3914,9 @@ export default function GroupDashboard() {
                         setTimeout(() => setPrayerBoxToast(null), 2500);
                       }}
                       title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
-                      className="p-1 hover:text-amber-500"
+                      className={`p-1 hover:text-[#4A6741] ${allSynced ? "text-[#4A6741]" : ""}`}
                     >
-                      {allSynced
-                        ? <BookmarkCheck size={15} className="text-amber-500" />
-                        : <Bookmark size={15} className="text-zinc-400" />
-                      }
+                      <HandHeart size={15} />
                     </button>
                   );
                 })()}
