@@ -561,6 +561,14 @@ export function TopBar() {
   };
 
   const handleNotificationSettingChange = async (key: keyof NotificationSettings, value: boolean) => {
+    // 웹 브라우저에서 알림 권한 요청은 유저 제스처 직후(await 이전)에 해야
+    // 모바일 Chrome 등에서 권한 팝업이 정상적으로 뜸
+    let webPermission: NotificationPermission | null = null;
+    if (key === "pushEnabled" && value && !isNativeApp()) {
+      webPermission = await requestNotificationPermission();
+      setNotificationPermission(webPermission);
+    }
+
     const next = { ...notificationSettings, [key]: value };
     setNotificationSettings(next);
     const saved = await saveNotificationSettings(user?.id, next);
@@ -572,12 +580,14 @@ export function TopBar() {
       if (!value) {
         pushSyncedKeyRef.current = "";
         await unsubscribePushSubscription();
-      } else {
+      } else if (isNativeApp()) {
         const permission = await requestNotificationPermission();
         setNotificationPermission(permission);
         if (permission === "granted") {
           await syncPushSubscription(true);
         }
+      } else if (webPermission === "granted") {
+        await syncPushSubscription(true);
       }
     }
   };
