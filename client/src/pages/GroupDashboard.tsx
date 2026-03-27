@@ -4091,7 +4091,7 @@ export default function GroupDashboard() {
             >
               <Heart size={12} fill="currentColor" className="opacity-80" /> 마음기도
             </button>
-            {userId === user.id && (
+            {(userId === user.id || isPartner) && (
               <button
                 onClick={() => {
                   setHeartPrayerHistoryTargetUserId(userId);
