@@ -308,11 +308,11 @@ export function TopBar() {
       return;
     }
 
-    if (!vapidPublicKey) return;
-    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+    if (!vapidPublicKey) return "no_vapid";
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "no_sw";
 
     const cacheKey = `${user.id}:${permission}:${vapidPublicKey}`;
-    if (!force && pushSyncedKeyRef.current === cacheKey) return;
+    if (!force && pushSyncedKeyRef.current === cacheKey) return "cached";
 
     try {
       const reg = await navigator.serviceWorker.ready;
@@ -336,10 +336,12 @@ export function TopBar() {
         }),
       });
 
-      if (!response.ok) return;
+      if (!response.ok) return `server_error_${response.status}`;
       pushSyncedKeyRef.current = cacheKey;
+      return "ok";
     } catch (error) {
       console.error("web push sync failed:", error);
+      return `exception:${String(error).slice(0, 80)}`;
     }
   };
 
@@ -587,7 +589,14 @@ export function TopBar() {
           await syncPushSubscription(true);
         }
       } else if (webPermission === "granted") {
-        await syncPushSubscription(true);
+        const result = await syncPushSubscription(true);
+        if (result === "ok" || result === "cached") {
+          alert("✅ 알림 구독이 완료됐습니다.");
+        } else {
+          alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않거나 차단됐을 수 있습니다.`);
+        }
+      } else if (webPermission === "denied") {
+        alert("⚠️ 브라우저 알림이 차단되어 있습니다.\nChrome 주소창 🔒 → 알림 → 허용 후 다시 시도해주세요.");
       }
     }
   };
