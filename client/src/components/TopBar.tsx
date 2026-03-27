@@ -779,12 +779,31 @@ export function TopBar() {
                   </p>
                 </div>
               ) : (
-                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-1.5">
-                  <p className="text-[13px] text-zinc-500">
-                    Chrome / Edge / Firefox 등 PC·안드로이드 브라우저에서 <span className="font-bold text-zinc-700">전체 푸시 알림 켜기</span>를 활성화하면 브라우저 종료 후에도 알림을 받을 수 있습니다.
-                  </p>
-                  <p className="text-[13px] text-zinc-500">
-                    ※ Safari(iOS)는 홈 화면에 추가(PWA 설치) 후 가능합니다. 시크릿/인코그니토 모드에서는 알림이 차단됩니다.
+                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-2">
+                  {/* 브라우저 알림 권한 상태 */}
+                  {notificationPermission === "denied" ? (
+                    <div className="flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5">
+                      <span className="mt-0.5 text-rose-500">⚠</span>
+                      <p className="text-[13px] text-rose-600 font-medium leading-relaxed">
+                        브라우저 알림이 <span className="font-bold">차단</span>되어 있습니다.<br />
+                        Chrome 주소창 왼쪽 자물쇠 아이콘 → 알림 → <span className="font-bold">허용</span>으로 바꾼 후 아래 토글을 다시 켜주세요.
+                      </p>
+                    </div>
+                  ) : notificationPermission === "granted" ? (
+                    <div className="flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
+                      <span className="text-green-500">✓</span>
+                      <p className="text-[13px] text-green-700 font-medium">브라우저 알림 권한이 허용되어 있습니다.</p>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
+                      <span className="mt-0.5 text-amber-500">!</span>
+                      <p className="text-[13px] text-amber-700 leading-relaxed">
+                        아래 <span className="font-bold">전체 푸시 알림</span>을 켜면 브라우저 알림 허용 창이 뜹니다. <span className="font-bold">허용</span>을 눌러야 알림이 등록됩니다.
+                      </p>
+                    </div>
+                  )}
+                  <p className="text-[12px] text-zinc-400">
+                    ※ Safari(iOS)는 홈 화면에 추가(PWA) 후 가능. 시크릿 모드는 차단됩니다.
                   </p>
                 </div>
               )}

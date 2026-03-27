@@ -670,6 +670,10 @@ async function sendWebPush(
       },
       body: encryptedBody,
     });
+    if (!res.ok && res.status !== 201) {
+      const body = await res.text().catch(() => '');
+      console.error(`WebPush delivery failed: status=${res.status} endpoint=${subscription.endpoint.slice(0, 60)} body=${body}`);
+    }
     return res.status === 201 || res.ok;
   } catch (e) {
     console.error('WebPush send error:', e);
