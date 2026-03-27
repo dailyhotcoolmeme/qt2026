@@ -1437,6 +1437,14 @@ export default function GroupDashboard() {
     if (accept) {
       await supabase.from("group_partners").update({ status: "accepted" }).eq("id", requestId);
       setPartners(prev => [...prev, { id: requestId, partner_user_id: requesterId }]);
+      // 요청자에게 수락 알림
+      sendPushToGroupUsers({
+        groupId: group.id,
+        targetUserIds: [requesterId],
+        title: group.name,
+        body: `${user.user_metadata?.nickname || user.email || "모임원"}님이 동역자 요청을 수락했습니다.`,
+        targetPath: `/#/group/${group.id}?tab=members`,
+      });
     } else {
       await supabase.from("group_partners").delete().eq("id", requestId);
     }

@@ -1183,6 +1183,20 @@ async function handlePushSendGroup(request: Request, env: Env) {
 
   let sent = 0;
   for (const userId of targetIds) {
+    // app_notifications 기록
+    await fetch(`${supaUrl}/rest/v1/app_notifications`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        user_id: userId,
+        notification_type: notifType,
+        title: body.title,
+        message: body.body,
+        target_path: body.targetPath || '/',
+        payload: data,
+      }),
+    });
+
     // FCM
     const fcmRes = await fetch(
       `${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.fcm`,
