@@ -3,6 +3,7 @@ import { LoginModal } from "../components/LoginModal";
 import { motion, AnimatePresence } from "framer-motion";
 import { HandHeart, Plus, CirclePlus, X, Mic, Heart, Square, Play, Pause, Check, ClipboardPen, Download, Share2, Copy, Trash2, BarChart3, Calendar as CalendarIcon, Bookmark, BookmarkCheck } from "lucide-react";
 import { supabase } from "../lib/supabase";
+import { isAudioOrphaned } from "../lib/audioRef";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { ActivityGroupLinkModal } from "../components/ActivityGroupLinkModal";
@@ -612,8 +613,8 @@ export default function PrayerPage() {
 
       if (error) throw error;
 
-      // R2에서 파일 삭제 (실제 URL일 때만)
-      if (deleteRecordUrl.startsWith('http')) {
+      // R2에서 파일 삭제 (세 테이블 모두에서 참조가 사라진 경우만)
+      if (deleteRecordUrl.startsWith('http') && await isAudioOrphaned(deleteRecordUrl)) {
         await fetch(resolveApiUrl('/api/audio/delete'), {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },

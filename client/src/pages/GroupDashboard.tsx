@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, HandHeart } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -43,6 +43,7 @@ import { shareContent } from "../lib/nativeShare";
 import { resolveApiUrl, getPublicWebOrigin, isNativeApp } from "../lib/appUrl";
 import { useRefresh } from "../lib/refreshContext";
 import { useLogEvent } from "../hooks/useLogEvent";
+import { isAudioOrphaned } from "../lib/audioRef";
 
 type GroupRole = "owner" | "leader" | "member" | "guest";
 type TabKey = "faith" | "prayer" | "social" | "members" | "admin" | "schedule";
@@ -2224,11 +2225,15 @@ export default function GroupDashboard() {
       return;
     }
 
-    if (record.source_type === "direct") {
-      fetch(resolveApiUrl("/api/audio/delete"), {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileUrl: record.audio_url }),
+    if (record.source_type === "direct" && record.audio_url) {
+      isAudioOrphaned(record.audio_url).then((orphaned) => {
+        if (orphaned) {
+          fetch(resolveApiUrl("/api/audio/delete"), {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fileUrl: record.audio_url }),
+          }).catch(() => undefined);
+        }
       }).catch(() => undefined);
     }
 
@@ -3742,12 +3747,34 @@ export default function GroupDashboard() {
     }
   };
 
-  const savePrayerTopic = (topicId: number, content: string) => {
+  const savePrayerTopic = async (topicId: number, content: string) => {
     if (!user || !group) return;
-    // 기존 항목 유지 + 새 저장 내용 맨 앞에 추가 (독립 누적)
-    const items = getPrayerBoxItems(user.id);
-    items.unshift({ topicId, content, groupName: group.name, savedAt: new Date().toISOString() });
-    try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
+    const topic = groupPrayerTopics.find(t => t.id === topicId);
+    const authorId = topic?.author_id ?? "";
+    const records = prayersByTargetUser.get(authorId) ?? [];
+    const heartPrayers = records
+      .filter(r => r.audio_url === "amen")
+      .map(r => ({ display_name: authorMap[r.user_id]?.nickname || authorMap[r.user_id]?.username || "모임원", created_at: r.created_at }));
+    const textPrayers = records
+      .filter(r => r.audio_url === "text" && r.prayer_text)
+      .map(r => ({ display_name: authorMap[r.user_id]?.nickname || authorMap[r.user_id]?.username || "모임원", prayer_text: r.prayer_text, created_at: r.created_at }));
+    const voicePrayers = records
+      .filter(r => r.audio_url && r.audio_url !== "amen" && r.audio_url !== "text")
+      .map(r => ({ display_name: authorMap[r.user_id]?.nickname || authorMap[r.user_id]?.username || "모임원", audio_url: r.audio_url, audio_duration: r.audio_duration, created_at: r.created_at }));
+
+    await supabase.from("prayer_box_items").upsert({
+      user_id: user.id,
+      source_type: "group",
+      source_topic_id: topicId,
+      group_name: group.name,
+      topic_content: content,
+      heart_count: heartPrayers.length,
+      heart_prayers: heartPrayers,
+      text_prayers: textPrayers,
+      voice_prayers: voicePrayers,
+      saved_at: new Date().toISOString(),
+    }, { onConflict: "user_id,source_topic_id" });
+
     setSavedPrayerContentMap(prev => new Map(prev).set(topicId, content));
     setPrayerBoxToast("기도제목함에 보관되었습니다.");
     setTimeout(() => setPrayerBoxToast(null), 2500);
@@ -3900,18 +3927,7 @@ export default function GroupDashboard() {
                     <button
                       onClick={() => {
                         if (!user || !group) return;
-                        const items = getPrayerBoxItems(user.id);
-                        textTopics.forEach(t => {
-                          items.unshift({ topicId: t.id, content: t.content || "", groupName: group.name, savedAt: new Date().toISOString() });
-                        });
-                        try { localStorage.setItem(getPrayerBoxStorageKey(user.id), JSON.stringify(items)); } catch {}
-                        setSavedPrayerContentMap(prev => {
-                          const next = new Map(prev);
-                          textTopics.forEach(t => next.set(t.id, t.content || ""));
-                          return next;
-                        });
-                        setPrayerBoxToast("기도제목함에 보관되었습니다.");
-                        setTimeout(() => setPrayerBoxToast(null), 2500);
+                        void Promise.all(textTopics.map(t => savePrayerTopic(t.id, t.content || "")));
                       }}
                       title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
                       className={`p-1 hover:text-amber-500 ${allSynced ? "text-amber-500" : ""}`}
