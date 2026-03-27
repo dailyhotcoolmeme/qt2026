@@ -855,46 +855,14 @@ export function TopBar() {
                 </button>
               </div>
 
-              {isNativeApp() ? (
-                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5">
-                  <div className="flex items-center gap-2 text-[15px] font-semibold text-zinc-700">
-                    <Smartphone className="h-4 w-4" />
-                    <span>앱 알림 권한</span>
-                  </div>
-                  <p className="mt-2 text-[14px] text-zinc-500">
-                    {notificationPermission === "granted"
-                      ? "알림 권한이 허용되어 있습니다."
-                      : notificationPermission === "denied"
-                        ? "알림이 거부되어 있습니다. 기기 설정 > 앱 > 마이아멘 > 알림에서 허용해 주세요."
-                        : "알림 권한이 아직 허용되지 않았습니다."}
-                  </p>
-                </div>
-              ) : (
-                <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-2">
-                  {/* 브라우저 알림 권한 상태 */}
-                  {notificationPermission === "denied" ? (
-                    <div className="flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5">
-                      <span className="mt-0.5 text-rose-500">⚠</span>
-                      <p className="text-[13px] text-rose-600 font-medium leading-relaxed">
-                        브라우저 알림이 <span className="font-bold">차단</span>되어 있습니다.<br />
-                        Chrome 주소창 왼쪽 자물쇠 아이콘 → 알림 → <span className="font-bold">허용</span>으로 바꾼 후 아래 토글을 다시 켜주세요.
-                      </p>
-                    </div>
-                  ) : notificationPermission === "granted" ? (
-                    <div className="flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2">
-                      <span className="text-green-500">✓</span>
-                      <p className="text-[13px] text-green-700 font-medium">브라우저 알림 권한이 허용되어 있습니다.</p>
-                    </div>
-                  ) : (
-                    <div className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5">
-                      <span className="mt-0.5 text-amber-500">!</span>
-                      <p className="text-[13px] text-amber-700 leading-relaxed">
-                        아래 <span className="font-bold">전체 푸시 알림</span>을 켜면 브라우저 알림 허용 창이 뜹니다. <span className="font-bold">허용</span>을 눌러야 알림이 등록됩니다.
-                      </p>
-                    </div>
-                  )}
-                  <p className="text-[12px] text-zinc-400">
-                    ※ Safari(iOS)는 홈 화면에 추가(PWA) 후 가능. 시크릿 모드는 차단됩니다.
+              {/* 차단됨일 때만 경고 박스 */}
+              {notificationPermission === "denied" && (
+                <div className="mb-5 rounded-2xl bg-amber-50 border border-amber-200 px-4 py-3.5 space-y-1">
+                  <p className="text-[14px] font-bold text-amber-800">📵 알림이 막혀 있어요</p>
+                  <p className="text-[13px] text-amber-700 leading-relaxed">
+                    폰이 알림을 차단하고 있어요. 딱 한 번만 설정하면 돼요.<br />
+                    주소창 왼쪽 🔒 아이콘 → <span className="font-bold">알림 → 허용</span>으로 바꿔주세요.<br />
+                    <span className="text-[12px] text-amber-600">(삼성인터넷: 설정 → 사이트 → 알림 → myamen.co.kr 허용)</span>
                   </p>
                 </div>
               )}
@@ -902,12 +870,25 @@ export function TopBar() {
               <div className="space-y-3.5">
                 <NotificationToggle
                   label="푸시 알림"
-                  description="기기 푸시와 앱 내 알림을 받습니다."
+                  description={
+                    notificationSettings.pushEnabled
+                      ? "알림이 켜져 있어요. 새 소식을 바로 알려드릴게요."
+                      : notificationPermission === "denied"
+                        ? "알림을 받으려면 위 안내대로 설정해 주세요."
+                        : notificationPermission === "default"
+                          ? "켜면 브라우저 허용 창이 나타납니다. 허용을 눌러주세요."
+                          : "지금 알림을 받지 않고 있어요. 켜면 바로 시작됩니다."
+                  }
                   checked={notificationSettings.pushEnabled}
-                  disabled={isPushSyncing}
+                  disabled={isPushSyncing || notificationPermission === "denied"}
                   onChange={(value) => void handleNotificationSettingChange("pushEnabled", value)}
                 />
               </div>
+              {!isNativeApp() && (
+                <p className="mt-3 text-[11px] text-zinc-400">
+                  ※ Safari(iOS)는 홈 화면에 추가(PWA) 후 가능. 시크릿 모드는 차단됩니다.
+                </p>
+              )}
 
               {isPushSyncing && (
                 <div className="mt-5 flex items-center gap-2 text-[14px] text-zinc-500">
