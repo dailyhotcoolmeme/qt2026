@@ -310,7 +310,7 @@ export function TopBar() {
       return;
     }
 
-    if (!vapidPublicKey) return "no_vapid";
+    if (!vapidPublicKey) return `no_vapid_k${String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").length}`;
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "no_sw";
 
     const cacheKey = `${user.id}:${permission}:${vapidPublicKey}`;
@@ -424,7 +424,26 @@ export function TopBar() {
     }
 
     loadNotificationSettings(user.id)
-      .then(setNotificationSettings)
+      .then(async (settings) => {
+        // 웹 브라우저: 실제 push 구독 존재 여부로 토글 자동 보정
+        if (settings.pushEnabled && !isNativeApp()) {
+          try {
+            if ("serviceWorker" in navigator && "PushManager" in window) {
+              const reg = await navigator.serviceWorker.ready;
+              const sub = await reg.pushManager.getSubscription();
+              if (!sub) {
+                const corrected = { ...settings, pushEnabled: false };
+                setNotificationSettings(corrected);
+                void saveNotificationSettings(user.id, corrected);
+                return;
+              }
+            }
+          } catch {
+            // serviceWorker 접근 실패 시 그냥 로드된 설정 사용
+          }
+        }
+        setNotificationSettings(settings);
+      })
       .catch(() => setNotificationSettings(defaultNotificationSettings));
   }, [user?.id]);
 
