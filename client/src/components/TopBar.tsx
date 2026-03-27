@@ -781,10 +781,10 @@ export function TopBar() {
               ) : (
                 <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-3.5 space-y-1.5">
                   <p className="text-[13px] text-zinc-500">
-                    푸시알림은 앱 설치 후 알림 설정한 경우에 가능합니다.
+                    Chrome / Edge / Firefox 등 PC·안드로이드 브라우저에서 <span className="font-bold text-zinc-700">전체 푸시 알림 켜기</span>를 활성화하면 브라우저 종료 후에도 알림을 받을 수 있습니다.
                   </p>
                   <p className="text-[13px] text-zinc-500">
-                    앱이 아닌 경우에는 본 사이트 화면에 접속된 상태에서만 벨 아이콘에 알림표시가 뜹니다.
+                    ※ Safari(iOS)는 홈 화면에 추가(PWA 설치) 후 가능합니다. 시크릿/인코그니토 모드에서는 알림이 차단됩니다.
                   </p>
                 </div>
               )}
