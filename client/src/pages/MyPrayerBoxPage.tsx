@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Trash2, HandHeart, Heart, PenLine, Mic, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { supabase } from "../lib/supabase";
@@ -37,6 +38,7 @@ export default function MyPrayerBoxPage() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [confirmItem, setConfirmItem] = useState<PrayerBoxItem | null>(null);
 
   useEffect(() => {
     if (isLoading || !user) return;
@@ -53,7 +55,10 @@ export default function MyPrayerBoxPage() {
     void fetch();
   }, [user?.id, isLoading]);
 
+  const confirmRemove = (item: PrayerBoxItem) => setConfirmItem(item);
+
   const removeItem = async (item: PrayerBoxItem) => {
+    setConfirmItem(null);
     if (!user) return;
     await supabase.from("prayer_box_items").delete().eq("id", item.id);
     setItems(prev => prev.filter(i => i.id !== item.id));
@@ -93,6 +98,7 @@ export default function MyPrayerBoxPage() {
   }
 
   return (
+    <>
     <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-24 px-4">
       <div className="max-w-2xl mx-auto space-y-3">
         {isLoading || loading ? (
@@ -126,7 +132,7 @@ export default function MyPrayerBoxPage() {
                       <p className="text-sm text-zinc-800 whitespace-pre-wrap leading-relaxed font-medium">{item.topic_content}</p>
                     </div>
                     <button
-                      onClick={() => void removeItem(item)}
+                      onClick={() => confirmRemove(item)}
                       className="shrink-0 p-1.5 text-zinc-300 hover:text-rose-400 transition-colors"
                       title="저장 취소"
                     >
@@ -210,5 +216,44 @@ export default function MyPrayerBoxPage() {
         )}
       </div>
     </div>
+
+    {/* 삭제 확인 팝업 */}
+    <AnimatePresence>
+      {confirmItem && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setConfirmItem(null)}
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+          />
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="relative w-full max-w-[280px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+          >
+            <h4 className="mb-2 font-bold text-zinc-900 text-base">저장 취소</h4>
+            <p className="mb-6 text-zinc-500 text-sm">기도제목함에서 삭제하시겠습니까?</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmItem(null)}
+                className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 active:scale-95 transition-transform"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => void removeItem(confirmItem)}
+                className="flex-1 rounded-xl bg-red-500 py-3 font-bold text-white shadow-lg shadow-red-200 active:scale-95 transition-transform"
+              >
+                삭제
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
