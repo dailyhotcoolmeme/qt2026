@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, Handshake } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, Handshake, Share2 } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -957,6 +957,9 @@ export default function GroupDashboard() {
   const [confirmPartnerAction, setConfirmPartnerAction] = useState<{ type: 'accept' | 'reject'; requestId: number; requesterId: string; name: string } | null>(null);
   const [partnerToast, setPartnerToast] = useState<string | null>(null);
   const showPartnerToast = (msg: string) => { setPartnerToast(msg); setTimeout(() => setPartnerToast(null), 3000); };
+
+  const [showPrayerShareModal, setShowPrayerShareModal] = useState(false);
+  const [selectedShareUserIds, setSelectedShareUserIds] = useState<Set<string>>(new Set());
 
   const [joinPassword, setJoinPassword] = useState("");
   const [joinMessage, setJoinMessage] = useState("");
@@ -4390,6 +4393,17 @@ export default function GroupDashboard() {
         {activeTab === "prayer" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <section className="relative">
+              {isManager && orderedTopicsByAuthor.length > 0 && (
+                <div className="flex justify-end mb-2">
+                  <button
+                    onClick={() => { setSelectedShareUserIds(new Set(orderedTopicsByAuthor.map(i => i.userId))); setShowPrayerShareModal(true); }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[#4A6741] border border-[#4A6741]/40 rounded-full hover:bg-[#4A6741]/10 transition-colors"
+                  >
+                    <Share2 size={14} />
+                    기도제목 공유
+                  </button>
+                </div>
+              )}
               <div className="space-y-4">
                 <div className="space-y-4">
                   {orderedTopicsByAuthor.map((item) => (
@@ -6714,6 +6728,74 @@ export default function GroupDashboard() {
                 className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-sm disabled:opacity-40"
               >
                 {partnerSending ? "신청 중..." : `신청하기 ${selectedPartnerIds.size > 0 ? `(${selectedPartnerIds.size}명)` : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 기도제목 공유 모달 */}
+      {showPrayerShareModal && (
+        <div className="fixed inset-0 z-[300] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowPrayerShareModal(false)} />
+          <div className="relative w-full max-w-lg bg-white rounded-t-[28px] pb-8 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <Share2 size={18} className="text-[#4A6741]" />
+                <span className="font-bold text-zinc-900">기도제목 공유</span>
+              </div>
+              <button onClick={() => setShowPrayerShareModal(false)} className="p-1 text-zinc-400"><X size={20} /></button>
+            </div>
+            <p className="px-6 pt-3 text-xs text-zinc-400">공유할 모임원을 선택하세요.</p>
+            <div className="overflow-y-auto flex-1 px-6 py-2 space-y-2">
+              {orderedTopicsByAuthor.map(item => {
+                const name = item.author?.nickname || item.author?.username || "모임원";
+                const selected = selectedShareUserIds.has(item.userId);
+                return (
+                  <button
+                    key={item.userId}
+                    onClick={() => setSelectedShareUserIds(prev => {
+                      const next = new Set(prev);
+                      if (next.has(item.userId)) next.delete(item.userId); else next.add(item.userId);
+                      return next;
+                    })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${selected ? "border-[#4A6741] bg-[#4A6741]/5" : "border-zinc-100 bg-white"}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? "border-[#4A6741] bg-[#4A6741]" : "border-zinc-300"}`}>
+                      {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                    <span className="text-sm font-bold text-zinc-800">{name}</span>
+                    <span className="text-xs text-zinc-400 ml-auto">{item.topics.length}개</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-6 pt-4">
+              <button
+                disabled={!selectedShareUserIds.size}
+                onClick={async () => {
+                  const lines: string[] = [`마이아멘 [${group?.name ?? "모임"}] 기도제목 현황\n`];
+                  for (const item of orderedTopicsByAuthor) {
+                    if (!selectedShareUserIds.has(item.userId)) continue;
+                    const name = item.author?.nickname || item.author?.username || "모임원";
+                    lines.push(`📌 ${name}`);
+                    item.topics.forEach(t => {
+                      const text = (t.content || "").trim();
+                      if (text) lines.push(`• ${text}`);
+                    });
+                    lines.push("");
+                  }
+                  const shareText = lines.join("\n").trim();
+                  const shared = await shareContent({ text: shareText });
+                  if (!shared) {
+                    await navigator.clipboard.writeText(shareText).catch(() => {});
+                    alert("클립보드에 복사됐습니다. 카카오톡에 붙여넣기 해주세요.");
+                  }
+                  setShowPrayerShareModal(false);
+                }}
+                className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-sm disabled:opacity-40"
+              >
+                {`공유하기${selectedShareUserIds.size > 0 ? ` (${selectedShareUserIds.size}명)` : ""}`}
               </button>
             </div>
           </div>
