@@ -1356,9 +1356,16 @@ export default function GroupDashboard() {
   };
 
   const loadSavedPrayerTopics = async (userId: string) => {
-    const items = getPrayerBoxItems(userId);
+    const { data } = await supabase
+      .from("prayer_box_items")
+      .select("source_topic_id, topic_content")
+      .eq("user_id", userId)
+      .eq("source_type", "group")
+      .not("source_topic_id", "is", null);
     const map = new Map<number, string>();
-    items.forEach(i => map.set(i.topicId, i.content));
+    (data ?? []).forEach((i: { source_topic_id: number; topic_content: string }) => {
+      map.set(i.source_topic_id, i.topic_content);
+    });
     setSavedPrayerContentMap(map);
   };
 
