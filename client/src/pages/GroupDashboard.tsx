@@ -955,6 +955,8 @@ export default function GroupDashboard() {
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<Set<string>>(new Set());
   const [partnerSending, setPartnerSending] = useState(false);
   const [confirmPartnerAction, setConfirmPartnerAction] = useState<{ type: 'accept' | 'reject'; requestId: number; requesterId: string; name: string } | null>(null);
+  const [partnerToast, setPartnerToast] = useState<string | null>(null);
+  const showPartnerToast = (msg: string) => { setPartnerToast(msg); setTimeout(() => setPartnerToast(null), 3000); };
 
   const [joinPassword, setJoinPassword] = useState("");
   const [joinMessage, setJoinMessage] = useState("");
@@ -1421,6 +1423,7 @@ export default function GroupDashboard() {
       }
       setShowPartnerModal(false);
       setSelectedPartnerIds(new Set());
+      showPartnerToast(`동역자 요청을 보냈습니다. 상대방이 수락하면 알림이 옵니다.`);
     } catch (err) {
       console.error(err);
       alert("동역자 신청에 실패했습니다.");
@@ -1438,6 +1441,7 @@ export default function GroupDashboard() {
       await supabase.from("group_partners").delete().eq("id", requestId);
     }
     setPartnerRequests(prev => prev.filter(r => r.id !== requestId));
+    showPartnerToast(accept ? "동역자 요청을 수락했습니다." : "동역자 요청을 거절했습니다.");
   };
 
   const removePartner = async (partnerId: string) => {
@@ -4217,6 +4221,24 @@ export default function GroupDashboard() {
             <div className="bg-amber-500 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2 whitespace-nowrap">
               <BookmarkCheck size={16} />
               {prayerBoxToast}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 동역자 토스트 */}
+      <AnimatePresence>
+        {partnerToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-28 inset-x-0 flex justify-center z-[300] pointer-events-none px-6"
+          >
+            <div className="bg-[#4A6741] text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-bold flex items-center gap-2">
+              <Handshake size={15} />
+              {partnerToast}
             </div>
           </motion.div>
         )}
