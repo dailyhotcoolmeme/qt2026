@@ -32,7 +32,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, Handshake } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -949,6 +949,11 @@ export default function GroupDashboard() {
 
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
+  const [partners, setPartners] = useState<Array<{ id: number; partner_user_id: string }>>([]);
+  const [partnerRequests, setPartnerRequests] = useState<Array<{ id: number; requester_id: string; profile?: ProfileLite }>>([]);
+  const [showPartnerModal, setShowPartnerModal] = useState(false);
+  const [selectedPartnerIds, setSelectedPartnerIds] = useState<Set<string>>(new Set());
+  const [partnerSending, setPartnerSending] = useState(false);
 
   const [joinPassword, setJoinPassword] = useState("");
   const [joinMessage, setJoinMessage] = useState("");
@@ -1251,6 +1256,8 @@ export default function GroupDashboard() {
       loadJoinRequests(targetGroupId),
       loadScopeLeaders(targetGroupId),
       loadSavedPrayerTopics(userId!),
+      loadPartners(targetGroupId, userId!),
+      loadPartnerRequests(targetGroupId, userId!),
     ]);
 
     if (nextRole === "owner" || nextRole === "leader") {
@@ -1353,6 +1360,91 @@ export default function GroupDashboard() {
 
   const getPrayerBoxItems = (userId: string): Array<{ topicId: number; content: string; groupName: string; savedAt: string }> => {
     try { return JSON.parse(localStorage.getItem(getPrayerBoxStorageKey(userId)) || "[]"); } catch { return []; }
+  };
+
+  const loadPartners = async (gId: string, userId: string) => {
+    const { data } = await supabase
+      .from("group_partners")
+      .select("id, requester_id, target_id, status")
+      .eq("group_id", gId)
+      .or(`requester_id.eq.${userId},target_id.eq.${userId}`)
+      .eq("status", "accepted");
+    (data ?? []).forEach((row: { id: number; requester_id: string; target_id: string; status: string }) => {
+      const partnerId = row.requester_id === userId ? row.target_id : row.requester_id;
+      setPartners(prev => [...prev.filter(p => p.partner_user_id !== partnerId), { id: row.id, partner_user_id: partnerId }]);
+    });
+  };
+
+  const loadPartnerRequests = async (gId: string, userId: string) => {
+    const { data } = await supabase
+      .from("group_partners")
+      .select("id, requester_id")
+      .eq("group_id", gId)
+      .eq("target_id", userId)
+      .eq("status", "pending");
+    if (!data?.length) { setPartnerRequests([]); return; }
+    const requesterIds = data.map((r: { id: number; requester_id: string }) => r.requester_id);
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("id, username, nickname, avatar_url")
+      .in("id", requesterIds);
+    const profileMap = new Map((profiles ?? []).map((p: ProfileLite) => [p.id, p]));
+    setPartnerRequests(data.map((r: { id: number; requester_id: string }) => ({
+      id: r.id,
+      requester_id: r.requester_id,
+      profile: profileMap.get(r.requester_id),
+    })));
+  };
+
+  const sendPartnerRequests = async () => {
+    if (!group || !user || !selectedPartnerIds.size) return;
+    setPartnerSending(true);
+    try {
+      const rows = Array.from(selectedPartnerIds).map(tid => ({
+        group_id: group.id,
+        requester_id: user.id,
+        target_id: tid,
+        status: "pending",
+      }));
+      await supabase.from("group_partners").upsert(rows, { onConflict: "group_id,requester_id,target_id" });
+      // 푸시 알림
+      for (const tid of Array.from(selectedPartnerIds)) {
+        sendPushToGroupUsers({
+          groupId: group.id,
+          targetUserIds: [tid],
+          title: group.name,
+          body: `${user.user_metadata?.nickname || user.email || "모임원"}님이 동역자 요청을 보냈습니다.`,
+          targetPath: `/#/group/${group.id}?tab=members`,
+        });
+      }
+      setShowPartnerModal(false);
+      setSelectedPartnerIds(new Set());
+    } catch (err) {
+      console.error(err);
+      alert("동역자 신청에 실패했습니다.");
+    } finally {
+      setPartnerSending(false);
+    }
+  };
+
+  const resolvePartnerRequest = async (requestId: number, accept: boolean, requesterId: string) => {
+    if (!group || !user) return;
+    if (accept) {
+      await supabase.from("group_partners").update({ status: "accepted" }).eq("id", requestId);
+      setPartners(prev => [...prev, { id: requestId, partner_user_id: requesterId }]);
+    } else {
+      await supabase.from("group_partners").delete().eq("id", requestId);
+    }
+    setPartnerRequests(prev => prev.filter(r => r.id !== requestId));
+  };
+
+  const removePartner = async (partnerId: string) => {
+    if (!group || !user) return;
+    if (!confirm("동역자 관계를 해지하시겠습니까?")) return;
+    const row = partners.find(p => p.partner_user_id === partnerId);
+    if (!row) return;
+    await supabase.from("group_partners").delete().eq("id", row.id);
+    setPartners(prev => prev.filter(p => p.partner_user_id !== partnerId));
   };
 
   const loadSavedPrayerTopics = async (userId: string) => {
@@ -3452,6 +3544,8 @@ export default function GroupDashboard() {
       ));
   }, [topicsByAuthor, prayerTopicAuthorOrder, orderedMyPrayerTopics, user?.id]);
 
+  const partnerIds = useMemo(() => new Set(partners.map(p => p.partner_user_id)), [partners]);
+
   const prayersByTargetUser = useMemo(() => {
     const map = new Map<string, typeof groupPrayers>();
     groupPrayers.forEach(record => {
@@ -3897,14 +3991,15 @@ export default function GroupDashboard() {
     }
   };
 
-  const PrayerTopicAuthorCard = ({ userId, topics, author }: (typeof topicsByAuthor)[number]) => {
+  const PrayerTopicAuthorCard = ({ userId, topics, author, partnerIds }: (typeof topicsByAuthor)[number] & { partnerIds: Set<string> }) => {
     const relatedPrayers = prayersByTargetUser.get(userId) || [];
+    const isPartner = partnerIds.has(userId);
     const voicePrayers = relatedPrayers
       .filter((p) => p.audio_url && p.audio_url !== "amen" && p.audio_url !== "text")
-      .filter((vp) => vp.user_id === user.id || userId === user.id);
+      .filter((vp) => vp.user_id === user.id || userId === user.id || isPartner);
     const textPrayers = relatedPrayers
       .filter((p) => p.audio_url === "text")
-      .filter((tp) => tp.user_id === user.id || userId === user.id);
+      .filter((tp) => tp.user_id === user.id || userId === user.id || isPartner);
     const textTopics = topics.filter((topic) => {
       const attachments = getTopicAttachments(topic);
       return hasVisiblePrayerTopicContent(topic.content) || attachments.some((attachment) => !isImageAttachment(attachment));
@@ -4266,7 +4361,7 @@ export default function GroupDashboard() {
               <div className="space-y-4">
                 <div className="space-y-4">
                   {orderedTopicsByAuthor.map((item) => (
-                    <PrayerTopicAuthorCard key={item.userId} {...item} />
+                    <PrayerTopicAuthorCard key={item.userId} {...item} partnerIds={partnerIds} />
                   ))}
                 </div>
 
@@ -4693,10 +4788,52 @@ export default function GroupDashboard() {
               </div>
             )}
 
+            {/* 동역자 맺기 요청 */}
+            {partnerRequests.length > 0 && (
+              <div className="bg-[#F6F7F8] p-2 mb-4">
+                <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
+                  <Handshake size={16} /> 동역자 맺기 요청
+                </h3>
+                <div className="space-y-3">
+                  {partnerRequests.map((req) => (
+                    <div key={req.id} className="bg-white rounded-2xl p-4 flex flex-col shadow-sm">
+                      <div className="text-base font-bold text-zinc-900">
+                        {req.profile?.nickname || req.profile?.username || "모임원"}
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={() => void resolvePartnerRequest(req.id, true, req.requester_id)}
+                          className="px-4 py-1 rounded-full bg-[#4A6741]/90 text-white text-sm font-bold"
+                        >
+                          수락
+                        </button>
+                        <button
+                          onClick={() => void resolvePartnerRequest(req.id, false, req.requester_id)}
+                          className="px-4 py-1 rounded-full bg-zinc-200 text-zinc-700 text-sm font-bold"
+                        >
+                          거절
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="bg-[#F6F7F8] p-2">
-              <h3 className="font-bold text-[#4A6741] mb-2 text-base flex items-center gap-2">
-                <Users size={16} /> 회원 목록
-              </h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-[#4A6741] text-base flex items-center gap-2">
+                  <Users size={16} /> 회원 목록
+                </h3>
+                {user && (
+                  <button
+                    onClick={() => setShowPartnerModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold"
+                  >
+                    <Handshake size={13} /> 동역자 맺기
+                  </button>
+                )}
+              </div>
               <div className="space-y-4">
                 {members.map((member) => {
                   const isOwner = member.role === "owner";
@@ -4722,6 +4859,12 @@ export default function GroupDashboard() {
                             {toLabel(member.role)}
                           </span>
 
+                          {partnerIds.has(member.user_id) && (
+                            <span className="px-2 py-0.5 text-xs font-bold rounded-md bg-amber-100 text-amber-700 flex items-center gap-1">
+                              <Handshake size={11} /> 동역자
+                            </span>
+                          )}
+
                           {/* 권한 변경 버튼을 이름 라인으로 이동 */}
                           <div className="flex items-center gap-1.5 ml-1">
                             {canPromoteDemote && (member.role === "member" || member.role === "leader") && (
@@ -4744,6 +4887,17 @@ export default function GroupDashboard() {
                             )}
                           </div>
                         </div>
+
+                        {/* 동역자 해지 버튼 */}
+                        {partnerIds.has(member.user_id) && (
+                          <button
+                            onClick={() => void removePartner(member.user_id)}
+                            className="w-7 h-7 rounded-full bg-transparent text-amber-500 flex items-center justify-center"
+                            title="동역자 해지"
+                          >
+                            <Handshake size={14} />
+                          </button>
+                        )}
 
                         {/* 강퇴 버튼 (맨 오른쪽 유지) */}
                         {canKick && member.user_id !== user.id && (
@@ -6405,6 +6559,54 @@ export default function GroupDashboard() {
           </div>
         )
       }
+
+      {/* 동역자 맺기 모달 */}
+      {showPartnerModal && (
+        <div className="fixed inset-0 z-[300] flex items-end justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }} />
+          <div className="relative w-full max-w-lg bg-white rounded-t-[28px] pb-8 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
+              <div className="flex items-center gap-2">
+                <Handshake size={18} className="text-[#4A6741]" />
+                <span className="font-bold text-zinc-900">동역자 맺기</span>
+              </div>
+              <button onClick={() => { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }} className="p-1 text-zinc-400"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+              {members.filter(m => m.user_id !== user?.id && !partnerIds.has(m.user_id)).map(m => {
+                const mName = m.profile?.nickname || m.profile?.username || "모임원";
+                const selected = selectedPartnerIds.has(m.user_id);
+                return (
+                  <button
+                    key={m.user_id}
+                    onClick={() => setSelectedPartnerIds(prev => {
+                      const next = new Set(prev);
+                      if (next.has(m.user_id)) next.delete(m.user_id); else next.add(m.user_id);
+                      return next;
+                    })}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all ${selected ? "border-[#4A6741] bg-[#4A6741]/5" : "border-zinc-100 bg-white"}`}
+                  >
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${selected ? "border-[#4A6741] bg-[#4A6741]" : "border-zinc-300"}`}>
+                      {selected && <div className="w-2 h-2 rounded-full bg-white" />}
+                    </div>
+                    <span className="text-sm font-bold text-zinc-800">{mName}</span>
+                    <span className="text-xs text-zinc-400 ml-auto">{toLabel(m.role)}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="px-6 pt-4">
+              <button
+                onClick={() => void sendPartnerRequests()}
+                disabled={partnerSending || !selectedPartnerIds.size}
+                className="w-full py-4 rounded-2xl bg-[#4A6741] text-white font-bold text-sm disabled:opacity-40"
+              >
+                {partnerSending ? "신청 중..." : `신청하기 ${selectedPartnerIds.size > 0 ? `(${selectedPartnerIds.size}명)` : ""}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 이미지 크롭 모달 */}
       {
