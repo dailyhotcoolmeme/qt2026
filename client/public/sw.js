@@ -3,7 +3,11 @@
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  // 구버전 캐시 전체 삭제 후 즉시 클라이언트 제어권 획득
+  event.waitUntil(
+    caches.keys().then(keys => Promise.all(keys.map(key => caches.delete(key))))
+      .then(() => self.clients.claim())
+  );
 });
 
 self.addEventListener('push', (event) => {
