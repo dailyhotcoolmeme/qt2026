@@ -431,8 +431,8 @@ export default function App() {
             // 세션도 없으면: URL 정리 후 auth로 이동 (invite 파라미터 보존)
             const pendingGroupIdOnFail = localStorage.getItem(PENDING_GROUP_INVITE_KEY)?.trim() || "";
             const clean = pendingGroupIdOnFail
-              ? `${getBrowserOrigin()}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(pendingGroupIdOnFail)}#/auth`
-              : `${getBrowserOrigin()}/#/auth`;
+              ? `${getBrowserOrigin()}/?${GROUP_INVITE_QUERY_KEY}=${encodeURIComponent(pendingGroupIdOnFail)}#/auth?login_fail=1`
+              : `${getBrowserOrigin()}/#/auth?login_fail=1`;
             window.location.replace(clean);
             return;
           }

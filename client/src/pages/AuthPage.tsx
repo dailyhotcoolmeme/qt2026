@@ -18,6 +18,10 @@ function AuthPage() {
   const [, setLocation] = useHashLocation();
   const { fontSize = 16 } = useDisplaySettings();
   const [termsAgreed, setTermsAgreed] = useState(false);
+  const [loginFailed, setLoginFailed] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("login_fail") === "1";
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -170,9 +174,17 @@ function AuthPage() {
         </p>
       </div>
 
+      {loginFailed && (
+        <div className="w-full max-w-sm mb-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          ⚠️ 로그인에 실패했습니다.<br />
+          삼성인터넷은 카카오 로그인이 불안정할 수 있습니다.<br />
+          <strong>크롬 브라우저</strong>에서 다시 시도하거나, 아래 버튼을 다시 눌러보세요.
+        </div>
+      )}
+
       <div className="flex w-full max-w-sm flex-col items-center gap-4">
         <button
-          onClick={() => void handleSocialLogin("kakao")}
+          onClick={() => { setLoginFailed(false); void handleSocialLogin("kakao"); }}
           className={`flex h-[64px] w-full items-center justify-center gap-3 rounded-[22px] bg-[#FEE500] font-bold text-[#3C1E1E] shadow-sm transition-all active:scale-95 ${!termsAgreed ? "opacity-50" : ""}`}
         >
           <img src="/kakao-login.png" className="h-6 w-6" alt="카카오" />
