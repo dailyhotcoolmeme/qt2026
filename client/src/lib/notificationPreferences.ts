@@ -7,7 +7,7 @@ export type NotificationSettings = {
 };
 
 export const defaultNotificationSettings: NotificationSettings = {
-  pushEnabled: true,
+  pushEnabled: false,
   groupActivityEnabled: true,
   systemEnabled: true,
 };
