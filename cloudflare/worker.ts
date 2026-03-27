@@ -1626,11 +1626,23 @@ export default {
     }
 
     const assetResponse = await env.ASSETS.fetch(request);
-    if (assetResponse.status !== 404) return assetResponse;
+    if (assetResponse.status !== 404) {
+      // HTML(index.html)에 대해서는 캐시 완전 차단 — 브라우저가 항상 최신 JS를 로드하게 함
+      const ct = assetResponse.headers.get("Content-Type") || "";
+      if (ct.includes("text/html")) {
+        const noCache = new Response(assetResponse.body, assetResponse);
+        noCache.headers.set("Cache-Control", "no-store");
+        return noCache;
+      }
+      return assetResponse;
+    }
 
     // SPA fallback (extra safety even with not_found_handling)
     const indexUrl = new URL("/index.html", url);
-    return env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+    const fallback = await env.ASSETS.fetch(new Request(indexUrl.toString(), request));
+    const noCache = new Response(fallback.body, fallback);
+    noCache.headers.set("Cache-Control", "no-store");
+    return noCache;
   },
   async scheduled(_event: ScheduledEvent, env: Env): Promise<void> {
     const supabaseUrl = env.SUPABASE_URL || '';

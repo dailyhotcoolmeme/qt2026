@@ -310,7 +310,7 @@ export function TopBar() {
       return;
     }
 
-    if (!vapidPublicKey) return `no_vapid_k${String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").length}`;
+    if (!vapidPublicKey) return "no_vapid";
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) return "no_sw";
 
     const cacheKey = `${user.id}:${permission}:${vapidPublicKey}`;
@@ -425,8 +425,15 @@ export function TopBar() {
 
     loadNotificationSettings(user.id)
       .then(async (settings) => {
-        // 웹 브라우저: 실제 push 구독 존재 여부로 토글 자동 보정
+        // 웹 브라우저: 실제 push 구독 존재 여부 + 권한 상태로 토글 자동 보정
         if (settings.pushEnabled && !isNativeApp()) {
+          // 브라우저 알림 권한이 차단된 경우 → toggle OFF 보정
+          if (typeof Notification !== "undefined" && Notification.permission === "denied") {
+            const corrected = { ...settings, pushEnabled: false };
+            setNotificationSettings(corrected);
+            void saveNotificationSettings(user.id, corrected);
+            return;
+          }
           try {
             if ("serviceWorker" in navigator && "PushManager" in window) {
               const reg = await navigator.serviceWorker.ready;
@@ -584,41 +591,85 @@ export function TopBar() {
   };
 
   const handleNotificationSettingChange = async (key: keyof NotificationSettings, value: boolean) => {
-    // 웹 브라우저에서 알림 권한 요청은 유저 제스처 직후(await 이전)에 해야
-    // 모바일 Chrome 등에서 권한 팝업이 정상적으로 뜸
-    let webPermission: NotificationPermission | null = null;
-    if (key === "pushEnabled" && value && !isNativeApp()) {
-      webPermission = await requestNotificationPermission();
-      setNotificationPermission(webPermission);
-    }
-
-    const next = { ...notificationSettings, [key]: value };
-    setNotificationSettings(next);
-    const saved = await saveNotificationSettings(user?.id, next);
-    if (!saved) {
-      console.warn("notification settings save fallback: local only");
-    }
-
     if (key === "pushEnabled") {
       if (!value) {
+        // 토글 OFF
         pushSyncedKeyRef.current = "";
+        const next = { ...notificationSettings, pushEnabled: false };
+        setNotificationSettings(next);
+        await saveNotificationSettings(user?.id, next);
         await unsubscribePushSubscription();
-      } else if (isNativeApp()) {
+        return;
+      }
+
+      // 토글 ON
+      if (isNativeApp()) {
         const permission = await requestNotificationPermission();
         setNotificationPermission(permission);
         if (permission === "granted") {
+          const next = { ...notificationSettings, pushEnabled: true };
+          setNotificationSettings(next);
+          await saveNotificationSettings(user?.id, next);
           await syncPushSubscription(true);
         }
-      } else if (webPermission === "granted") {
+        return;
+      }
+
+      // 웹 브라우저: 현재 권한 상태 먼저 확인 (requestPermission 아님)
+      const currentPermission = Notification.permission as NotificationPermission;
+
+      if (currentPermission === "denied") {
+        // 이미 차단 — 팝업 안 뜸, 안내만 표시
+        alert("⚠️ 브라우저 알림이 차단되어 있습니다.\n주소창 옆 🔒(자물쇠) 아이콘 → 알림 → 허용 후 다시 시도해주세요.\n(삼성인터넷: 설정 → 사이트 → 알림 → myamen.co.kr 허용)");
+        const next = { ...notificationSettings, pushEnabled: false };
+        setNotificationSettings(next);
+        await saveNotificationSettings(user?.id, next);
+        return;
+      }
+
+      if (currentPermission === "granted") {
+        // 이미 허용 — 바로 구독
+        const next = { ...notificationSettings, pushEnabled: true };
+        setNotificationSettings(next);
+        await saveNotificationSettings(user?.id, next);
+        const result = await syncPushSubscription(true);
+        if (result === "ok" || result === "cached") {
+          alert("✅ 알림 설정이 완료됐습니다.");
+        } else {
+          alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않을 수 있습니다.`);
+        }
+        return;
+      }
+
+      // "default" (처음) — 팝업 요청 (유저 제스처 직후 호출)
+      const granted = await requestNotificationPermission();
+      setNotificationPermission(granted);
+      if (granted === "granted") {
+        const next = { ...notificationSettings, pushEnabled: true };
+        setNotificationSettings(next);
+        await saveNotificationSettings(user?.id, next);
         const result = await syncPushSubscription(true);
         if (result === "ok" || result === "cached") {
           alert("✅ 알림 설정이 완료됐습니다.");
         } else {
           alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않거나 차단됐을 수 있습니다.`);
         }
-      } else if (webPermission === "denied") {
-        alert("⚠️ 브라우저 알림이 차단되어 있습니다.\n주소창 옆 🔒(자물쇠) 아이콘 → 알림 → 허용 후 다시 시도해주세요.\n(삼성인터넷: 설정 → 사이트 → 알림 → myamen.co.kr 허용)");
+      } else {
+        // 거부됨 — toggle 다시 OFF
+        const next = { ...notificationSettings, pushEnabled: false };
+        setNotificationSettings(next);
+        await saveNotificationSettings(user?.id, next);
+        alert("⚠️ 알림 권한이 거부됐습니다.\n알림을 받으려면 브라우저 알림 허용이 필요합니다.");
       }
+      return;
+    }
+
+    // pushEnabled 외 다른 설정 키
+    const next = { ...notificationSettings, [key]: value };
+    setNotificationSettings(next);
+    const saved = await saveNotificationSettings(user?.id, next);
+    if (!saved) {
+      console.warn("notification settings save fallback: local only");
     }
   };
 
