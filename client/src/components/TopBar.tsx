@@ -593,7 +593,7 @@ export function TopBar() {
       } else if (webPermission === "granted") {
         const result = await syncPushSubscription(true);
         if (result === "ok" || result === "cached") {
-          alert("✅ 알림 구독이 완료됐습니다.");
+          alert("✅ 알림 설정이 완료됐습니다.");
         } else {
           alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않거나 차단됐을 수 있습니다.`);
         }
@@ -831,25 +831,11 @@ export function TopBar() {
 
               <div className="space-y-3.5">
                 <NotificationToggle
-                  label="전체 푸시 알림"
-                  description="기기 푸시와 앱 내 알림을 함께 켭니다."
+                  label="푸시 알림"
+                  description="기기 푸시와 앱 내 알림을 받습니다."
                   checked={notificationSettings.pushEnabled}
                   disabled={isPushSyncing}
                   onChange={(value) => void handleNotificationSettingChange("pushEnabled", value)}
-                />
-                <NotificationToggle
-                  label="모임 활동 알림"
-                  description="가입 승인, 가입 요청, 모임 관련 알림을 받습니다."
-                  checked={notificationSettings.groupActivityEnabled}
-                  disabled={!notificationSettings.pushEnabled}
-                  onChange={(value) => void handleNotificationSettingChange("groupActivityEnabled", value)}
-                />
-                <NotificationToggle
-                  label="시스템 알림"
-                  description="공지와 일반 시스템 알림을 받습니다."
-                  checked={notificationSettings.systemEnabled}
-                  disabled={!notificationSettings.pushEnabled}
-                  onChange={(value) => void handleNotificationSettingChange("systemEnabled", value)}
                 />
               </div>
 
