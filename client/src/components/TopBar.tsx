@@ -265,7 +265,9 @@ export function TopBar() {
   };
 
   const syncPushSubscription = async (force = false) => {
-    if (!isAuthenticated || !user?.id || !notificationSettings.pushEnabled) return;
+    // force=true 시 pushEnabled 체크 생략: 토글 직후 React 상태가 아직 반영 안 됐을 수 있음
+    if (!isAuthenticated || !user?.id) return "no_auth";
+    if (!force && !notificationSettings.pushEnabled) return "disabled";
 
     const permission = await syncPermissionState();
     if (permission !== "granted") return;
