@@ -950,10 +950,11 @@ export default function GroupDashboard() {
   const [members, setMembers] = useState<GroupMemberRow[]>([]);
   const [joinRequests, setJoinRequests] = useState<GroupJoinRequest[]>([]);
   const [partners, setPartners] = useState<Array<{ id: number; partner_user_id: string }>>([]);
-  const [partnerRequests, setPartnerRequests] = useState<Array<{ id: number; requester_id: string; profile?: ProfileLite }>>([]);
+  const [partnerRequests, setPartnerRequests] = useState<Array<{ id: number; requester_id: string; created_at: string; profile?: ProfileLite }>>([]);
   const [showPartnerModal, setShowPartnerModal] = useState(false);
   const [selectedPartnerIds, setSelectedPartnerIds] = useState<Set<string>>(new Set());
   const [partnerSending, setPartnerSending] = useState(false);
+  const [confirmPartnerAction, setConfirmPartnerAction] = useState<{ type: 'accept' | 'reject'; requestId: number; requesterId: string; name: string } | null>(null);
 
   const [joinPassword, setJoinPassword] = useState("");
   const [joinMessage, setJoinMessage] = useState("");
@@ -1378,20 +1379,21 @@ export default function GroupDashboard() {
   const loadPartnerRequests = async (gId: string, userId: string) => {
     const { data } = await supabase
       .from("group_partners")
-      .select("id, requester_id")
+      .select("id, requester_id, created_at")
       .eq("group_id", gId)
       .eq("target_id", userId)
       .eq("status", "pending");
     if (!data?.length) { setPartnerRequests([]); return; }
-    const requesterIds = data.map((r: { id: number; requester_id: string }) => r.requester_id);
+    const requesterIds = data.map((r: { id: number; requester_id: string; created_at: string }) => r.requester_id);
     const { data: profiles } = await supabase
       .from("profiles")
       .select("id, username, nickname, avatar_url")
       .in("id", requesterIds);
     const profileMap = new Map((profiles ?? []).map((p: ProfileLite) => [p.id, p]));
-    setPartnerRequests(data.map((r: { id: number; requester_id: string }) => ({
+    setPartnerRequests(data.map((r: { id: number; requester_id: string; created_at: string }) => ({
       id: r.id,
       requester_id: r.requester_id,
+      created_at: r.created_at,
       profile: profileMap.get(r.requester_id),
     })));
   };
@@ -4795,27 +4797,42 @@ export default function GroupDashboard() {
                   <Handshake size={16} /> 동역자 맺기 요청
                 </h3>
                 <div className="space-y-3">
-                  {partnerRequests.map((req) => (
-                    <div key={req.id} className="bg-white rounded-2xl p-4 flex flex-col shadow-sm">
-                      <div className="text-base font-bold text-zinc-900">
-                        {req.profile?.nickname || req.profile?.username || "모임원"}
+                  {partnerRequests.map((req) => {
+                    const reqName = req.profile?.nickname || req.profile?.username || "모임원";
+                    const reqDate = (() => {
+                      try {
+                        const d = new Date(req.created_at);
+                        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+                      } catch { return ""; }
+                    })();
+                    return (
+                      <div key={req.id} className="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow duration-200">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-zinc-900">{reqName}</span>
+                            {req.profile?.username && (
+                              <span className="text-xs text-zinc-400">@{req.profile.username}</span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-zinc-400">{reqDate}</span>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => setConfirmPartnerAction({ type: 'accept', requestId: req.id, requesterId: req.requester_id, name: reqName })}
+                            className="px-4 py-1.5 rounded-full bg-[#4A6741]/90 text-white text-xs font-bold"
+                          >
+                            수락
+                          </button>
+                          <button
+                            onClick={() => setConfirmPartnerAction({ type: 'reject', requestId: req.id, requesterId: req.requester_id, name: reqName })}
+                            className="px-4 py-1.5 rounded-full bg-zinc-200 text-zinc-700 text-xs font-bold"
+                          >
+                            거절
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={() => void resolvePartnerRequest(req.id, true, req.requester_id)}
-                          className="px-4 py-1 rounded-full bg-[#4A6741]/90 text-white text-sm font-bold"
-                        >
-                          수락
-                        </button>
-                        <button
-                          onClick={() => void resolvePartnerRequest(req.id, false, req.requester_id)}
-                          className="px-4 py-1 rounded-full bg-zinc-200 text-zinc-700 text-sm font-bold"
-                        >
-                          거절
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -4892,10 +4909,11 @@ export default function GroupDashboard() {
                         {partnerIds.has(member.user_id) && (
                           <button
                             onClick={() => void removePartner(member.user_id)}
-                            className="w-7 h-7 rounded-full bg-transparent text-amber-500 flex items-center justify-center"
+                            className="w-7 h-7 rounded-full bg-transparent text-amber-500 flex items-center justify-center relative"
                             title="동역자 해지"
                           >
                             <Handshake size={14} />
+                            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-rose-400 text-white flex items-center justify-center text-[9px] font-black leading-none">−</span>
                           </button>
                         )}
 
@@ -6560,6 +6578,62 @@ export default function GroupDashboard() {
         )
       }
 
+      {/* 동역자 수락/거절 확인 팝업 */}
+      <AnimatePresence>
+        {confirmPartnerAction && (
+          <div className="fixed inset-0 z-[350] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setConfirmPartnerAction(null)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[300px] rounded-[28px] bg-white p-8 text-center shadow-2xl"
+            >
+              <div className="flex justify-center mb-3">
+                <Handshake size={28} className={confirmPartnerAction.type === 'accept' ? "text-[#4A6741]" : "text-zinc-400"} />
+              </div>
+              <h4 className="mb-2 font-bold text-zinc-900 text-base">
+                {confirmPartnerAction.type === 'accept' ? '동역자 수락' : '동역자 거절'}
+              </h4>
+              {confirmPartnerAction.type === 'accept' ? (
+                <p className="mb-6 text-zinc-500 text-sm leading-relaxed">
+                  <span className="font-bold text-zinc-700">{confirmPartnerAction.name}</span>님과 동역자가 되면<br />
+                  중보기도탭에서 서로의 <span className="font-bold">글기도·음성기도 내역</span>을 함께 볼 수 있습니다.
+                </p>
+              ) : (
+                <p className="mb-6 text-zinc-500 text-sm">
+                  <span className="font-bold text-zinc-700">{confirmPartnerAction.name}</span>님의<br />동역자 요청을 거절하시겠습니까?
+                </p>
+              )}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmPartnerAction(null)}
+                  className="flex-1 rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 active:scale-95 transition-transform"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    const { type, requestId, requesterId } = confirmPartnerAction;
+                    setConfirmPartnerAction(null);
+                    void resolvePartnerRequest(requestId, type === 'accept', requesterId);
+                  }}
+                  className={`flex-1 rounded-xl py-3 font-bold text-white active:scale-95 transition-transform ${confirmPartnerAction.type === 'accept' ? 'bg-[#4A6741] shadow-lg shadow-green-200' : 'bg-red-500 shadow-lg shadow-red-200'}`}
+                >
+                  {confirmPartnerAction.type === 'accept' ? '수락' : '거절'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* 동역자 맺기 모달 */}
       {showPartnerModal && (
         <div className="fixed inset-0 z-[300] flex items-end justify-center">
@@ -6572,7 +6646,15 @@ export default function GroupDashboard() {
               </div>
               <button onClick={() => { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }} className="p-1 text-zinc-400"><X size={20} /></button>
             </div>
-            <div className="overflow-y-auto flex-1 px-6 py-4 space-y-2">
+            <div className="px-6 pt-3 pb-2">
+              <div className="bg-amber-50 rounded-xl p-3 flex gap-2">
+                <Handshake size={15} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  동역자끼리는 중보기도탭에서 서로의 <span className="font-bold">글기도·음성기도 내역</span>을 함께 볼 수 있습니다. 부부, 기도 파트너 등 신뢰하는 분께만 요청하세요.
+                </p>
+              </div>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-2 space-y-2">
               {members.filter(m => m.user_id !== user?.id && !partnerIds.has(m.user_id)).map(m => {
                 const mName = m.profile?.nickname || m.profile?.username || "모임원";
                 const selected = selectedPartnerIds.has(m.user_id);
