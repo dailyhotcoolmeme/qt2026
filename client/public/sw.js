@@ -37,6 +37,16 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
+// HTML 페이지 요청 시 항상 서버에서 새로 받아와서 최신 JS 로드 보장
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request, { cache: 'no-store' })
+        .catch(() => caches.match('/index.html'))
+    );
+  }
+});
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = event.notification?.data?.url || '/';

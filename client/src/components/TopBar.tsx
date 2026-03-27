@@ -101,7 +101,7 @@ export function TopBar() {
   const pushedKey = useMemo(() => `topbar_pushed_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
-  const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "").trim();
+  const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "BIqWHcoeJPIYyxzR6AXBXoJwsxb90hfiQ1yVaqzYIxYINHxIeXVDuUvi502EdP1GGVYaAo7Xi0K-WZz1tS0LapI").trim();
 
   const syncPermissionState = async () => {
     try {
