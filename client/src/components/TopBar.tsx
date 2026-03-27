@@ -89,6 +89,7 @@ export function TopBar() {
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
   const [isPushSyncing, setIsPushSyncing] = useState(false);
+  const [subscriptionResult, setSubscriptionResult] = useState<"ok" | "error" | null>(null);
   const [hasVerseCards, setHasVerseCards] = useState(false);
   const [hasPrayerBox, setHasPrayerBox] = useState(false);
   const [hasFavorites, setHasFavorites] = useState(false);
@@ -595,6 +596,7 @@ export function TopBar() {
       if (!value) {
         // 토글 OFF
         pushSyncedKeyRef.current = "";
+        setSubscriptionResult(null);
         const next = { ...notificationSettings, pushEnabled: false };
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
@@ -633,11 +635,7 @@ export function TopBar() {
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
         const result = await syncPushSubscription(true);
-        if (result === "ok" || result === "cached") {
-          alert("✅ 알림 설정이 완료됐습니다.");
-        } else {
-          alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않을 수 있습니다.`);
-        }
+        setSubscriptionResult(result === "ok" || result === "cached" ? "ok" : "error");
         return;
       }
 
@@ -649,17 +647,13 @@ export function TopBar() {
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
         const result = await syncPushSubscription(true);
-        if (result === "ok" || result === "cached") {
-          alert("✅ 알림 설정이 완료됐습니다.");
-        } else {
-          alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않거나 차단됐을 수 있습니다.`);
-        }
+        setSubscriptionResult(result === "ok" || result === "cached" ? "ok" : "error");
       } else {
         // 거부됨 — toggle 다시 OFF
         const next = { ...notificationSettings, pushEnabled: false };
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
-        alert("⚠️ 알림 권한이 거부됐습니다.\n알림을 받으려면 브라우저 알림 허용이 필요합니다.");
+        setNotificationPermission("denied");
       }
       return;
     }
@@ -850,7 +844,7 @@ export function TopBar() {
                     <p className="mt-1 text-[15px] text-zinc-500">앱 푸시와 앱 내 알림을 관리합니다.</p>
                   )}
                 </div>
-                <button onClick={() => setShowNotificationSettings(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
+                <button onClick={() => { setShowNotificationSettings(false); setSubscriptionResult(null); }} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
                   <X className="h-5 w-5" />
                 </button>
               </div>
@@ -891,9 +885,21 @@ export function TopBar() {
               )}
 
               {isPushSyncing && (
-                <div className="mt-5 flex items-center gap-2 text-[14px] text-zinc-500">
+                <div className="mt-4 flex items-center gap-2 text-[13px] text-zinc-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>푸시 설정을 동기화하는 중입니다.</span>
+                  <span>알림 등록 중...</span>
+                </div>
+              )}
+              {!isPushSyncing && subscriptionResult === "ok" && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-green-50 px-3 py-2.5 text-[13px] text-green-700 font-medium">
+                  <span>✅</span>
+                  <span>알림 설정이 완료됐습니다.</span>
+                </div>
+              )}
+              {!isPushSyncing && subscriptionResult === "error" && (
+                <div className="mt-4 flex items-center gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-[13px] text-rose-700 font-medium">
+                  <span>⚠️</span>
+                  <span>알림 등록에 실패했습니다. 다시 시도해 주세요.</span>
                 </div>
               )}
             </motion.div>
