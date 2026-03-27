@@ -598,7 +598,7 @@ export function TopBar() {
           alert(`⚠️ 알림 구독 실패: ${result}\n\n브라우저가 알림을 지원하지 않거나 차단됐을 수 있습니다.`);
         }
       } else if (webPermission === "denied") {
-        alert("⚠️ 브라우저 알림이 차단되어 있습니다.\nChrome 주소창 🔒 → 알림 → 허용 후 다시 시도해주세요.");
+        alert("⚠️ 브라우저 알림이 차단되어 있습니다.\n주소창 옆 🔒(자물쇠) 아이콘 → 알림 → 허용 후 다시 시도해주세요.\n(삼성인터넷: 설정 → 사이트 → 알림 → myamen.co.kr 허용)");
       }
     }
   };
