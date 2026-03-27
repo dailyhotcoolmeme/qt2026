@@ -973,6 +973,10 @@ async function handlePushSubscribe(request: Request, env: Env) {
       body: JSON.stringify({ user_id: userId, channel: 'fcm', platform: body.platform || 'android', device_token: body.token }),
     });
   } else if (body.channel === 'webpush' && body.subscription) {
+    // 기존 webpush 구독 삭제 후 새로 등록 (중복 방지)
+    await fetch(`${supaUrl}/rest/v1/push_subscriptions?user_id=eq.${userId}&channel=eq.webpush`, {
+      method: 'DELETE', headers,
+    });
     await fetch(`${supaUrl}/rest/v1/push_subscriptions`, {
       method: 'POST',
       headers,
