@@ -102,6 +102,7 @@ export function TopBar() {
   const pushedKey = useMemo(() => `topbar_pushed_notifications:${user?.id || "guest"}`, [user?.id]);
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
+  const pushSyncInProgressRef = useRef(false);
   const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "BIqWHcoeJPIYyxzR6AXBXoJwsxb90hfiQ1yVaqzYIxYINHxIeXVDuUvi502EdP1GGVYaAo7Xi0K-WZz1tS0LapI").trim();
 
   const syncPermissionState = async () => {
@@ -266,6 +267,10 @@ export function TopBar() {
   };
 
   const syncPushSubscription = async (force = false) => {
+    // 동시 호출 방지 — 토글 ON 시 useEffect와 handleNotificationSettingChange가 동시에 호출되는 레이스 컨디션 차단
+    if (pushSyncInProgressRef.current) return "in_progress";
+    pushSyncInProgressRef.current = true;
+    try {
     // force=true 시 pushEnabled 체크 생략: 토글 직후 React 상태가 아직 반영 안 됐을 수 있음
     if (!isAuthenticated || !user?.id) return "no_auth";
     if (!force && !notificationSettings.pushEnabled) return "disabled";
@@ -345,6 +350,9 @@ export function TopBar() {
     } catch (error) {
       console.error("web push sync failed:", error);
       return `exception:${String(error).slice(0, 80)}`;
+    }
+    } finally {
+      pushSyncInProgressRef.current = false;
     }
   };
 
