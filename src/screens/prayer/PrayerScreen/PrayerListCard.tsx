@@ -16,6 +16,8 @@ interface MyListProps {
   onDelete: (id: string) => void
   onMarkAnswered: (id: string) => void
   listPaddingBottom: number
+  savedIds?: Set<string>
+  onToggleSave?: (id: string) => void
 }
 
 interface PublicListProps {
@@ -36,6 +38,8 @@ export function MyPrayerCard({
   onDelete,
   onMarkAnswered,
   listPaddingBottom,
+  savedIds,
+  onToggleSave,
 }: MyListProps) {
   const cardWidth = useCardWidth()
 
@@ -45,6 +49,8 @@ export function MyPrayerCard({
       onPress={() => {/* TODO: 수정 화면 */}}
       onDelete={() => onDelete(item.id)}
       onMarkAnswered={() => onMarkAnswered(item.id)}
+      isSaved={savedIds?.has(item.id)}
+      onToggleSave={onToggleSave ? () => onToggleSave(item.id) : undefined}
     />
   )
 

@@ -20,6 +20,7 @@ import { Loading, EmptyState } from 'src/components/common'
 import { theme } from 'src/theme'
 import { useAuthStore } from 'src/stores/authStore'
 import type { PrayerRow } from 'src/lib/types'
+import { usePrayerBox } from 'src/hooks/prayer/usePrayerBox'
 
 interface PrayerTabProps {
   groupId: string
@@ -38,6 +39,7 @@ export function PrayerTab({ groupId }: PrayerTabProps) {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const { savedIds, addPrayer, removePrayer } = usePrayerBox()
 
   const fetchPrayers = useCallback(async () => {
     setIsLoading(true)
@@ -95,7 +97,9 @@ export function PrayerTab({ groupId }: PrayerTabProps) {
     }
   }
 
-  const renderItem = ({ item }: ListRenderItemInfo<PrayerRow>) => (
+  const renderItem = ({ item }: ListRenderItemInfo<PrayerRow>) => {
+    const isSaved = savedIds.has(String(item.id))
+    return (
     <View style={[styles.item, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
       <View style={styles.itemHeader}>
         <Text style={[styles.itemTitle, { color: colors.textPrimary }]} numberOfLines={1}>
@@ -106,6 +110,20 @@ export function PrayerTab({ groupId }: PrayerTabProps) {
             <Text style={[styles.answeredText, { color: colors.primary }]}>응답됨</Text>
           </View>
         )}
+        <Pressable
+          onPress={() => {
+            if (isSaved) void removePrayer(String(item.id))
+            else void addPrayer(String(item.id))
+          }}
+          hitSlop={8}
+          style={styles.bookmarkBtn}
+        >
+          <Ionicons
+            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+            size={16}
+            color={isSaved ? colors.primary : colors.textTertiary}
+          />
+        </Pressable>
       </View>
       {item.content ? (
         <Text style={[styles.itemContent, { color: colors.textSecondary }]} numberOfLines={3}>
@@ -118,6 +136,7 @@ export function PrayerTab({ groupId }: PrayerTabProps) {
       </View>
     </View>
   )
+  }
 
   if (isLoading) return <Loading />
 
@@ -197,6 +216,7 @@ const styles = StyleSheet.create({
   list: { padding: theme.spacing.screenPaddingH, gap: theme.spacing.sm, flexGrow: 1 },
   item: { padding: theme.spacing.md, borderRadius: theme.spacing.borderRadius, borderWidth: 1, gap: theme.spacing.xs },
   itemHeader: { flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm },
+  bookmarkBtn: { marginLeft: theme.spacing.xs },
   itemTitle: { ...theme.typography.styles.h4, flex: 1 },
   answeredBadge: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: theme.spacing.borderRadiusSm },
   answeredText: { ...theme.typography.styles.caption, fontWeight: theme.typography.fontWeight.medium },

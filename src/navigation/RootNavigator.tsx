@@ -18,6 +18,7 @@ import FavoritesScreen from 'src/screens/common/FavoritesScreen'
 import SettingsScreen from 'src/screens/common/SettingsScreen'
 import RecordDetailScreen from 'src/screens/common/RecordDetail'
 import TermsScreen from 'src/screens/common/Terms'
+import MyPrayerBoxScreen from 'src/screens/common/MyPrayerBoxScreen'
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
@@ -79,6 +80,7 @@ export function RootNavigator() {
       />
       <Stack.Screen name="RecordDetail" component={RecordDetailScreen} />
       <Stack.Screen name="Terms" component={TermsScreen} />
+      <Stack.Screen name="MyPrayerBox" component={MyPrayerBoxScreen} />
     </Stack.Navigator>
   )
 }

@@ -7,6 +7,7 @@ import { theme } from 'src/theme'
 import { Loading, ScreenHeader } from 'src/components/common'
 import { useAuthStore } from 'src/stores/authStore'
 import { usePrayers } from 'src/hooks/prayer/usePrayers'
+import { usePrayerBox } from 'src/hooks/prayer/usePrayerBox'
 import { AddPrayerModal } from './AddPrayerModal'
 import { PrayerSummaryCards } from './PrayerSummaryCards'
 import { MyPrayerCard, PublicPrayerCard } from './PrayerListCard'
@@ -33,6 +34,12 @@ export default function PrayerScreen() {
     markAnswered,
     prayForTopic,
   } = usePrayers()
+  const { savedIds, addPrayer, removePrayer } = usePrayerBox()
+
+  const handleToggleSave = (prayerId: string) => {
+    if (savedIds.has(prayerId)) void removePrayer(prayerId)
+    else void addPrayer(prayerId)
+  }
 
   const today = new Date()
   const dateLabel = `${today.getMonth() + 1}월 ${today.getDate()}일`
@@ -107,6 +114,8 @@ export default function PrayerScreen() {
             onDelete={(id) => deletePrayer(id)}
             onMarkAnswered={(id) => markAnswered(id)}
             listPaddingBottom={16}
+            savedIds={savedIds}
+            onToggleSave={handleToggleSave}
           />
         ) : (
           <PublicPrayerCard

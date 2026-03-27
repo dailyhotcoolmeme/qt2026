@@ -131,6 +131,13 @@ export interface VerseFavoriteRow {
   created_at: string
 }
 
+export interface PrayerBoxRow {
+  id: number
+  user_id: string
+  topic_id: string
+  created_at: string
+}
+
 export interface NotificationRow {
   id: string
   user_id: string
@@ -249,6 +256,12 @@ export type Database = {
         Row: NotificationRow
         Insert: Omit<NotificationRow, 'id' | 'created_at'>
         Update: Partial<Omit<NotificationRow, 'id' | 'created_at'>>
+        Relationships: _Relationship[]
+      }
+      prayer_box: {
+        Row: PrayerBoxRow
+        Insert: Omit<PrayerBoxRow, 'id' | 'created_at'>
+        Update: Partial<Omit<PrayerBoxRow, 'id' | 'created_at'>>
         Relationships: _Relationship[]
       }
     }

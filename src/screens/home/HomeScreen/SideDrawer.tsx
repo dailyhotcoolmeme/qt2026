@@ -109,6 +109,14 @@ export function SideDrawer({ visible, onClose }: SideDrawerProps) {
           {/* 메뉴 */}
           <View style={styles.menuSection}>
             <DrawerItem
+              icon="bookmark-outline"
+              label="내 기도제목함"
+              onPress={() => navigate('MyPrayerBox')}
+              bg={itemHoverBg}
+              textColor={textPrimary}
+              iconColor={textSecondary}
+            />
+            <DrawerItem
               icon="image-outline"
               label="말씀카드 보관함"
               onPress={() => navigate('RecordDetail' as keyof RootStackParamList)}

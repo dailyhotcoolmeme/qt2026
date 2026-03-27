@@ -31,6 +31,7 @@ export type RootStackParamList = {
   Favorites: undefined
   RecordDetail: { recordId: string; recordType: RecordType }
   Terms: { type: 'service' | 'privacy' }
+  MyPrayerBox: undefined
 }
 
 // ================================

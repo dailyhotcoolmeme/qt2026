@@ -18,9 +18,11 @@ interface PrayerItemProps {
   onPress: () => void
   onDelete: () => void
   onMarkAnswered: () => void
+  isSaved?: boolean
+  onToggleSave?: () => void
 }
 
-export function PrayerItem({ prayer, onPress, onDelete, onMarkAnswered }: PrayerItemProps) {
+export function PrayerItem({ prayer, onPress, onDelete, onMarkAnswered, isSaved, onToggleSave }: PrayerItemProps) {
   const { isDark } = useAppTheme()
   const colorScheme = isDark ? 'dark' : 'light'
   const colors = theme.colors[colorScheme ?? 'light']
@@ -93,6 +95,15 @@ export function PrayerItem({ prayer, onPress, onDelete, onMarkAnswered }: Prayer
           {relativeDate(prayer.created_at)}
         </Text>
       </View>
+      {onToggleSave && (
+        <Pressable onPress={onToggleSave} hitSlop={8} style={styles.iconButton}>
+          <Ionicons
+            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+            size={18}
+            color={isSaved ? colors.primary : colors.textTertiary}
+          />
+        </Pressable>
+      )}
       <Pressable
         onPress={handleMorePress}
         hitSlop={8}
@@ -135,6 +146,9 @@ const styles = StyleSheet.create({
   },
   date: {
     ...theme.typography.styles.caption,
+  },
+  iconButton: {
+    paddingLeft: theme.spacing.sm,
   },
   moreButton: {
     paddingLeft: theme.spacing.sm,
