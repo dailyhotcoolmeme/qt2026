@@ -473,11 +473,10 @@ export function TopBar() {
       return;
     }
     const uid = user.id;
-    // 내 기도제목함 (localStorage)
-    try {
-      const items = JSON.parse(localStorage.getItem(`myamen_prayer_box_${uid}`) || "[]");
-      setHasPrayerBox(Array.isArray(items) && items.length > 0);
-    } catch { setHasPrayerBox(false); }
+    // 내 기도제목함 (Supabase)
+    supabase.from("prayer_box_items").select("id", { count: "exact", head: true }).eq("user_id", uid)
+      .then(({ count }) => setHasPrayerBox((count ?? 0) > 0))
+      .catch(() => setHasPrayerBox(false));
     // 말씀카드 (IndexedDB → localStorage 폴백)
     const cardKey = `verse-card-records:${uid}`;
     (async () => {
