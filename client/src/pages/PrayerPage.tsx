@@ -195,25 +195,38 @@ export default function PrayerPage() {
   const recordingTimerRef = useRef<any>(null);
   // 모임 연결 관련 useEffect 제거
 
-  // 기도제목함 localStorage 헬퍼
-  const getPrayerBoxKey = (uid: string) => `myamen_prayer_box_${uid}`;
-  const getPrayerBoxItems = (uid: string): Array<{ topicId: number; content: string; groupName: string; savedAt: string }> => {
-    try { return JSON.parse(localStorage.getItem(getPrayerBoxKey(uid)) || "[]"); } catch { return []; }
-  };
-
+  // 기도제목함 — Supabase 로드
   useEffect(() => {
     if (!user) return;
-    const items = getPrayerBoxItems(user.id);
-    const map = new Map<number, string>();
-    items.forEach(i => map.set(i.topicId, i.content));
-    setSavedPrayerContentMap(map);
+    const load = async () => {
+      const { data } = await supabase
+        .from('prayer_box_items')
+        .select('source_topic_id, topic_content')
+        .eq('user_id', user.id)
+        .eq('source_type', 'personal');
+      const map = new Map<number, string>();
+      (data || []).forEach((item: any) => {
+        if (item.source_topic_id != null) map.set(item.source_topic_id, item.topic_content);
+      });
+      setSavedPrayerContentMap(map);
+    };
+    void load();
   }, [user?.id]);
 
-  const saveToPrayerBox = (topicId: number, content: string) => {
+  const saveToPrayerBox = async (topicId: number, content: string) => {
     if (!user) return;
-    const items = getPrayerBoxItems(user.id);
-    items.unshift({ topicId, content, groupName: "매일기도", savedAt: new Date().toISOString() });
-    try { localStorage.setItem(getPrayerBoxKey(user.id), JSON.stringify(items)); } catch {}
+    await supabase.from('prayer_box_items').upsert({
+      user_id: user.id,
+      source_type: 'personal',
+      source_topic_id: topicId,
+      group_name: '매일기도',
+      topic_content: content,
+      heart_count: 0,
+      heart_prayers: [],
+      text_prayers: [],
+      voice_prayers: [],
+      saved_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,source_topic_id' });
     setSavedPrayerContentMap(prev => new Map(prev).set(topicId, content));
     setPrayerBoxToast("기도제목함에 보관되었습니다.");
     setTimeout(() => setPrayerBoxToast(null), 2500);
@@ -1212,7 +1225,7 @@ export default function PrayerPage() {
                       const isSynced = savedContent !== undefined && savedContent === (topic.topic_text || "");
                       return (
                         <button
-                          onClick={() => saveToPrayerBox(topic.id, topic.topic_text || "")}
+                          onClick={() => void saveToPrayerBox(topic.id, topic.topic_text || "")}
                           title={isSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
                           className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-amber-50 transition-colors"
                         >
