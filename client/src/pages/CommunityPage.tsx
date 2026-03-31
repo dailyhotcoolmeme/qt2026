@@ -134,6 +134,7 @@ export default function CommunityPage() {
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState("");
   const [dissolveTargetId, setDissolveTargetId] = useState<string | null>(null);
+  const [removeFromFolderTarget, setRemoveFromFolderTarget] = useState<{ folderId: string; groupId: string; groupName: string } | null>(null);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -762,13 +763,16 @@ export default function CommunityPage() {
           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
         </div>
 
-        {!isSelectMode && inFolder && onRemoveFromFolder && (
+        {!isSelectMode && inFolder && folderId && (
           <button
-            onClick={(e) => { e.stopPropagation(); onRemoveFromFolder(); }}
-            className="w-8 h-8 text-zinc-300 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-400 transition-colors flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setRemoveFromFolderTarget({ folderId, groupId: row.id, groupName: row.name });
+            }}
+            className="w-8 h-8 text-red-300 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
             aria-label="그룹에서 제외"
           >
-            <X size={15} />
+            <X size={15} strokeWidth={2.5} />
           </button>
         )}
         {!isSelectMode && (
@@ -825,7 +829,6 @@ export default function CommunityPage() {
                   row={item.group}
                   inFolder
                   folderId={folder.id}
-                  onRemoveFromFolder={() => removeGroupFromFolder(folder.id, item.group.id)}
                 />
               ))}
             </motion.div>
@@ -1369,6 +1372,33 @@ export default function CommunityPage() {
                   className="flex-1 py-3 bg-[#4A6741] text-white font-bold rounded-2xl text-sm disabled:opacity-40"
                 >
                   저장
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 그룹에서 제외 확인 모달 */}
+      <AnimatePresence>
+        {removeFromFolderTarget && (
+          <div className="fixed inset-0 z-[330] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRemoveFromFolderTarget(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
+              <h3 className="font-black text-zinc-900 text-base mb-2">그룹에서 제외</h3>
+              <p className="text-zinc-500 text-sm mb-6 leading-relaxed">
+                <span className="font-bold text-zinc-700">{removeFromFolderTarget.groupName}</span>을<br />그룹에서 제외하시겠습니까?
+              </p>
+              <div className="flex gap-2">
+                <button onClick={() => setRemoveFromFolderTarget(null)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
+                <button
+                  onClick={async () => {
+                    await removeGroupFromFolder(removeFromFolderTarget.folderId, removeFromFolderTarget.groupId);
+                    setRemoveFromFolderTarget(null);
+                  }}
+                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm"
+                >
+                  제외
                 </button>
               </div>
             </motion.div>
