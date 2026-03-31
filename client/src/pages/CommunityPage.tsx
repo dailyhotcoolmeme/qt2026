@@ -880,8 +880,8 @@ export default function CommunityPage() {
             </div>
           ) : (
             <section className="space-y-3 flex-1 flex flex-col">
-              {/* 그룹만들기 / 선택모드 헤더 */}
-              {joinedGroups.length > 0 && (
+              {/* 그룹 / 선택모드 헤더 */}
+              {joinedGroups.length >= 2 && (
                 <div className="flex justify-end items-center">
                   {isSelectMode ? (
                     <>
@@ -896,9 +896,10 @@ export default function CommunityPage() {
                   ) : (
                     <button
                       onClick={enterSelectMode}
-                      className="text-sm font-bold text-[#4A6741] px-3 py-1.5 rounded-xl bg-[#4A6741]/10 active:bg-[#4A6741]/20 transition-colors"
+                      className="text-sm font-bold text-[#4A6741] px-3 py-1.5 rounded-xl bg-[#4A6741]/10 active:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5"
                     >
-                      그룹만들기
+                      <FolderOpen size={14} />
+                      그룹
                     </button>
                   )}
                 </div>
