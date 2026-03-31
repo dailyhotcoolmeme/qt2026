@@ -262,7 +262,7 @@ export default function PrayerPage() {
 
   const loadTextPrayerRecords = async () => {
     if (!user) return;
-    const { data } = await supabase.from('personal_text_prayer_records').select('*').eq('user_id', user.id).order('prayer_date', { ascending: false });
+    const { data } = await supabase.from('personal_text_prayer_records').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
     setTextPrayerRecords(data || []);
   };
 
@@ -1023,9 +1023,11 @@ export default function PrayerPage() {
             <div className="flex h-full w-full flex-1 flex-col">
               {/* 음성기도 */}
               <div className="flex flex-1 items-center justify-between">
-                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                  음성기도
-                </p>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                    음성기도
+                  </p>
+                </div>
                 <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isVoicePrayerCompleted && (
@@ -1056,9 +1058,11 @@ export default function PrayerPage() {
 
               {/* 글기도 */}
               <div className="flex flex-1 items-center justify-between">
-                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                  글기도
-                </p>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                    글기도
+                  </p>
+                </div>
                 <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isTextPrayerCompleted && (
@@ -1089,9 +1093,11 @@ export default function PrayerPage() {
 
               {/* 마음기도 */}
               <div className="flex flex-1 items-center justify-between">
-                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
-                  마음기도
-                </p>
+                <div className="flex-1 flex items-center justify-center">
+                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                    마음기도
+                  </p>
+                </div>
                 <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isHeartPrayerCompleted && (
@@ -1336,8 +1342,8 @@ export default function PrayerPage() {
                           {record.title && (
                             <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>{record.title}</p>
                           )}
+                          <p className="text-xs text-zinc-400 mt-0.5 mb-1">{formattedDate}</p>
                           <p className="text-zinc-600 whitespace-pre-wrap break-words" style={{ fontSize: `${fontSize * 0.88}px` }}>{record.content}</p>
-                          <p className="text-xs text-zinc-400 mt-1.5">{formattedDate}</p>
                         </div>
                         <div className="flex flex-col gap-1 shrink-0">
                           <button onClick={() => handleEditTextPrayer(record)} className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-50 transition-colors" title="수정">
