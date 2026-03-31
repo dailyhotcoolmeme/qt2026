@@ -4032,29 +4032,29 @@ export default function GroupDashboard() {
             <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
           </div>
           <div className="flex items-center gap-1 opacity-60 shrink-0 justify-end">
+            {user && (() => {
+              const allSynced = textTopics.length > 0 && textTopics.every(t => {
+                const saved = savedPrayerContentMap.get(t.id);
+                return saved !== undefined && saved === (t.content || "");
+              });
+              return (
+                <button
+                  onClick={() => {
+                    if (!user || !group) return;
+                    void Promise.all(textTopics.map(t => savePrayerTopic(t.id, t.content || "")));
+                  }}
+                  title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
+                  className={`p-1 hover:text-amber-500 ${allSynced ? "text-amber-500" : ""}`}
+                >
+                  <HandHeart size={17} />
+                </button>
+              );
+            })()}
             {user && (isManager || userId === user.id) && (
               <>
                 {userId === user.id && (
                   <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
                 )}
-                {userId === user.id && (() => {
-                  const allSynced = textTopics.length > 0 && textTopics.every(t => {
-                    const saved = savedPrayerContentMap.get(t.id);
-                    return saved !== undefined && saved === (t.content || "");
-                  });
-                  return (
-                    <button
-                      onClick={() => {
-                        if (!user || !group) return;
-                        void Promise.all(textTopics.map(t => savePrayerTopic(t.id, t.content || "")));
-                      }}
-                      title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
-                      className={`p-1 hover:text-amber-500 ${allSynced ? "text-amber-500" : ""}`}
-                    >
-                      <HandHeart size={17} />
-                    </button>
-                  );
-                })()}
                 <button onClick={() => void deleteAllPrayerTopicsByAuthor(userId)} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
               </>
             )}
