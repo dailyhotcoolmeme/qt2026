@@ -90,6 +90,7 @@ export function TopBar() {
   const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
   const [isPushSyncing, setIsPushSyncing] = useState(false);
   const [subscriptionResult, setSubscriptionResult] = useState<"ok" | "error" | null>(null);
+  const [showNotificationHistory, setShowNotificationHistory] = useState(false);
   const [hasVerseCards, setHasVerseCards] = useState(false);
   const [hasPrayerBox, setHasPrayerBox] = useState(false);
   const [hasFavorites, setHasFavorites] = useState(false);
@@ -103,6 +104,8 @@ export function TopBar() {
   const pushedIdsRef = useRef<Set<string>>(new Set());
   const pushSyncedKeyRef = useRef<string>("");
   const pushSyncInProgressRef = useRef(false);
+  // handleNotificationSettingChange가 직접 sync를 처리할 때 useEffect 중복 호출 방지
+  const skipNextPushSyncRef = useRef(false);
   const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "BIqWHcoeJPIYyxzR6AXBXoJwsxb90hfiQ1yVaqzYIxYINHxIeXVDuUvi502EdP1GGVYaAo7Xi0K-WZz1tS0LapI").trim();
 
   const syncPermissionState = async () => {
@@ -514,6 +517,11 @@ export function TopBar() {
       pushSyncedKeyRef.current = "";
       return;
     }
+    // handleNotificationSettingChange가 직접 sync 처리 중이면 useEffect 중복 실행 방지
+    if (skipNextPushSyncRef.current) {
+      skipNextPushSyncRef.current = false;
+      return;
+    }
     void syncPushSubscription(false);
   }, [isAuthenticated, user?.id, vapidPublicKey, notificationSettings.pushEnabled]);
 
@@ -640,10 +648,20 @@ export function TopBar() {
       if (currentPermission === "granted") {
         // 이미 허용 — 바로 구독
         const next = { ...notificationSettings, pushEnabled: true };
+        skipNextPushSyncRef.current = true; // useEffect 중복 호출 방지
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
         const result = await syncPushSubscription(true);
-        setSubscriptionResult(result === "ok" || result === "cached" ? "ok" : "error");
+        if (result === "ok" || result === "cached") {
+          setSubscriptionResult("ok");
+        } else {
+          // 실패 시 토글 다시 OFF
+          setSubscriptionResult("error");
+          const reverted = { ...notificationSettings, pushEnabled: false };
+          skipNextPushSyncRef.current = true;
+          setNotificationSettings(reverted);
+          void saveNotificationSettings(user?.id, reverted);
+        }
         return;
       }
 
@@ -652,10 +670,20 @@ export function TopBar() {
       setNotificationPermission(granted);
       if (granted === "granted") {
         const next = { ...notificationSettings, pushEnabled: true };
+        skipNextPushSyncRef.current = true; // useEffect 중복 호출 방지
         setNotificationSettings(next);
         await saveNotificationSettings(user?.id, next);
         const result = await syncPushSubscription(true);
-        setSubscriptionResult(result === "ok" || result === "cached" ? "ok" : "error");
+        if (result === "ok" || result === "cached") {
+          setSubscriptionResult("ok");
+        } else {
+          // 실패 시 토글 다시 OFF
+          setSubscriptionResult("error");
+          const reverted = { ...notificationSettings, pushEnabled: false };
+          skipNextPushSyncRef.current = true;
+          setNotificationSettings(reverted);
+          void saveNotificationSettings(user?.id, reverted);
+        }
       } else {
         // 거부됨 — toggle 다시 OFF
         const next = { ...notificationSettings, pushEnabled: false };
@@ -797,6 +825,16 @@ export function TopBar() {
 	              >
 	                <Settings size={13} />
 	              </button>
+	              <button
+	                type="button"
+	                onClick={() => {
+	                  setShowNotificationHistory(true);
+	                  setShowNotificationPanel(false);
+	                }}
+	                className="inline-flex items-center gap-1 rounded-lg bg-zinc-50 px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
+	              >
+	                알림내역
+	              </button>
 	            </div>
 	            <button onClick={() => void markAllAsRead()} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100">
 	              <CheckCheck size={13} />
@@ -804,11 +842,11 @@ export function TopBar() {
 	            </button>
 	          </div>
           <div className="max-h-[56vh] overflow-y-auto">
-            {notifications.length === 0 ? (
+            {notifications.filter((item) => !item.isRead).length === 0 ? (
               <div className="px-4 py-6 text-sm text-zinc-500 text-center">새 알림이 없습니다.</div>
             ) : (
-              notifications.map((item) => {
-                const isUnread = !item.isRead;
+              notifications.filter((item) => !item.isRead).map((item) => {
+                const isUnread = true;
                 return (
                   <button
                     key={item.id}
@@ -828,6 +866,60 @@ export function TopBar() {
           </div>
         </div>
       )}
+
+      {/* 알림내역 팝업 */}
+      <AnimatePresence>
+        {showNotificationHistory && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-5">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
+              onClick={() => setShowNotificationHistory(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.18 }}
+              className="relative w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden"
+              style={{ maxHeight: "75vh" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
+                <h4 className="text-sm font-bold text-zinc-900">알림 내역</h4>
+                <button onClick={() => setShowNotificationHistory(false)} className="rounded-full p-1 text-zinc-400 hover:bg-zinc-100">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto" style={{ maxHeight: "calc(75vh - 52px)" }}>
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-sm text-zinc-500 text-center">알림 내역이 없습니다.</div>
+                ) : (
+                  notifications.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setShowNotificationHistory(false);
+                        handleNotificationClick(item);
+                      }}
+                      className={`w-full border-b border-zinc-100 px-4 py-3 text-left hover:bg-zinc-50 ${!item.isRead ? "bg-emerald-50/40" : "bg-white"}`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-bold text-zinc-900 line-clamp-1">{item.title}</p>
+                        {!item.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />}
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-600 line-clamp-2">{item.message}</p>
+                      <p className="mt-1 text-[11px] text-zinc-400">{new Date(item.createdAt).toLocaleString("ko-KR")}</p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showNotificationSettings && (

@@ -1420,7 +1420,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [tid],
           title: group.name,
-          body: `${user.user_metadata?.nickname || user.email || "모임원"}님이 동역자 요청을 보냈습니다.`,
+          body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 보냈습니다.`,
           targetPath: `/#/group/${group.id}?tab=members`,
         });
       }
@@ -1445,7 +1445,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: [requesterId],
         title: group.name,
-        body: `${user.user_metadata?.nickname || user.email || "모임원"}님이 동역자 요청을 수락했습니다.`,
+        body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 수락했습니다.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     } else {

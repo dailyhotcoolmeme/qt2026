@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, Plus, Search, Loader2, Users, X } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Search, Loader2, Users, X, Check, FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { LoginModal } from "../components/LoginModal";
 import { useRefresh } from "../lib/refreshContext";
@@ -32,6 +32,18 @@ type PendingJoinRequest = {
 };
 
 type SlugCheckState = "idle" | "checking" | "available" | "taken";
+
+type UserGroupFolder = {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_at: string | null;
+};
+
+type UserGroupFolderItem = {
+  folder_id: string;
+  group_id: string;
+};
 
 const LAST_GROUP_KEY = "last_group_id";
 
@@ -109,6 +121,20 @@ export default function CommunityPage() {
   const [memberCounts, setMemberCounts] = useState<Record<string, number>>({});
   const [pendingRequests, setPendingRequests] = useState<PendingJoinRequest[]>([]);
 
+  // 그룹 폴더 상태
+  const [folders, setFolders] = useState<UserGroupFolder[]>([]);
+  const [folderItems, setFolderItems] = useState<UserGroupFolderItem[]>([]);
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
+  const [showGroupNameModal, setShowGroupNameModal] = useState(false);
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false);
+  const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState("");
+  const [dissolveTargetId, setDissolveTargetId] = useState<string | null>(null);
+
   const [createForm, setCreateForm] = useState({
     name: "",
     slug: "",
@@ -155,6 +181,8 @@ export default function CommunityPage() {
       setGroupSearchResults([]);
       setMemberCounts({});
       setPendingRequests([]);
+      setFolders([]);
+      setFolderItems([]);
       return;
     }
     setLoading(true); // 로그인 후 안내 메시지 노출 방지
@@ -163,7 +191,7 @@ export default function CommunityPage() {
 
   const initialize = async (userId: string) => {
     setLoading(true);
-    await Promise.all([loadJoinedGroups(userId), loadPendingRequests(userId)]);
+    await Promise.all([loadJoinedGroups(userId), loadPendingRequests(userId), loadFolders(userId)]);
     setLoading(false);
   };
 
@@ -392,6 +420,118 @@ export default function CommunityPage() {
     return map;
   }, [joinedGroups]);
 
+  const groupedGroupIds = useMemo(() => new Set(folderItems.map((i) => i.group_id)), [folderItems]);
+
+  const ungroupedGroups = useMemo(
+    () => joinedGroups.filter((jg) => !groupedGroupIds.has(jg.group.id)),
+    [joinedGroups, groupedGroupIds]
+  );
+
+  const groupsByFolder = useMemo(() => {
+    const map = new Map<string, JoinedGroup[]>();
+    folders.forEach((f) => map.set(f.id, []));
+    folderItems.forEach((item) => {
+      const jg = joinedGroups.find((j) => j.group.id === item.group_id);
+      if (jg && map.has(item.folder_id)) map.get(item.folder_id)!.push(jg);
+    });
+    return map;
+  }, [folders, folderItems, joinedGroups]);
+
+  const loadFolders = async (userId: string) => {
+    const [{ data: folderRows }, { data: itemRows }] = await Promise.all([
+      supabase.from("user_group_folders").select("*").eq("user_id", userId).order("sort_order"),
+      supabase.from("user_group_folder_items").select("folder_id,group_id").eq("user_id", userId),
+    ]);
+    const loadedFolders = (folderRows ?? []) as UserGroupFolder[];
+    setFolders(loadedFolders);
+    setFolderItems((itemRows ?? []) as UserGroupFolderItem[]);
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev);
+      loadedFolders.forEach((f) => { if (!next.has(f.id)) next.add(f.id); });
+      return next;
+    });
+  };
+
+  const createFolder = async (name: string, groupIds: string[]) => {
+    if (!user) return;
+    const { data: folder, error } = await supabase
+      .from("user_group_folders")
+      .insert({ user_id: user.id, name, sort_order: folders.length })
+      .select()
+      .single();
+    if (error || !folder) return;
+    if (groupIds.length > 0) {
+      await supabase.from("user_group_folder_items").insert(
+        groupIds.map((gid) => ({ folder_id: folder.id, group_id: gid, user_id: user.id }))
+      );
+    }
+    await loadFolders(user.id);
+  };
+
+  const renameFolder = async (folderId: string, name: string) => {
+    if (!user) return;
+    await supabase.from("user_group_folders").update({ name }).eq("id", folderId).eq("user_id", user.id);
+    await loadFolders(user.id);
+  };
+
+  const dissolveFolder = async (folderId: string) => {
+    if (!user) return;
+    await supabase.from("user_group_folder_items").delete().eq("folder_id", folderId);
+    await supabase.from("user_group_folders").delete().eq("id", folderId).eq("user_id", user.id);
+    await loadFolders(user.id);
+  };
+
+  const addGroupsToFolder = async (folderId: string, groupIds: string[]) => {
+    if (!user || groupIds.length === 0) return;
+    await supabase.from("user_group_folder_items").upsert(
+      groupIds.map((gid) => ({ folder_id: folderId, group_id: gid, user_id: user.id })),
+      { onConflict: "folder_id,group_id" }
+    );
+    await loadFolders(user.id);
+  };
+
+  const removeGroupFromFolder = async (folderId: string, groupId: string) => {
+    if (!user) return;
+    await supabase.from("user_group_folder_items").delete().eq("folder_id", folderId).eq("group_id", groupId);
+    await loadFolders(user.id);
+  };
+
+  const toggleFolder = (folderId: string) => {
+    setExpandedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) next.delete(folderId);
+      else next.add(folderId);
+      return next;
+    });
+  };
+
+  const enterSelectMode = () => {
+    setIsSelectMode(true);
+    setSelectedGroupIds(new Set());
+  };
+
+  const exitSelectMode = () => {
+    setIsSelectMode(false);
+    setSelectedGroupIds(new Set());
+  };
+
+  const toggleSelectGroup = (groupId: string) => {
+    setSelectedGroupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const handleConfirmGroupName = async () => {
+    if (!groupNameInput.trim()) return;
+    setShowGroupNameModal(false);
+    await createFolder(groupNameInput.trim(), Array.from(selectedGroupIds));
+    exitSelectMode();
+    setGroupNameInput("");
+  };
+
   const uploadGroupImageIfNeeded = async (): Promise<string | null> => {
     if (!groupImageFile || !user?.id) return null;
     const optimized = await resizeImageFile(groupImageFile);
@@ -555,7 +695,17 @@ export default function CommunityPage() {
     setLocation(`/group/${groupId}`);
   };
 
-  const GroupCard = ({ row }: { row: GroupRow }) => {
+  const GroupCard = ({
+    row,
+    inFolder = false,
+    folderId,
+    onRemoveFromFolder,
+  }: {
+    row: GroupRow;
+    inFolder?: boolean;
+    folderId?: string;
+    onRemoveFromFolder?: () => void;
+  }) => {
     const membership = membershipMap.get(row.id);
     const roleText = membership
       ? membership.role === "owner" || membership.role === "leader"
@@ -566,51 +716,124 @@ export default function CommunityPage() {
       : "비가입";
 
     const count = memberCounts[row.id] ?? 0;
+    const isSelected = selectedGroupIds.has(row.id);
+
+    const handleClick = () => {
+      if (isSelectMode) {
+        toggleSelectGroup(row.id);
+        return;
+      }
+      openGroup(row.id);
+    };
 
     return (
       <div
         role="button"
         tabIndex={0}
-        onClick={() => openGroup(row.id)}
+        onClick={handleClick}
         onKeyDown={(event) => {
           if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            openGroup(row.id);
+            handleClick();
           }
         }}
-        className="w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow duration-200 text-left"
+        className={`w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all duration-200 text-left ${isSelectMode && isSelected ? "ring-2 ring-[#4A6741] shadow-md" : "hover:shadow-md"}`}
       >
-        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl">
+        {isSelectMode && (
+          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-[#4A6741] border-[#4A6741]" : "border-zinc-300"}`}>
+            {isSelected && <Check size={13} className="text-white" strokeWidth={3} />}
+          </div>
+        )}
+        <div className="w-14 h-14 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl flex-shrink-0">
           {row.group_image ? <img src={ensureHttpsUrl(row.group_image) || ""} className="w-full h-full object-cover" alt="group" /> : <Users size={22} />}
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-bold text-zinc-900 truncate">{row.name}</span>
-            <span className={`px-2 py-0.5 text-xs font-bold rounded-md ${membership?.role === 'owner' || membership?.role === 'leader' ? 'bg-[#4A6741]/10 text-[#4A6741]' :
-              membership?.role === 'scope_leader' ? 'bg-purple-100 text-purple-700' :
-                membership ? 'bg-zinc-100 text-zinc-600' : 'bg-zinc-50 text-zinc-400'
+            <span className={`px-2 py-0.5 text-xs font-bold rounded-md flex-shrink-0 ${membership?.role === "owner" || membership?.role === "leader" ? "bg-[#4A6741]/10 text-[#4A6741]" :
+              membership?.role === "scope_leader" ? "bg-purple-100 text-purple-700" :
+                membership ? "bg-zinc-100 text-zinc-600" : "bg-zinc-50 text-zinc-400"
               }`}>
               {roleText}
             </span>
           </div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 아이디 : {row.group_slug ?? "-"}</div>
           <div className="text-sm text-zinc-500 truncate mt-1">모임 멤버수 : {count}명</div>
-	        </div>
+        </div>
 
-	        <button
-	          onClick={(event) => {
-	            event.stopPropagation();
-	            openGroup(row.id);
-	          }}
-	          className="w-9 h-9 text-[#4A6741] rounded-full flex items-center justify-center hover:bg-[#4A6741]/10 transition-colors"
-	          aria-label="입장"
-	        >
-	          <ChevronRight size={22} strokeWidth={2.5} />
-	        </button>
-	      </div>
-	    );
-	  };
+        {!isSelectMode && inFolder && onRemoveFromFolder && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onRemoveFromFolder(); }}
+            className="w-8 h-8 text-zinc-300 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-400 transition-colors flex-shrink-0"
+            aria-label="그룹에서 제외"
+          >
+            <X size={15} />
+          </button>
+        )}
+        {!isSelectMode && (
+          <button
+            onClick={(event) => { event.stopPropagation(); openGroup(row.id); }}
+            className="w-9 h-9 text-[#4A6741] rounded-full flex items-center justify-center hover:bg-[#4A6741]/10 transition-colors flex-shrink-0"
+            aria-label="입장"
+          >
+            <ChevronRight size={22} strokeWidth={2.5} />
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const FolderCard = ({ folder }: { folder: UserGroupFolder }) => {
+    const groups = groupsByFolder.get(folder.id) ?? [];
+    const isExpanded = expandedFolderIds.has(folder.id);
+
+    return (
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center gap-3 p-4">
+          <div className="w-10 h-10 bg-[#4A6741]/10 rounded-xl flex items-center justify-center flex-shrink-0">
+            <FolderOpen size={19} className="text-[#4A6741]" />
+          </div>
+          <button
+            className="flex-1 flex items-center gap-2 min-w-0 text-left"
+            onClick={() => toggleFolder(folder.id)}
+          >
+            <span className="font-bold text-zinc-900 truncate">{folder.name}</span>
+            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 text-xs font-bold rounded-md flex-shrink-0">{groups.length}개</span>
+            <ChevronDown size={15} className={`text-zinc-400 flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+          </button>
+          <button
+            onClick={() => setFolderMenuId(folder.id)}
+            className="w-8 h-8 text-zinc-400 rounded-full flex items-center justify-center hover:bg-zinc-100 transition-colors flex-shrink-0"
+            aria-label="그룹 메뉴"
+          >
+            <MoreVertical size={16} />
+          </button>
+        </div>
+        <AnimatePresence>
+          {isExpanded && groups.length > 0 && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: "auto", opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="border-t border-zinc-100 px-3 pb-3 pt-2 space-y-2 overflow-hidden"
+            >
+              {groups.map((item) => (
+                <GroupCard
+                  key={item.group.id}
+                  row={item.group}
+                  inFolder
+                  folderId={folder.id}
+                  onRemoveFromFolder={() => removeGroupFromFolder(folder.id, item.group.id)}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    );
+  };
 
   return (
       <div className="min-h-[100dvh] bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
@@ -657,6 +880,30 @@ export default function CommunityPage() {
             </div>
           ) : (
             <section className="space-y-3 flex-1 flex flex-col">
+              {/* 그룹만들기 / 선택모드 헤더 */}
+              {joinedGroups.length > 0 && (
+                <div className="flex justify-end items-center">
+                  {isSelectMode ? (
+                    <>
+                      <span className="text-sm font-bold text-zinc-500 mr-auto">{selectedGroupIds.size}개 선택됨</span>
+                      <button
+                        onClick={exitSelectMode}
+                        className="text-sm font-bold text-zinc-500 px-3 py-1.5 rounded-xl bg-zinc-100 active:bg-zinc-200 transition-colors"
+                      >
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={enterSelectMode}
+                      className="text-sm font-bold text-[#4A6741] px-3 py-1.5 rounded-xl bg-[#4A6741]/10 active:bg-[#4A6741]/20 transition-colors"
+                    >
+                      그룹만들기
+                    </button>
+                  )}
+                </div>
+              )}
+
               {pendingRequests.length > 0 && (
                 <div className="space-y-2">
                   <h2 className="px-1 text-sm font-bold text-amber-700">가입 승인 대기중</h2>
@@ -720,8 +967,11 @@ export default function CommunityPage() {
                   </div>
                 </div>
               ) : joinedGroups.length > 0 ? (
-                <div className="space-y-4">
-                  {joinedGroups.map((item) => (
+                <div className="space-y-4 pb-4">
+                  {folders.map((folder) => (
+                    <FolderCard key={folder.id} folder={folder} />
+                  ))}
+                  {ungroupedGroups.map((item) => (
                     <GroupCard key={item.group.id} row={item.group} />
                   ))}
                 </div>
@@ -939,6 +1189,207 @@ export default function CommunityPage() {
                   className="w-full py-4 bg-[#4A6741] text-white font-black text-lg rounded-2xl disabled:opacity-50 shadow-lg hover:bg-[#3d5535] transition-all active:scale-[0.98]"
                 >
                   {saving ? "모임을 생성하는 중..." : "새로운 모임 시작하기"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 선택모드 하단 액션바 */}
+      <AnimatePresence>
+        {isSelectMode && (
+          <motion.div
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            className="fixed bottom-0 left-0 right-0 z-[300] bg-white border-t border-zinc-100 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-2 shadow-2xl"
+          >
+            <button
+              onClick={() => {
+                if (selectedGroupIds.size === 0) return;
+                setGroupNameInput("");
+                setShowGroupNameModal(true);
+              }}
+              disabled={selectedGroupIds.size === 0}
+              className="flex-1 py-3 bg-[#4A6741] text-white font-bold rounded-2xl disabled:opacity-40 text-sm transition-opacity"
+            >
+              그룹 만들기 {selectedGroupIds.size > 0 ? `(${selectedGroupIds.size})` : ""}
+            </button>
+            <button
+              onClick={() => {
+                if (selectedGroupIds.size === 0 || folders.length === 0) return;
+                setShowAddToGroupModal(true);
+              }}
+              disabled={selectedGroupIds.size === 0 || folders.length === 0}
+              className="flex-1 py-3 bg-zinc-100 text-zinc-700 font-bold rounded-2xl disabled:opacity-40 text-sm transition-opacity"
+            >
+              기존 그룹에 추가
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 그룹 이름 입력 모달 */}
+      <AnimatePresence>
+        {showGroupNameModal && (
+          <div className="fixed inset-0 z-[320] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowGroupNameModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+              <h3 className="font-black text-zinc-900 text-base mb-4">그룹 이름 입력</h3>
+              <input
+                value={groupNameInput}
+                onChange={(e) => setGroupNameInput(e.target.value)}
+                placeholder="예: 교회 모임, 직장 모임"
+                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
+                autoFocus
+                onKeyDown={(e) => { if (e.key === "Enter") void handleConfirmGroupName(); }}
+              />
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setShowGroupNameModal(false)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
+                <button
+                  onClick={() => void handleConfirmGroupName()}
+                  disabled={!groupNameInput.trim()}
+                  className="flex-1 py-3 bg-[#4A6741] text-white font-bold rounded-2xl text-sm disabled:opacity-40"
+                >
+                  만들기
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 기존 그룹에 추가 모달 */}
+      <AnimatePresence>
+        {showAddToGroupModal && (
+          <div className="fixed inset-0 z-[320] flex items-end justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddToGroupModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 200 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowAddToGroupModal(false); }}
+              className="relative w-full max-w-xl bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            >
+              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <h3 className="font-black text-zinc-900 text-base mb-4">기존 그룹에 추가</h3>
+              <div className="space-y-2">
+                {folders.map((folder) => (
+                  <button
+                    key={folder.id}
+                    onClick={async () => {
+                      await addGroupsToFolder(folder.id, Array.from(selectedGroupIds));
+                      setShowAddToGroupModal(false);
+                      exitSelectMode();
+                    }}
+                    className="w-full py-4 px-4 text-left font-bold text-zinc-800 rounded-2xl bg-zinc-50 hover:bg-[#4A6741]/10 flex items-center gap-3 transition-colors"
+                  >
+                    <FolderOpen size={18} className="text-[#4A6741] flex-shrink-0" />
+                    <span className="flex-1 truncate">{folder.name}</span>
+                    <span className="text-xs text-zinc-400 flex-shrink-0">{(groupsByFolder.get(folder.id) ?? []).length}개</span>
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 폴더 컨텍스트 메뉴 */}
+      <AnimatePresence>
+        {folderMenuId && (
+          <div className="fixed inset-0 z-[320] flex items-end justify-center">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setFolderMenuId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              drag="y"
+              dragDirectionLock
+              dragConstraints={{ top: 0, bottom: 200 }}
+              dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setFolderMenuId(null); }}
+              className="relative w-full max-w-xl bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+            >
+              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <p className="font-black text-zinc-900 text-base mb-4">
+                {folders.find((f) => f.id === folderMenuId)?.name}
+              </p>
+              <div className="space-y-1">
+                <button
+                  onClick={() => {
+                    const folder = folders.find((f) => f.id === folderMenuId);
+                    if (folder) { setRenameTargetId(folder.id); setRenameInput(folder.name); }
+                    setFolderMenuId(null);
+                  }}
+                  className="w-full py-3 px-4 text-left font-bold text-zinc-700 rounded-xl hover:bg-zinc-50 flex items-center gap-3 transition-colors"
+                >
+                  <Pencil size={17} className="text-zinc-400" />
+                  그룹 이름 수정
+                </button>
+                <button
+                  onClick={() => { setDissolveTargetId(folderMenuId); setFolderMenuId(null); }}
+                  className="w-full py-3 px-4 text-left font-bold text-red-500 rounded-xl hover:bg-red-50 flex items-center gap-3 transition-colors"
+                >
+                  <Trash2 size={17} />
+                  그룹 해제
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 그룹 이름 수정 모달 */}
+      <AnimatePresence>
+        {renameTargetId && (
+          <div className="fixed inset-0 z-[330] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRenameTargetId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl">
+              <h3 className="font-black text-zinc-900 text-base mb-4">그룹 이름 수정</h3>
+              <input
+                value={renameInput}
+                onChange={(e) => setRenameInput(e.target.value)}
+                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-100 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-[#4A6741]/20 transition-all"
+                autoFocus
+                onKeyDown={async (e) => { if (e.key === "Enter" && renameInput.trim()) { await renameFolder(renameTargetId, renameInput.trim()); setRenameTargetId(null); } }}
+              />
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setRenameTargetId(null)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
+                <button
+                  onClick={async () => { if (renameInput.trim()) { await renameFolder(renameTargetId, renameInput.trim()); setRenameTargetId(null); } }}
+                  disabled={!renameInput.trim()}
+                  className="flex-1 py-3 bg-[#4A6741] text-white font-bold rounded-2xl text-sm disabled:opacity-40"
+                >
+                  저장
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 그룹 해제 확인 모달 */}
+      <AnimatePresence>
+        {dissolveTargetId && (
+          <div className="fixed inset-0 z-[330] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDissolveTargetId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
+              <h3 className="font-black text-zinc-900 text-base mb-2">그룹 해제</h3>
+              <p className="text-zinc-500 text-sm mb-6 leading-relaxed">그룹을 해제하면 포함된 모임들이<br />목록으로 돌아갑니다.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setDissolveTargetId(null)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
+                <button
+                  onClick={async () => { await dissolveFolder(dissolveTargetId); setDissolveTargetId(null); }}
+                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm"
+                >
+                  해제
                 </button>
               </div>
             </motion.div>

@@ -560,9 +560,14 @@ async function makeVapidJWT(subject: string, audience: string, publicKeyB64u: st
   const payload = btoa(JSON.stringify({ aud: audience, exp: now + 12 * 3600, sub: subject })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const signingInput = `${header}.${payload}`;
 
-  const privateKeyBytes = base64urlToBuffer(privateKeyB64u);
+  // VAPID 개인키(32바이트 스칼라)는 Web Crypto에서 'raw' import 불가 → JWK 포맷 필요
+  // 공개키(65바이트 비압축점: 0x04 || x || y)에서 x, y 좌표 추출
+  const pubKeyBytes = base64urlToBuffer(publicKeyB64u);
+  const xB64u = btoa(String.fromCharCode(...Array.from(pubKeyBytes.slice(1, 33)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const yB64u = btoa(String.fromCharCode(...Array.from(pubKeyBytes.slice(33, 65)))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const cryptoKey = await crypto.subtle.importKey(
-    'raw', privateKeyBytes,
+    'jwk',
+    { kty: 'EC', crv: 'P-256', d: privateKeyB64u, x: xB64u, y: yB64u },
     { name: 'ECDSA', namedCurve: 'P-256' },
     false, ['sign']
   );
