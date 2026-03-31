@@ -84,6 +84,49 @@ async function uploadFileToR2(fileName: string, blob: Blob, contentType: string)
   return data.publicUrl as string;
 }
 
+const PrayerImageCarousel = ({ urls, onImageClick }: { urls: string[]; onImageClick: (index: number) => void }) => {
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const touchStartXRef = React.useRef<number | null>(null);
+  const touchStartYRef = React.useRef<number | null>(null);
+
+  React.useEffect(() => { setActiveIndex(0); }, [urls.join("|")]);
+  if (!urls || urls.length === 0) return null;
+
+  return (
+    <div className="w-full mt-2 mb-1 flex flex-col relative">
+      <div
+        className="w-full overflow-hidden"
+        onTouchStart={(e) => { touchStartXRef.current = e.touches[0]?.clientX ?? null; touchStartYRef.current = e.touches[0]?.clientY ?? null; }}
+        onTouchEnd={(e) => {
+          const startX = touchStartXRef.current; const startY = touchStartYRef.current;
+          const touch = e.changedTouches[0];
+          touchStartXRef.current = null; touchStartYRef.current = null;
+          if (!touch || startX === null || startY === null) return;
+          const deltaX = touch.clientX - startX;
+          if (Math.abs(deltaX) < 48 || Math.abs(touch.clientY - startY) > 64) return;
+          if (deltaX < 0 && activeIndex < urls.length - 1) setActiveIndex(p => p + 1);
+          else if (deltaX > 0 && activeIndex > 0) setActiveIndex(p => p - 1);
+        }}
+      >
+        <div className="flex transition-transform duration-300 ease-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
+          {urls.map((url, idx) => (
+            <div key={idx} className="w-full shrink-0 flex justify-center cursor-pointer" onClick={() => onImageClick(idx)}>
+              <img src={url} alt={`img-${idx}`} className="w-full h-auto max-h-[280px] object-cover rounded-xl border border-black/5" />
+            </div>
+          ))}
+        </div>
+      </div>
+      {urls.length > 1 && (
+        <div className="flex justify-center gap-1.5 mt-1.5">
+          {urls.map((_, idx) => (
+            <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-colors ${idx === activeIndex ? "bg-[#4A6741]" : "bg-zinc-200"}`} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function PrayerPage() {
   // 최상단에 상태 변수, ref, useEffect 선언
   const { user } = useAuth();
@@ -139,9 +182,14 @@ export default function PrayerPage() {
   const [textPrayerRecords, setTextPrayerRecords] = useState<any[]>([]);
   const [deleteTextPrayerId, setDeleteTextPrayerId] = useState<number | null>(null);
   const [deleteTextPrayerImages, setDeleteTextPrayerImages] = useState<string[]>([]);
+  const [showPrayerImageModal, setShowPrayerImageModal] = useState(false);
+  const [prayerModalImages, setPrayerModalImages] = useState<string[]>([]);
+  const [prayerModalIndex, setPrayerModalIndex] = useState(0);
 
   // ref
   const todayRef = useRef(new Date());
+  const prayerModalTouchStartXRef = useRef<number | null>(null);
+  const prayerModalTouchStartYRef = useRef<number | null>(null);
   const audioChunksRef = useRef<any[]>([]);
   const mediaRecorderRef = useRef<any>(null);
   const recordingTimerRef = useRef<any>(null);
@@ -974,11 +1022,11 @@ export default function PrayerPage() {
           >
             <div className="flex h-full w-full flex-1 flex-col">
               {/* 음성기도 */}
-              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+              <div className="flex flex-1 items-center justify-between">
                 <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
                   음성기도
                 </p>
-                <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isVoicePrayerCompleted && (
                       <>
@@ -1004,14 +1052,14 @@ export default function PrayerPage() {
                 </div>
               </div>
 
-              <div className="h-px w-1/2 mx-auto bg-zinc-200" />
+              <div className="h-px w-full bg-zinc-100" />
 
               {/* 글기도 */}
-              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+              <div className="flex flex-1 items-center justify-between">
                 <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
                   글기도
                 </p>
-                <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isTextPrayerCompleted && (
                       <>
@@ -1037,14 +1085,14 @@ export default function PrayerPage() {
                 </div>
               </div>
 
-              <div className="h-px w-1/2 mx-auto bg-zinc-200" />
+              <div className="h-px w-full bg-zinc-100" />
 
               {/* 마음기도 */}
-              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+              <div className="flex flex-1 items-center justify-between">
                 <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
                   마음기도
                 </p>
-                <div className="relative w-24 h-24 flex items-center justify-center">
+                <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
                   <AnimatePresence>
                     {isHeartPrayerCompleted && (
                       <>
@@ -1237,103 +1285,81 @@ export default function PrayerPage() {
               <div className="bg-white rounded-2xl border border-zinc-100 p-6 text-center text-sm text-zinc-400">저장된 기도 기록이 없습니다.</div>
             ) : (
               <div className="space-y-3">
-                {selectedDateRecords.length > 0 && (
-                  <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
-                    {selectedDateRecords.map((record, index) => {
-                        const isAmen = !record.audio_url || record.audio_url === 'amen';
-                        const formattedDate = new Date(record.created_at).toLocaleString('ko-KR', {
-                          month: 'short', day: 'numeric',
-                          hour: 'numeric', minute: '2-digit', hour12: true,
-                        }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
-
-                        return (
-                          <React.Fragment key={record.id}>
-                            {isAmen ? (
-                              <div className="bg-white p-4 flex items-center gap-3">
-                                <Heart size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>마음으로 기도합니다. 아멘</p>
-                                  <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
-                                </div>
-                                <button
-                                  onClick={() => handleDeleteRecord(record.id, record.audio_url || 'amen')}
-                                  className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
-                                  title="삭제"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="bg-white p-4 flex items-center gap-3">
-                                <Mic size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>
-                                    {record.title || '음성 기도'}
-                                  </p>
-                                  <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
-                                  <AudioRecordPlayer
-                                    variant="controlsOnly"
-                                    src={record.audio_url}
-                                    title={record.title || "음성 기도"}
-                                    downloadName={`${record.title || 'prayer-record'}.webm`}
-                                    className="mt-2"
-                                  />
-                                </div>
-                                <button
-                                  onClick={() => handleDeleteRecord(record.id, record.audio_url)}
-                                  className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0"
-                                  title="삭제"
-                                >
-                                  <Trash2 size={16} />
-                                </button>
-                              </div>
-                            )}
-                            {index !== selectedDateRecords.length - 1 && <div className="h-px bg-zinc-100 mx-4" />}
-                          </React.Fragment>
-                        );
-                      })}
-                  </div>
-                )}
+                {selectedDateRecords.map((record) => {
+                  const isAmen = !record.audio_url || record.audio_url === 'amen';
+                  const formattedDate = new Date(record.created_at).toLocaleString('ko-KR', {
+                    month: 'short', day: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true,
+                  }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
+                  return isAmen ? (
+                    <div key={record.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-center gap-3">
+                      <Heart size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>마음으로 기도합니다. 아멘</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
+                      </div>
+                      <button onClick={() => handleDeleteRecord(record.id, record.audio_url || 'amen')} className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0" title="삭제">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div key={record.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4 flex items-center gap-3">
+                      <Mic size={22} className="text-[#4A6741]/90 shrink-0" strokeWidth={1.5} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>{record.title || '음성 기도'}</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{formattedDate}</p>
+                        <AudioRecordPlayer
+                          variant="controlsOnly"
+                          src={record.audio_url}
+                          title={record.title || "음성 기도"}
+                          downloadName={`${record.title || 'prayer-record'}.webm`}
+                          className="mt-2"
+                        />
+                      </div>
+                      <button onClick={() => handleDeleteRecord(record.id, record.audio_url)} className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors shrink-0" title="삭제">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  );
+                })}
                 {selectedDateTextRecords.map((record) => {
                   const formattedDate = new Date(record.created_at).toLocaleString('ko-KR', {
                     month: 'short', day: 'numeric',
                     hour: 'numeric', minute: '2-digit', hour12: true,
                   }).replace(/\s오전\s0(\d):/, ' 오전 $1:').replace(/\s오후\s0(\d):/, ' 오후 $1:');
+                  const imgs: string[] = Array.isArray(record.image_urls) ? record.image_urls : [];
                   return (
-                    <div key={record.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-4">
-                      <div className="flex items-start gap-3">
+                    <div key={record.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+                      <div className="p-4 flex items-start gap-3">
                         <PenLine size={22} className="text-[#4A6741]/90 shrink-0 mt-0.5" strokeWidth={1.5} />
                         <div className="flex-1 min-w-0">
                           {record.title && (
                             <p className="font-bold text-[#4A6741]/90" style={{ fontSize: `${fontSize * 0.90}px` }}>{record.title}</p>
                           )}
                           <p className="text-zinc-600 whitespace-pre-wrap break-words" style={{ fontSize: `${fontSize * 0.88}px` }}>{record.content}</p>
-                          {Array.isArray(record.image_urls) && record.image_urls.length > 0 && (
-                            <div className="grid grid-cols-3 gap-1.5 mt-2">
-                              {(record.image_urls as string[]).map((url, i) => (
-                                <img key={i} src={url} alt={`img-${i}`} className="w-full h-20 object-cover rounded-xl" />
-                              ))}
-                            </div>
-                          )}
                           <p className="text-xs text-zinc-400 mt-1.5">{formattedDate}</p>
                         </div>
                         <div className="flex flex-col gap-1 shrink-0">
-                          <button
-                            onClick={() => handleEditTextPrayer(record)}
-                            className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-50 transition-colors"
-                            title="수정"
-                          >
+                          <button onClick={() => handleEditTextPrayer(record)} className="w-8 h-8 flex items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-50 transition-colors" title="수정">
                             <Pencil size={15} />
                           </button>
-                          <button
-                            onClick={() => { setDeleteTextPrayerId(record.id); setDeleteTextPrayerImages(record.image_urls || []); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors"
-                            title="삭제"
-                          >
+                          <button onClick={() => { setDeleteTextPrayerId(record.id); setDeleteTextPrayerImages(imgs); }} className="w-8 h-8 flex items-center justify-center rounded-full text-red-300 hover:bg-red-50 transition-colors" title="삭제">
                             <Trash2 size={16} />
                           </button>
                         </div>
                       </div>
+                      {imgs.length > 0 && (
+                        <div className="px-4 pb-4">
+                          <PrayerImageCarousel
+                            urls={imgs}
+                            onImageClick={(index) => {
+                              setPrayerModalImages(imgs);
+                              setPrayerModalIndex(index);
+                              setShowPrayerImageModal(true);
+                            }}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1794,6 +1820,53 @@ export default function PrayerPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 글기도 이미지 전체화면 모달 */}
+      {showPrayerImageModal && (
+        <div className="fixed inset-0 z-[350] bg-black flex flex-col items-center justify-center">
+          <div className="absolute top-4 right-4 z-[360]">
+            <button onClick={() => setShowPrayerImageModal(false)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+          {prayerModalImages.length > 1 && (
+            <div className="absolute top-6 flex w-full justify-center z-[360] pointer-events-none">
+              <span className="bg-black/60 text-white font-bold text-sm px-4 py-1.5 rounded-full">
+                {prayerModalIndex + 1} / {prayerModalImages.length}
+              </span>
+            </div>
+          )}
+          <div
+            className="w-full flex-1 relative overflow-hidden"
+            onTouchStart={(e) => { prayerModalTouchStartXRef.current = e.touches[0]?.clientX ?? null; prayerModalTouchStartYRef.current = e.touches[0]?.clientY ?? null; }}
+            onTouchEnd={(e) => {
+              const startX = prayerModalTouchStartXRef.current; const startY = prayerModalTouchStartYRef.current;
+              const touch = e.changedTouches[0];
+              prayerModalTouchStartXRef.current = null; prayerModalTouchStartYRef.current = null;
+              if (!touch || startX === null || startY === null) return;
+              const deltaX = touch.clientX - startX;
+              if (Math.abs(deltaX) < 48 || Math.abs(touch.clientY - startY) > 64) return;
+              if (deltaX < 0 && prayerModalIndex < prayerModalImages.length - 1) setPrayerModalIndex(p => p + 1);
+              else if (deltaX > 0 && prayerModalIndex > 0) setPrayerModalIndex(p => p - 1);
+            }}
+          >
+            <div className="flex items-center w-full h-full transition-transform duration-300 ease-out" style={{ transform: `translateX(-${prayerModalIndex * 100}%)` }}>
+              {prayerModalImages.map((src, idx) => (
+                <div key={idx} className="w-full h-full shrink-0 flex items-center justify-center p-4">
+                  <img src={src} alt="full view" onClick={() => setShowPrayerImageModal(false)} className="max-w-full max-h-full object-contain cursor-pointer" />
+                </div>
+              ))}
+            </div>
+          </div>
+          {prayerModalImages.length > 1 && (
+            <div className="absolute bottom-8 flex justify-center w-full z-[360] gap-2">
+              {prayerModalImages.map((_, idx) => (
+                <div key={idx} className={`w-2 h-2 rounded-full transition-colors ${idx === prayerModalIndex ? 'bg-white' : 'bg-white/40'}`} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 글기도 삭제 확인 모달 */}
       <AnimatePresence>
