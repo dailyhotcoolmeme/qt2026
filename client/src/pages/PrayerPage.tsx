@@ -974,16 +974,11 @@ export default function PrayerPage() {
           >
             <div className="flex h-full w-full flex-1 flex-col">
               {/* 음성기도 */}
-              <div className="flex flex-1 items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.0}px` }}>
-                    음성기도
-                  </p>
-                  <p className="mt-0.5 font-semibold text-zinc-400 leading-snug" style={{ fontSize: `${Math.max(10, fontSize * 0.72)}px` }}>
-                    나의 음성기도를 보관하고 공유할 수 있습니다.
-                  </p>
-                </div>
-                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                  음성기도
+                </p>
+                <div className="relative w-24 h-24 flex items-center justify-center">
                   <AnimatePresence>
                     {isVoicePrayerCompleted && (
                       <>
@@ -996,14 +991,14 @@ export default function PrayerPage() {
                     onClick={handleVoicePrayerClick}
                     whileTap={{ scale: 0.9 }}
                     disabled={!isToday}
-                    className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isVoicePrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isVoicePrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
                   >
-                    <Mic className={`w-4 h-4 mb-0.5 ${isVoicePrayerCompleted ? 'animate-bounce' : ''}`} strokeWidth={2} />
-                    <span className="font-bold leading-none" style={{ fontSize: `${fontSize * 0.78}px` }}>
-                      {isVoicePrayerCompleted ? "완료" : "기도"}
+                    <Mic className={`w-5 h-5 mb-1 ${isVoicePrayerCompleted ? 'animate-bounce' : ''}`} strokeWidth={2} />
+                    <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                      {isVoicePrayerCompleted ? "기도완료" : "기도하기"}
                     </span>
                     {isVoicePrayerCompleted && (
-                      <span className="font-bold opacity-70 leading-none mt-0.5" style={{ fontSize: `${fontSize * 0.7}px` }}>{voicePrayerCount}</span>
+                      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.78}px` }}>{voicePrayerCount}</span>
                     )}
                   </motion.button>
                 </div>
@@ -1012,16 +1007,11 @@ export default function PrayerPage() {
               <div className="h-px w-1/2 mx-auto bg-zinc-200" />
 
               {/* 글기도 */}
-              <div className="flex flex-1 items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.0}px` }}>
-                    글기도
-                  </p>
-                  <p className="mt-0.5 font-semibold text-zinc-400 leading-snug" style={{ fontSize: `${Math.max(10, fontSize * 0.72)}px` }}>
-                    기도를 글로 기록하고 사진을 첨부할 수 있습니다.
-                  </p>
-                </div>
-                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                  글기도
+                </p>
+                <div className="relative w-24 h-24 flex items-center justify-center">
                   <AnimatePresence>
                     {isTextPrayerCompleted && (
                       <>
@@ -1034,14 +1024,14 @@ export default function PrayerPage() {
                     onClick={handleTextPrayerClick}
                     whileTap={{ scale: 0.9 }}
                     disabled={!isToday}
-                    className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isTextPrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isTextPrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
                   >
-                    <PenLine className={`w-4 h-4 mb-0.5 ${isTextPrayerCompleted ? 'animate-bounce' : ''}`} strokeWidth={2} />
-                    <span className="font-bold leading-none" style={{ fontSize: `${fontSize * 0.78}px` }}>
-                      {isTextPrayerCompleted ? "완료" : "기도"}
+                    <PenLine className={`w-5 h-5 mb-1 ${isTextPrayerCompleted ? 'animate-bounce' : ''}`} strokeWidth={2} />
+                    <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                      {isTextPrayerCompleted ? "기도완료" : "기도하기"}
                     </span>
                     {isTextPrayerCompleted && (
-                      <span className="font-bold opacity-70 leading-none mt-0.5" style={{ fontSize: `${fontSize * 0.7}px` }}>{textPrayerCount}</span>
+                      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.78}px` }}>{textPrayerCount}</span>
                     )}
                   </motion.button>
                 </div>
@@ -1050,16 +1040,11 @@ export default function PrayerPage() {
               <div className="h-px w-1/2 mx-auto bg-zinc-200" />
 
               {/* 마음기도 */}
-              <div className="flex flex-1 items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.0}px` }}>
-                    마음기도
-                  </p>
-                  <p className="mt-0.5 font-semibold text-zinc-400 leading-snug" style={{ fontSize: `${Math.max(10, fontSize * 0.72)}px` }}>
-                    매일 마음 속 기도를 모아 기록을 남깁니다.
-                  </p>
-                </div>
-                <div className="relative w-16 h-16 flex items-center justify-center shrink-0">
+              <div className="flex flex-1 flex-col items-center justify-center gap-3">
+                <p className="font-black tracking-tight text-zinc-900" style={{ fontSize: `${fontSize * 1.1}px` }}>
+                  마음기도
+                </p>
+                <div className="relative w-24 h-24 flex items-center justify-center">
                   <AnimatePresence>
                     {isHeartPrayerCompleted && (
                       <>
@@ -1072,14 +1057,14 @@ export default function PrayerPage() {
                     onClick={handleHeartPrayerClick}
                     whileTap={{ scale: 0.9 }}
                     disabled={!isToday}
-                    className={`w-16 h-16 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isHeartPrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
+                    className={`w-24 h-24 rounded-full flex flex-col items-center justify-center shadow-xl transition-all duration-500 relative z-10 ${isHeartPrayerCompleted ? 'bg-[#4A6741] text-white border-none' : 'bg-white text-gray-400 border border-green-50'} ${!isToday ? 'cursor-not-allowed opacity-60' : ''}`}
                   >
-                    <Heart className={`w-4 h-4 mb-0.5 ${isHeartPrayerCompleted ? 'fill-white animate-bounce' : ''}`} strokeWidth={isHeartPrayerCompleted ? 0 : 2} />
-                    <span className="font-bold leading-none" style={{ fontSize: `${fontSize * 0.78}px` }}>
-                      {isHeartPrayerCompleted ? "완료" : "기도"}
+                    <Heart className={`w-5 h-5 mb-1 ${isHeartPrayerCompleted ? 'fill-white animate-bounce' : ''}`} strokeWidth={isHeartPrayerCompleted ? 0 : 2} />
+                    <span className="font-bold" style={{ fontSize: `${fontSize * 0.85}px` }}>
+                      {isHeartPrayerCompleted ? "기도완료" : "기도하기"}
                     </span>
                     {isHeartPrayerCompleted && (
-                      <span className="font-bold opacity-70 leading-none mt-0.5" style={{ fontSize: `${fontSize * 0.7}px` }}>{heartPrayerCount}</span>
+                      <span className="font-bold opacity-70" style={{ fontSize: `${fontSize * 0.78}px` }}>{heartPrayerCount}</span>
                     )}
                   </motion.button>
                 </div>
