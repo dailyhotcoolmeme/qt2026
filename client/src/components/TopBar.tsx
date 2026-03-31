@@ -474,9 +474,12 @@ export function TopBar() {
     }
     const uid = user.id;
     // 내 기도제목함 (Supabase)
-    supabase.from("prayer_box_items").select("id", { count: "exact", head: true }).eq("user_id", uid)
-      .then(({ count }) => setHasPrayerBox((count ?? 0) > 0))
-      .catch(() => setHasPrayerBox(false));
+    void (async () => {
+      try {
+        const { count } = await supabase.from("prayer_box_items").select("id", { count: "exact", head: true }).eq("user_id", uid);
+        setHasPrayerBox((count ?? 0) > 0);
+      } catch { setHasPrayerBox(false); }
+    })();
     // 말씀카드 (IndexedDB → localStorage 폴백)
     const cardKey = `verse-card-records:${uid}`;
     (async () => {
