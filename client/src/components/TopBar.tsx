@@ -1116,6 +1116,14 @@ export function TopBar() {
 
           <div className="mt-auto pt-4 border-t border-zinc-100 space-y-1">
             <div className="flex items-center gap-1">
+              <button
+                onClick={() => { setIsMenuOpen(false); setShowSupportModal(true); }}
+                className="flex items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-[#4A6741]"
+                style={{ fontSize: `${fontSize - 2}px` }}
+              >
+                <HeadphonesIcon className="h-3.5 w-3.5" />
+                <span>고객센터</span>
+              </button>
               {isAuthenticated && (
                 <button
                   onClick={async () => {
@@ -1137,14 +1145,6 @@ export function TopBar() {
                   <span>회원탈퇴</span>
                 </button>
               )}
-              <button
-                onClick={() => { setIsMenuOpen(false); setShowSupportModal(true); }}
-                className="flex items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-[#4A6741]"
-                style={{ fontSize: `${fontSize - 2}px` }}
-              >
-                <HeadphonesIcon className="h-3.5 w-3.5" />
-                <span>고객센터</span>
-              </button>
             </div>
             <div className="flex gap-3 mb-1">
               <Link href="/terms/service" onClick={() => setIsMenuOpen(false)}>
