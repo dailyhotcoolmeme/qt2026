@@ -4027,38 +4027,37 @@ export default function GroupDashboard() {
       <div className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
         <div className="flex items-center justify-between gap-2 mb-2 px-5 py-2 bg-[#F6F7F8] rounded-xl mx-3">
           <AvatarImg url={author.avatar_url} size={40} />
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <span className="font-bold text-zinc-900 text-base truncate">{author.nickname || author.username}</span>
-            <span className="font-bold text-zinc-900 text-base truncate">기도제목</span>
-          </div>
-          <div className="flex items-center gap-1 opacity-60 shrink-0 justify-end">
-            {user && (() => {
-              const allSynced = textTopics.length > 0 && textTopics.every(t => {
-                const saved = savedPrayerContentMap.get(t.id);
-                return saved !== undefined && saved === (t.content || "");
-              });
-              return (
-                <button
-                  onClick={() => {
-                    if (!user || !group) return;
-                    void Promise.all(textTopics.map(t => savePrayerTopic(t.id, t.content || "")));
-                  }}
-                  title={allSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
-                  className={`p-1 hover:text-amber-500 ${allSynced ? "text-amber-500" : ""}`}
-                >
-                  <HandHeart size={17} />
-                </button>
-              );
-            })()}
-            {user && (isManager || userId === user.id) && (
+          {(() => {
+            const anySynced = textTopics.some(t => savedPrayerContentMap.has(t.id));
+            return (
               <>
-                {userId === user.id && (
-                  <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
-                )}
-                <button onClick={() => void deleteAllPrayerTopicsByAuthor(userId)} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  <span className={`font-bold text-base truncate ${anySynced ? "text-[#4A6741]" : "text-zinc-900"}`}>{author.nickname || author.username}</span>
+                  <span className={`font-bold text-base truncate ${anySynced ? "text-[#4A6741]" : "text-zinc-900"}`}>기도제목</span>
+                </div>
+                <div className="flex items-center gap-1 opacity-60 shrink-0 justify-end">
+                  {user && (isManager || userId === user.id) && userId === user.id && (
+                    <button onClick={() => setShowPrayerTopicModal(true)} className="p-1 hover:text-[#4A6741]"><Pencil size={15} /></button>
+                  )}
+                  {user && (
+                    <button
+                      onClick={() => {
+                        if (!user || !group) return;
+                        void Promise.all(textTopics.map(t => savePrayerTopic(t.id, t.content || "")));
+                      }}
+                      title={anySynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
+                      className={`p-1 hover:text-amber-500 ${anySynced ? "text-amber-500" : ""}`}
+                    >
+                      <HandHeart size={17} />
+                    </button>
+                  )}
+                  {user && (isManager || userId === user.id) && (
+                    <button onClick={() => void deleteAllPrayerTopicsByAuthor(userId)} className="p-1 hover:text-rose-500"><Trash2 size={15} /></button>
+                  )}
+                </div>
               </>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
         <div className="space-y-4 pb-5 px-5">
