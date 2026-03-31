@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone, HandHeart } from "lucide-react";
+import { Menu, X, User, Type, ChevronRight, LogOut, UserX, Bell, CheckCheck, Image, Bookmark, Settings, Loader2, Smartphone, HandHeart, HeadphonesIcon, Mail, Phone } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { useAuth } from "../hooks/use-auth";
@@ -85,6 +85,7 @@ export function TopBar() {
   const [notifications, setNotifications] = useState<TopNotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
+  const [showSupportModal, setShowSupportModal] = useState(false);
   const [logoTextIndex, setLogoTextIndex] = useState(0);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
@@ -1114,27 +1115,37 @@ export function TopBar() {
           </nav>
 
           <div className="mt-auto pt-4 border-t border-zinc-100 space-y-1">
-            {isAuthenticated && (
+            <div className="flex items-center gap-1">
+              {isAuthenticated && (
+                <button
+                  onClick={async () => {
+                    setIsMenuOpen(false);
+                    // 소유한 그룹 수 조회
+                    if (user?.id) {
+                      const { count } = await supabase
+                        .from("groups")
+                        .select("id", { count: "exact", head: true })
+                        .eq("owner_id", user.id);
+                      setOwnedGroupCount(count ?? 0);
+                    }
+                    setShowDeleteConfirm(true);
+                  }}
+                  className="flex items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
+                  style={{ fontSize: `${fontSize - 2}px` }}
+                >
+                  <UserX className="h-3.5 w-3.5" />
+                  <span>회원탈퇴</span>
+                </button>
+              )}
               <button
-                onClick={async () => {
-                  setIsMenuOpen(false);
-                  // 소유한 그룹 수 조회
-                  if (user?.id) {
-                    const { count } = await supabase
-                      .from("groups")
-                      .select("id", { count: "exact", head: true })
-                      .eq("owner_id", user.id);
-                    setOwnedGroupCount(count ?? 0);
-                  }
-                  setShowDeleteConfirm(true);
-                }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-rose-500"
+                onClick={() => { setIsMenuOpen(false); setShowSupportModal(true); }}
+                className="flex items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-[#4A6741]"
                 style={{ fontSize: `${fontSize - 2}px` }}
               >
-                <UserX className="h-3.5 w-3.5" />
-                <span>회원탈퇴</span>
+                <HeadphonesIcon className="h-3.5 w-3.5" />
+                <span>고객센터</span>
               </button>
-            )}
+            </div>
             <div className="flex gap-3 mb-1">
               <Link href="/terms/service" onClick={() => setIsMenuOpen(false)}>
                 <span className="text-[12px] text-zinc-400 hover:text-zinc-600 cursor-pointer">이용약관</span>
@@ -1151,6 +1162,60 @@ export function TopBar() {
       </div>
 
       <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* 고객센터 팝업 */}
+      <AnimatePresence>
+        {showSupportModal && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-6">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowSupportModal(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+            />
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="relative w-full max-w-[300px] rounded-[28px] bg-white p-7 shadow-2xl"
+            >
+              <div className="flex items-center gap-2 mb-5">
+                <HeadphonesIcon className="h-5 w-5 text-[#4A6741]" />
+                <h4 className="font-bold text-zinc-900 text-base">고객센터</h4>
+              </div>
+              <div className="space-y-3">
+                <a
+                  href="mailto:ourmine1003@naver.com"
+                  className="flex items-center gap-3 rounded-2xl bg-zinc-50 px-4 py-3.5 hover:bg-[#4A6741]/10 transition-colors"
+                >
+                  <Mail className="h-4 w-4 text-[#4A6741] shrink-0" />
+                  <div>
+                    <p className="text-[11px] text-zinc-400 mb-0.5">이메일</p>
+                    <p className="text-sm font-semibold text-zinc-800">ourmine1003@naver.com</p>
+                  </div>
+                </a>
+                <a
+                  href="tel:07045131894"
+                  className="flex items-center gap-3 rounded-2xl bg-zinc-50 px-4 py-3.5 hover:bg-[#4A6741]/10 transition-colors"
+                >
+                  <Phone className="h-4 w-4 text-[#4A6741] shrink-0" />
+                  <div>
+                    <p className="text-[11px] text-zinc-400 mb-0.5">전화</p>
+                    <p className="text-sm font-semibold text-zinc-800">070-4513-1894</p>
+                  </div>
+                </a>
+              </div>
+              <button
+                onClick={() => setShowSupportModal(false)}
+                className="mt-5 w-full rounded-xl bg-zinc-100 py-3 font-bold text-zinc-600 text-sm active:scale-95 transition-transform"
+              >
+                닫기
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* 회원탈퇴 완료 토스트 - 화면 정중앙, 빨간색, 스르르 fade out */}
       <AnimatePresence>
