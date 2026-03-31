@@ -1216,10 +1216,7 @@ export default function PrayerPage() {
                           title={isSynced ? "기도제목함에 보관됨 (다시 저장)" : "기도제목함에 저장"}
                           className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-amber-50 transition-colors"
                         >
-                          {isSynced
-                            ? <BookmarkCheck size={16} className="text-amber-500" />
-                            : <Bookmark size={16} className="text-zinc-300 hover:text-amber-400" />
-                          }
+                          <HandHeart size={16} className={isSynced ? "text-amber-500" : "text-zinc-300"} />
                         </button>
                       );
                     })()}
