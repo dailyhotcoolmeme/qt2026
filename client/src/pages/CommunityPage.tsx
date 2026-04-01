@@ -1163,7 +1163,6 @@ export default function CommunityPage() {
                         const sub = item.type === 'folder'
                           ? `${(groupsByFolder.get(item.folder.id) ?? []).length}개 모임`
                           : `모임 아이디: ${item.jg.group.group_slug ?? '-'}`;
-                        const folderItemCount = item.type === 'folder' ? (groupsByFolder.get(item.folder.id) ?? []).length : 0;
                         return (
                           <SortableItem key={id} id={id}>
                             {({ setNodeRef, style, attributes, listeners, isDragging }) => (
@@ -1178,14 +1177,6 @@ export default function CommunityPage() {
                                     <div className="font-bold text-sm text-zinc-900 truncate">{label}</div>
                                     <div className="text-xs text-zinc-400 truncate">{sub}</div>
                                   </div>
-                                  {item.type === 'folder' && folderItemCount > 1 && (
-                                    <button
-                                      onClick={() => { setShowOrderModal(false); setShowFolderOrderModal(item.folder.id); }}
-                                      className="text-xs font-bold text-[#4A6741] px-2.5 py-1.5 rounded-xl bg-[#4A6741]/10 flex-shrink-0"
-                                    >
-                                      내부순서
-                                    </button>
-                                  )}
                                   <button
                                     {...attributes}
                                     {...listeners}
@@ -1626,6 +1617,15 @@ export default function CommunityPage() {
                   <Pencil size={17} className="text-zinc-400" />
                   그룹 이름 수정
                 </button>
+                {(groupsByFolder.get(folderMenuId) ?? []).length > 1 && (
+                  <button
+                    onClick={() => { setShowFolderOrderModal(folderMenuId); setFolderMenuId(null); }}
+                    className="w-full py-3 px-4 text-left font-bold text-zinc-700 rounded-xl hover:bg-zinc-50 flex items-center gap-3 transition-colors"
+                  >
+                    <ArrowUpDown size={17} className="text-zinc-400" />
+                    내부순서 변경
+                  </button>
+                )}
                 <button
                   onClick={() => { setDissolveTargetId(folderMenuId); setFolderMenuId(null); }}
                   className="w-full py-3 px-4 text-left font-bold text-red-500 rounded-xl hover:bg-red-50 flex items-center gap-3 transition-colors"
