@@ -76,6 +76,31 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     setPulling(false);
   }, []);
 
+  // window 레벨 native 이벤트로 touchend/touchcancel을 보완 등록
+  // DnD(TouchSensor) 등이 React 합성 이벤트를 가로채더라도 항상 pulling 상태를 해제
+  useEffect(() => {
+    const onNativeTouchEnd = () => {
+      if (startYRef.current === null && pullDistRef.current === 0) return;
+      const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+      startYRef.current = null;
+      pullDistRef.current = 0;
+      setPulling(false);
+      if (shouldRefresh) triggerRefresh();
+    };
+    const onNativeTouchCancel = () => {
+      if (startYRef.current === null && pullDistRef.current === 0) return;
+      startYRef.current = null;
+      pullDistRef.current = 0;
+      setPulling(false);
+    };
+    window.addEventListener('touchend', onNativeTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onNativeTouchCancel, { passive: true });
+    return () => {
+      window.removeEventListener('touchend', onNativeTouchEnd);
+      window.removeEventListener('touchcancel', onNativeTouchCancel);
+    };
+  }, [triggerRefresh]);
+
   return (
     <RefreshContext.Provider value={{ refreshKey, triggerRefresh }}>
       <div

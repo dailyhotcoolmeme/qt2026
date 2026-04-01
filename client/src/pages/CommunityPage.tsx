@@ -941,7 +941,7 @@ export default function CommunityPage() {
   };
 
   return (
-      <div className="min-h-full overflow-y-auto bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
+      <div className="min-h-full bg-[#F5F6F7] pt-[var(--app-page-top)] pb-10 px-4 text-sm flex flex-col">
       <div className="max-w-2xl mx-auto space-y-4 flex-1 flex flex-col w-full">
         {/*
         상위 리더 대쉬보드 버튼 및 LeadershipPage(/leadership) 연결 비활성화
