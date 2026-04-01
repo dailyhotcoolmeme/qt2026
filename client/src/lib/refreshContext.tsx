@@ -63,13 +63,11 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, [refreshing]);
 
   const handleTouchEnd = useCallback(() => {
-    if (startYRef.current === null) return;
-    if (pullDistRef.current >= THRESHOLD) {
-      triggerRefresh();
-    }
+    const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
     setPulling(false);
+    if (shouldRefresh) triggerRefresh();
   }, [triggerRefresh]);
 
   return (
