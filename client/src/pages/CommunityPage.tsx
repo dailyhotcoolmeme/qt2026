@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronRight, ChevronDown, Plus, Search, Loader2, Users, X, Check, FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Plus, Search, Loader2, Users, X, Check, FolderOpen, MoreVertical, Pencil, Trash2, GripVertical, ArrowUpDown } from "lucide-react";
+import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import type { DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { supabase } from "../lib/supabase";
 import { LoginModal } from "../components/LoginModal";
 import { useRefresh } from "../lib/refreshContext";
@@ -43,6 +47,7 @@ type UserGroupFolder = {
 type UserGroupFolderItem = {
   folder_id: string;
   group_id: string;
+  sort_order: number;
 };
 
 const LAST_GROUP_KEY = "last_group_id";
@@ -103,6 +108,16 @@ async function resizeImageFile(file: File, maxSize = 900, quality = 0.82): Promi
 }
 
 
+function SortableItem({ id, children }: { id: string; children: (props: { setNodeRef: (el: HTMLElement | null) => void; style: React.CSSProperties; attributes: Record<string, any>; listeners: Record<string, any> | undefined; isDragging: boolean }) => React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+  return <>{children({ setNodeRef, style, attributes, listeners, isDragging })}</>;
+}
+
 export default function CommunityPage() {
   const [location, setLocation] = useLocation();
   const { refreshKey } = useRefresh();
@@ -135,6 +150,9 @@ export default function CommunityPage() {
   const [renameInput, setRenameInput] = useState("");
   const [dissolveTargetId, setDissolveTargetId] = useState<string | null>(null);
   const [removeFromFolderTarget, setRemoveFromFolderTarget] = useState<{ folderId: string; groupId: string; groupName: string } | null>(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [showFolderOrderModal, setShowFolderOrderModal] = useState<string | null>(null);
+  const [topLevelOrder, setTopLevelOrder] = useState<string[]>([]);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -189,6 +207,11 @@ export default function CommunityPage() {
     setLoading(true); // 로그인 후 안내 메시지 노출 방지
     void initialize(user.id);
   }, [user?.id, refreshKey]);
+
+  const sortableSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
+  );
 
   const initialize = async (userId: string) => {
     setLoading(true);
@@ -431,17 +454,63 @@ export default function CommunityPage() {
   const groupsByFolder = useMemo(() => {
     const map = new Map<string, JoinedGroup[]>();
     folders.forEach((f) => map.set(f.id, []));
-    folderItems.forEach((item) => {
+    const sortedItems = [...folderItems].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    sortedItems.forEach((item) => {
       const jg = joinedGroups.find((j) => j.group.id === item.group_id);
       if (jg && map.has(item.folder_id)) map.get(item.folder_id)!.push(jg);
     });
     return map;
   }, [folders, folderItems, joinedGroups]);
 
+  const topLevelOrderKey = useMemo(() => user ? `community-top-order:${user.id}` : null, [user?.id]);
+
+  useEffect(() => {
+    if (!user) { setTopLevelOrder([]); return; }
+    const allIds = [
+      ...folders.map(f => `folder:${f.id}`),
+      ...ungroupedGroups.map(g => `group:${g.group.id}`),
+    ];
+    if (!allIds.length) { setTopLevelOrder([]); return; }
+    let saved: string[] = [];
+    if (topLevelOrderKey) {
+      try {
+        const raw = localStorage.getItem(topLevelOrderKey);
+        saved = raw ? (JSON.parse(raw) as string[]) : [];
+      } catch { saved = []; }
+    }
+    const next = [
+      ...saved.filter(id => allIds.includes(id)),
+      ...allIds.filter(id => !saved.includes(id)),
+    ];
+    setTopLevelOrder(prev =>
+      prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next
+    );
+  }, [folders, ungroupedGroups, topLevelOrderKey, user?.id]);
+
+  useEffect(() => {
+    if (!topLevelOrderKey || !topLevelOrder.length) return;
+    localStorage.setItem(topLevelOrderKey, JSON.stringify(topLevelOrder));
+  }, [topLevelOrder, topLevelOrderKey]);
+
+  const orderedTopLevel = useMemo(() => {
+    const folderMap = new Map(folders.map(f => [`folder:${f.id}`, f]));
+    const groupMap = new Map(ungroupedGroups.map(g => [`group:${g.group.id}`, g]));
+    return topLevelOrder
+      .map(id => {
+        if (id.startsWith('folder:')) {
+          const f = folderMap.get(id);
+          return f ? { type: 'folder' as const, folder: f } : null;
+        }
+        const g = groupMap.get(id);
+        return g ? { type: 'group' as const, jg: g } : null;
+      })
+      .filter((x): x is { type: 'folder'; folder: UserGroupFolder } | { type: 'group'; jg: JoinedGroup } => x !== null);
+  }, [topLevelOrder, folders, ungroupedGroups]);
+
   const loadFolders = async (userId: string) => {
     const [{ data: folderRows }, { data: itemRows }] = await Promise.all([
       supabase.from("user_group_folders").select("*").eq("user_id", userId).order("sort_order"),
-      supabase.from("user_group_folder_items").select("folder_id,group_id").eq("user_id", userId),
+      supabase.from("user_group_folder_items").select("folder_id,group_id,sort_order").eq("user_id", userId),
     ]);
     const loadedFolders = (folderRows ?? []) as UserGroupFolder[];
     setFolders(loadedFolders);
@@ -495,6 +564,39 @@ export default function CommunityPage() {
     if (!user) return;
     await supabase.from("user_group_folder_items").delete().eq("folder_id", folderId).eq("group_id", groupId);
     await loadFolders(user.id);
+  };
+
+  const saveTopLevelOrder = async (newOrder: string[]) => {
+    setTopLevelOrder(newOrder);
+    if (!user) return;
+    const folderEntries = newOrder
+      .filter(id => id.startsWith('folder:'))
+      .map((id, idx) => ({ folderId: id.slice(7), order: idx }));
+    await Promise.all(
+      folderEntries.map(({ folderId, order }) =>
+        supabase.from("user_group_folders").update({ sort_order: order }).eq("id", folderId).eq("user_id", user.id)
+      )
+    );
+  };
+
+  const saveFolderItemOrder = async (folderId: string, newGroupIds: string[]) => {
+    if (!user) return;
+    setFolderItems(prev =>
+      prev.map(item => {
+        if (item.folder_id !== folderId) return item;
+        const idx = newGroupIds.indexOf(item.group_id);
+        return { ...item, sort_order: idx >= 0 ? idx : 999 };
+      })
+    );
+    await Promise.all(
+      newGroupIds.map((groupId, idx) =>
+        supabase.from("user_group_folder_items")
+          .update({ sort_order: idx })
+          .eq("folder_id", folderId)
+          .eq("group_id", groupId)
+          .eq("user_id", user.id)
+      )
+    );
   };
 
   const toggleFolder = (folderId: string) => {
@@ -885,7 +987,7 @@ export default function CommunityPage() {
             <section className="space-y-3 flex-1 flex flex-col">
               {/* 그룹 / 선택모드 헤더 */}
               {joinedGroups.length >= 2 && (
-                <div className="flex justify-end items-center">
+                <div className="flex justify-end items-center gap-2">
                   {isSelectMode ? (
                     <>
                       <span className="text-sm font-bold text-zinc-500 mr-auto">{selectedGroupIds.size}개 선택됨</span>
@@ -897,13 +999,22 @@ export default function CommunityPage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={enterSelectMode}
-                      className="text-sm font-bold text-[#4A6741] px-3 py-1.5 rounded-xl bg-[#4A6741]/10 active:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5"
-                    >
-                      <FolderOpen size={14} />
-                      그룹
-                    </button>
+                    <>
+                      <button
+                        onClick={() => setShowOrderModal(true)}
+                        className="text-sm font-bold text-zinc-500 px-3 py-1.5 rounded-xl bg-zinc-100 active:bg-zinc-200 transition-colors flex items-center gap-1.5"
+                      >
+                        <ArrowUpDown size={14} />
+                        순서변경
+                      </button>
+                      <button
+                        onClick={enterSelectMode}
+                        className="text-sm font-bold text-[#4A6741] px-3 py-1.5 rounded-xl bg-[#4A6741]/10 active:bg-[#4A6741]/20 transition-colors flex items-center gap-1.5"
+                      >
+                        <FolderOpen size={14} />
+                        그룹
+                      </button>
+                    </>
                   )}
                 </div>
               )}
@@ -972,12 +1083,13 @@ export default function CommunityPage() {
                 </div>
               ) : joinedGroups.length > 0 ? (
                 <div className="space-y-4 pb-4">
-                  {folders.map((folder) => (
-                    <FolderCard key={folder.id} folder={folder} />
-                  ))}
-                  {ungroupedGroups.map((item) => (
-                    <GroupCard key={item.group.id} row={item.group} />
-                  ))}
+                  {orderedTopLevel.map((item) =>
+                    item.type === 'folder' ? (
+                      <FolderCard key={item.folder.id} folder={item.folder} />
+                    ) : (
+                      <GroupCard key={item.jg.group.id} row={item.jg.group} />
+                    )
+                  )}
                 </div>
               ) : null}
             </section>
@@ -1004,6 +1116,187 @@ export default function CommunityPage() {
           </button>
         </>
       )}
+
+      {/* 순서변경 모달 - 1단계: 전체 순서 */}
+      <AnimatePresence>
+        {showOrderModal && (
+          <div className="fixed inset-0 z-[250] flex flex-col justify-end">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setShowOrderModal(false)}
+              className="absolute inset-0 bg-black/40"
+            />
+            <motion.div
+              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+              drag="y" dragDirectionLock dragConstraints={{ top: 0, bottom: 200 }} dragElastic={{ top: 0, bottom: 0.2 }}
+              onDragEnd={(_: any, info: any) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowOrderModal(false); }}
+              className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
+            >
+              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
+              <div className="flex items-center justify-between px-6 py-4 flex-shrink-0">
+                <div>
+                  <h3 className="font-black text-zinc-900 text-lg">순서 변경</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
+                    <GripVertical size={11} /> 오른쪽 손잡이를 드래그해 순서를 바꿔주세요
+                  </p>
+                </div>
+                <button onClick={() => setShowOrderModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="px-4 pb-6 overflow-y-auto">
+                <DndContext
+                  sensors={sortableSensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (!over || active.id === over.id) return;
+                    const oldIdx = topLevelOrder.indexOf(String(active.id));
+                    const newIdx = topLevelOrder.indexOf(String(over.id));
+                    if (oldIdx < 0 || newIdx < 0) return;
+                    void saveTopLevelOrder(arrayMove(topLevelOrder, oldIdx, newIdx));
+                  }}
+                >
+                  <SortableContext items={topLevelOrder} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {orderedTopLevel.map((item) => {
+                        const id = item.type === 'folder' ? `folder:${item.folder.id}` : `group:${item.jg.group.id}`;
+                        const label = item.type === 'folder' ? item.folder.name : item.jg.group.name;
+                        const sub = item.type === 'folder'
+                          ? `${(groupsByFolder.get(item.folder.id) ?? []).length}개 모임`
+                          : `모임 아이디: ${item.jg.group.group_slug ?? '-'}`;
+                        const folderItemCount = item.type === 'folder' ? (groupsByFolder.get(item.folder.id) ?? []).length : 0;
+                        return (
+                          <SortableItem key={id} id={id}>
+                            {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                              <div ref={setNodeRef} style={style} className={isDragging ? "opacity-50" : ""}>
+                                <div className="flex items-center gap-3 bg-white rounded-2xl border border-zinc-100 shadow-sm px-4 py-3">
+                                  <div className="w-9 h-9 bg-zinc-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                                    {item.type === 'folder'
+                                      ? <FolderOpen size={17} className="text-[#4A6741]" />
+                                      : <Users size={17} className="text-zinc-400" />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-sm text-zinc-900 truncate">{label}</div>
+                                    <div className="text-xs text-zinc-400 truncate">{sub}</div>
+                                  </div>
+                                  {item.type === 'folder' && folderItemCount > 1 && (
+                                    <button
+                                      onClick={() => { setShowOrderModal(false); setShowFolderOrderModal(item.folder.id); }}
+                                      className="text-xs font-bold text-[#4A6741] px-2.5 py-1.5 rounded-xl bg-[#4A6741]/10 flex-shrink-0"
+                                    >
+                                      내부순서
+                                    </button>
+                                  )}
+                                  <button
+                                    {...attributes}
+                                    {...listeners}
+                                    className="p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none flex-shrink-0 ml-1"
+                                    aria-label="순서 조정"
+                                    type="button"
+                                  >
+                                    <GripVertical size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 순서변경 모달 - 2단계: 폴더 내부 순서 */}
+      <AnimatePresence>
+        {showFolderOrderModal && (() => {
+          const folder = folders.find(f => f.id === showFolderOrderModal);
+          const items = groupsByFolder.get(showFolderOrderModal) ?? [];
+          const itemIds = items.map(i => i.group.id);
+          if (!folder) return null;
+          return (
+            <div className="fixed inset-0 z-[260] flex flex-col justify-end">
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setShowFolderOrderModal(null)}
+                className="absolute inset-0 bg-black/40"
+              />
+              <motion.div
+                initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
+                drag="y" dragDirectionLock dragConstraints={{ top: 0, bottom: 200 }} dragElastic={{ top: 0, bottom: 0.2 }}
+                onDragEnd={(_: any, info: any) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowFolderOrderModal(null); }}
+                className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
+              >
+                <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
+                <div className="flex items-center justify-between px-6 py-4 flex-shrink-0">
+                  <div>
+                    <p className="text-xs text-[#4A6741] font-bold mb-0.5 truncate">{folder.name}</p>
+                    <h3 className="font-black text-zinc-900 text-lg">그룹 내 순서 변경</h3>
+                    <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
+                      <GripVertical size={11} /> 오른쪽 손잡이를 드래그해 순서를 바꿔주세요
+                    </p>
+                  </div>
+                  <button onClick={() => setShowFolderOrderModal(null)} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500">
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="px-4 pb-6 overflow-y-auto">
+                  <DndContext
+                    sensors={sortableSensors}
+                    collisionDetection={closestCenter}
+                    onDragEnd={(event: DragEndEvent) => {
+                      const { active, over } = event;
+                      if (!over || active.id === over.id) return;
+                      const oldIdx = itemIds.indexOf(String(active.id));
+                      const newIdx = itemIds.indexOf(String(over.id));
+                      if (oldIdx < 0 || newIdx < 0) return;
+                      void saveFolderItemOrder(showFolderOrderModal!, arrayMove(itemIds, oldIdx, newIdx));
+                    }}
+                  >
+                    <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
+                      <div className="space-y-2">
+                        {items.map((jg) => (
+                          <SortableItem key={jg.group.id} id={jg.group.id}>
+                            {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                              <div ref={setNodeRef} style={style} className={isDragging ? "opacity-50" : ""}>
+                                <div className="flex items-center gap-3 bg-white rounded-2xl border border-zinc-100 shadow-sm px-4 py-3">
+                                  <div className="w-9 h-9 overflow-hidden bg-zinc-100 flex items-center justify-center text-zinc-400 rounded-xl flex-shrink-0">
+                                    {jg.group.group_image
+                                      ? <img src={ensureHttpsUrl(jg.group.group_image) || ""} className="w-full h-full object-cover" alt="" />
+                                      : <Users size={17} />}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-sm text-zinc-900 truncate">{jg.group.name}</div>
+                                    <div className="text-xs text-zinc-400 truncate">모임 아이디: {jg.group.group_slug ?? '-'}</div>
+                                  </div>
+                                  <button
+                                    {...attributes}
+                                    {...listeners}
+                                    className="p-2 rounded-xl bg-zinc-100 text-zinc-400 touch-none flex-shrink-0"
+                                    aria-label="순서 조정"
+                                    type="button"
+                                  >
+                                    <GripVertical size={16} />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </SortableItem>
+                        ))}
+                      </div>
+                    </SortableContext>
+                  </DndContext>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showSearchModal && (
