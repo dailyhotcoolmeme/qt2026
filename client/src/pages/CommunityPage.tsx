@@ -871,7 +871,7 @@ export default function CommunityPage() {
               e.stopPropagation();
               setRemoveFromFolderTarget({ folderId, groupId: row.id, groupName: row.name });
             }}
-            className="text-zinc-400 rounded-xl px-1.5 py-1 hover:bg-zinc-100 hover:text-zinc-600 transition-colors flex-shrink-0 leading-tight text-[10px] font-bold text-center"
+            className="w-11 h-11 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-600 transition-colors flex-shrink-0 flex items-center justify-center leading-tight text-[10px] font-bold text-center"
             aria-label="그룹에서 제외"
           >
             내보<br />내기
