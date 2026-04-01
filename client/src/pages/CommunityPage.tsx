@@ -871,10 +871,10 @@ export default function CommunityPage() {
               e.stopPropagation();
               setRemoveFromFolderTarget({ folderId, groupId: row.id, groupName: row.name });
             }}
-            className="w-8 h-8 text-red-300 rounded-full flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors flex-shrink-0"
+            className="text-zinc-400 rounded-xl px-1.5 py-1 hover:bg-zinc-100 hover:text-zinc-600 transition-colors flex-shrink-0 leading-tight text-[10px] font-bold text-center"
             aria-label="그룹에서 제외"
           >
-            <X size={15} strokeWidth={2.5} />
+            내보<br />내기
           </button>
         )}
         {!isSelectMode && (
@@ -1128,8 +1128,6 @@ export default function CommunityPage() {
             />
             <motion.div
               initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-              drag="y" dragDirectionLock dragConstraints={{ top: 0, bottom: 200 }} dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_: any, info: any) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowOrderModal(false); }}
               className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
             >
               <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
@@ -1228,8 +1226,6 @@ export default function CommunityPage() {
               />
               <motion.div
                 initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-                drag="y" dragDirectionLock dragConstraints={{ top: 0, bottom: 200 }} dragElastic={{ top: 0, bottom: 0.2 }}
-                onDragEnd={(_: any, info: any) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowFolderOrderModal(null); }}
                 className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
               >
                 <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
