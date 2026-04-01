@@ -895,7 +895,7 @@ export default function CommunityPage() {
     const isExpanded = expandedFolderIds.has(folder.id);
 
     return (
-      <div className="bg-zinc-50 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-[#4A6741]/10 rounded-2xl shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 p-4">
           <div className="w-10 h-10 bg-[#4A6741]/10 rounded-xl flex items-center justify-center flex-shrink-0">
             <FolderOpen size={19} className="text-[#4A6741]" />
@@ -910,7 +910,7 @@ export default function CommunityPage() {
           </button>
           <button
             onClick={() => setFolderMenuId(folder.id)}
-            className="w-8 h-8 text-zinc-400 rounded-full flex items-center justify-center hover:bg-zinc-100 transition-colors flex-shrink-0"
+            className="w-8 h-8 text-zinc-400 rounded-full flex items-center justify-center hover:bg-[#4A6741]/20 transition-colors flex-shrink-0"
             aria-label="그룹 메뉴"
           >
             <MoreVertical size={16} />
@@ -1168,8 +1168,8 @@ export default function CommunityPage() {
                           <SortableItem key={id} id={id}>
                             {({ setNodeRef, style, attributes, listeners, isDragging }) => (
                               <div ref={setNodeRef} style={style} className={isDragging ? "opacity-50" : ""}>
-                                <div className="flex items-center gap-3 bg-white rounded-2xl border border-zinc-100 shadow-sm px-4 py-3">
-                                  <div className="w-9 h-9 bg-zinc-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                                <div className={`flex items-center gap-3 rounded-2xl border shadow-sm px-4 py-3 ${item.type === 'folder' ? 'bg-[#4A6741]/10 border-[#4A6741]/20' : 'bg-white border-zinc-100'}`}>
+                                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.type === 'folder' ? 'bg-[#4A6741]/15' : 'bg-zinc-50'}`}>
                                     {item.type === 'folder'
                                       ? <FolderOpen size={17} className="text-[#4A6741]" />
                                       : <Users size={17} className="text-zinc-400" />}
