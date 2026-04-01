@@ -93,11 +93,11 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       pullDistRef.current = 0;
       setPulling(false);
     };
-    window.addEventListener('touchend', onNativeTouchEnd, { passive: true });
-    window.addEventListener('touchcancel', onNativeTouchCancel, { passive: true });
+    window.addEventListener('touchend', onNativeTouchEnd, { passive: true, capture: true });
+    window.addEventListener('touchcancel', onNativeTouchCancel, { passive: true, capture: true });
     return () => {
-      window.removeEventListener('touchend', onNativeTouchEnd);
-      window.removeEventListener('touchcancel', onNativeTouchCancel);
+      window.removeEventListener('touchend', onNativeTouchEnd, { capture: true });
+      window.removeEventListener('touchcancel', onNativeTouchCancel, { capture: true });
     };
   }, [triggerRefresh]);
 
