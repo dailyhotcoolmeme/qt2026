@@ -3771,8 +3771,10 @@ export default function GroupDashboard() {
       if (error) throw error;
       await loadGroupPrayers(group.id);
       if (window.navigator?.vibrate) window.navigator.vibrate([20, 50, 20]);
-      const targetName = authorMap[targetUserId]?.nickname || authorMap[targetUserId]?.username || "상대방";
-      setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님만 확인할 수 있어요`);
+      if (targetUserId !== user.id) {
+        const targetName = authorMap[targetUserId]?.nickname || authorMap[targetUserId]?.username || "상대방";
+        setHeartPrayerToast(`${targetName}님에게 마음기도가 전달되었습니다.\n${targetName}님만 확인할 수 있어요`);
+      }
       setTimeout(() => setHeartPrayerToast(null), 3500);
       if (targetUserId !== user.id) {
         sendPushToGroupUsers({
@@ -4113,6 +4115,18 @@ export default function GroupDashboard() {
 
           <div className="flex items-center gap-2 mt-0 pt-3 border-t border-zinc-150 shrink-0">
             <button
+              onClick={() => startVoicePrayerForUser(userId)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
+            >
+              <Mic size={12} /> 음성기도
+            </button>
+            <button
+              onClick={() => openTextPrayerModal(userId)}
+              className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-500 text-xs font-bold transition-all active:scale-95"
+            >
+              <PenLine size={12} /> 글기도
+            </button>
+            <button
               onClick={() => handleHeartPrayer(userId)}
               className="flex items-center gap-1 px-3 py-1 rounded-full border border-rose-200 bg-rose-50 text-rose-500 text-xs font-bold transition-all active:scale-95"
             >
@@ -4132,18 +4146,6 @@ export default function GroupDashboard() {
                 <MoreHorizontal size={14} />
               </button>
             )}
-            <button
-              onClick={() => openTextPrayerModal(userId)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full border border-blue-200 bg-blue-50 text-blue-500 text-xs font-bold transition-all active:scale-95"
-            >
-              <PenLine size={12} /> 글기도
-            </button>
-            <button
-              onClick={() => startVoicePrayerForUser(userId)}
-              className="flex items-center gap-1 px-3 py-1 rounded-full border border-[#4A6741]/20 bg-[#4A6741]/10 text-[#4A6741] text-xs font-bold transition-all active:scale-95"
-            >
-              <Mic size={12} /> 음성기도
-            </button>
           </div>
 
           {textPrayers.length > 0 && (
