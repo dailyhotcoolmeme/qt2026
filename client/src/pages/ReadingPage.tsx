@@ -506,16 +506,7 @@ export default function ReadingPage() {
       }
 
       // 오늘 기록 없음 → 과거 최근 이력으로 자동 범위 세팅
-      if (!forceTodayRestore) {
-        await autoSetTodayRange();
-        return;
-      }
-
-      if (forceTodayRestore) {
-        setRangePages([]);
-        setCurrentPageIdx(0);
-        setBibleData(null);
-      }
+      await autoSetTodayRange();
     }
 
 
