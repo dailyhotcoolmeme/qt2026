@@ -59,12 +59,7 @@ async function verifySupabaseToken(request: Request, env: Env): Promise<boolean>
 }
 
 function withCorsHeaders(response: Response) {
-  const next = new Response(response.body, response);
-  for (const [key, value] of Object.entries(CORS_HEADERS)) {
-    next.headers.set(key, value);
-  }
-  next.headers.set("Vary", "Origin");
-  return next;
+  return new Response(response.body, response);
 }
 
 function json(status: number, body: unknown) {
@@ -1674,6 +1669,8 @@ export default {
       const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://www.myamen.co.kr";
       const patched = new Response(apiResponse.body, apiResponse);
       patched.headers.set("Access-Control-Allow-Origin", allowedOrigin);
+      patched.headers.set("Access-Control-Allow-Methods", "GET,POST,PATCH,DELETE,OPTIONS");
+      patched.headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization,x-push-secret");
       patched.headers.set("Vary", "Origin");
       return patched;
     }
