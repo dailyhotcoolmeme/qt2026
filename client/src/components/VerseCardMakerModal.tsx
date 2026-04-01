@@ -784,7 +784,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                         >
                           {preset.mode === "image" ? (
                             <img
-                              src={toProxyUrl(preset.bg.includes('/api/card-backgrounds/') ? `https://wsrv.nl/?url=${encodeURIComponent(resolveAppUrl(preset.bg))}&w=300&h=300&fit=cover&output=webp` : preset.bg)}
+                              src={toProxyUrl(preset.bg)}
                               alt=""
                               loading="lazy"
                               decoding="async"
