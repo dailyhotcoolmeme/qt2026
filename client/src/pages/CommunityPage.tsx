@@ -895,7 +895,7 @@ export default function CommunityPage() {
     const isExpanded = expandedFolderIds.has(folder.id);
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-zinc-50 rounded-2xl shadow-sm overflow-hidden">
         <div className="flex items-center gap-3 p-4">
           <div className="w-10 h-10 bg-[#4A6741]/10 rounded-xl flex items-center justify-center flex-shrink-0">
             <FolderOpen size={19} className="text-[#4A6741]" />
@@ -923,7 +923,7 @@ export default function CommunityPage() {
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="border-t border-zinc-100 px-3 pb-3 pt-2 space-y-2 overflow-hidden"
+              className="px-3 pb-3 pt-1 space-y-2 overflow-hidden"
             >
               {groups.map((item) => (
                 <GroupCard
