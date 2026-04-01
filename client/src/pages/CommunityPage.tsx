@@ -987,7 +987,7 @@ export default function CommunityPage() {
             <section className="space-y-3 flex-1 flex flex-col">
               {/* 그룹 / 선택모드 헤더 */}
               {joinedGroups.length >= 2 && (
-                <div className="flex justify-end items-center gap-2">
+                <div className="flex justify-end items-center gap-2 pt-1 pb-0.5">
                   {isSelectMode ? (
                     <>
                       <span className="text-sm font-bold text-zinc-500 mr-auto">{selectedGroupIds.size}개 선택됨</span>
