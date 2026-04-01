@@ -830,6 +830,13 @@ export default function ReadingPage() {
 
     const todayForAuto = formatLocalDate(new Date());
 
+    // BOOK_CHAPTERS 클라이언트 데이터로 book_order, chapters, testament 조회 (DB 의존 안 함)
+    const getBookInfo = (bookName: string) => {
+      const idx = BOOK_CHAPTERS.findIndex(b => b.name === bookName);
+      if (idx === -1) return null;
+      return { book_order: idx, chapters: BOOK_CHAPTERS[idx].chapters, testament: BOOK_CHAPTERS[idx].testament };
+    };
+
     // 오늘 이전 가장 최근 날짜의 기록 조회
     const { data: recentRecords } = await supabase
       .from('user_reading_records')
@@ -837,86 +844,49 @@ export default function ReadingPage() {
       .eq('user_id', user.id)
       .lt('date', todayForAuto)
       .order('date', { ascending: false })
-      .limit(50);
+      .limit(100);
 
     if (!recentRecords || recentRecords.length === 0) return;
 
     // 가장 최근 날짜만 추출
     const latestDate = recentRecords[0].date;
+    if (!latestDate) return;
     const latestDayRecords = recentRecords.filter(r => r.date === latestDate);
 
-    // book_order 가져오기
-    const bookNames = Array.from(new Set(latestDayRecords.map(r => r.book_name)));
-    const { data: booksData } = await supabase
-      .from('bible_books')
-      .select('book_name, book_order, chapters')
-      .in('book_name', bookNames);
-
-    if (!booksData) return;
-
-    const bookOrderMap: Record<string, number> = {};
-    const bookChaptersMap: Record<string, number> = {};
-    booksData.forEach(b => {
-      bookOrderMap[b.book_name] = b.book_order;
-      bookChaptersMap[b.book_name] = b.chapters;
-    });
-
-    // book_order + chapter 순으로 정렬
+    // book_order 기준 정렬
     const sorted = [...latestDayRecords].sort((a, b) => {
-      const orderDiff = (bookOrderMap[a.book_name] ?? 0) - (bookOrderMap[b.book_name] ?? 0);
+      const aInfo = getBookInfo(a.book_name);
+      const bInfo = getBookInfo(b.book_name);
+      const orderDiff = (aInfo?.book_order ?? 0) - (bInfo?.book_order ?? 0);
       return orderDiff !== 0 ? orderDiff : a.chapter - b.chapter;
     });
 
-    const chapterCount = sorted.length; // 읽은 장 수
+    const chapterCount = sorted.length;
     const lastRecord = sorted[sorted.length - 1];
-    const lastBookOrder = bookOrderMap[lastRecord.book_name] ?? 0;
-    const lastBookTotalChapters = bookChaptersMap[lastRecord.book_name] ?? 999;
+    const lastBookInfo = getBookInfo(lastRecord.book_name);
+    if (!lastBookInfo) return;
 
     // 다음 시작 장 계산 (마지막 장 + 1, 권 넘어갈 수 있음)
     let nextBook = lastRecord.book_name;
     let nextChapter = lastRecord.chapter + 1;
 
-    if (nextChapter > lastBookTotalChapters) {
-      // 다음 권으로 넘어감
-      const { data: nextBookData } = await supabase
-        .from('bible_books')
-        .select('book_name, book_order, chapters')
-        .gt('book_order', lastBookOrder)
-        .order('book_order', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (!nextBookData) return; // 마지막 권(요한계시록) 끝이면 자동세팅 안 함
-      nextBook = nextBookData.book_name;
+    if (nextChapter > lastBookInfo.chapters) {
+      const nextIdx = lastBookInfo.book_order + 1;
+      if (nextIdx >= BOOK_CHAPTERS.length) return; // 요한계시록 끝
+      nextBook = BOOK_CHAPTERS[nextIdx].name;
       nextChapter = 1;
     }
 
-    // 끝 장 계산: nextChapter 부터 chapterCount장
-    // 권 경계를 넘지 않는 단순 처리 (같은 권 내에서만)
-    const { data: nextBookInfo } = await supabase
-      .from('bible_books')
-      .select('book_name, book_order, chapters')
-      .eq('book_name', nextBook)
-      .maybeSingle();
-
+    const nextBookInfo = getBookInfo(nextBook);
     if (!nextBookInfo) return;
 
     let endBook = nextBook;
     let endChapter = nextChapter + chapterCount - 1;
-
     if (endChapter > nextBookInfo.chapters) {
-      // 끝이 다음 권으로 넘어가는 경우 — 현재 권 마지막 장으로 제한
       endChapter = nextBookInfo.chapters;
     }
 
-    // book_order로 구약(1~39)/신약(40~) 구분
-    const { data: nextBookFull } = await supabase
-      .from('bible_books')
-      .select('book_order')
-      .eq('book_name', nextBook)
-      .maybeSingle();
-    const nextOrder = nextBookFull?.book_order ?? 1;
-    const testament = nextOrder <= 39 ? '구약' : '신약';
+    const testament = nextBookInfo.testament === 'old' ? '구약' : '신약';
 
     await loadRangePagesWithSelection({
       start_testament: testament,
