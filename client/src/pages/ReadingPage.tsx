@@ -505,6 +505,12 @@ export default function ReadingPage() {
         }
       }
 
+      // 오늘 기록 없음 → 과거 최근 이력으로 자동 범위 세팅
+      if (!forceTodayRestore) {
+        await autoSetTodayRange();
+        return;
+      }
+
       if (forceTodayRestore) {
         setRangePages([]);
         setCurrentPageIdx(0);
@@ -825,6 +831,110 @@ export default function ReadingPage() {
         setBibleData(rangePages[lastReadIndex]);
       }
     }
+  };
+
+  // 가장 최근 읽은 이력 기반으로 오늘 읽을 범위 자동 세팅
+  const autoSetTodayRange = async () => {
+    if (!user?.id) return;
+
+    const todayForAuto = formatLocalDate(new Date());
+
+    // 오늘 이전 가장 최근 날짜의 기록 조회
+    const { data: recentRecords } = await supabase
+      .from('user_reading_records')
+      .select('book_name, chapter, date')
+      .eq('user_id', user.id)
+      .lt('date', todayForAuto)
+      .order('date', { ascending: false })
+      .limit(50);
+
+    if (!recentRecords || recentRecords.length === 0) return;
+
+    // 가장 최근 날짜만 추출
+    const latestDate = recentRecords[0].date;
+    const latestDayRecords = recentRecords.filter(r => r.date === latestDate);
+
+    // book_order 가져오기
+    const bookNames = Array.from(new Set(latestDayRecords.map(r => r.book_name)));
+    const { data: booksData } = await supabase
+      .from('bible_books')
+      .select('book_name, book_order, chapters')
+      .in('book_name', bookNames);
+
+    if (!booksData) return;
+
+    const bookOrderMap: Record<string, number> = {};
+    const bookChaptersMap: Record<string, number> = {};
+    booksData.forEach(b => {
+      bookOrderMap[b.book_name] = b.book_order;
+      bookChaptersMap[b.book_name] = b.chapters;
+    });
+
+    // book_order + chapter 순으로 정렬
+    const sorted = [...latestDayRecords].sort((a, b) => {
+      const orderDiff = (bookOrderMap[a.book_name] ?? 0) - (bookOrderMap[b.book_name] ?? 0);
+      return orderDiff !== 0 ? orderDiff : a.chapter - b.chapter;
+    });
+
+    const chapterCount = sorted.length; // 읽은 장 수
+    const lastRecord = sorted[sorted.length - 1];
+    const lastBookOrder = bookOrderMap[lastRecord.book_name] ?? 0;
+    const lastBookTotalChapters = bookChaptersMap[lastRecord.book_name] ?? 999;
+
+    // 다음 시작 장 계산 (마지막 장 + 1, 권 넘어갈 수 있음)
+    let nextBook = lastRecord.book_name;
+    let nextChapter = lastRecord.chapter + 1;
+
+    if (nextChapter > lastBookTotalChapters) {
+      // 다음 권으로 넘어감
+      const { data: nextBookData } = await supabase
+        .from('bible_books')
+        .select('book_name, book_order, chapters')
+        .gt('book_order', lastBookOrder)
+        .order('book_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (!nextBookData) return; // 마지막 권(요한계시록) 끝이면 자동세팅 안 함
+      nextBook = nextBookData.book_name;
+      nextChapter = 1;
+    }
+
+    // 끝 장 계산: nextChapter 부터 chapterCount장
+    // 권 경계를 넘지 않는 단순 처리 (같은 권 내에서만)
+    const { data: nextBookInfo } = await supabase
+      .from('bible_books')
+      .select('book_name, book_order, chapters')
+      .eq('book_name', nextBook)
+      .maybeSingle();
+
+    if (!nextBookInfo) return;
+
+    let endBook = nextBook;
+    let endChapter = nextChapter + chapterCount - 1;
+
+    if (endChapter > nextBookInfo.chapters) {
+      // 끝이 다음 권으로 넘어가는 경우 — 현재 권 마지막 장으로 제한
+      endChapter = nextBookInfo.chapters;
+    }
+
+    // book_order로 구약(1~39)/신약(40~) 구분
+    const { data: nextBookFull } = await supabase
+      .from('bible_books')
+      .select('book_order')
+      .eq('book_name', nextBook)
+      .maybeSingle();
+    const nextOrder = nextBookFull?.book_order ?? 1;
+    const testament = nextOrder <= 39 ? '구약' : '신약';
+
+    await loadRangePagesWithSelection({
+      start_testament: testament,
+      start_book: nextBook,
+      start_chapter: nextChapter,
+      end_testament: testament,
+      end_book: endBook,
+      end_chapter: endChapter,
+    });
   };
 
   const loadRangePagesWithSelection = async (selection: typeof tempSelection) => {
