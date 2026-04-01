@@ -4423,14 +4423,13 @@ export default function GroupDashboard() {
                   {orderedTopicsByAuthor.map((item) => (
                     <PrayerTopicAuthorCard key={item.userId} {...item} partnerIds={partnerIds} />
                   ))}
+                  {orderedTopicsByAuthor.length === 0 && (
+                    <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100dvh-280px)] text-zinc-400">
+                      <HandHeart size={44} className="text-zinc-200" />
+                      <p className="text-sm font-medium">등록된 기도제목이 없습니다.</p>
+                    </div>
+                  )}
                 </div>
-
-                {orderedTopicsByAuthor.length === 0 && (
-                  <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100dvh-280px)] text-zinc-400">
-                    <HandHeart size={44} className="text-zinc-200" />
-                    <p className="text-sm font-medium">등록된 기도제목이 없습니다.</p>
-                  </div>
-                )}
 
                 {orderedTopicsByAuthor.length > 1 && (
                   <div className="flex justify-center pt-3">

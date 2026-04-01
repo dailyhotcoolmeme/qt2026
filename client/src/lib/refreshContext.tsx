@@ -57,19 +57,17 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (startYRef.current === null || refreshing) return;
     const dy = e.touches[0].clientY - startYRef.current;
-    if (dy < 0) { startYRef.current = null; return; }
+    if (dy < 0) { startYRef.current = null; pullDistRef.current = 0; setPulling(false); return; }
     pullDistRef.current = Math.min(dy, THRESHOLD * 1.5);
     setPulling(pullDistRef.current > 10);
   }, [refreshing]);
 
   const handleTouchEnd = useCallback(() => {
-    if (startYRef.current === null) return;
-    if (pullDistRef.current >= THRESHOLD) {
-      triggerRefresh();
-    }
+    const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
     setPulling(false);
+    if (shouldRefresh) triggerRefresh();
   }, [triggerRefresh]);
 
   const handleTouchCancel = useCallback(() => {
