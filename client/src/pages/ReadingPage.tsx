@@ -1317,9 +1317,10 @@ export default function ReadingPage() {
           try {
             console.log('[R2 Upload] Uploading:', fileName);
             // 1. Presigned URL 諛쏄린
+            const { data: { session: rdSession } } = await supabase.auth.getSession();
             const urlRes = await fetch('/api/audio/upload', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${rdSession?.access_token ?? ''}` },
               body: JSON.stringify({ fileName })
             });
             const { uploadUrl, publicUrl } = await urlRes.json();
@@ -1804,9 +1805,10 @@ export default function ReadingPage() {
         (async () => {
           try {
             console.log('[R2 Upload - Continuous] Uploading:', fileName);
+            const { data: { session: rdSession } } = await supabase.auth.getSession();
             const urlRes = await fetch('/api/audio/upload', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${rdSession?.access_token ?? ''}` },
               body: JSON.stringify({ fileName })
             });
             const { uploadUrl, publicUrl } = await urlRes.json();
@@ -1921,9 +1923,10 @@ export default function ReadingPage() {
         (async () => {
           try {
             console.log('[R2 Upload - Preload] Uploading:', fileName);
+            const { data: { session: rdSession } } = await supabase.auth.getSession();
             const urlRes = await fetch('/api/audio/upload', {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${rdSession?.access_token ?? ''}` },
               body: JSON.stringify({ fileName })
             });
             const { uploadUrl, publicUrl } = await urlRes.json();

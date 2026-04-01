@@ -288,11 +288,26 @@ async function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+async function getAuthToken(): Promise<string> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? '';
+}
+
+async function deleteAudioFromR2(fileUrl: string): Promise<void> {
+  const token = await getAuthToken();
+  fetch(resolveApiUrl("/api/audio/delete"), {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    body: JSON.stringify({ fileUrl }),
+  }).catch(() => undefined);
+}
+
 async function uploadToR2(fileName: string, blob: Blob): Promise<string> {
   const audioBase64 = await blobToBase64(blob);
+  const token = await getAuthToken();
   const response = await fetch(resolveApiUrl("/api/audio/upload"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     body: JSON.stringify({ fileName, audioBase64 }),
   });
 
@@ -414,9 +429,10 @@ function getTabQueryParam(pathWithQuery?: string) {
 
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
+  const token = await getAuthToken();
   const response = await fetch(resolveApiUrl("/api/file/upload"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     body: JSON.stringify({ fileName, fileBase64, contentType }),
   });
 
@@ -2153,9 +2169,10 @@ export default function GroupDashboard() {
   const deleteFileFromR2 = async (fileUrl?: string | null) => {
     if (!fileUrl) return;
     try {
+      const token = await getAuthToken();
       await fetch(resolveApiUrl("/api/file/delete"), {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
         body: JSON.stringify({ fileUrl }),
       });
     } catch {
@@ -2344,11 +2361,7 @@ export default function GroupDashboard() {
     if (record.source_type === "direct" && record.audio_url) {
       isAudioOrphaned(record.audio_url).then((orphaned) => {
         if (orphaned) {
-          fetch(resolveApiUrl("/api/audio/delete"), {
-            method: "DELETE",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ fileUrl: record.audio_url }),
-          }).catch(() => undefined);
+          void deleteAudioFromR2(record.audio_url);
         }
       }).catch(() => undefined);
     }
@@ -2728,7 +2741,7 @@ export default function GroupDashboard() {
 
       const imagesToRemove = (editingPost.image_urls || []).filter(url => !postExistingImages.includes(url));
       for (const removedUrl of imagesToRemove) {
-        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: removedUrl }) }).catch(() => undefined);
+        void deleteAudioFromR2(removedUrl);
       }
 
       await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
@@ -2863,7 +2876,7 @@ export default function GroupDashboard() {
 
     if (post.image_urls && post.image_urls.length > 0) {
       for (const url of post.image_urls) {
-        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
+        void deleteAudioFromR2(url);
       }
     }
 
@@ -3192,7 +3205,7 @@ export default function GroupDashboard() {
 
       // 기존 이미지 R2에서 삭제
       for (const url of oldImages) {
-        fetch(resolveApiUrl("/api/audio/delete"), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileUrl: url }) }).catch(() => undefined);
+        void deleteAudioFromR2(url);
       }
 
       setGroup(prev => prev ? { ...prev, group_image: null, header_image_url: null, header_color: "#4A6741" } : prev);

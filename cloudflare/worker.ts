@@ -29,10 +29,25 @@ interface Env {
 }
 
 const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Origin": "https://www.myamen.co.kr",
   "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type,Authorization,x-push-secret",
 };
+
+async function verifySupabaseToken(request: Request, env: Env): Promise<boolean> {
+  const authHeader = request.headers.get('Authorization') || '';
+  if (!authHeader.startsWith('Bearer ')) return false;
+  const token = authHeader.slice(7);
+  const supabaseUrl = env.SUPABASE_URL || '';
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!supabaseUrl || !serviceKey) return false;
+  try {
+    const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: serviceKey },
+    });
+    return res.ok;
+  } catch { return false; }
+}
 
 function withCorsHeaders(response: Response) {
   const next = new Response(response.body, response);
@@ -178,6 +193,9 @@ async function handleAudioUpload(request: Request, env: Env) {
   if (request.method !== "POST") {
     return json(405, { message: "method not allowed" });
   }
+  if (!await verifySupabaseToken(request, env)) {
+    return json(401, { success: false, error: "인증이 필요합니다" });
+  }
 
   try {
     const { fileName, audioBase64 } = await parseJson<{ fileName?: string; audioBase64?: string }>(request);
@@ -211,6 +229,9 @@ async function handleAudioDelete(request: Request, env: Env) {
   }
   if (request.method !== "DELETE") {
     return json(405, { message: "method not allowed" });
+  }
+  if (!await verifySupabaseToken(request, env)) {
+    return json(401, { success: false, error: "인증이 필요합니다" });
   }
 
   try {
@@ -246,6 +267,9 @@ async function handleAudioMove(request: Request, env: Env) {
   }
   if (request.method !== "POST") {
     return json(405, { message: "method not allowed" });
+  }
+  if (!await verifySupabaseToken(request, env)) {
+    return json(401, { success: false, error: "인증이 필요합니다" });
   }
 
   try {
@@ -290,6 +314,9 @@ async function handleFileUpload(request: Request, env: Env) {
   if (request.method !== "POST") {
     return json(405, { message: "method not allowed" });
   }
+  if (!await verifySupabaseToken(request, env)) {
+    return json(401, { success: false, error: "인증이 필요합니다" });
+  }
 
   try {
     const { fileName, fileBase64, contentType } = await parseJson<{ fileName?: string; fileBase64?: string; contentType?: string }>(request);
@@ -323,6 +350,9 @@ async function handleFileDelete(request: Request, env: Env) {
   }
   if (request.method !== "DELETE") {
     return json(405, { message: "method not allowed" });
+  }
+  if (!await verifySupabaseToken(request, env)) {
+    return json(401, { success: false, error: "인증이 필요합니다" });
   }
 
   try {
@@ -1235,14 +1265,16 @@ async function handleAdminLogin(request: Request, env: Env) {
   if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
 
   const { username, password } = await request.json() as { username: string; password: string };
-  const expectedUser = env.ADMIN_USERNAME || 'ourmine';
-  const expectedPass = env.ADMIN_PASSWORD || '260401';
+  const expectedUser = env.ADMIN_USERNAME;
+  const expectedPass = env.ADMIN_PASSWORD;
+  if (!expectedUser || !expectedPass) return json(503, { error: 'server config error' });
 
   if (username !== expectedUser || password !== expectedPass) {
     return json(401, { error: 'unauthorized' });
   }
 
-  const secret = env.ADMIN_SECRET || 'myamen2026';
+  const secret = env.ADMIN_SECRET;
+  if (!secret) return json(503, { error: 'server config error' });
   const token = btoa(`${username}:${Date.now()}:${secret}`);
   return json(200, { token });
 }
@@ -1258,8 +1290,8 @@ async function handleAdminStats(request: Request, env: Env) {
 
   try {
     const decoded = atob(token);
-    const secret = env.ADMIN_SECRET || 'myamen2026';
-    if (!decoded.includes(secret)) return json(401, { error: 'unauthorized' });
+    const secret = env.ADMIN_SECRET;
+    if (!secret || !decoded.includes(secret)) return json(401, { error: 'unauthorized' });
   } catch {
     return json(401, { error: 'unauthorized' });
   }
@@ -1363,7 +1395,8 @@ async function verifyAdminToken(request: Request, env: Env): Promise<boolean> {
   if (!token) return false;
   try {
     const decoded = atob(token);
-    return decoded.includes(env.ADMIN_SECRET || 'myamen2026');
+    const secret = env.ADMIN_SECRET;
+    return !!secret && decoded.includes(secret);
   } catch { return false; }
 }
 

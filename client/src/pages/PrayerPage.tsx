@@ -73,9 +73,11 @@ async function resizeImageFile(file: File, maxSize = 1280, quality = 0.84): Prom
 
 async function uploadFileToR2(fileName: string, blob: Blob, contentType: string): Promise<string> {
   const fileBase64 = await blobToBase64(blob);
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token ?? '';
   const response = await fetch(resolveApiUrl("/api/file/upload"), {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
     body: JSON.stringify({ fileName, fileBase64, contentType }),
   });
   if (!response.ok) throw new Error("failed to upload file");
@@ -501,9 +503,11 @@ export default function PrayerPage() {
         reader.onloadend = async () => {
           try {
             const base64 = (reader.result as string).split(',')[1];
+            const { data: { session: audioSession } } = await supabase.auth.getSession();
+            const audioToken = audioSession?.access_token ?? '';
             const response = await fetch(resolveApiUrl('/api/audio/upload'), {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${audioToken}` },
               body: JSON.stringify({ fileName: targetPath, audioBase64: base64 })
             });
 
@@ -751,9 +755,10 @@ export default function PrayerPage() {
 
       // R2에서 파일 삭제 (세 테이블 모두에서 참조가 사라진 경우만)
       if (deleteRecordUrl.startsWith('http') && await isAudioOrphaned(deleteRecordUrl)) {
+        const { data: { session: delSession } } = await supabase.auth.getSession();
         await fetch(resolveApiUrl('/api/audio/delete'), {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${delSession?.access_token ?? ''}` },
           body: JSON.stringify({ fileUrl: deleteRecordUrl })
         });
       }
@@ -956,11 +961,13 @@ export default function PrayerPage() {
 
   const confirmDeleteTextPrayer = async () => {
     if (!deleteTextPrayerId) return;
+    const { data: { session: delImgSession } } = await supabase.auth.getSession();
+    const delImgToken = delImgSession?.access_token ?? '';
     for (const url of deleteTextPrayerImages) {
       try {
         await fetch(resolveApiUrl('/api/file/delete'), {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${delImgToken}` },
           body: JSON.stringify({ fileUrl: url })
         });
       } catch {}
