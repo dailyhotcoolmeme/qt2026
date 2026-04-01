@@ -64,11 +64,13 @@ export default function MyPrayerBoxPage() {
     setItems(prev => prev.filter(i => i.id !== item.id));
 
     // 음성기도 orphan 체크 후 R2 삭제
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token ?? '';
     for (const vp of item.voice_prayers) {
       if (vp.audio_url && await isAudioOrphaned(vp.audio_url)) {
         fetch(resolveApiUrl("/api/audio/delete"), {
           method: "DELETE",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({ fileUrl: vp.audio_url }),
         }).catch(() => undefined);
       }

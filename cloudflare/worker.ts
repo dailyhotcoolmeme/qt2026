@@ -28,11 +28,20 @@ interface Env {
   ADMIN_SECRET?: string;
 }
 
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "https://www.myamen.co.kr",
-  "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization,x-push-secret",
-};
+const ALLOWED_ORIGINS = new Set([
+  "https://www.myamen.co.kr",
+  "https://myamen.co.kr",
+]);
+
+function getCorsHeaders(request: Request) {
+  const origin = request.headers.get("Origin") || "";
+  const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://www.myamen.co.kr";
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Methods": "GET,POST,PATCH,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization,x-push-secret",
+  };
+}
 
 async function verifySupabaseToken(request: Request, env: Env): Promise<boolean> {
   const authHeader = request.headers.get('Authorization') || '';
@@ -1660,7 +1669,13 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname.startsWith("/api/")) {
-      return handleApi(request, url, env);
+      const apiResponse = await handleApi(request, url, env);
+      const origin = request.headers.get("Origin") || "";
+      const allowedOrigin = ALLOWED_ORIGINS.has(origin) ? origin : "https://www.myamen.co.kr";
+      const patched = new Response(apiResponse.body, apiResponse);
+      patched.headers.set("Access-Control-Allow-Origin", allowedOrigin);
+      patched.headers.set("Vary", "Origin");
+      return patched;
     }
 
     const assetResponse = await env.ASSETS.fetch(request);
