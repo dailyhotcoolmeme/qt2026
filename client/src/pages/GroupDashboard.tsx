@@ -4426,8 +4426,9 @@ export default function GroupDashboard() {
                 </div>
 
                 {orderedTopicsByAuthor.length === 0 && (
-                  <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center justify-center item-center">
-                    등록된 기도제목이 없습니다.
+                  <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100dvh-280px)] text-zinc-400">
+                    <HandHeart size={44} className="text-zinc-200" />
+                    <p className="text-sm font-medium">등록된 기도제목이 없습니다.</p>
                   </div>
                 )}
 
@@ -4788,8 +4789,9 @@ export default function GroupDashboard() {
                 );
               })}
               {posts.length === 0 && (
-                <div className="bg-[#F6F7F8] px-4 py-5 text-base text-zinc-500 text-center justify-center item-center">
-                  아직 게시글이 없습니다.
+                <div className="flex flex-col items-center justify-center gap-3 min-h-[calc(100dvh-280px)] text-zinc-400">
+                  <MessageSquare size={44} className="text-zinc-200" />
+                  <p className="text-sm font-medium">아직 게시글이 없습니다.</p>
                 </div>
               )}
             </div>
