@@ -70,6 +70,12 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     if (shouldRefresh) triggerRefresh();
   }, [triggerRefresh]);
 
+  const handleTouchCancel = useCallback(() => {
+    startYRef.current = null;
+    pullDistRef.current = 0;
+    setPulling(false);
+  }, []);
+
   return (
     <RefreshContext.Provider value={{ refreshKey, triggerRefresh }}>
       <div
@@ -77,6 +83,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchCancel}
       >
         {/* PTR 인디케이터 */}
         <AnimatePresence>
