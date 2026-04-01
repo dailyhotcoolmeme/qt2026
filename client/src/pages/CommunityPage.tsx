@@ -1670,29 +1670,47 @@ export default function CommunityPage() {
 
       {/* 그룹에서 제외 확인 모달 */}
       <AnimatePresence>
-        {removeFromFolderTarget && (
-          <div className="fixed inset-0 z-[330] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRemoveFromFolderTarget(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
-              <h3 className="font-black text-zinc-900 text-base mb-2">그룹에서 제외</h3>
-              <p className="text-zinc-500 text-sm mb-6 leading-relaxed">
-                <span className="font-bold text-zinc-700">{removeFromFolderTarget.groupName}</span>을<br />그룹에서 제외하시겠습니까?
-              </p>
-              <div className="flex gap-2">
-                <button onClick={() => setRemoveFromFolderTarget(null)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
-                <button
-                  onClick={async () => {
-                    await removeGroupFromFolder(removeFromFolderTarget.folderId, removeFromFolderTarget.groupId);
-                    setRemoveFromFolderTarget(null);
-                  }}
-                  className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm"
-                >
-                  제외
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {removeFromFolderTarget && (() => {
+          const folderCount = (groupsByFolder.get(removeFromFolderTarget.folderId) ?? []).length;
+          const willDissolve = folderCount === 2;
+          return (
+            <div className="fixed inset-0 z-[330] flex items-center justify-center p-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setRemoveFromFolderTarget(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+              <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="relative bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
+                <h3 className="font-black text-zinc-900 text-base mb-2">
+                  {willDissolve ? "그룹 해제" : "그룹에서 제외"}
+                </h3>
+                <p className="text-zinc-500 text-sm mb-6 leading-relaxed">
+                  {willDissolve ? (
+                    <>
+                      <span className="font-bold text-zinc-700">{removeFromFolderTarget.groupName}</span>을 내보내면<br />
+                      모임이 1개만 남아 <span className="font-bold text-zinc-700">그룹이 해제</span>됩니다.<br />
+                      <span className="text-xs text-zinc-400 mt-1 block">포함된 모임들이 목록으로 돌아갑니다.</span>
+                    </>
+                  ) : (
+                    <><span className="font-bold text-zinc-700">{removeFromFolderTarget.groupName}</span>을<br />그룹에서 제외하시겠습니까?</>
+                  )}
+                </p>
+                <div className="flex gap-2">
+                  <button onClick={() => setRemoveFromFolderTarget(null)} className="flex-1 py-3 bg-zinc-100 text-zinc-600 font-bold rounded-2xl text-sm">취소</button>
+                  <button
+                    onClick={async () => {
+                      if (willDissolve) {
+                        await dissolveFolder(removeFromFolderTarget.folderId);
+                      } else {
+                        await removeGroupFromFolder(removeFromFolderTarget.folderId, removeFromFolderTarget.groupId);
+                      }
+                      setRemoveFromFolderTarget(null);
+                    }}
+                    className="flex-1 py-3 bg-red-500 text-white font-bold rounded-2xl text-sm"
+                  >
+                    {willDissolve ? "그룹 해제" : "제외"}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
 
       {/* 그룹 해제 확인 모달 */}
