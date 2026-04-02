@@ -20,8 +20,8 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
+  const maxPullRef = useRef(0);
   const topBarHeightRef = useRef(100); // --app-topbar-height 계산값 캐시
-  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const THRESHOLD = 64; // iOS Safari / Twitter / Instagram 기준값과 동일
 
   // CSS variable --app-topbar-height 실제 px 계산
@@ -34,7 +34,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const triggerRefresh = useCallback(() => {
-    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     setRefreshing(true);
     setRefreshKey(k => k + 1);
     setTimeout(() => setRefreshing(false), 800);
@@ -44,6 +43,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     // 이전 제스처에서 고착된 상태 초기화
     startYRef.current = null;
     pullDistRef.current = 0;
+    maxPullRef.current = 0;
     setPulling(false);
 
     const touch = e.touches[0];
@@ -61,6 +61,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
     startYRef.current = touch.clientY;
     pullDistRef.current = 0;
+    maxPullRef.current = 0;
   }, []);
 
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
@@ -70,46 +71,37 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (pullDistRef.current > 10) {
         startYRef.current = null;
         pullDistRef.current = 0;
+        maxPullRef.current = 0;
         setPTRTracking(false);
         setPulling(false);
-        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       }
       return;
     }
-    pullDistRef.current = Math.min(dy, THRESHOLD * 1.5);
+    const newDist = Math.min(dy, THRESHOLD * 1.5);
+    pullDistRef.current = newDist;
+    if (newDist > maxPullRef.current) maxPullRef.current = newDist;
     const nowPulling = pullDistRef.current > 10;
     if (nowPulling) {
       setPTRTracking(true);
-      if (!safetyTimerRef.current) {
-        safetyTimerRef.current = setTimeout(() => {
-          safetyTimerRef.current = null;
-          const shouldRefreshOnTimer = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
-          startYRef.current = null;
-          pullDistRef.current = 0;
-          setPulling(false);
-          setPTRTracking(false);
-          if (shouldRefreshOnTimer) triggerRefresh();
-        }, 1500);
-      }
     }
     setPulling(nowPulling);
-  }, [refreshing, triggerRefresh]);
+  }, [refreshing]);
 
   const handleTouchEnd = useCallback(() => {
-    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-    const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+    const shouldRefresh = startYRef.current !== null && maxPullRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
+    maxPullRef.current = 0;
     setPTRTracking(false);
     setPulling(false);
     if (shouldRefresh) triggerRefresh();
   }, [triggerRefresh]);
 
   const handleTouchCancel = useCallback(() => {
-    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-    const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+    const shouldRefresh = startYRef.current !== null && maxPullRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
+    maxPullRef.current = 0;
     setPTRTracking(false);
     setPulling(false);
     if (shouldRefresh) triggerRefresh();
@@ -121,20 +113,20 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onNativeTouchEnd = () => {
       if (startYRef.current === null && pullDistRef.current === 0) return;
-      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-      const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+      const shouldRefresh = startYRef.current !== null && maxPullRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
+      maxPullRef.current = 0;
       setPTRTracking(false);
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
     };
     const onNativeTouchCancel = () => {
       if (startYRef.current === null && pullDistRef.current === 0) return;
-      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
-      const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+      const shouldRefresh = startYRef.current !== null && maxPullRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
+      maxPullRef.current = 0;
       setPTRTracking(false);
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
@@ -162,21 +154,11 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       // React 합성 이벤트가 막혔을 경우를 대비해 pullDistRef 직접 업데이트
       const newDist = Math.min(dy, THRESHOLD * 1.5);
       pullDistRef.current = newDist;
+      if (newDist > maxPullRef.current) maxPullRef.current = newDist;
 
       const nowPulling = newDist > 10;
       if (nowPulling) {
         setPTRTracking(true);
-        if (!safetyTimerRef.current) {
-          safetyTimerRef.current = setTimeout(() => {
-            safetyTimerRef.current = null;
-            const shouldRefreshOnTimer = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
-            startYRef.current = null;
-            pullDistRef.current = 0;
-            setPulling(false);
-            setPTRTracking(false);
-            if (shouldRefreshOnTimer) triggerRefresh();
-          }, 1500);
-        }
       }
       setPulling(nowPulling);
     };
@@ -189,7 +171,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('touchend', onNativeTouchEnd, { capture: true });
       window.removeEventListener('touchcancel', onNativeTouchCancel, { capture: true });
       window.removeEventListener('touchmove', onNativeTouchMove, { capture: true });
-      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     };
   }, [triggerRefresh]);
 
