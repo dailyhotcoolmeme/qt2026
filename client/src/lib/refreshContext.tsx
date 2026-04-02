@@ -89,13 +89,14 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
       if (!touch) return;
 
-      e.preventDefault();
-
       const dy = touch.clientY - startYRef.current;
       if (dy < 0) {
+        // 스크롤 방향 — 이미 PTR 당기다 되돌아오는 경우만 preventDefault
+        if (maxPullRef.current > 0) e.preventDefault();
         setPulling(false);
         return;
       }
+      e.preventDefault();
       const newDist = Math.min(dy, THRESHOLD * 1.5);
       pullDistRef.current = newDist;
       if (newDist > maxPullRef.current) maxPullRef.current = newDist;
