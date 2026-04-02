@@ -637,11 +637,11 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       </div>
 
       <div className="fixed right-5 bottom-24 z-[90] flex flex-col gap-3">
-        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-rose-500 text-white shadow-2xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
-          <CalendarX size={24} />
+        <button onClick={() => { setFormType("unavailable"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-rose-500 text-white shadow-2xl flex items-center justify-center hover:bg-rose-600 transition-colors" aria-label="불가능 일정 등록">
+          <CalendarX size={20} />
         </button>
-        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-14 h-14 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
-          <CalendarPlus size={24} />
+        <button onClick={() => { setFormType("event"); setShowModal(true); setFormTitle(""); }} className="w-12 h-12 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors" aria-label="모임일정 등록">
+          <CalendarPlus size={20} />
         </button>
       </div>
 
@@ -890,17 +890,6 @@ export default function GroupDashboard() {
     return (sessionTab as TabKey) || "faith";
   });
 
-  // GroupDashboard가 활성화된 동안 <main> 스크롤 컨테이너의 native PTR(Chrome Android)을 차단
-  // 전역 main에 영구 적용하면 다른 페이지 스크롤이 망가지므로, 마운트/언마운트 시 동적으로 관리
-  useEffect(() => {
-    const mainEl = document.querySelector('main') as HTMLElement | null;
-    if (!mainEl) return;
-    const prev = mainEl.style.overscrollBehaviorY;
-    mainEl.style.overscrollBehaviorY = 'none';
-    return () => {
-      mainEl.style.overscrollBehaviorY = prev;
-    };
-  }, []);
 
   useEffect(() => {
     sessionStorage.setItem("groupDashboardTab", activeTab);
@@ -4476,10 +4465,10 @@ export default function GroupDashboard() {
 
               <button
                 onClick={() => setShowPrayerTopicModal(true)}
-                className="fixed right-5 bottom-24 z-[90] w-14 h-14 bg-[#4A6741]/90 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
+                className="fixed right-5 bottom-24 z-[90] w-12 h-12 bg-[#4A6741]/90 text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
                 aria-label="내 기도제목 등록"
               >
-                <HandHeart size={24} />
+                <HandHeart size={20} />
               </button>
             </section>
           </motion.div>
@@ -4827,10 +4816,10 @@ export default function GroupDashboard() {
             </div>
             <button
               onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setPostExistingImages([]); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }}
-              className="fixed right-5 bottom-24 z-[90] w-14 h-14 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
+              className="fixed right-5 bottom-24 z-[90] w-12 h-12 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
               aria-label="글 작성"
             >
-              <MessageSquare size={24} />
+              <MessageSquare size={20} />
             </button>
           </motion.div>
         )}

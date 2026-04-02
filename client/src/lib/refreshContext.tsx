@@ -22,6 +22,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const pullDistRef = useRef(0);
   const maxPullRef = useRef(0);
   const ptrTouchIdRef = useRef<number | null>(null);  // PTR 추적 중인 손가락 identifier
+  const refreshTriggeredRef = useRef(false);
   const topBarHeightRef = useRef(100);
   const THRESHOLD = 64;
 
@@ -82,8 +83,8 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onNativeTouchMove = (e: TouchEvent) => {
-      console.log('[PTR-RAW] touchmove touches=', e.touches.length, 'ptrId=', ptrTouchIdRef.current);
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
+      if (refreshTriggeredRef.current) return;
 
       // PTR을 시작한 특정 손가락만 처리
       const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
@@ -102,11 +103,20 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (newDist > maxPullRef.current) maxPullRef.current = newDist;
       const nowPulling = newDist > 10;
       if (nowPulling) setPTRTracking(true);
+
+      // 임계점 도달 시 손 떼기 전에 바로 새로고침 시작
+      if (newDist >= THRESHOLD) {
+        refreshTriggeredRef.current = true;
+        setPTRTracking(false);
+        setPulling(false);
+        triggerRefresh();
+        return;
+      }
+
       setPulling(nowPulling);
     };
 
     const onNativeTouchEndOrCancel = (e: TouchEvent) => {
-      console.log('[PTR-RAW] touchend/cancel type=', e.type, 'changedIds=', Array.from(e.changedTouches).map(t=>t.identifier), 'ptrId=', ptrTouchIdRef.current);
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
 
       // PTR 손가락이 이번에 올라갔는지 확인
@@ -115,12 +125,12 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       );
       if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
 
-      const shouldRefresh = maxPullRef.current >= THRESHOLD;
-      console.log('[PTR] END: maxPull=', Math.round(maxPullRef.current), 'refresh=', shouldRefresh);
+      const shouldRefresh = !refreshTriggeredRef.current && maxPullRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
       ptrTouchIdRef.current = null;
+      refreshTriggeredRef.current = false;
       setPTRTracking(false);
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
