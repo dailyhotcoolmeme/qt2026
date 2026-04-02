@@ -68,13 +68,8 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     if (startYRef.current === null || refreshing) return;
     const dy = e.touches[0].clientY - startYRef.current;
     if (dy < 0) {
-      if (pullDistRef.current > 10) {
-        startYRef.current = null;
-        pullDistRef.current = 0;
-        maxPullRef.current = 0;
-        setPTRTracking(false);
-        setPulling(false);
-      }
+      // 손가락이 시작점보다 위로 올라간 경우: 인디케이터만 숨기고 제스처는 유지
+      setPulling(false);
       return;
     }
     const newDist = Math.min(dy, THRESHOLD * 1.5);
