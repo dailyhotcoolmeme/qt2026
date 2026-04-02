@@ -2610,21 +2610,29 @@ export default function ReadingPage() {
       )}
       <AnimatePresence>
         {isEditModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-[200] flex items-end justify-center"
-            onClick={() => setIsEditModalOpen(false)}
-          >
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[199]"
+              onClick={() => setIsEditModalOpen(false)}
+            />
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="relative bg-white w-full max-md:rounded-t-[32px] p-8 max-h-[85vh] overflow-y-auto"
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) setIsEditModalOpen(false);
+              }}
+              className="fixed bottom-0 left-0 right-0 z-[200] bg-white w-full max-w-lg mx-auto rounded-t-3xl p-8 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] max-h-[85vh] overflow-y-auto shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mx-auto -mt-2 mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-6" />
               <button
                 onClick={() => setIsEditModalOpen(false)}
                 className="absolute right-6 top-6 text-zinc-400 transition-colors hover:text-zinc-600"
@@ -2946,7 +2954,7 @@ export default function ReadingPage() {
               </div>
 
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 

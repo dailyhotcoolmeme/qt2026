@@ -645,24 +645,28 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-[200] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowModal(false)} />
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end">
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 20, opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setShowModal(false)}
+          />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 240 }}
-            dragElastic={{ top: 0, bottom: 0.2 }}
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 700) {
+              if (info.velocity.y > 500 || info.offset.y > 80) {
                 setShowModal(false);
               }
             }}
-            className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl mt-auto sm:mt-0"
+            className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
           >
-            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-black text-xl text-zinc-800">{formType === "event" ? "모임 일정 등록" : "불가능한 일정 등록"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 flex items-center justify-center bg-zinc-100 rounded-full text-zinc-500 hover:text-zinc-800"><X size={16} /></button>
@@ -701,24 +705,28 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
       )}
 
       {selectedDateEvents && (
-        <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedDateEvents(null)}></div>
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end">
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 20, opacity: 0 }}
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setSelectedDateEvents(null)}
+          />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 240 }}
-            dragElastic={{ top: 0, bottom: 0.2 }}
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 700) {
+              if (info.velocity.y > 500 || info.offset.y > 80) {
                 setSelectedDateEvents(null);
               }
             }}
-            className="relative w-full max-w-lg sm:max-w-xl bg-white rounded-t-3xl sm:rounded-3xl p-6 pb-10 sm:pb-6 shadow-xl space-y-4 max-h-[85vh] overflow-y-auto"
+            className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
           >
-            <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
             <div className="flex items-center justify-between pb-3 mb-2 border-b">
               <h3 className="font-black text-xl text-zinc-900">{format(parseISO(selectedDateEvents.dateStr), "M월 d일")} 일정</h3>
               <button onClick={() => setSelectedDateEvents(null)} className="w-8 h-8 shrink-0 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-800 transition-colors"><X size={16} /></button>
@@ -4272,21 +4280,28 @@ export default function GroupDashboard() {
       {/* 글기도 작성 모달 */}
       <AnimatePresence>
         {showTextPrayerModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-end justify-center bg-black/40"
-            onClick={(e) => { if (e.target === e.currentTarget) { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); } }}
-          >
+          <>
             <motion.div
-              initial={{ y: 60, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 60, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="w-full max-w-lg bg-white rounded-t-3xl px-5 pb-8 pt-5 shadow-2xl"
-              style={{ paddingBottom: "calc(32px + var(--safe-bottom-inset, 0px))" }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[199] bg-black/50 backdrop-blur-[2px]"
+              onClick={() => { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); }
+              }}
+              className="fixed bottom-0 left-0 right-0 z-[200] w-full max-w-lg mx-auto bg-white rounded-t-3xl px-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"
             >
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2 text-blue-600 font-black text-base">
                   <PenLine size={18} /> {textPrayerEditId ? "글기도 수정" : "글기도 작성"}
@@ -4316,7 +4331,7 @@ export default function GroupDashboard() {
                 {textPrayerSaving ? "저장 중..." : textPrayerEditId ? "수정 완료" : "글기도 남기기"}
               </button>
             </motion.div>
-          </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -5301,24 +5316,28 @@ export default function GroupDashboard() {
 
       {
         selectedFaithMemberDetail && (
-          <div className="fixed inset-0 z-[215] flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setSelectedFaithMemberDetail(null)} />
+          <div className="fixed inset-0 z-[215] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setSelectedFaithMemberDetail(null)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 120 || info.velocity.y > 900) {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
                   setSelectedFaithMemberDetail(null);
                 }
               }}
-              className="relative w-full h-[88vh] sm:h-auto sm:max-h-[88vh] sm:max-w-2xl overflow-y-auto bg-[#F6F7F8] rounded-t-3xl sm:rounded-3xl border border-zinc-200 px-4 pt-3 pb-6 sm:p-6"
+              className="relative w-full max-h-[88vh] max-w-2xl mx-auto overflow-y-auto bg-[#F6F7F8] rounded-t-3xl border border-zinc-200 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
             >
-              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <div className="flex items-baseline gap-2"> {/* 이름과 글자를 나란히 정렬 */}
@@ -5419,27 +5438,28 @@ export default function GroupDashboard() {
 
       {
         showPrayerLinkModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div
-              className="absolute inset-0 bg-black/40"
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
               onClick={() => setShowPrayerLinkModal(false)}
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowPrayerLinkModal(false);
                 }
               }}
-              className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4"
+              className="relative w-full max-w-2xl mx-auto max-h-[80vh] overflow-y-auto bg-[#F6F7F8] rounded-t-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
-              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-black text-zinc-900">PrayerPage 기록 연결</h3>
                 <button
@@ -5587,21 +5607,32 @@ export default function GroupDashboard() {
 
       {
         showHeartPrayerHistoryModal && (
-          <div className="fixed inset-0 z-[226] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div
-              className="absolute inset-0 bg-black/40"
+          <div className="fixed inset-0 z-[226] flex flex-col justify-end">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
               onClick={() => {
                 setShowHeartPrayerHistoryModal(false);
                 setHeartPrayerHistoryTargetUserId(null);
               }}
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden mt-auto sm:mt-0"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
+                  setShowHeartPrayerHistoryModal(false);
+                  setHeartPrayerHistoryTargetUserId(null);
+                }
+              }}
+              className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
             >
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3" />
               <div className="flex items-center justify-between p-6 pb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-xl">마음기도 기록</h3>
@@ -5677,15 +5708,26 @@ export default function GroupDashboard() {
 
       {
         showPrayerTopicOrderModal && (
-          <div className="fixed inset-0 z-[225] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPrayerTopicOrderModal(false)} />
+          <div className="fixed inset-0 z-[225] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[80vh] overflow-hidden mt-auto sm:mt-0"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setShowPrayerTopicOrderModal(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowPrayerTopicOrderModal(false);
+              }}
+              className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[80vh] overflow-hidden"
             >
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3" />
               <div className="flex items-center justify-between p-6 pb-4">
                 <div>
                   <h3 className="font-black text-zinc-900 text-xl">순서 조정</h3>
@@ -5751,15 +5793,26 @@ export default function GroupDashboard() {
 
       {
         showPrayerTopicModal && (
-          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }} />
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
-              className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl shadow-xl flex flex-col max-h-[85vh] overflow-hidden mt-auto sm:mt-0"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }
+              }}
+              className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden"
             >
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3" />
               <div className="flex items-center justify-between p-6 pb-4">
                 <h3 className="font-black text-zinc-900 text-xl">나의 기도제목 관리</h3>
                 <button onClick={() => { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }} className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500 hover:text-zinc-700">
@@ -6290,24 +6343,28 @@ export default function GroupDashboard() {
 
       {
         showPostComposerModal && (
-          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowPostComposerModal(false)} />
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setShowPostComposerModal(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowPostComposerModal(false);
                 }
               }}
-              className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl pt-5 px-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl pt-3 px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl flex flex-col space-y-4 max-h-[85vh]"
             >
-              <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-2" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <h3 className="font-black text-xl text-zinc-900">{editingPost ? "글 수정" : "글 작성"}</h3>
@@ -6418,30 +6475,30 @@ export default function GroupDashboard() {
 
       {
         showInviteModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
               onClick={() => setShowInviteModal(false)}
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowInviteModal(false);
                 }
               }}
-              className="relative w-full max-w-lg bg-white border border-zinc-100 p-6 space-y-4 rounded-3xl shadow-2xl"
+              className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] space-y-4 shadow-2xl"
             >
-              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-black text-zinc-900 text-lg">모임 초대</h3>
                 <button
@@ -6491,24 +6548,26 @@ export default function GroupDashboard() {
 
       {
         showHeaderEditModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowHeaderEditModal(false)} />
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setShowHeaderEditModal(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowHeaderEditModal(false);
-                }
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowHeaderEditModal(false);
               }}
-              className="relative w-full max-w-xl bg-[#F6F7F8] border-b border-zinc-200 p-5 space-y-3"
+              className="relative w-full max-w-xl mx-auto bg-[#F6F7F8] rounded-t-3xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] space-y-3 shadow-2xl"
             >
-              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
               <div className="flex items-center justify-between">
                 <h3 className="font-black text-zinc-900">헤더 설정</h3>
                 <button
@@ -6577,24 +6636,26 @@ export default function GroupDashboard() {
 
       {
         showFaithLinkModal && selectedFaithItem && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setShowFaithLinkModal(false)} />
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => setShowFaithLinkModal(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowFaithLinkModal(false);
-                }
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowFaithLinkModal(false);
               }}
-              className="relative w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-[#F6F7F8] border-b border-zinc-200 p-4"
+              className="relative w-full max-w-2xl mx-auto max-h-[80vh] overflow-y-auto bg-[#F6F7F8] rounded-t-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
-              <div className="mx-auto -mt-1 mb-3 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-black text-zinc-900">
                   외부 활동 연결 - {selectedFaithItem.name}
@@ -6695,9 +6756,26 @@ export default function GroupDashboard() {
 
       {/* 동역자 맺기 모달 */}
       {showPartnerModal && (
-        <div className="fixed inset-0 z-[300] flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }} />
-          <div className="relative w-full max-w-lg bg-white rounded-t-[28px] pb-8 shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 z-[300] flex flex-col justify-end">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }}
+          />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
+            onDragEnd={(_, info) => {
+              if (info.velocity.y > 500 || info.offset.y > 80) { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }
+            }}
+            className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col"
+          >
+          <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 mb-0" />
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
               <div className="flex items-center gap-2">
                 <Handshake size={18} className="text-[#4A6741]" />
@@ -6736,7 +6814,7 @@ export default function GroupDashboard() {
                 );
               })}
             </div>
-            <div className="px-6 pt-4">
+            <div className="px-6 pt-4 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]">
               <button
                 onClick={() => void sendPartnerRequests()}
                 disabled={partnerSending || !selectedPartnerIds.size}
@@ -6745,15 +6823,32 @@ export default function GroupDashboard() {
                 {partnerSending ? "신청 중..." : `신청하기 ${selectedPartnerIds.size > 0 ? `(${selectedPartnerIds.size}명)` : ""}`}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 
       {/* 기도제목 공유 모달 */}
       {showPrayerShareModal && (
-        <div className="fixed inset-0 z-[300] flex items-end justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setShowPrayerShareModal(false)} />
-          <div className="relative w-full max-w-lg bg-white rounded-t-[28px] pb-8 shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="fixed inset-0 z-[300] flex flex-col justify-end">
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+            onClick={() => setShowPrayerShareModal(false)}
+          />
+          <motion.div
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
+            onDragEnd={(_, info) => {
+              if (info.velocity.y > 500 || info.offset.y > 80) setShowPrayerShareModal(false);
+            }}
+            className="relative w-full max-w-lg mx-auto bg-white rounded-t-3xl shadow-2xl max-h-[80vh] flex flex-col"
+          >
+          <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 mb-0" />
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-zinc-100">
               <div className="flex items-center gap-2">
                 <Share2 size={18} className="text-[#4A6741]" />
@@ -6813,7 +6908,7 @@ export default function GroupDashboard() {
                 {`공유하기${selectedShareUserIds.size > 0 ? ` (${selectedShareUserIds.size}명)` : ""}`}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
 

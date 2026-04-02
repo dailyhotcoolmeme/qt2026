@@ -122,26 +122,25 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => onOpenChange(false)}
-            className="fixed inset-0 z-[400] bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[400] bg-black/50 backdrop-blur-[2px]"
           />
 
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 240 }}
-            dragElastic={{ top: 0, bottom: 0.2 }}
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 90 || info.velocity.y > 700) {
+              if (info.velocity.y > 500 || info.offset.y > 80) {
                 onOpenChange(false);
               }
             }}
-            className="fixed bottom-0 left-0 right-0 z-[401] max-h-[90vh] overflow-y-auto rounded-t-[40px] bg-white px-6 pb-12 pt-8 shadow-2xl"
+            className="fixed bottom-0 left-0 right-0 z-[401] max-w-lg mx-auto max-h-[90vh] overflow-y-auto rounded-t-3xl bg-white px-6 pb-[calc(3rem+env(safe-area-inset-bottom,0px))] pt-3 shadow-2xl"
           >
-            <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-zinc-200" />
+            <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-6" />
 
             <button
               onClick={() => onOpenChange(false)}

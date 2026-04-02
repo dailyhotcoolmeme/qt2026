@@ -1738,24 +1738,28 @@ export default function PrayerPage() {
       {/* 글기도 작성 바텀시트 */}
       <AnimatePresence>
         {showTextPrayerSheet && (
-          <div className="fixed inset-0 z-[220] flex flex-col justify-end sm:justify-center p-0 sm:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => !textPrayerSaving && setShowTextPrayerSheet(false)} />
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+              onClick={() => !textPrayerSaving && setShowTextPrayerSheet(false)}
+            />
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (!textPrayerSaving && (info.offset.y > 90 || info.velocity.y > 700)) {
+                if (!textPrayerSaving && (info.velocity.y > 500 || info.offset.y > 80)) {
                   setShowTextPrayerSheet(false);
                 }
               }}
-              className="relative w-full max-w-xl bg-white rounded-t-3xl sm:rounded-3xl pt-5 px-6 pb-10 sm:pb-6 shadow-xl flex flex-col space-y-4 max-h-[85vh] mt-auto sm:mt-0"
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl pt-3 px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl flex flex-col space-y-4 max-h-[85vh]"
             >
-              <div className="mx-auto -mt-1 mb-2 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-2" />
               <div className="flex flex-col flex-1 overflow-hidden">
                 <div className="flex items-center justify-between mb-4 shrink-0">
                   <h3 className="font-black text-xl text-zinc-900">{textPrayerEditId ? "글기도 수정" : "글기도 작성"}</h3>

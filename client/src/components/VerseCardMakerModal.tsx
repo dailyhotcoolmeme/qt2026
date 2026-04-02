@@ -647,32 +647,27 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   return (
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[220] flex items-end sm:items-center justify-center p-0 sm:p-6">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/45" />
+        <div className="fixed inset-0 z-[220] flex flex-col justify-end">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
           <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 30, opacity: 0 }}
-            // 아래 transition 부분을 추가하세요
-  transition={{ 
-    duration: 0.8, // 숫자가 클수록 천천히 닫힙니다 (기본값은 보통 0.2~0.3)
-    ease: "easeInOut" // 시작과 끝을 부드럽게 처리
-  }}
+            initial={{ y: "100%" }}
+            animate={{ y: 0 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragControls={dragControls}
             dragListener={false}
-            dragDirectionLock
-            dragConstraints={{ top: 0, bottom: 240 }}
-            dragElastic={{ top: 0, bottom: 0.2 }}
+            dragConstraints={{ top: 0 }}
+            dragElastic={{ top: 0, bottom: 0.3 }}
             onDragEnd={(_, info) => {
-              if (info.offset.y > 150 || info.velocity.y > 950) {
+              if (info.velocity.y > 500 || info.offset.y > 80) {
                 onClose();
               }
             }}
-            className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl bg-white p-5 sm:p-6"
+            className="relative w-full max-w-4xl mx-auto max-h-[92vh] overflow-y-auto rounded-t-3xl bg-white p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
           >
             <div
-              className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200"
+              className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4"
               onPointerDown={(e) => dragControls.start(e)}
             />
             <div className="mb-1 flex items-center justify-between">

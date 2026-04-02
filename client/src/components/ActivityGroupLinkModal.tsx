@@ -246,25 +246,25 @@ export function ActivityGroupLinkModal({
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="absolute inset-0 bg-black/40"
+                        className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
                         onClick={() => onOpenChange(false)}
                     />
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.98, y: 24 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.98, y: 24 }}
+                        initial={{ y: "100%" }}
+                        animate={{ y: 0 }}
+                        exit={{ y: "100%" }}
+                        transition={{ type: "spring", damping: 30, stiffness: 300 }}
                         drag="y"
-                        dragDirectionLock
-                        dragConstraints={{ top: 0, bottom: 260 }}
-                        dragElastic={{ top: 0, bottom: 0.18 }}
+                        dragConstraints={{ top: 0 }}
+                        dragElastic={{ top: 0, bottom: 0.3 }}
                         onDragEnd={(_, info) => {
-                            if (info.offset.y > 100 || info.velocity.y > 700) {
+                            if (info.velocity.y > 500 || info.offset.y > 80) {
                                 onOpenChange(false);
                             }
                         }}
-                        className="relative w-full max-w-sm bg-white rounded-t-[32px] sm:rounded-[32px] p-6 shadow-2xl overflow-hidden max-h-[85vh]"
+                        className="relative w-full max-w-lg bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl overflow-hidden max-h-[85vh]"
                     >
-                        <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+                        <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
                         <div className="flex justify-between items-center mb-5">
                             <h3 className="text-xl font-black text-zinc-900 tracking-tight">모임으로 연결하기</h3>
                             <button

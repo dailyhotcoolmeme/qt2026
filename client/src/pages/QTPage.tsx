@@ -1545,26 +1545,25 @@ export default function QTPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowWriteSheet(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[400]"
+              className="fixed inset-0 bg-black/50 backdrop-blur-[2px] z-[400]"
             />
 
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
+                if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowWriteSheet(false);
                 }
               }}
-              className="fixed bottom-0 left-0 right-0 bg-zinc-50 rounded-t-[32px] z-[401] px-6 pt-2 pb-10 max-h-[85vh] overflow-y-auto"
+              className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white rounded-t-3xl z-[401] px-6 pt-3 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] max-h-[85vh] overflow-y-auto shadow-2xl"
             >
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-zinc-200 rounded-full" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
               <div className="flex justify-between items-center mt-3 mb-6">
                 <h2 className="text-xl font-black text-zinc-800">
                   {editingRecord ? '묵상 기록 수정' : '새 묵상 기록'}

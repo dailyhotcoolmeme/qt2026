@@ -1124,13 +1124,22 @@ export default function CommunityPage() {
             <motion.div
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setShowOrderModal(false)}
-              className="absolute inset-0 bg-black/40"
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
             />
             <motion.div
-              initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-              className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => {
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowOrderModal(false);
+              }}
+              className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden max-w-lg mx-auto w-full"
             >
-              <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 flex-shrink-0" />
               <div className="flex items-center justify-between px-6 py-4 flex-shrink-0">
                 <div>
                   <h3 className="font-black text-zinc-900 text-lg">순서 변경</h3>
@@ -1213,13 +1222,22 @@ export default function CommunityPage() {
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                 onClick={() => setShowFolderOrderModal(null)}
-                className="absolute inset-0 bg-black/40"
+                className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
               />
               <motion.div
-                initial={{ y: 60, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 60, opacity: 0 }}
-                className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden"
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 30, stiffness: 300 }}
+                drag="y"
+                dragConstraints={{ top: 0 }}
+                dragElastic={{ top: 0, bottom: 0.3 }}
+                onDragEnd={(_, info) => {
+                  if (info.velocity.y > 500 || info.offset.y > 80) setShowFolderOrderModal(null);
+                }}
+                className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden max-w-lg mx-auto w-full"
               >
-                <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-zinc-200 flex-shrink-0" />
+                <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 flex-shrink-0" />
                 <div className="flex items-center justify-between px-6 py-4 flex-shrink-0">
                   <div>
                     <p className="text-xs text-[#4A6741] font-bold mb-0.5 truncate">{folder.name}</p>
@@ -1287,30 +1305,28 @@ export default function CommunityPage() {
 
       <AnimatePresence>
         {showSearchModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-center justify-center">
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowSearchModal(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowSearchModal(false);
-                }
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowSearchModal(false);
               }}
-              className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base rounded-2xl shadow-2xl"
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-base shadow-2xl"
             >
-              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 검색</h3>
                 <button onClick={() => setShowSearchModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">
@@ -1351,30 +1367,28 @@ export default function CommunityPage() {
 
       <AnimatePresence>
         {showCreateModal && (
-          <div className="fixed inset-0 z-[220] p-4 flex items-end sm:items-center justify-center">
+          <div className="fixed inset-0 z-[220] flex flex-col justify-end">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCreateModal(false)}
-              className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+              className="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
             />
             <motion.div
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 20, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 240 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
               onDragEnd={(_, info) => {
-                if (info.offset.y > 90 || info.velocity.y > 700) {
-                  setShowCreateModal(false);
-                }
+                if (info.velocity.y > 500 || info.offset.y > 80) setShowCreateModal(false);
               }}
-              className="relative w-full max-w-xl bg-white border border-zinc-100 p-6 text-base max-h-[88vh] overflow-y-auto rounded-3xl shadow-2xl"
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-base max-h-[88vh] overflow-y-auto shadow-2xl"
             >
-              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-zinc-900">모임 생성</h3>
                 <button onClick={() => setShowCreateModal(false)} className="w-8 h-8 rounded-full bg-zinc-100 text-zinc-500 flex items-center justify-center">
@@ -1548,20 +1562,20 @@ export default function CommunityPage() {
       {/* 기존 그룹에 추가 모달 */}
       <AnimatePresence>
         {showAddToGroupModal && (
-          <div className="fixed inset-0 z-[320] flex items-end justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddToGroupModal(false)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+          <div className="fixed inset-0 z-[320] flex flex-col justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAddToGroupModal(false)} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 200 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setShowAddToGroupModal(false); }}
-              className="relative w-full max-w-xl bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => { if (info.velocity.y > 500 || info.offset.y > 80) setShowAddToGroupModal(false); }}
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
-              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <h3 className="font-black text-zinc-900 text-base mb-4">기존 그룹에 추가</h3>
               <div className="space-y-2">
                 {folders.map((folder) => (
@@ -1588,20 +1602,20 @@ export default function CommunityPage() {
       {/* 폴더 컨텍스트 메뉴 */}
       <AnimatePresence>
         {folderMenuId && (
-          <div className="fixed inset-0 z-[320] flex items-end justify-center">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setFolderMenuId(null)} className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+          <div className="fixed inset-0 z-[320] flex flex-col justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setFolderMenuId(null)} className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" />
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
-              dragDirectionLock
-              dragConstraints={{ top: 0, bottom: 200 }}
-              dragElastic={{ top: 0, bottom: 0.2 }}
-              onDragEnd={(_, info) => { if (info.offset.y > 80 || info.velocity.y > 600) setFolderMenuId(null); }}
-              className="relative w-full max-w-xl bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))]"
+              dragConstraints={{ top: 0 }}
+              dragElastic={{ top: 0, bottom: 0.3 }}
+              onDragEnd={(_, info) => { if (info.velocity.y > 500 || info.offset.y > 80) setFolderMenuId(null); }}
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
-              <div className="mx-auto -mt-2 mb-4 h-1.5 w-12 rounded-full bg-zinc-200" />
+              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <p className="font-black text-zinc-900 text-base mb-4">
                 {folders.find((f) => f.id === folderMenuId)?.name}
               </p>
