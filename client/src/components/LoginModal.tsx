@@ -8,6 +8,7 @@ import { isEmbeddedInAppBrowser, isNativeApp, openUrlInExternalBrowser } from ".
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "./DisplaySettingsProvider";
 import { buildInviteLandingUrl, GROUP_INVITE_QUERY_KEY, readInviteGroupId } from "../lib/groupInvite";
+import { supabase } from "../lib/supabase";
 
 interface LoginModalProps {
   open: boolean;
@@ -21,6 +22,15 @@ export function LoginModal({ open, onOpenChange, returnTo }: LoginModalProps) {
   const { fontSize = 16 } = useDisplaySettings();
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+
+  // 프로필 fetch 완료 전에도 SIGNED_IN 이벤트로 즉시 닫기
+  useEffect(() => {
+    if (!open) return;
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") onOpenChange(false);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [open, onOpenChange]);
 
   useEffect(() => {
     if (!open || !isAuthenticated) return;

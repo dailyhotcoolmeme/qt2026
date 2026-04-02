@@ -912,6 +912,9 @@ export default function ReadingPage() {
       return;
     }
 
+    // 모달에서 현재 범위가 보이도록 tempSelection 동기화
+    setTempSelection(selection);
+
 
     const { data: startBookData } = await supabase
       .from('bible_books')
@@ -2007,7 +2010,9 @@ export default function ReadingPage() {
     }
 
     logEvent("reading", "favorite_toggle");
-    const verseRef = `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === "시편" ? "편" : "장"} ${bibleData.verse}절`;
+    const verseRef = bibleData.verse != null
+      ? `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === "시편" ? "편" : "장"} ${bibleData.verse}절`
+      : `${bibleData.bible_name} ${bibleData.chapter}${bibleData.bible_name === "시편" ? "편" : "장"}`;
     try {
       const { count } = await incrementVerseBookmark({
         userId: user.id,

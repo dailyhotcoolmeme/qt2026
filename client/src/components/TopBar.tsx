@@ -722,7 +722,7 @@ export function TopBar() {
         <div className="flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-1">
           <button onClick={() => setIsMenuOpen(true)} className="-ml-2 rounded-full p-2 transition-colors hover:bg-zinc-100">
-            <Menu className="h-6 w-6 text-zinc-700" />
+            <Menu className={`h-6 w-6 ${notificationSettings.pushEnabled ? "text-[#4A6741]" : "text-zinc-700"}`} />
           </button>
 
           <button

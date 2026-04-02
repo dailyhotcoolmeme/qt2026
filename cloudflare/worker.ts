@@ -31,6 +31,9 @@ interface Env {
 const ALLOWED_ORIGINS = new Set([
   "https://www.myamen.co.kr",
   "https://myamen.co.kr",
+  "https://localhost",
+  "http://localhost",
+  "capacitor://localhost",
 ]);
 
 function getCorsHeaders(request: Request) {
