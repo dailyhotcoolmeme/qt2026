@@ -1229,7 +1229,6 @@ export default function CommunityPage() {
                 <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 flex-shrink-0" />
                 <div className="flex items-center justify-between px-6 py-4 flex-shrink-0">
                   <div>
-                    <p className="text-xs text-[#4A6741] font-bold mb-0.5 truncate">{folder.name}</p>
                     <h3 className="font-black text-zinc-900 text-lg">그룹 내 순서 변경</h3>
                     <p className="text-xs text-zinc-400 mt-0.5 flex items-center gap-1">
                       <GripVertical size={11} /> 오른쪽 손잡이를 드래그해 순서를 바꿔주세요
@@ -1607,8 +1606,8 @@ export default function CommunityPage() {
               <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <p className="text-xs text-zinc-400 font-medium">폴더 설정</p>
-                  <p className="font-black text-zinc-900 text-base">
+                  <h3 className="font-black text-zinc-900 text-lg">그룹 설정</h3>
+                  <p className="text-xs text-zinc-400 mt-0.5 truncate">
                     {folders.find((f) => f.id === folderMenuId)?.name}
                   </p>
                 </div>
