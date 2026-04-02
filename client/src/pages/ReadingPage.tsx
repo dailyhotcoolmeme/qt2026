@@ -473,6 +473,24 @@ export default function ReadingPage() {
     console.log('loadDailyVerse 호출:', formatLocalDate(date), 'isToday:', isToday);
 
 
+    // pages 배열에서 tempSelection 동기화 (범위 선택 모달에 현재 범위 표시)
+    const syncTempSelectionFromPages = (pages: any[]) => {
+      if (!pages.length) return;
+      const first = pages[0];
+      const last = pages[pages.length - 1];
+      const firstBook = BOOK_CHAPTERS.find(b => b.name === first.bible_name);
+      const lastBook = BOOK_CHAPTERS.find(b => b.name === last.bible_name);
+      if (!firstBook || !lastBook) return;
+      setTempSelection({
+        start_testament: firstBook.testament === 'old' ? '구약' : '신약',
+        start_book: first.bible_name,
+        start_chapter: first.chapter,
+        end_testament: lastBook.testament === 'old' ? '구약' : '신약',
+        end_book: last.bible_name,
+        end_chapter: last.chapter,
+      });
+    };
+
     if (isToday && (rangePages.length === 0 || forceTodayRestore)) {
       const cachedToday = readTodayReadingCache(todayStr);
       if (cachedToday) {
@@ -480,6 +498,7 @@ export default function ReadingPage() {
         setRangePages(cachedToday.pages);
         setCurrentPageIdx(cachedToday.idx);
         setBibleData(cachedToday.pages[cachedToday.idx] || cachedToday.pages[0] || null);
+        syncTempSelectionFromPages(cachedToday.pages);
         return;
       }
 
@@ -501,6 +520,7 @@ export default function ReadingPage() {
           setCurrentPageIdx(0);
           setBibleData(pages[0]);
           setNoReadingForDate(false);
+          syncTempSelectionFromPages(pages);
           return;
         }
       }
