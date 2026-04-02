@@ -5,11 +5,13 @@ import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
 import { LoginModal } from "../components/LoginModal";
 import { useLogEvent } from "../hooks/useLogEvent";
+import { supabase } from "../lib/supabase";
 
 type VerseCardRecord = {
   id: string;
   title?: string | null;
   imageDataUrl: string;
+  image_url?: string;
   createdAt?: string | null;
 };
 
@@ -124,6 +126,32 @@ export default function VerseCardsPage() {
       }
       setLoading(true);
       try {
+        // Supabase 먼저 시도
+        const { data, error } = await supabase
+          .from("user_verse_cards")
+          .select("id, title, image_url, created_at")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (!error && data && data.length > 0) {
+          if (!alive) return;
+          setCards(data.map(row => ({
+            id: row.id,
+            title: row.title,
+            imageDataUrl: row.image_url,
+            image_url: row.image_url,
+            createdAt: row.created_at,
+          })));
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error("Supabase 카드 로드 실패, 로컬 폴백:", e);
+      }
+
+      // 로컬 폴백
+      try {
         const loaded = await loadVerseCards(user.id);
         if (!alive) return;
         const normalized = (loaded || [])
@@ -175,11 +203,13 @@ export default function VerseCardsPage() {
     if (activeCard?.id === card.id) setActiveCard(null);
     setPendingDelete(null);
 
+    if (user?.id && card.image_url) {
+      supabase.from("user_verse_cards").delete().eq("id", card.id).eq("user_id", user.id).then();
+    }
     try {
       await saveVerseCards(user?.id ?? null, next);
     } catch (error) {
       console.error("delete verse card failed:", error);
-      alert("말씀카드 삭제에 실패했습니다.");
     }
   };
 
