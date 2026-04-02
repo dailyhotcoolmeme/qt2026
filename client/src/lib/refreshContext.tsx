@@ -42,10 +42,12 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     // TopBar 영역 내 터치는 PTR 무시
     if (touch.clientY < topBarHeightRef.current) return;
 
-    // DOM 전체 조상을 순회하며 scrollTop > 2 인 요소가 하나라도 있으면 PTR 비활성
+    // overflow-y: auto/scroll 인 조상만 scrollTop > 2 체크하여 PTR 비활성
+    // (overflow:hidden 등 비스크롤 요소의 scrollTop은 무시)
     let el: HTMLElement | null = e.target as HTMLElement;
     while (el && el !== document.documentElement) {
-      if (el.scrollTop > 2) return;
+      const overflowY = window.getComputedStyle(el).overflowY;
+      if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 2) return;
       el = el.parentElement;
     }
     if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) return;
