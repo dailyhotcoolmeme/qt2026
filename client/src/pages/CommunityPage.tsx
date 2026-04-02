@@ -509,9 +509,9 @@ export default function CommunityPage() {
   }, [folders, ungroupedGroups, topLevelOrderKey, user?.id]);
 
   useEffect(() => {
-    if (!topLevelOrderKey || !topLevelOrder.length) return;
+    if (!topLevelOrderKey || !topLevelOrder.length || loading) return;
     localStorage.setItem(topLevelOrderKey, JSON.stringify(topLevelOrder));
-  }, [topLevelOrder, topLevelOrderKey]);
+  }, [topLevelOrder, topLevelOrderKey, loading]);
 
   const orderedTopLevel = useMemo(() => {
     const folderMap = new Map(folders.map(f => [`folder:${f.id}`, f]));
