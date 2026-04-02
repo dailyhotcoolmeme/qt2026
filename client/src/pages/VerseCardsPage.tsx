@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Download, Share2, Trash2, X } from "lucide-react";
+import { Archive, Download, Share2, Trash2, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -243,8 +243,9 @@ export default function VerseCardsPage() {
       )}
 
       {!isLoading && user?.id && !loading && cards.length === 0 && (
-        <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-500">
-          보관한 말씀카드가 없습니다.
+        <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none">
+          <Archive className="h-14 w-14 text-zinc-300" />
+          <p className="text-base text-zinc-400">보관한 말씀카드가 없습니다</p>
         </div>
       )}
 
