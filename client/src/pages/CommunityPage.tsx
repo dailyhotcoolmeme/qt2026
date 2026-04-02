@@ -140,6 +140,13 @@ export default function CommunityPage() {
   // 그룹 폴더 상태
   const [folders, setFolders] = useState<UserGroupFolder[]>([]);
   const [folderItems, setFolderItems] = useState<UserGroupFolderItem[]>([]);
+  const COLLAPSED_KEY = "community_collapsed_folders";
+  const getCollapsed = (): Set<string> => {
+    try { return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) || "[]")); } catch { return new Set(); }
+  };
+  const saveCollapsed = (ids: Set<string>) => {
+    localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...ids]));
+  };
   const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<Set<string>>(new Set());
@@ -529,8 +536,12 @@ export default function CommunityPage() {
     setFolders(loadedFolders);
     setFolderItems((itemRows ?? []) as UserGroupFolderItem[]);
     setExpandedFolderIds((prev) => {
+      const collapsed = getCollapsed();
       const next = new Set(prev);
-      loadedFolders.forEach((f) => { if (!next.has(f.id)) next.add(f.id); });
+      // 새 폴더만 기본 펼침, 이미 사용자가 닫은 폴더는 유지
+      loadedFolders.forEach((f) => {
+        if (!next.has(f.id) && !collapsed.has(f.id)) next.add(f.id);
+      });
       return next;
     });
   };
@@ -617,6 +628,9 @@ export default function CommunityPage() {
       const next = new Set(prev);
       if (next.has(folderId)) next.delete(folderId);
       else next.add(folderId);
+      // 닫힌 폴더 목록을 localStorage에 저장
+      const collapsed = new Set(folders.map(f => f.id).filter(id => !next.has(id)));
+      saveCollapsed(collapsed);
       return next;
     });
   };
