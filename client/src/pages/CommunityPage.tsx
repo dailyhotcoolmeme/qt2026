@@ -619,7 +619,6 @@ export default function CommunityPage() {
           .update({ sort_order: idx })
           .eq("folder_id", folderId)
           .eq("group_id", groupId)
-          .eq("user_id", user.id)
       )
     );
   };
