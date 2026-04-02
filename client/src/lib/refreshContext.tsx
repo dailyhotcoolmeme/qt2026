@@ -21,10 +21,10 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
   const maxPullRef = useRef(0);
+  const ptrTouchIdRef = useRef<number | null>(null);  // PTR 추적 중인 손가락 identifier
   const topBarHeightRef = useRef(100);
   const THRESHOLD = 64;
 
-  // CSS variable --app-topbar-height 실제 px 계산
   useEffect(() => {
     const el = document.createElement("div");
     el.style.cssText = "position:absolute;visibility:hidden;height:var(--app-topbar-height,100px)";
@@ -40,19 +40,29 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // window capture 방식: 카드의 stopPropagation 여부와 무관하게 항상 먼저 실행
     const onNativeTouchStart = (e: TouchEvent) => {
+      // PTR 추적이 이미 진행 중이면 (첫 손가락이 아직 올려져 있으면)
+      // 두 번째 손가락 터치로 인한 리셋을 막는다
+      if (startYRef.current !== null && ptrTouchIdRef.current !== null) {
+        // PTR 손가락이 아직 활성 상태인지 확인
+        const ptrStillActive = Array.from(e.touches).some(
+          t => t.identifier === ptrTouchIdRef.current
+        );
+        if (ptrStillActive) return;  // PTR 손가락이 살아있으면 무시
+      }
+
+      // PTR 상태 리셋 (새 제스처 시작)
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
+      ptrTouchIdRef.current = null;
       setPulling(false);
 
-      const touch = e.touches[0];
+      // changedTouches[0] = 방금 새로 닿은 손가락 (touches[0]과 다를 수 있음)
+      const touch = e.changedTouches[0];
       if (!touch) return;
-      // topbar 영역 터치는 무시
       if (touch.clientY < topBarHeightRef.current) return;
 
-      // 터치 대상의 조상 중 스크롤된 컨테이너 또는 fixed 요소가 있으면 무시
       let el: HTMLElement | null = touch.target as HTMLElement;
       while (el && el !== document.documentElement) {
         const style = window.getComputedStyle(el);
@@ -61,23 +71,25 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
         if (style.position === 'fixed') return;
         el = el.parentElement;
       }
-      // 페이지 자체가 스크롤된 경우 무시
       if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) return;
 
       startYRef.current = touch.clientY;
+      ptrTouchIdRef.current = touch.identifier;
     };
 
     const onNativeTouchMove = (e: TouchEvent) => {
-      if (startYRef.current === null) return;
-      const touch = e.touches[0];
+      if (startYRef.current === null || ptrTouchIdRef.current === null) return;
+
+      // PTR을 시작한 특정 손가락만 처리
+      const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
       if (!touch) return;
+
       const dy = touch.clientY - startYRef.current;
       if (dy < 0) {
-        // 위로 올라간 경우: 인디케이터 숨기되 제스처 유지
         setPulling(false);
         return;
       }
-      // 아래로 당기는 중: Chrome 스크롤/PTR 인터셉트 차단
+
       e.preventDefault();
       const newDist = Math.min(dy, THRESHOLD * 1.5);
       pullDistRef.current = newDist;
@@ -87,12 +99,20 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       setPulling(nowPulling);
     };
 
-    const onNativeTouchEndOrCancel = () => {
-      if (startYRef.current === null) return;
+    const onNativeTouchEndOrCancel = (e: TouchEvent) => {
+      if (startYRef.current === null || ptrTouchIdRef.current === null) return;
+
+      // PTR 손가락이 이번에 올라갔는지 확인
+      const ptrTouchEnded = Array.from(e.changedTouches).some(
+        t => t.identifier === ptrTouchIdRef.current
+      );
+      if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
+
       const shouldRefresh = maxPullRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
+      ptrTouchIdRef.current = null;
       setPTRTracking(false);
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
@@ -114,7 +134,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   return (
     <RefreshContext.Provider value={{ refreshKey, triggerRefresh }}>
       <div className="contents">
-        {/* PTR 인디케이터 */}
         <AnimatePresence>
           {(pulling || refreshing) && (
             <motion.div
@@ -134,7 +153,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
             </motion.div>
           )}
         </AnimatePresence>
-
         {children}
       </div>
     </RefreshContext.Provider>
