@@ -84,13 +84,14 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
       if (!touch) return;
 
+      // PTR 추적 중이면 방향 무관하게 Chrome이 제스처 가로채지 못하게 차단
+      e.preventDefault();
+
       const dy = touch.clientY - startYRef.current;
       if (dy < 0) {
         setPulling(false);
         return;
       }
-
-      e.preventDefault();
       const newDist = Math.min(dy, THRESHOLD * 1.5);
       pullDistRef.current = newDist;
       if (newDist > maxPullRef.current) maxPullRef.current = newDist;
