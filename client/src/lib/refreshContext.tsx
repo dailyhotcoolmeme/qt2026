@@ -149,7 +149,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     <RefreshContext.Provider value={{ refreshKey, triggerRefresh }}>
       <div className="contents">
         <AnimatePresence>
-          {(pulling || refreshing) && (
+          {refreshing && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
