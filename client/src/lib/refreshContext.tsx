@@ -83,15 +83,17 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (!safetyTimerRef.current) {
         safetyTimerRef.current = setTimeout(() => {
           safetyTimerRef.current = null;
+          const shouldRefreshOnTimer = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
           startYRef.current = null;
           pullDistRef.current = 0;
           setPulling(false);
           setPTRTracking(false);
-        }, 3000);
+          if (shouldRefreshOnTimer) triggerRefresh();
+        }, 1500);
       }
     }
     setPulling(nowPulling);
-  }, [refreshing]);
+  }, [refreshing, triggerRefresh]);
 
   const handleTouchEnd = useCallback(() => {
     if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }

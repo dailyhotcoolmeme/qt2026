@@ -4060,7 +4060,7 @@ export default function GroupDashboard() {
     const imageAttachments = topics.flatMap((topic) => getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)));
 
     return (
-      <div className="touch-manipulation bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
         <div className="flex items-center justify-between gap-2 mb-2 px-5 py-2 bg-[#F6F7F8] rounded-xl mx-3">
           <AvatarImg url={author.avatar_url} size={40} />
           {(() => {
