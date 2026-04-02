@@ -38,16 +38,20 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    // 이전 제스처에서 고착된 상태 초기화
+    startYRef.current = null;
+    pullDistRef.current = 0;
+    setPulling(false);
+
     const touch = e.touches[0];
-    // TopBar 영역 내 터치는 PTR 무시
     if (touch.clientY < topBarHeightRef.current) return;
 
-    // overflow-y: auto/scroll 인 조상만 scrollTop > 2 체크하여 PTR 비활성
-    // (overflow:hidden 등 비스크롤 요소의 scrollTop은 무시)
     let el: HTMLElement | null = e.target as HTMLElement;
     while (el && el !== document.documentElement) {
-      const overflowY = window.getComputedStyle(el).overflowY;
+      const style = window.getComputedStyle(el);
+      const overflowY = style.overflowY;
       if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 2) return;
+      if (style.position === 'fixed') return;
       el = el.parentElement;
     }
     if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) return;
