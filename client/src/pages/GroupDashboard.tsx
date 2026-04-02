@@ -889,6 +889,18 @@ export default function GroupDashboard() {
     return (sessionTab as TabKey) || "faith";
   });
 
+  // GroupDashboard가 활성화된 동안 <main> 스크롤 컨테이너의 native PTR(Chrome Android)을 차단
+  // 전역 main에 영구 적용하면 다른 페이지 스크롤이 망가지므로, 마운트/언마운트 시 동적으로 관리
+  useEffect(() => {
+    const mainEl = document.querySelector('main') as HTMLElement | null;
+    if (!mainEl) return;
+    const prev = mainEl.style.overscrollBehaviorY;
+    mainEl.style.overscrollBehaviorY = 'none';
+    return () => {
+      mainEl.style.overscrollBehaviorY = prev;
+    };
+  }, []);
+
   useEffect(() => {
     sessionStorage.setItem("groupDashboardTab", activeTab);
   }, [activeTab]);
