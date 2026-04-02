@@ -93,11 +93,31 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       pullDistRef.current = 0;
       setPulling(false);
     };
+    // pointerup/pointercancel: Android Chrome에서 tabIndex/role=button 요소를 터치할 때
+    // touchend 대신 pointer 이벤트만 발생하는 경우를 처리 (pointer capture 포함)
+    const onNativePointerUp = () => {
+      if (startYRef.current === null && pullDistRef.current === 0) return;
+      const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+      startYRef.current = null;
+      pullDistRef.current = 0;
+      setPulling(false);
+      if (shouldRefresh) triggerRefresh();
+    };
+    const onNativePointerCancel = () => {
+      if (startYRef.current === null && pullDistRef.current === 0) return;
+      startYRef.current = null;
+      pullDistRef.current = 0;
+      setPulling(false);
+    };
     window.addEventListener('touchend', onNativeTouchEnd, { passive: true, capture: true });
     window.addEventListener('touchcancel', onNativeTouchCancel, { passive: true, capture: true });
+    window.addEventListener('pointerup', onNativePointerUp, { passive: true, capture: true });
+    window.addEventListener('pointercancel', onNativePointerCancel, { passive: true, capture: true });
     return () => {
       window.removeEventListener('touchend', onNativeTouchEnd, { capture: true });
       window.removeEventListener('touchcancel', onNativeTouchCancel, { capture: true });
+      window.removeEventListener('pointerup', onNativePointerUp, { capture: true });
+      window.removeEventListener('pointercancel', onNativePointerCancel, { capture: true });
     };
   }, [triggerRefresh]);
 
