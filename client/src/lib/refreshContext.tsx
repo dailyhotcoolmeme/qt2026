@@ -117,6 +117,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   // window 레벨 native 이벤트로 touchend/touchcancel을 보완 등록
   // DnD(TouchSensor) 등이 React 합성 이벤트를 가로채더라도 항상 pulling 상태를 해제
+  // + non-passive touchmove: Chrome이 스크롤을 가져가기 전에 preventDefault()로 막음
   useEffect(() => {
     const onNativeTouchEnd = () => {
       if (startYRef.current === null && pullDistRef.current === 0) return;
@@ -138,11 +139,56 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
     };
+
+    // Chrome Android 스크롤 인터셉트 차단:
+    // React의 onTouchMove는 passive 이벤트라 preventDefault() 불가.
+    // 따라서 window 레벨에서 { passive: false }로 등록하여
+    // PTR 추적 중(아래로 당기는 중)에는 Chrome이 스크롤을 가져가기 전에 preventDefault() 호출.
+    const onNativeTouchMove = (e: TouchEvent) => {
+      // PTR 추적 시작 전이거나 refreshing 중이면 절대 막지 않음
+      if (startYRef.current === null) return;
+
+      const touch = e.touches[0];
+      if (!touch) return;
+
+      const dy = touch.clientY - startYRef.current;
+
+      // 위로 스크롤하는 경우 막지 않음
+      if (dy < 0) return;
+
+      // 아래로 당기는 중: Chrome 스크롤 인터셉트 차단
+      e.preventDefault();
+
+      // React 합성 이벤트가 막혔을 경우를 대비해 pullDistRef 직접 업데이트
+      const newDist = Math.min(dy, THRESHOLD * 1.5);
+      pullDistRef.current = newDist;
+
+      const nowPulling = newDist > 10;
+      if (nowPulling) {
+        setPTRTracking(true);
+        if (!safetyTimerRef.current) {
+          safetyTimerRef.current = setTimeout(() => {
+            safetyTimerRef.current = null;
+            const shouldRefreshOnTimer = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
+            startYRef.current = null;
+            pullDistRef.current = 0;
+            setPulling(false);
+            setPTRTracking(false);
+            if (shouldRefreshOnTimer) triggerRefresh();
+          }, 1500);
+        }
+      }
+      setPulling(nowPulling);
+    };
+
     window.addEventListener('touchend', onNativeTouchEnd, { passive: true, capture: true });
     window.addEventListener('touchcancel', onNativeTouchCancel, { passive: true, capture: true });
+    // passive: false 필수 — 이래야 preventDefault()가 실제로 동작함
+    window.addEventListener('touchmove', onNativeTouchMove, { passive: false, capture: true });
     return () => {
       window.removeEventListener('touchend', onNativeTouchEnd, { capture: true });
       window.removeEventListener('touchcancel', onNativeTouchCancel, { capture: true });
+      window.removeEventListener('touchmove', onNativeTouchMove, { capture: true });
       if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     };
   }, [triggerRefresh]);
