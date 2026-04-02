@@ -61,6 +61,13 @@ const saveCollapsed = (ids: Set<string>) => {
   localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...ids]));
 };
 
+const getFolderItemOrder = (userId: string, folderId: string): string[] => {
+  try { return JSON.parse(localStorage.getItem(`community-folder-order:${userId}:${folderId}`) || "[]"); } catch { return []; }
+};
+const saveFolderItemOrderLocal = (userId: string, folderId: string, ids: string[]) => {
+  localStorage.setItem(`community-folder-order:${userId}:${folderId}`, JSON.stringify(ids));
+};
+
 function sanitizeFileName(name: string) {
   return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
 }
@@ -480,8 +487,20 @@ export default function CommunityPage() {
       const jg = joinedGroups.find((j) => j.group.id === item.group_id);
       if (jg && map.has(item.folder_id)) map.get(item.folder_id)!.push(jg);
     });
+    // localStorage에 저장된 순서 적용
+    if (user) {
+      folders.forEach((f) => {
+        const saved = getFolderItemOrder(user.id, f.id);
+        if (!saved.length) return;
+        const current = map.get(f.id) ?? [];
+        map.set(f.id, [
+          ...saved.map(id => current.find(jg => jg.group.id === id)).filter((x): x is JoinedGroup => !!x),
+          ...current.filter(jg => !saved.includes(jg.group.id)),
+        ]);
+      });
+    }
     return map;
-  }, [folders, folderItems, joinedGroups]);
+  }, [folders, folderItems, joinedGroups, user?.id]);
 
   const topLevelOrderKey = useMemo(() => user ? `community-top-order:${user.id}` : null, [user?.id]);
 
@@ -606,20 +625,13 @@ export default function CommunityPage() {
 
   const saveFolderItemOrder = async (folderId: string, newGroupIds: string[]) => {
     if (!user) return;
+    saveFolderItemOrderLocal(user.id, folderId, newGroupIds);
     setFolderItems(prev =>
       prev.map(item => {
         if (item.folder_id !== folderId) return item;
         const idx = newGroupIds.indexOf(item.group_id);
         return { ...item, sort_order: idx >= 0 ? idx : 999 };
       })
-    );
-    await Promise.all(
-      newGroupIds.map((groupId, idx) =>
-        supabase.from("user_group_folder_items")
-          .update({ sort_order: idx })
-          .eq("folder_id", folderId)
-          .eq("group_id", groupId)
-      )
     );
   };
 
