@@ -19,7 +19,8 @@ type Props = {
 type SavedCard = {
   id: string;
   title: string;
-  imageDataUrl: string;
+  imageDataUrl: string;   // base64 또는 http URL (표시용)
+  image_url?: string;     // R2 cloud URL
   created_at: string;
 };
 
@@ -163,6 +164,17 @@ async function dataUrlToFile(dataUrl: string, fileName: string) {
   const response = await fetch(dataUrl);
   const blob = await response.blob();
   return new File([blob], fileName, { type: blob.type || "image/jpeg" });
+}
+
+async function urlToDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 async function downloadDataUrl(dataUrl: string, fileName: string) {
@@ -429,8 +441,33 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const pool = mode === "color" ? COLOR_PRESETS : imagePresets;
     const randomized = pool[Math.floor(Math.random() * pool.length)] || pool[0];
     if (randomized) setSelectedId(randomized.id);
-    const key = storageKey(userId);
-    loadCardsFromStore(key).then(setSavedCards).catch(() => setSavedCards([]));
+    const loadCards = async () => {
+      if (userId) {
+        try {
+          const { data } = await supabase
+            .from("user_verse_cards")
+            .select("id, title, image_url, created_at")
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(30);
+          if (data && data.length > 0) {
+            setSavedCards(data.map(row => ({
+              id: row.id,
+              title: row.title,
+              imageDataUrl: row.image_url,
+              image_url: row.image_url,
+              created_at: row.created_at,
+            })));
+            return;
+          }
+        } catch (e) {
+          console.error("Supabase 카드 로드 실패, 로컬 폴백:", e);
+        }
+      }
+      const key = storageKey(userId);
+      loadCardsFromStore(key).then(setSavedCards).catch(() => setSavedCards([]));
+    };
+    loadCards();
   }, [open, mode, userId, imagePresets]);
 
   const drawToCanvas = async () => {
@@ -554,19 +591,39 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       const canvas = await drawToCanvas();
       if (!canvas) return;
       const imageDataUrl = canvas.toDataURL("image/jpeg", 0.78);
+
+      let image_url: string | undefined;
+      let savedId = `${Date.now()}`;
+
+      if (userId) {
+        try {
+          const file = await dataUrlToFile(imageDataUrl, `verse-card-${savedId}.jpg`);
+          image_url = await uploadFileToR2(file, "verse-cards");
+          const { data: inserted } = await supabase.from("user_verse_cards").insert({
+            user_id: userId,
+            title,
+            image_url,
+            created_at: new Date().toISOString(),
+          }).select("id").single();
+          if (inserted?.id) savedId = inserted.id;
+        } catch (e) {
+          console.error("클라우드 저장 실패, 로컬에만 저장:", e);
+          image_url = undefined;
+        }
+      }
+
       const entry: SavedCard = {
-        id: `${Date.now()}`,
+        id: savedId,
         title,
         imageDataUrl,
+        image_url,
         created_at: new Date().toISOString(),
       };
       const next = [entry, ...savedCards].slice(0, 30);
       setSavedCards(next);
       await saveCardsToStore(storageKey(userId), next);
 
-      // 커다란 사용 추적 (fire-and-forget)
       void trackBgUsage();
-
       alert("보관함에 저장되었습니다.");
     } catch (error) {
       console.error("save card failed:", error);
@@ -576,12 +633,15 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const saveRecordToPhone = async (record: SavedCard) => {
     try {
+      const dataUrl = record.imageDataUrl.startsWith("data:")
+        ? record.imageDataUrl
+        : await urlToDataUrl(record.imageDataUrl);
       if (isNativeApp()) {
-        await saveImageDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+        await saveImageDataUrl(dataUrl, `verse-card-${record.id}.jpg`);
         alert("말씀 카드를 저장했습니다.");
         return;
       }
-      await downloadDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+      await downloadDataUrl(dataUrl, `verse-card-${record.id}.jpg`);
     } catch (error) {
       console.error("download saved card failed:", error);
       alert("이미지 저장에 실패했습니다.");
@@ -590,9 +650,12 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
   const shareRecord = async (record: SavedCard) => {
     try {
-      const shared = await shareDataUrl(record.imageDataUrl, record.title);
+      const dataUrl = record.imageDataUrl.startsWith("data:")
+        ? record.imageDataUrl
+        : await urlToDataUrl(record.imageDataUrl);
+      const shared = await shareDataUrl(dataUrl, record.title);
       if (!shared) {
-        await downloadDataUrl(record.imageDataUrl, `verse-card-${record.id}.jpg`);
+        await downloadDataUrl(dataUrl, `verse-card-${record.id}.jpg`);
       }
     } catch (error) {
       if (!(error instanceof Error && error.name === "AbortError")) {
@@ -609,6 +672,9 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     const next = savedCards.filter((card) => card.id !== recordId);
     setSavedCards(next);
     if (activeRecord?.id === recordId) setActiveRecord(null);
+    if (userId) {
+      supabase.from("user_verse_cards").delete().eq("id", recordId).eq("user_id", userId).then();
+    }
     try {
       await saveCardsToStore(storageKey(userId), next);
     } catch (error) {
