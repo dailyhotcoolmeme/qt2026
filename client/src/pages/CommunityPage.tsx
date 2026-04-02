@@ -1605,9 +1605,20 @@ export default function CommunityPage() {
               className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
               <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-4" />
-              <p className="font-black text-zinc-900 text-base mb-4">
-                {folders.find((f) => f.id === folderMenuId)?.name}
-              </p>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs text-zinc-400 font-medium">폴더 설정</p>
+                  <p className="font-black text-zinc-900 text-base">
+                    {folders.find((f) => f.id === folderMenuId)?.name}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setFolderMenuId(null)}
+                  className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-zinc-500"
+                >
+                  <X size={16} />
+                </button>
+              </div>
               <div className="space-y-1">
                 <button
                   onClick={() => {

@@ -87,7 +87,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
           pullDistRef.current = 0;
           setPulling(false);
           setPTRTracking(false);
-        }, 300);
+        }, 3000);
       }
     }
     setPulling(nowPulling);
