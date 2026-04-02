@@ -123,7 +123,7 @@ function AppContent() {
           <Route>
             <Layout>
               <TopBar />
-              <main className="flex-1 overflow-y-auto no-scrollbar">
+              <main className="flex-1 overflow-y-auto no-scrollbar overscroll-y-none">
                 <Switch>
                   <Route path="/" component={DailyWordPage} />
                   <Route path="/qt" component={QTPage} />

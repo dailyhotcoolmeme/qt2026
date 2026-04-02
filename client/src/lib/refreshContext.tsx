@@ -57,7 +57,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const touch = e.changedTouches[0];
       if (!touch) return;
       if (touch.clientY < topBarHeightRef.current) {
-        console.log('[PTR] BLOCKED: topbar, clientY=', touch.clientY, 'topbarH=', topBarHeightRef.current);
         return;
       }
 
@@ -66,23 +65,19 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
         const style = window.getComputedStyle(el);
         const overflowY = style.overflowY;
         if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 2) {
-          console.log('[PTR] BLOCKED: scrolled el=', el.tagName, el.className.slice(0,40), 'scrollTop=', el.scrollTop);
           return;
         }
         if (style.position === 'fixed') {
-          console.log('[PTR] BLOCKED: fixed el=', el.tagName, el.className.slice(0,40));
           return;
         }
         el = el.parentElement;
       }
       if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) {
-        console.log('[PTR] BLOCKED: doc scrolled=', document.scrollingElement?.scrollTop);
         return;
       }
 
       startYRef.current = touch.clientY;
       ptrTouchIdRef.current = touch.identifier;
-      console.log('[PTR] START: y=', touch.clientY);
     };
 
     const onNativeTouchMove = (e: TouchEvent) => {
@@ -105,7 +100,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const nowPulling = newDist > 10;
       if (nowPulling) setPTRTracking(true);
       setPulling(nowPulling);
-      if (Math.round(newDist) % 20 === 0) console.log('[PTR] MOVE: dy=', Math.round(dy), 'maxPull=', Math.round(maxPullRef.current));
     };
 
     const onNativeTouchEndOrCancel = (e: TouchEvent) => {
@@ -118,7 +112,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
 
       const shouldRefresh = maxPullRef.current >= THRESHOLD;
-      console.log('[PTR] END: maxPull=', Math.round(maxPullRef.current), 'threshold=', THRESHOLD, 'refresh=', shouldRefresh);
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
