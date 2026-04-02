@@ -1132,12 +1132,6 @@ export default function CommunityPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.15 }}
-              onDragEnd={(_, info) => {
-                if (info.velocity.y > 500 || info.offset.y > 80) setShowOrderModal(false);
-              }}
               className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden max-w-lg mx-auto w-full"
             >
               <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 flex-shrink-0" />
@@ -1230,12 +1224,6 @@ export default function CommunityPage() {
                 animate={{ y: 0 }}
                 exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
-                drag="y"
-                dragConstraints={{ top: 0 }}
-                dragElastic={{ top: 0, bottom: 0.15 }}
-                onDragEnd={(_, info) => {
-                  if (info.velocity.y > 500 || info.offset.y > 80) setShowFolderOrderModal(null);
-                }}
                 className="relative bg-white rounded-t-3xl shadow-2xl flex flex-col max-h-[75vh] overflow-hidden max-w-lg mx-auto w-full"
               >
                 <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mt-3 flex-shrink-0" />
