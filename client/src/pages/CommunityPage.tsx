@@ -841,7 +841,7 @@ export default function CommunityPage() {
             handleClick();
           }
         }}
-        className={`w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all duration-200 text-left ${isSelectMode && isSelected ? "ring-2 ring-[#4A6741] shadow-md" : "hover:shadow-md"}`}
+        className={`touch-manipulation w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all duration-200 text-left ${isSelectMode && isSelected ? "ring-2 ring-[#4A6741] shadow-md" : "hover:shadow-md"}`}
       >
         {isSelectMode && (
           <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${isSelected ? "bg-[#4A6741] border-[#4A6741]" : "border-zinc-300"}`}>
