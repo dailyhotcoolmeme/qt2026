@@ -2967,12 +2967,9 @@ export default function ReadingPage() {
                       </button>
                     );
                   })}
-              </div>
-
-              <div className="mt-8 flex justify-center">
                 <button
                   onClick={() => setIsEditModalOpen(false)}
-                  className="w-full max-w-xs rounded-2xl bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-700 transition-colors hover:bg-zinc-200"
+                  className="col-span-4 rounded-2xl bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-700 transition-colors hover:bg-zinc-200"
                 >
                   닫기
                 </button>
