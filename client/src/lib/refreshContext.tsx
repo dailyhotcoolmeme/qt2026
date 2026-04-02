@@ -21,8 +21,9 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
   const maxPullRef = useRef(0);
-  const ptrTouchIdRef = useRef<number | null>(null);  // PTR 추적 중인 손가락 identifier
-  const refreshTriggeredRef = useRef(false);
+  const ptrTouchIdRef = useRef<number | null>(null);
+  const holdTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const holdTriggeredRef = useRef(false);
   const topBarHeightRef = useRef(100);
   const THRESHOLD = 64;
 
@@ -82,17 +83,29 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       console.log('[PTR] START: y=', touch.clientY, 'id=', touch.identifier);
     };
 
+    const resetPTR = () => {
+      if (holdTimeoutRef.current !== null) {
+        clearTimeout(holdTimeoutRef.current);
+        holdTimeoutRef.current = null;
+      }
+      startYRef.current = null;
+      pullDistRef.current = 0;
+      maxPullRef.current = 0;
+      ptrTouchIdRef.current = null;
+      holdTriggeredRef.current = false;
+      setPTRTracking(false);
+      setPulling(false);
+    };
+
     const onNativeTouchMove = (e: TouchEvent) => {
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
-      if (refreshTriggeredRef.current) return;
+      if (holdTriggeredRef.current) return;
 
-      // PTR을 시작한 특정 손가락만 처리
       const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
       if (!touch) return;
 
       const dy = touch.clientY - startYRef.current;
       if (dy < 0) {
-        // 스크롤 방향 — 이미 PTR 당기다 되돌아오는 경우만 preventDefault
         if (maxPullRef.current > 0) e.preventDefault();
         setPulling(false);
         return;
@@ -103,36 +116,32 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (newDist > maxPullRef.current) maxPullRef.current = newDist;
       const nowPulling = newDist > 10;
       if (nowPulling) setPTRTracking(true);
-
-      // 임계점 도달 시 손 떼기 전에 바로 새로고침 시작
-      if (newDist >= THRESHOLD) {
-        refreshTriggeredRef.current = true;
-        setPTRTracking(false);
-        setPulling(false);
-        triggerRefresh();
-        return;
-      }
-
       setPulling(nowPulling);
+
+      // 임계점 도달 상태로 1초 홀드 시 자동 새로고침
+      if (newDist >= THRESHOLD && holdTimeoutRef.current === null) {
+        holdTimeoutRef.current = setTimeout(() => {
+          holdTimeoutRef.current = null;
+          holdTriggeredRef.current = true;
+          resetPTR();
+          triggerRefresh();
+        }, 1000);
+      } else if (newDist < THRESHOLD && holdTimeoutRef.current !== null) {
+        clearTimeout(holdTimeoutRef.current);
+        holdTimeoutRef.current = null;
+      }
     };
 
     const onNativeTouchEndOrCancel = (e: TouchEvent) => {
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
 
-      // PTR 손가락이 이번에 올라갔는지 확인
       const ptrTouchEnded = Array.from(e.changedTouches).some(
         t => t.identifier === ptrTouchIdRef.current
       );
-      if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
+      if (!ptrTouchEnded) return;
 
-      const shouldRefresh = !refreshTriggeredRef.current && maxPullRef.current >= THRESHOLD;
-      startYRef.current = null;
-      pullDistRef.current = 0;
-      maxPullRef.current = 0;
-      ptrTouchIdRef.current = null;
-      refreshTriggeredRef.current = false;
-      setPTRTracking(false);
-      setPulling(false);
+      const shouldRefresh = !holdTriggeredRef.current && maxPullRef.current >= THRESHOLD;
+      resetPTR();
       if (shouldRefresh) triggerRefresh();
     };
 
