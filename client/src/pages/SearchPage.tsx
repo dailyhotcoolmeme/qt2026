@@ -413,7 +413,10 @@ export default function SearchPage() {
             </div>
           )}
           {!loading && results.length === 0 && (searchInput || selectedBook !== 'ALL') && (
-            <div className="py-20 text-center text-zinc-400 font-medium">검색 결과가 없습니다.</div>
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-400">
+              <Search className="h-12 w-12 text-zinc-300" />
+              <p className="text-sm font-medium">검색 결과가 없습니다</p>
+            </div>
           )}
 
           {results.map((v, idx) => {

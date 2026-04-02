@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Copy, Share2, Trash2 } from "lucide-react";
+import { Bookmark, Copy, Share2, Trash2 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -167,8 +167,9 @@ export default function FavoritesPage() {
           )}
 
           {!loading && !errorText && rows.length === 0 && (
-            <div className="rounded-xl border border-zinc-100 bg-white px-4 py-10 text-center text-sm text-zinc-500">
-              저장한 즐겨찾기가 없습니다.
+            <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-400">
+              <Bookmark className="h-12 w-12 text-zinc-300" />
+              <p className="text-sm">저장한 즐겨찾기가 없습니다</p>
             </div>
           )}
 

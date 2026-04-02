@@ -1,7 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useLocation } from "wouter";
-import { AlarmClock, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Users, Share2, Trash2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
+import { AlarmClock, Archive, Bookmark, BookOpenCheck, Download, HandHeart, LibraryBig, Link2, Search, Users, Share2, Trash2, X, Sun, BookOpenText, BookHeart, Church, ChevronRight } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
@@ -767,8 +767,9 @@ export default function ArchivePage() {
               // 말씀카드: IndexedDB 기반, 날짜 필터 미적용
               if (verseCards.length === 0) {
                 return (
-                  <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
-                    보관한 말씀카드가 없습니다.
+                  <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-400">
+                    <Archive className="h-12 w-12 text-zinc-300" />
+                    <p className="text-sm">보관한 말씀카드가 없습니다</p>
                   </div>
                 );
               }
@@ -777,8 +778,9 @@ export default function ArchivePage() {
             // 그 외 탭: menuLogs 기반
             if (menuLogs.length === 0) {
               return (
-                <div className="bg-white rounded-none border border-zinc-100 px-4 py-8 text-sm text-zinc-500 text-center">
-                  조건에 맞는 기록이 없습니다.
+                <div className="flex flex-col items-center justify-center py-24 gap-3 text-zinc-400">
+                  <BookOpenText className="h-12 w-12 text-zinc-300" />
+                  <p className="text-sm">조건에 맞는 기록이 없습니다</p>
                 </div>
               );
             }
