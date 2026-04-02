@@ -19,6 +19,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const { user } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isCompressingAvatar, setIsCompressingAvatar] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isResettingAvatar, setIsResettingAvatar] = useState(false);
@@ -166,12 +167,16 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    const optimized = await compressImageFile(file);
-    setAvatarFile(optimized);
-    const reader = new FileReader();
-    reader.onloadend = () => setAvatarPreview(reader.result as string);
-    reader.readAsDataURL(optimized);
+    setIsCompressingAvatar(true);
+    try {
+      const optimized = await compressImageFile(file);
+      setAvatarFile(optimized);
+      const reader = new FileReader();
+      reader.onloadend = () => setAvatarPreview(reader.result as string);
+      reader.readAsDataURL(optimized);
+    } finally {
+      setIsCompressingAvatar(false);
+    }
   };
 
   const uploadAvatar = async (): Promise<string | null> => {
@@ -318,7 +323,11 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             {/* 1. 아바타 */}
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
-                {avatarPreview ? (
+                {isCompressingAvatar ? (
+                  <div className="w-24 h-24 rounded-full bg-zinc-100 flex items-center justify-center border-4 border-zinc-50">
+                    <Loader2 className="w-8 h-8 text-[#4A6741] animate-spin" />
+                  </div>
+                ) : avatarPreview ? (
                   <img
                     src={avatarPreview.startsWith("http://") ? `https://${avatarPreview.slice(7)}` : avatarPreview}
                     alt="Profile"
@@ -331,7 +340,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
                 )}
                 <label className="absolute bottom-0 -right-2 bg-[#4A6741] p-2 rounded-full cursor-pointer hover:bg-[#3d5636] transition-colors shadow-lg">
                   <Camera className="w-4 h-4 text-white" />
-                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
+                  <input type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" disabled={isCompressingAvatar} />
                 </label>
                 {/* 사진 초기화 버튼 */}
                 {avatarPreview && (

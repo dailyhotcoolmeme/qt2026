@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { Download, Save, Share2, X } from "lucide-react";
+import { Archive, Download, Loader2, Save, Share2, X } from "lucide-react";
 
 import imageCompression from "browser-image-compression";
 import { uploadFileToR2 } from "../utils/upload";
@@ -258,6 +258,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   const [bgSort, setBgSort] = useState<"latest" | "popular">("latest");
   const [visiblePresetsCount, setVisiblePresetsCount] = useState(4);
   const [uploading, setUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const CANVAS_WIDTH = 900;
   const CANVAS_HEIGHT = 1125;
@@ -587,6 +588,8 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
   };
 
   const saveToRecords = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const canvas = await drawToCanvas();
       if (!canvas) return;
@@ -597,17 +600,37 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
 
       if (userId) {
         try {
-          const file = await dataUrlToFile(imageDataUrl, `verse-card-${savedId}.jpg`);
-          image_url = await uploadFileToR2(file, "verse-cards");
-          const { data: inserted } = await supabase.from("user_verse_cards").insert({
+          // canvas.toDataURL는 이미 base64 — dataUrlToFile 변환 불필요
+          const base64 = imageDataUrl.replace(/^data:[^;]+;base64,/, "");
+          const fileName = `verse-cards/${Date.now()}-verse-card.jpg`;
+
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (token) headers["Authorization"] = `Bearer ${token}`;
+
+          const res = await fetch(resolveApiUrl("/api/file/upload"), {
+            method: "POST",
+            headers,
+            body: JSON.stringify({ fileName, fileBase64: base64, contentType: "image/jpeg" }),
+          });
+          const uploadData = await res.json();
+          if (!res.ok || !uploadData?.success) {
+            throw new Error(uploadData?.error || `업로드 실패 (${res.status})`);
+          }
+          image_url = uploadData.publicUrl;
+
+          const { data: inserted, error: insertError } = await supabase.from("user_verse_cards").insert({
             user_id: userId,
             title,
             image_url,
-            created_at: new Date().toISOString(),
           }).select("id").single();
+          if (insertError) throw new Error(`DB 저장 실패: ${insertError.message}`);
           if (inserted?.id) savedId = inserted.id;
         } catch (e) {
-          console.error("클라우드 저장 실패, 로컬에만 저장:", e);
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("클라우드 저장 실패:", msg);
+          alert(`클라우드 저장 실패\n${msg}\n\n로컬에만 저장됩니다.`);
           image_url = undefined;
         }
       }
@@ -624,10 +647,14 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
       await saveCardsToStore(storageKey(userId), next);
 
       void trackBgUsage();
-      alert("보관함에 저장되었습니다.");
+      if (image_url) {
+        alert("보관함에 저장되었습니다.");
+      }
     } catch (error) {
       console.error("save card failed:", error);
       alert("보관함 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -948,20 +975,23 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
                     <Share2 size={15} />
                     공유
                   </button>
-                  <button onClick={saveToRecords} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2">
-                    <Save size={15} />
-                    보관함
+                  <button onClick={saveToRecords} disabled={isSaving} className="rounded-full bg-white px-3 py-2 text-sm font-bold text-[#4A6741] flex items-center justify-center gap-2 disabled:opacity-60">
+                    {isSaving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                    {isSaving ? "저장 중..." : "보관함"}
                   </button>
                 </div>
 
-                <div className="rounded-none border border-zinc-200 bg-zinc-50/60 p-3">
+                <div className="rounded-none border border-zinc-200 p-3">
                   <div className="mb-3 flex items-center justify-between">
                     <p className="text-sm font-bold text-zinc-800">보관함</p>
                     <p className="text-xs text-zinc-500">{savedCards.length}개</p>
                   </div>
 
                   {savedCards.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-zinc-500">보관한 말씀 카드가 없습니다.</p>
+                    <div className="flex flex-col items-center justify-center py-10 gap-3">
+                      <Archive className="h-10 w-10 text-zinc-300" />
+                      <p className="text-sm text-zinc-400">보관한 말씀카드가 없습니다</p>
+                    </div>
                   ) : (
                     <div className="grid grid-cols-3 gap-2">
                       {savedCards.map((record) => (
