@@ -41,40 +41,48 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const onNativeTouchStart = (e: TouchEvent) => {
-      // PTR 추적이 이미 진행 중이면 (첫 손가락이 아직 올려져 있으면)
-      // 두 번째 손가락 터치로 인한 리셋을 막는다
       if (startYRef.current !== null && ptrTouchIdRef.current !== null) {
-        // PTR 손가락이 아직 활성 상태인지 확인
         const ptrStillActive = Array.from(e.touches).some(
           t => t.identifier === ptrTouchIdRef.current
         );
-        if (ptrStillActive) return;  // PTR 손가락이 살아있으면 무시
+        if (ptrStillActive) return;
       }
 
-      // PTR 상태 리셋 (새 제스처 시작)
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
       ptrTouchIdRef.current = null;
       setPulling(false);
 
-      // changedTouches[0] = 방금 새로 닿은 손가락 (touches[0]과 다를 수 있음)
       const touch = e.changedTouches[0];
       if (!touch) return;
-      if (touch.clientY < topBarHeightRef.current) return;
+      if (touch.clientY < topBarHeightRef.current) {
+        console.log('[PTR] BLOCKED: topbar, clientY=', touch.clientY, 'topbarH=', topBarHeightRef.current);
+        return;
+      }
 
       let el: HTMLElement | null = touch.target as HTMLElement;
       while (el && el !== document.documentElement) {
         const style = window.getComputedStyle(el);
         const overflowY = style.overflowY;
-        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 2) return;
-        if (style.position === 'fixed') return;
+        if ((overflowY === 'auto' || overflowY === 'scroll') && el.scrollTop > 2) {
+          console.log('[PTR] BLOCKED: scrolled el=', el.tagName, el.className.slice(0,40), 'scrollTop=', el.scrollTop);
+          return;
+        }
+        if (style.position === 'fixed') {
+          console.log('[PTR] BLOCKED: fixed el=', el.tagName, el.className.slice(0,40));
+          return;
+        }
         el = el.parentElement;
       }
-      if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) return;
+      if ((document.scrollingElement?.scrollTop ?? window.scrollY) > 2) {
+        console.log('[PTR] BLOCKED: doc scrolled=', document.scrollingElement?.scrollTop);
+        return;
+      }
 
       startYRef.current = touch.clientY;
       ptrTouchIdRef.current = touch.identifier;
+      console.log('[PTR] START: y=', touch.clientY);
     };
 
     const onNativeTouchMove = (e: TouchEvent) => {
@@ -84,7 +92,6 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const touch = Array.from(e.touches).find(t => t.identifier === ptrTouchIdRef.current);
       if (!touch) return;
 
-      // PTR 추적 중이면 방향 무관하게 Chrome이 제스처 가로채지 못하게 차단
       e.preventDefault();
 
       const dy = touch.clientY - startYRef.current;
@@ -98,6 +105,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const nowPulling = newDist > 10;
       if (nowPulling) setPTRTracking(true);
       setPulling(nowPulling);
+      if (Math.round(newDist) % 20 === 0) console.log('[PTR] MOVE: dy=', Math.round(dy), 'maxPull=', Math.round(maxPullRef.current));
     };
 
     const onNativeTouchEndOrCancel = (e: TouchEvent) => {
@@ -110,6 +118,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
 
       const shouldRefresh = maxPullRef.current >= THRESHOLD;
+      console.log('[PTR] END: maxPull=', Math.round(maxPullRef.current), 'threshold=', THRESHOLD, 'refresh=', shouldRefresh);
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
