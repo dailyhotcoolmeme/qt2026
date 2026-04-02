@@ -20,6 +20,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const startYRef = useRef<number | null>(null);
   const pullDistRef = useRef(0);
   const topBarHeightRef = useRef(100); // --app-topbar-height 계산값 캐시
+  const safetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const THRESHOLD = 64; // iOS Safari / Twitter / Instagram 기준값과 동일
 
   // CSS variable --app-topbar-height 실제 px 계산
@@ -32,6 +33,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const triggerRefresh = useCallback(() => {
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     setRefreshing(true);
     setRefreshKey(k => k + 1);
     setTimeout(() => setRefreshing(false), 800);
@@ -63,12 +65,32 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (startYRef.current === null || refreshing) return;
     const dy = e.touches[0].clientY - startYRef.current;
-    if (dy < 0) { startYRef.current = null; return; }
+    if (dy < 0) {
+      if (pullDistRef.current > 10) {
+        startYRef.current = null;
+        pullDistRef.current = 0;
+        setPulling(false);
+        if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
+      }
+      return;
+    }
     pullDistRef.current = Math.min(dy, THRESHOLD * 1.5);
-    setPulling(pullDistRef.current > 10);
+    const nowPulling = pullDistRef.current > 10;
+    if (nowPulling) {
+      if (!safetyTimerRef.current) {
+        safetyTimerRef.current = setTimeout(() => {
+          safetyTimerRef.current = null;
+          startYRef.current = null;
+          pullDistRef.current = 0;
+          setPulling(false);
+        }, 2000);
+      }
+    }
+    setPulling(nowPulling);
   }, [refreshing]);
 
   const handleTouchEnd = useCallback(() => {
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
@@ -77,6 +99,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   }, [triggerRefresh]);
 
   const handleTouchCancel = useCallback(() => {
+    if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     startYRef.current = null;
     pullDistRef.current = 0;
     setPulling(false);
@@ -87,6 +110,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const onNativeTouchEnd = () => {
       if (startYRef.current === null && pullDistRef.current === 0) return;
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
@@ -95,6 +119,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     };
     const onNativeTouchCancel = () => {
       if (startYRef.current === null && pullDistRef.current === 0) return;
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       startYRef.current = null;
       pullDistRef.current = 0;
       setPulling(false);
@@ -104,6 +129,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     return () => {
       window.removeEventListener('touchend', onNativeTouchEnd, { capture: true });
       window.removeEventListener('touchcancel', onNativeTouchCancel, { capture: true });
+      if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     };
   }, [triggerRefresh]);
 
