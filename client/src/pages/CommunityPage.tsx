@@ -840,7 +840,6 @@ export default function CommunityPage() {
             handleClick();
           }
         }}
-        style={{ touchAction: "pan-y" }}
         className={`w-full bg-white rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all duration-200 text-left ${isSelectMode && isSelected ? "ring-2 ring-[#4A6741] shadow-md" : "hover:shadow-md"}`}
       >
         {isSelectMode && (
