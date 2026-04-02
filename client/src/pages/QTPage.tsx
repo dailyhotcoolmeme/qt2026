@@ -1551,11 +1551,11 @@ export default function QTPage() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowWriteSheet(false);
@@ -1587,7 +1587,7 @@ export default function QTPage() {
                 value={meditationText}
                 onChange={(e) => setMeditationText(e.target.value)}
                 placeholder="오늘 말씀이나 묵상 질문에 대해 느낀점을 남겨주세요"
-                className="w-full h-40 bg-white rounded-2xl p-4 border-none focus:outline-none focus:ring-1 focus:ring-[#4A6741]/20 resize-none mb-4"
+                className="w-full h-40 bg-zinc-50 rounded-xl p-3 border border-zinc-200 focus:border-[#4A6741] focus:outline-none focus:ring-0 resize-none mb-4"
                 style={{ fontSize: `${fontSize * 0.9}px` }}
               />
 

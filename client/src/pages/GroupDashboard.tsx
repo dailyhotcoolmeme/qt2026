@@ -655,11 +655,11 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
             onDragEnd={(_, info) => {
               if (info.velocity.y > 500 || info.offset.y > 80) {
                 setShowModal(false);
@@ -715,11 +715,11 @@ function GroupScheduleTab({ groupId, user, isManager }: { groupId: string, user:
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
             onDragEnd={(_, info) => {
               if (info.velocity.y > 500 || info.offset.y > 80) {
                 setSelectedDateEvents(null);
@@ -4292,11 +4292,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) { setShowTextPrayerModal(false); setTextPrayerContent(""); setTextPrayerEditId(null); }
               }}
@@ -5326,11 +5326,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setSelectedFaithMemberDetail(null);
@@ -5448,11 +5448,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowPrayerLinkModal(false);
@@ -5620,11 +5620,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowHeartPrayerHistoryModal(false);
@@ -5718,11 +5718,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowPrayerTopicOrderModal(false);
               }}
@@ -5803,11 +5803,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) { setShowPrayerTopicModal(false); cancelEditingPrayerTopic(); }
               }}
@@ -6353,11 +6353,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowPostComposerModal(false);
@@ -6487,11 +6487,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) {
                   setShowInviteModal(false);
@@ -6558,11 +6558,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowHeaderEditModal(false);
               }}
@@ -6646,11 +6646,11 @@ export default function GroupDashboard() {
             <motion.div
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowFaithLinkModal(false);
               }}
@@ -6766,11 +6766,11 @@ export default function GroupDashboard() {
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
             onDragEnd={(_, info) => {
               if (info.velocity.y > 500 || info.offset.y > 80) { setShowPartnerModal(false); setSelectedPartnerIds(new Set()); }
             }}
@@ -6839,11 +6839,11 @@ export default function GroupDashboard() {
           <motion.div
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
             onDragEnd={(_, info) => {
               if (info.velocity.y > 500 || info.offset.y > 80) setShowPrayerShareModal(false);
             }}

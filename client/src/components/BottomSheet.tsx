@@ -36,11 +36,11 @@ export function BottomSheet({ open, onClose, children, title }: BottomSheetProps
             key="sheet"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: "100%" }}
+            exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
             transition={{ type: "spring", damping: 30, stiffness: 300 }}
             drag="y"
             dragConstraints={{ top: 0 }}
-            dragElastic={{ top: 0, bottom: 0.3 }}
+            dragElastic={{ top: 0, bottom: 0.15 }}
             onDragEnd={(_, info) => {
               if (info.velocity.y > 500 || info.offset.y > 80) {
                 onClose();
