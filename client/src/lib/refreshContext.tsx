@@ -78,9 +78,11 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
 
       startYRef.current = touch.clientY;
       ptrTouchIdRef.current = touch.identifier;
+      console.log('[PTR] START: y=', touch.clientY, 'id=', touch.identifier);
     };
 
     const onNativeTouchMove = (e: TouchEvent) => {
+      console.log('[PTR-RAW] touchmove touches=', e.touches.length, 'ptrId=', ptrTouchIdRef.current);
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
 
       // PTR을 시작한 특정 손가락만 처리
@@ -103,6 +105,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onNativeTouchEndOrCancel = (e: TouchEvent) => {
+      console.log('[PTR-RAW] touchend/cancel type=', e.type, 'changedIds=', Array.from(e.changedTouches).map(t=>t.identifier), 'ptrId=', ptrTouchIdRef.current);
       if (startYRef.current === null || ptrTouchIdRef.current === null) return;
 
       // PTR 손가락이 이번에 올라갔는지 확인
@@ -112,6 +115,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (!ptrTouchEnded) return;  // 다른 손가락이 올라간 것이므로 무시
 
       const shouldRefresh = maxPullRef.current >= THRESHOLD;
+      console.log('[PTR] END: maxPull=', Math.round(maxPullRef.current), 'refresh=', shouldRefresh);
       startYRef.current = null;
       pullDistRef.current = 0;
       maxPullRef.current = 0;
