@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronRight, ChevronDown, Plus, Search, Loader2, Users, X, Check, FolderOpen, MoreVertical, Pencil, Trash2, GripVertical, ArrowUpDown } from "lucide-react";
-import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import { PTRAwareTouchSensor } from "../lib/ptrAwareTouchSensor";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -210,7 +211,7 @@ export default function CommunityPage() {
 
   const sortableSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
+    useSensor(PTRAwareTouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
   );
 
   const initialize = async (userId: string) => {
@@ -1133,7 +1134,7 @@ export default function CommunityPage() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowOrderModal(false);
               }}
@@ -1231,7 +1232,7 @@ export default function CommunityPage() {
                 transition={{ type: "spring", damping: 30, stiffness: 300 }}
                 drag="y"
                 dragConstraints={{ top: 0 }}
-                dragElastic={{ top: 0, bottom: 0.3 }}
+                dragElastic={{ top: 0, bottom: 0.15 }}
                 onDragEnd={(_, info) => {
                   if (info.velocity.y > 500 || info.offset.y > 80) setShowFolderOrderModal(null);
                 }}
@@ -1320,7 +1321,7 @@ export default function CommunityPage() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowSearchModal(false);
               }}
@@ -1382,7 +1383,7 @@ export default function CommunityPage() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
                 if (info.velocity.y > 500 || info.offset.y > 80) setShowCreateModal(false);
               }}
@@ -1571,7 +1572,7 @@ export default function CommunityPage() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => { if (info.velocity.y > 500 || info.offset.y > 80) setShowAddToGroupModal(false); }}
               className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >
@@ -1611,7 +1612,7 @@ export default function CommunityPage() {
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.3 }}
+              dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => { if (info.velocity.y > 500 || info.offset.y > 80) setFolderMenuId(null); }}
               className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
             >

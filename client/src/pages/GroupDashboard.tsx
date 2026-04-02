@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { DndContext, PointerSensor, TouchSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { PTRAwareTouchSensor } from "../lib/ptrAwareTouchSensor";
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLocation, useRoute } from "wouter";
@@ -3522,7 +3523,7 @@ export default function GroupDashboard() {
 
   const sortableSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
+    useSensor(PTRAwareTouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
   );
 
   const prayerTopicOrderStorageKey = useMemo(() => {

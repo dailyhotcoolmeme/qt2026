@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { setPTRTracking } from "./ptrState";
 
 interface RefreshContextValue {
   refreshKey: number;
@@ -69,6 +70,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (pullDistRef.current > 10) {
         startYRef.current = null;
         pullDistRef.current = 0;
+        setPTRTracking(false);
         setPulling(false);
         if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       }
@@ -77,13 +79,15 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     pullDistRef.current = Math.min(dy, THRESHOLD * 1.5);
     const nowPulling = pullDistRef.current > 10;
     if (nowPulling) {
+      setPTRTracking(true);
       if (!safetyTimerRef.current) {
         safetyTimerRef.current = setTimeout(() => {
           safetyTimerRef.current = null;
           startYRef.current = null;
           pullDistRef.current = 0;
           setPulling(false);
-        }, 2000);
+          setPTRTracking(false);
+        }, 300);
       }
     }
     setPulling(nowPulling);
@@ -94,6 +98,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
     startYRef.current = null;
     pullDistRef.current = 0;
+    setPTRTracking(false);
     setPulling(false);
     if (shouldRefresh) triggerRefresh();
   }, [triggerRefresh]);
@@ -102,6 +107,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
     if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
     startYRef.current = null;
     pullDistRef.current = 0;
+    setPTRTracking(false);
     setPulling(false);
   }, []);
 
@@ -114,6 +120,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       const shouldRefresh = startYRef.current !== null && pullDistRef.current >= THRESHOLD;
       startYRef.current = null;
       pullDistRef.current = 0;
+      setPTRTracking(false);
       setPulling(false);
       if (shouldRefresh) triggerRefresh();
     };
@@ -122,6 +129,7 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
       if (safetyTimerRef.current) { clearTimeout(safetyTimerRef.current); safetyTimerRef.current = null; }
       startYRef.current = null;
       pullDistRef.current = 0;
+      setPTRTracking(false);
       setPulling(false);
     };
     window.addEventListener('touchend', onNativeTouchEnd, { passive: true, capture: true });
