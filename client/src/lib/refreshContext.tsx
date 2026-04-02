@@ -153,8 +153,8 @@ export function RefreshProvider({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center justify-center bg-black/60 backdrop-blur-sm p-2.5 rounded-full shadow-lg">
                 <motion.div
-                  animate={refreshing ? { rotate: 360 } : {}}
-                  transition={refreshing ? { duration: 0.6, repeat: Infinity, ease: "linear" } : {}}
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 0.6, repeat: Infinity, ease: "linear" }}
                   className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                 />
               </div>

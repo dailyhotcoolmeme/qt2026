@@ -879,6 +879,7 @@ export default function GroupDashboard() {
 
   const { refreshKey } = useRefresh();
   const logEvent = useLogEvent();
+  const loadedGroupIdRef = useRef<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<any | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
@@ -1200,7 +1201,8 @@ export default function GroupDashboard() {
   );
 
   const loadAll = async (targetGroupId: string, userId: string | null) => {
-    setLoading(true);
+    const isInitialLoad = loadedGroupIdRef.current !== targetGroupId;
+    if (isInitialLoad) setLoading(true);
 
     const { data: groupData, error: groupErr } = await supabase
       .from("groups")
@@ -1309,6 +1311,7 @@ export default function GroupDashboard() {
       setFaithBoardRows([]);
     }
 
+    loadedGroupIdRef.current = targetGroupId;
     setLoading(false);
   };
 
