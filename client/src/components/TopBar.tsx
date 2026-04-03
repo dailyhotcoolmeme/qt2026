@@ -473,20 +473,23 @@ export function TopBar() {
       setHasVerseCards(false); setHasPrayerBox(false); setHasFavorites(false);
       return;
     }
-    void (async () => {
-      // auth.uid() 준비 보장: getSession()으로 JWT 로컬 로드 후 RLS 정책 동작
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
       const { data: { session } } = await supabase.auth.getSession();
       const uid = session?.user?.id;
-      if (!uid) return;
+      if (!uid || cancelled) return;
       const [v, p, f] = await Promise.all([
         supabase.from("user_verse_cards").select("id").eq("user_id", uid).limit(1),
         supabase.from("prayer_box_items").select("id").eq("user_id", uid).limit(1),
         supabase.from("verse_bookmarks").select("id").eq("user_id", uid).limit(1),
       ]);
+      if (cancelled) return;
       setHasVerseCards((v.data?.length ?? 0) > 0);
       setHasPrayerBox((p.data?.length ?? 0) > 0);
       setHasFavorites((f.data?.length ?? 0) > 0);
-    })();
+    }, 1000);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [user?.id, isMenuOpen]);
 
   useEffect(() => {
@@ -570,9 +573,6 @@ export function TopBar() {
   const handleOpenNotifications = async () => {
     const nextOpen = !showNotificationPanel;
     setShowNotificationPanel(nextOpen);
-    if (nextOpen) {
-      void markAllAsRead();
-    }
     if (notificationPermission === "prompt") {
       const permission = await requestNotificationPermission();
       setNotificationPermission(permission);
