@@ -443,6 +443,17 @@ export function TopBar() {
 
     loadNotificationSettings(user.id)
       .then(async (settings) => {
+        // 네이티브 앱: OS 알림 권한 실제 상태와 비교해서 자동 보정
+        // (재설치 시 OS 권한 초기화되지만 DB 값은 true로 남아 있는 케이스 처리)
+        if (settings.pushEnabled && isNativeApp()) {
+          const permState = await getNotificationPermissionState();
+          if (permState !== "granted") {
+            const corrected = { ...settings, pushEnabled: false };
+            setNotificationSettings(corrected);
+            void saveNotificationSettings(user.id, corrected);
+            return;
+          }
+        }
         // 웹 브라우저: 실제 push 구독 존재 여부 + 권한 상태로 토글 자동 보정
         if (settings.pushEnabled && !isNativeApp()) {
           // 브라우저 알림 권한이 차단된 경우 → toggle OFF 보정
