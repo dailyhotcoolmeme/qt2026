@@ -1,4 +1,4 @@
-import { CopyObjectCommand, DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type AssetFetcher = { fetch: (request: Request) => Promise<Response> };
 
@@ -1595,6 +1595,42 @@ async function handleAdminDeleteUser(request: Request, env: Env, userId: string)
   return json(200, { ok: true });
 }
 
+function compareVersions(a: string, b: string): number {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+async function handleAppUpdateCheck(request: Request, url: URL, env: Env) {
+  const platform = url.searchParams.get("platform") || "android";
+  const currentVersion = url.searchParams.get("currentVersion") || "0.0.0";
+
+  try {
+    const { bucketName } = requireR2Env(env);
+    const s3 = getR2Client(env);
+    const key = `app-bundles/version-${platform}.json`;
+    const cmd = new GetObjectCommand({ Bucket: bucketName, Key: key });
+    const result = await s3.send(cmd);
+    const body = await (result.Body as any)?.transformToString?.() ?? "";
+    if (!body) return json(200, { needsUpdate: false });
+
+    const info = JSON.parse(body) as { latestVersion: string; bundleUrl: string };
+    const needsUpdate = compareVersions(info.latestVersion, currentVersion) > 0;
+
+    return json(200, {
+      needsUpdate,
+      latestVersion: info.latestVersion,
+      bundleUrl: needsUpdate ? info.bundleUrl : null,
+    });
+  } catch {
+    return json(200, { needsUpdate: false });
+  }
+}
+
 async function handleApi(request: Request, url: URL, env: Env) {
   if (url.pathname.startsWith("/api/card-backgrounds/")) {
     return handleCardBackgrounds(request, url);
@@ -1638,6 +1674,10 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === '/api/tts/elevenlabs') {
     return handleElevenLabsTTS(request, env);
+  }
+
+  if (url.pathname === '/api/app-update/check') {
+    return handleAppUpdateCheck(request, url, env);
   }
 
   if (url.pathname === '/api/admin/login') {

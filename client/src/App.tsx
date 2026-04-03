@@ -32,6 +32,7 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
+import { checkAndApplyUpdate } from "./lib/appUpdate";
 import InsightsDashboardPage from "./pages/InsightsDashboardPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AdminPage from "./pages/AdminPage";
@@ -169,6 +170,9 @@ if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
 }
 
 export default function App() {
+  // OTA 업데이트 체크 — 네이티브 앱에서만 실행, 웹에서는 no-op
+  useEffect(() => { void checkAndApplyUpdate(); }, []);
+
   useEffect(() => {
     let inviteJoinInFlight = false;
     let nativeUrlOpenListener: { remove: () => Promise<void> } | null = null;

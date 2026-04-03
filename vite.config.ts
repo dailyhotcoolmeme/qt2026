@@ -2,12 +2,21 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import { fileURLToPath } from "url";
+import { readFileSync } from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// client/package.json의 version을 빌드 시 앱 버전으로 사용
+const clientPkg = JSON.parse(readFileSync(path.resolve(__dirname, "client/package.json"), "utf-8"));
+const APP_VERSION: string = process.env.APP_VERSION || clientPkg.version || "0.0.0";
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    // OTA 버전 체크용 — appUpdate.ts에서 import.meta.env.VITE_APP_VERSION으로 접근
+    "import.meta.env.VITE_APP_VERSION": JSON.stringify(APP_VERSION),
+  },
   esbuild: {
     jsxInject: `import React from 'react'`,
   },
