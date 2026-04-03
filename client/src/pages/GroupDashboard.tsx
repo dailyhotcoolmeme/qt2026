@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { PTRAwareTouchSensor } from "../lib/ptrAwareTouchSensor";
@@ -1191,6 +1191,16 @@ export default function GroupDashboard() {
     return myMember?.profile?.nickname || myMember?.profile?.username ||
            ownProfile?.nickname || ownProfile?.username || "모임원";
   }, [user, members, ownProfile]);
+  // 알림 발송 시점에 항상 정확한 이름 반환 — ownProfile 미로드 시 DB 직접 조회
+  const getSenderName = useCallback(async (): Promise<string> => {
+    if (!user) return "모임원";
+    const myMember = members.find(m => m.user_id === user.id);
+    const cached = myMember?.profile?.nickname || myMember?.profile?.username ||
+                   ownProfile?.nickname || ownProfile?.username;
+    if (cached) return cached;
+    const { data } = await supabase.from("profiles").select("nickname, username").eq("id", user.id).maybeSingle();
+    return data?.nickname || data?.username || "모임원";
+  }, [user, members, ownProfile]);
   const faithMemberMap = useMemo(
     () =>
       new Map(
@@ -1462,7 +1472,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [tid],
           title: group.name,
-          body: `${myDisplayName}님이 동역자 요청을 보냈어요. 수락하면 동역자가 내 기도제목에 달린 중보기도를 확인할 수 있어요.`,
+          body: `${await getSenderName()}님이 동역자 요청을 보냈어요. 수락하면 동역자가 내 기도제목에 달린 중보기도를 확인할 수 있어요.`,
           targetPath: `/#/group/${group.id}?tab=members`,
         });
       }
@@ -1487,7 +1497,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: [requesterId],
         title: group.name,
-        body: `${myDisplayName}님이 동역자 요청을 수락했어요. 동역자 기도제목에 달린 중보기도를 확인할 수 있어요.`,
+        body: `${await getSenderName()}님이 동역자 요청을 수락했어요. 동역자 기도제목에 달린 중보기도를 확인할 수 있어요.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     } else {
@@ -2079,7 +2089,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: [group.owner_id!],
         title: group.name,
-        body: `${group.name}에 ${myDisplayName}님이 가입 신청을 했어요.`,
+        body: `${group.name}에 ${await getSenderName()}님이 가입 신청을 했어요.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     } finally {
@@ -2174,7 +2184,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [voiceUserMatch[1]],
           title: group.name,
-          body: `${group.name}의 내 기도제목에 ${myDisplayName}님이 음성기도를 남겨주셨어요.`,
+          body: `${group.name}의 내 기도제목에 ${await getSenderName()}님이 음성기도를 남겨주셨어요.`,
           targetPath: `/#/group/${group.id}?tab=prayer`,
         });
       }
@@ -2333,7 +2343,7 @@ export default function GroupDashboard() {
       sendPushToGroupMembers({
         groupId: group.id,
         title: group.name,
-        body: `${group.name}에 ${myDisplayName}님이 새 기도제목을 등록하셨어요.`,
+        body: `${group.name}에 ${await getSenderName()}님이 새 기도제목을 등록하셨어요.`,
         targetPath: `/#/group/${group.id}?tab=prayer`,
       });
     } catch (error) {
@@ -3417,7 +3427,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: managerIds,
         title: group.name,
-        body: `${group.name}에서 ${myDisplayName}님이 나갔어요.`,
+        body: `${group.name}에서 ${await getSenderName()}님이 나갔어요.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     }
@@ -3842,7 +3852,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [targetUserId],
           title: group.name,
-          body: `${group.name}의 내 기도제목에 ${myDisplayName}님이 마음기도를 남겨주셨어요.`,
+          body: `${group.name}의 내 기도제목에 ${await getSenderName()}님이 마음기도를 남겨주셨어요.`,
           targetPath: `/#/group/${group.id}?tab=prayer`,
         });
       }
@@ -3893,7 +3903,7 @@ export default function GroupDashboard() {
             groupId: group.id,
             targetUserIds: [textPrayerTargetUserId],
             title: group.name,
-            body: `${group.name}의 내 기도제목에 ${myDisplayName}님이 글기도를 남겨주셨어요.`,
+            body: `${group.name}의 내 기도제목에 ${await getSenderName()}님이 글기도를 남겨주셨어요.`,
             targetPath: `/#/group/${group.id}?tab=prayer`,
           });
         }
