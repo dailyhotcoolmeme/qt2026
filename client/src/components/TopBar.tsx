@@ -123,7 +123,11 @@ export function TopBar() {
   const handlePushOpenTarget = (targetPath: string) => {
     if (!targetPath) return;
     setShowNotificationPanel(false);
-    setLocation(targetPath);
+    if (targetPath.includes("?")) {
+      window.location.hash = "#" + targetPath;
+    } else {
+      setLocation(targetPath);
+    }
   };
 
   const handleLogout = () => setShowLogoutConfirm(true);
@@ -563,11 +567,11 @@ export function TopBar() {
   const handleNotificationClick = (item: TopNotificationItem) => {
     void markAsRead(item.id);
     setShowNotificationPanel(false);
-    if (item.type === "join_pending") {
-      window.location.hash = `#/group/${item.groupId}?tab=members`;
-      return;
+    if (item.targetPath.includes("?")) {
+      window.location.hash = "#" + item.targetPath;
+    } else {
+      setLocation(item.targetPath);
     }
-    setLocation(item.targetPath);
   };
 
   const handleOpenNotifications = async () => {
@@ -579,8 +583,6 @@ export function TopBar() {
       if (permission === "granted") {
         await syncPushSubscription(true);
       }
-    } else if (notificationPermission === "granted") {
-      await syncPushSubscription(false);
     }
   };
 
