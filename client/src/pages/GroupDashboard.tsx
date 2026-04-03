@@ -1181,7 +1181,7 @@ export default function GroupDashboard() {
   const myDisplayName = useMemo(() => {
     if (!user) return "모임원";
     const myMember = members.find(m => m.user_id === user.id);
-    return myMember?.profile?.nickname || myMember?.profile?.username || myDisplayName;
+    return myMember?.profile?.nickname || myMember?.profile?.username || "모임원";
   }, [user, members]);
   const faithMemberMap = useMemo(
     () =>
