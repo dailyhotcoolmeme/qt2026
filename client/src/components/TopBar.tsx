@@ -632,6 +632,11 @@ export function TopBar() {
           setNotificationSettings(next);
           await saveNotificationSettings(user?.id, next);
           await syncPushSubscription(true);
+        } else {
+          // 거부됨 — 토글 다시 OFF
+          const reverted = { ...notificationSettings, pushEnabled: false };
+          setNotificationSettings(reverted);
+          await saveNotificationSettings(user?.id, reverted);
         }
         return;
       }
