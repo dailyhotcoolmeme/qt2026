@@ -474,51 +474,18 @@ export function TopBar() {
       return;
     }
     const uid = user.id;
-    // 내 기도제목함 (Supabase)
-    void (async () => {
-      try {
-        const { count } = await supabase.from("prayer_box_items").select("id", { count: "exact", head: true }).eq("user_id", uid);
-        setHasPrayerBox((count ?? 0) > 0);
-      } catch { setHasPrayerBox(false); }
-    })();
-    // 말씀카드 (Supabase 우선, 0이면 로컬 폴백)
-    void (async () => {
-      try {
-        const { count } = await supabase.from("user_verse_cards").select("id", { count: "exact", head: true }).eq("user_id", uid);
-        if ((count ?? 0) > 0) { setHasVerseCards(true); return; }
-      } catch { /* 로컬 폴백으로 진행 */ }
-      // 로컬 IndexedDB → localStorage 폴백
-      try {
-        const cardKey = `verse-card-records:${uid}`;
-        const db = await new Promise<IDBDatabase | null>((resolve) => {
-          const req = window.indexedDB.open("myamen_verse_cards", 1);
-          req.onsuccess = () => resolve(req.result);
-          req.onerror = () => resolve(null);
-          req.onupgradeneeded = () => resolve(null);
-        });
-        if (db) {
-          const records = await new Promise<unknown[]>((resolve) => {
-            try {
-              const tx = db.transaction("cards", "readonly");
-              const r = tx.objectStore("cards").get(cardKey);
-              r.onsuccess = () => resolve((r.result as unknown[]) ?? []);
-              r.onerror = () => resolve([]);
-            } catch { resolve([]); }
-          });
-          db.close();
-          setHasVerseCards(records.length > 0);
-          return;
-        }
-      } catch { /* ignore */ }
-      try {
-        const raw = localStorage.getItem(`verse-card-records:${uid}`);
-        const arr = raw ? JSON.parse(raw) : [];
-        setHasVerseCards(Array.isArray(arr) && arr.length > 0);
-      } catch { setHasVerseCards(false); }
-    })();
-    // 즐겨찾기 말씀 (Supabase)
-    supabase.from("verse_bookmarks").select("id", { count: "exact", head: true }).eq("user_id", uid)
-      .then(({ count }) => setHasFavorites((count ?? 0) > 0));
+    // 내 기도제목함
+    supabase.from("prayer_box_items").select("id").eq("user_id", uid).limit(1)
+      .then(({ data }) => setHasPrayerBox((data?.length ?? 0) > 0))
+      .catch(() => setHasPrayerBox(false));
+    // 말씀카드
+    supabase.from("user_verse_cards").select("id").eq("user_id", uid).limit(1)
+      .then(({ data }) => setHasVerseCards((data?.length ?? 0) > 0))
+      .catch(() => setHasVerseCards(false));
+    // 즐겨찾기 말씀
+    supabase.from("verse_bookmarks").select("id").eq("user_id", uid).limit(1)
+      .then(({ data }) => setHasFavorites((data?.length ?? 0) > 0))
+      .catch(() => setHasFavorites(false));
   }, [user?.id, isMenuOpen]);
 
   useEffect(() => {
