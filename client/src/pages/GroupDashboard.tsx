@@ -880,6 +880,7 @@ export default function GroupDashboard() {
   const loadedGroupIdRef = useRef<string | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<any | null>(null);
+  const [ownProfile, setOwnProfile] = useState<{ nickname?: string; username?: string } | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -1094,6 +1095,12 @@ export default function GroupDashboard() {
   }, []);
 
   useEffect(() => {
+    if (!user?.id) { setOwnProfile(null); return; }
+    supabase.from("profiles").select("nickname, username").eq("id", user.id).maybeSingle()
+      .then(({ data }) => { if (data) setOwnProfile({ nickname: data.nickname ?? undefined, username: data.username ?? undefined }); });
+  }, [user?.id]);
+
+  useEffect(() => {
     if (!authReady) return;
     if (!groupId) return;
     const searchParams = new URLSearchParams(location.split("?")[1] || "");
@@ -1177,12 +1184,13 @@ export default function GroupDashboard() {
   // Removed dynamic header/tab pinning effect
 
   const isManager = role === "owner" || role === "leader";
-  // 푸시 알림용 발신자 이름 — members 프로필 우선, auth user 폴백
+  // 푸시 알림용 발신자 이름 — members 프로필 우선, 본인 profiles 테이블 폴백 (상위리더 등 비멤버 대응)
   const myDisplayName = useMemo(() => {
     if (!user) return "모임원";
     const myMember = members.find(m => m.user_id === user.id);
-    return myMember?.profile?.nickname || myMember?.profile?.username || "모임원";
-  }, [user, members]);
+    return myMember?.profile?.nickname || myMember?.profile?.username ||
+           ownProfile?.nickname || ownProfile?.username || "모임원";
+  }, [user, members, ownProfile]);
   const faithMemberMap = useMemo(
     () =>
       new Map(
