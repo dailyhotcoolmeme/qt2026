@@ -473,19 +473,20 @@ export function TopBar() {
       setHasVerseCards(false); setHasPrayerBox(false); setHasFavorites(false);
       return;
     }
-    const uid = user.id;
-    // 내 기도제목함
-    supabase.from("prayer_box_items").select("id").eq("user_id", uid).limit(1)
-      .then(({ data }) => setHasPrayerBox((data?.length ?? 0) > 0))
-      .catch(() => setHasPrayerBox(false));
-    // 말씀카드
-    supabase.from("user_verse_cards").select("id").eq("user_id", uid).limit(1)
-      .then(({ data }) => setHasVerseCards((data?.length ?? 0) > 0))
-      .catch(() => setHasVerseCards(false));
-    // 즐겨찾기 말씀
-    supabase.from("verse_bookmarks").select("id").eq("user_id", uid).limit(1)
-      .then(({ data }) => setHasFavorites((data?.length ?? 0) > 0))
-      .catch(() => setHasFavorites(false));
+    void (async () => {
+      // auth.uid() 준비 보장: getUser() 먼저 호출해야 RLS 정책이 정상 동작
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const uid = authUser?.id;
+      if (!uid) return;
+      const [v, p, f] = await Promise.all([
+        supabase.from("user_verse_cards").select("id").eq("user_id", uid).limit(1),
+        supabase.from("prayer_box_items").select("id").eq("user_id", uid).limit(1),
+        supabase.from("verse_bookmarks").select("id").eq("user_id", uid).limit(1),
+      ]);
+      setHasVerseCards((v.data?.length ?? 0) > 0);
+      setHasPrayerBox((p.data?.length ?? 0) > 0);
+      setHasFavorites((f.data?.length ?? 0) > 0);
+    })();
   }, [user?.id, isMenuOpen]);
 
   useEffect(() => {
