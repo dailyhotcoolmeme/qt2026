@@ -1448,7 +1448,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [tid],
           title: group.name,
-          body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 보냈습니다.`,
+          body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 보냈어요. 수락하면 동역자가 내 기도제목에 달린 중보기도를 확인할 수 있어요.`,
           targetPath: `/#/group/${group.id}?tab=members`,
         });
       }
@@ -1473,7 +1473,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: [requesterId],
         title: group.name,
-        body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 수락했습니다.`,
+        body: `${user.nickname || user.username || "모임원"}님이 동역자 요청을 수락했어요. 동역자 기도제목에 달린 중보기도를 확인할 수 있어요.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     } else {
@@ -2065,7 +2065,7 @@ export default function GroupDashboard() {
         groupId: group.id,
         targetUserIds: [group.owner_id!],
         title: group.name,
-        body: `새 가입 신청이 접수되었습니다.`,
+        body: `${group.name}에 ${user.nickname || user.username || "모임원"}님이 가입 신청을 했어요.`,
         targetPath: `/#/group/${group.id}?tab=members`,
       });
     } finally {
@@ -2160,7 +2160,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [voiceUserMatch[1]],
           title: group.name,
-          body: `내 기도제목에 음성기도가 전달되었습니다.`,
+          body: `${group.name}의 내 기도제목에 ${user.nickname || user.username || "모임원"}님이 음성기도를 남겨주셨어요.`,
           targetPath: `/#/group/${group.id}?tab=prayer`,
         });
       }
@@ -2319,7 +2319,7 @@ export default function GroupDashboard() {
       sendPushToGroupMembers({
         groupId: group.id,
         title: group.name,
-        body: `새 기도제목이 등록되었습니다.`,
+        body: `${group.name}에 ${user.nickname || user.username || "모임원"}님이 새 기도제목을 등록하셨어요.`,
         targetPath: `/#/group/${group.id}?tab=prayer`,
       });
     } catch (error) {
@@ -2876,7 +2876,7 @@ export default function GroupDashboard() {
     sendPushToGroupMembers({
       groupId: group.id,
       title: group.name,
-      body: `새 게시글이 등록되었습니다.`,
+      body: `${group.name}에 새 교제나눔글이 등록되었어요.`,
       targetPath: `/#/group/${group.id}?tab=social`,
     });
   };
@@ -2918,7 +2918,7 @@ export default function GroupDashboard() {
             groupId: group.id,
             targetUserIds: [post.author_id],
             title: group.name,
-            body: `내 게시글에 좋아요가 달렸습니다.`,
+            body: `${group.name}의 내 게시글에 좋아요가 달렸어요.`,
             targetPath: `/#/group/${group.id}?tab=social`,
           });
         }
@@ -2949,7 +2949,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [post.author_id],
           title: group.name,
-          body: `내 게시글에 댓글이 달렸습니다.`,
+          body: `${group.name}의 내 게시글에 댓글이 달렸어요.`,
           targetPath: `/#/group/${group.id}?tab=social`,
         });
       }
@@ -3060,7 +3060,17 @@ export default function GroupDashboard() {
       return;
     }
 
+    const req = joinRequests.find(r => r.id === requestId);
     await loadAll(group.id, user.id);
+    if (req) {
+      sendPushToGroupUsers({
+        groupId: group.id,
+        targetUserIds: [req.user_id],
+        title: group.name,
+        body: `${group.name} 가입 신청이 ${approve ? "승인" : "거절"}되었어요.`,
+        targetPath: `/#/group/${group.id}`,
+      });
+    }
     alert(approve ? "가입 요청을 승인했습니다." : "가입 요청을 거절했습니다.");
   };
 
@@ -3383,6 +3393,19 @@ export default function GroupDashboard() {
         alert("모임 나가기에 실패했습니다.");
       }
       return;
+    }
+    // 관리자에게 탈퇴 알림
+    const managerIds = members
+      .filter(m => ["owner", "leader"].includes(m.role) && m.user_id !== user.id)
+      .map(m => m.user_id);
+    if (managerIds.length > 0) {
+      sendPushToGroupUsers({
+        groupId: group.id,
+        targetUserIds: managerIds,
+        title: group.name,
+        body: `${group.name}에서 ${user.nickname || user.username || "모임원"}님이 나갔어요.`,
+        targetPath: `/#/group/${group.id}?tab=members`,
+      });
     }
     alert("모임에서 나갔습니다.");
     setLocation("/community?list=1");
@@ -3805,7 +3828,7 @@ export default function GroupDashboard() {
           groupId: group.id,
           targetUserIds: [targetUserId],
           title: group.name,
-          body: `내 기도제목에 마음기도가 전달되었습니다.`,
+          body: `${group.name}의 내 기도제목에 ${user.nickname || user.username || "모임원"}님이 마음기도를 남겨주셨어요.`,
           targetPath: `/#/group/${group.id}?tab=prayer`,
         });
       }
@@ -3856,7 +3879,7 @@ export default function GroupDashboard() {
             groupId: group.id,
             targetUserIds: [textPrayerTargetUserId],
             title: group.name,
-            body: `내 기도제목에 글기도가 전달되었습니다.`,
+            body: `${group.name}의 내 기도제목에 ${user.nickname || user.username || "모임원"}님이 글기도를 남겨주셨어요.`,
             targetPath: `/#/group/${group.id}?tab=prayer`,
           });
         }
