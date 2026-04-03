@@ -19,6 +19,7 @@ React/TypeScript PWA (client/)
 - `@capacitor/filesystem` — 이미지 저장
 - `@capacitor/share` — 공유 기능
 - `@capacitor/status-bar`, `@capacitor/splash-screen`
+- `@capawesome/capacitor-live-update@8.2.1` — OTA 업데이트 ✅ 설치 완료
 
 **웹 배포:** Cloudflare Worker (`cloudflare/worker.ts`) + R2  
 **DB:** Supabase (프로젝트 ID: `zjnxvdhjbzqrlbrzrxit`)
@@ -30,176 +31,209 @@ React/TypeScript PWA (client/)
 ### 원칙
 - 네이티브 코드(플러그인, 권한) 변경이 없으면 스토어 심사 불필요
 - JS/CSS/HTML(React 코드) 변경은 OTA로 배포 → 심사 없이 즉시 반영
-- Remote WebView(server.url 방식)는 사용하지 말 것 — Apple §4.2.2 리젝 위험
+- Remote WebView(`server.url` 방식)는 절대 사용 금지 — Apple §4.2.2 리젝
 
 ---
 
-## 출시 전 구현 목록
+## 구현 완료 현황
 
-### ✅ 1단계: 기능 플래그 시스템 (스토어 심사 불필요)
+### ✅ 기능 플래그 시스템
+- Supabase `feature_flags` 테이블 생성 및 적용 완료
+- `client/src/lib/useFeatureFlag.ts` — React 훅
+- `client/src/lib/useFeatureFlag.ts` — `getFeatureFlag()` 비동기 함수
+- 사용법: `const isEnabled = useFeatureFlag('key');`
+- 새 플래그 추가 시 Supabase 대시보드에서 row 추가만 하면 됨
 
-**목적:** DB row 하나로 새 기능 on/off — 앱 업데이트 없이 기능 활성화/비활성화 가능
-
-**구현 방법:**
-
-```sql
--- Supabase에 실행 (supabase/migrations/ 에 파일 추가)
-create table feature_flags (
-  key text primary key,
-  enabled boolean default false,
-  description text,
-  updated_at timestamptz default now()
-);
-
--- 초기 데이터 예시
-insert into feature_flags (key, enabled, description) values
-  ('new_prayer_ui', false, '새 기도 UI'),
-  ('bible_ai', false, 'AI 성경 기능'),
-  ('group_stats', false, '모임 통계');
-```
-
-**프론트엔드:** `client/src/lib/useFeatureFlag.ts` 훅 사용
-
-```ts
-const isEnabled = useFeatureFlag('new_prayer_ui');
-```
-
-**상태:** [ ] 미구현 → 출시 전 구현 필요
+### ✅ OTA 업데이트 시스템
+- `client/src/lib/appUpdate.ts` — 앱 시작 시 버전 체크 + 자동 적용
+- `App.tsx` — 마운트 시 `checkAndApplyUpdate()` 자동 호출
+- `cloudflare/worker.ts` — `/api/app-update/check` 엔드포인트 배포 완료
+- `scripts/upload-bundle.mjs` — 빌드 + R2 업로드 스크립트
+- `@capawesome/capacitor-live-update@8.2.1` — 네이티브 플러그인 설치 + `cap sync` 완료
+- **R2에 v1.0.0 초기 번들 업로드 완료** (`myamen-assets/app-bundles/`)
+- 현재 테스트용 APK(v1.0.0) 기기에 설치됨
 
 ---
 
-### ✅ 2단계: OTA (Over-the-Air) 업데이트 시스템
+## 테스트 기간 운용 방법
 
-**목적:** 스토어 심사 없이 앱 업데이트 배포. 딱 1번 심사에 포함시키면 이후 JS 변경은 심사 없이 배포.
+### JS/화면 변경사항 배포 (APK 재빌드 없음)
 
-**작동 원리:**
-```
-앱 시작
-  → Cloudflare Worker /api/app-update/check 호출
-  → 현재 번들 버전과 최신 버전 비교
-  → 새 버전 있으면 R2에서 bundle.zip 다운로드
-  → Capacitor Filesystem에 압축 해제
-  → App.reload() → 새 번들 즉시 적용
-```
+```bash
+# 1. client/package.json 의 version을 올린다 (예: 1.0.0 → 1.0.1)
+# 2. 웹 빌드
+cd client && npm run build
 
-#### 2-1. Cloudflare Worker 수정 (`cloudflare/worker.ts`)
+# 3. OTA 번들 R2 업로드 (version은 package.json과 맞춤)
+cd .. && APP_VERSION=1.0.1 node scripts/upload-bundle.mjs
 
-추가할 엔드포인트:
-```
-GET /api/app-update/check?platform=android&currentVersion=1.0.0
-→ { needsUpdate: true, latestVersion: "1.0.3", bundleUrl: "https://r2.../bundle-1.0.3.zip" }
+# 끝. 앱 재시작 시 자동으로 새 버전 수신 + 적용됨
 ```
 
-R2 버킷: `myamen-bundles` (별도 버킷, 현재 이미지 버킷과 분리)
+> ⚠️ `APP_VERSION`은 반드시 현재 설치된 APK 버전보다 높아야 업데이트됨
+> - 현재 설치된 APK: **v1.0.0**
+> - 다음 OTA 배포 시: **v1.0.1** 이상 사용
 
-#### 2-2. 빌드 스크립트 추가 (`scripts/upload-bundle.mjs`)
+### 현재 APK로 계속 테스트 가능
+지금 설치된 APK를 그대로 사용하면 됨. JS 변경이 생기면 위 OTA 배포 명령만 실행하면
+앱 재시작 시 자동으로 최신 코드로 업데이트됨.
 
-```
-npm run build:release 실행 시:
-  1. vite build → dist/ 생성
-  2. dist/ → bundle-{버전}.zip 압축
-  3. R2 myamen-bundles 버킷에 업로드
-  4. version.json 업데이트 { latestVersion, platform, bundleUrl }
-```
-
-#### 2-3. 앱 시작 로직 추가 (`client/src/lib/appUpdate.ts`)
-
-- `isNativeApp()` 가드로 웹 버전에는 실행 안 됨 — 웹 서비스 영향 없음
-- 앱이 포그라운드로 돌아올 때도 체크 (앱 껐다 켜지 않아도 업데이트 적용)
-
-#### 2-4. 네이티브 플러그인 설치 ← **스토어 제출 시 반드시 포함**
-
+### 네이티브 변경 시에만 APK 재빌드 필요
 ```bash
 cd client
-npm install @capawesome/capacitor-live-update
-npx cap sync
+npm run build
+ANDROID_HOME=~/Library/Android/sdk npx cap sync android
+cd android && ANDROID_HOME=~/Library/Android/sdk ./gradlew assembleDebug
+# APK: client/android/app/build/outputs/apk/debug/app-debug.apk
 ```
-
-> ⚠️ 이 단계가 빠지면 OTA가 작동하지 않음.
-> 반드시 스토어 제출 빌드에 포함되어야 함.
-
-**상태:** [ ] 미구현 → 출시 전 구현 필요
 
 ---
 
-## 출시 직전 체크리스트 (빼먹으면 안 되는 것들)
+## 스토어 출시 직전 체크리스트
 
-### 앱 설정
+### ① 앱 버전 및 설정
 
-- [ ] `capacitor.config.ts` — `server.url` 이 없는지 확인 (있으면 제거, Apple 리젝 원인)
+- [ ] `client/package.json` — version 확인 (예: `"version": "1.0.0"`)
+- [ ] `client/android/app/build.gradle` — `versionCode`, `versionName` 업데이트
+  ```gradle
+  android {
+      defaultConfig {
+          versionCode 1       // 스토어에 올릴 때마다 +1 (정수)
+          versionName "1.0.0" // 사용자에게 보이는 버전
+      }
+  }
+  ```
+- [ ] `capacitor.config.ts` — `server.url` 없는지 확인 (있으면 제거)
 - [ ] `capacitor.config.ts` — `appId: 'com.myamen.app'` 확인
-- [ ] 앱 버전 번호 업데이트 (`client/package.json` + Android/iOS 각각)
-- [ ] SplashScreen 이미지 실제 앱 이미지로 교체 (현재 기본값)
-- [ ] 앱 아이콘 설정 완료 여부 확인
 
-### OTA 관련
+### ② 앱 아이콘 / 스플래시 스크린
 
-- [ ] `@capawesome/capacitor-live-update` 플러그인 설치 완료
-- [ ] `npx cap sync` 실행 완료
-- [ ] `scripts/upload-bundle.mjs` 스크립트 작동 확인
-- [ ] Cloudflare R2 `myamen-bundles` 버킷 생성 및 public 설정
-- [ ] Worker `/api/app-update/check` 엔드포인트 배포 완료
-- [ ] 첫 번째 번들 업로드 완료 (초기 버전 `1.0.0`)
-- [ ] `isNativeApp()` 가드 확인 — 웹에서 실행 안 되는지 테스트
+- [ ] 앱 아이콘 교체
+  - Android: `client/android/app/src/main/res/mipmap-*/` 폴더 안 ic_launcher.png 교체
+  - 권장 도구: `npx @capacitor/assets generate` (1024x1024 원본 이미지 필요)
+- [ ] SplashScreen 배경색 확인 (`capacitor.config.ts` → `backgroundColor: '#E8F5E9'`)
 
-### 기능 플래그
+### ③ OTA 관련 (이미 완료, 확인만)
 
-- [ ] `feature_flags` 테이블 마이그레이션 적용 완료
-- [ ] 출시 시점에 활성화할 플래그 확인
+- [x] `@capawesome/capacitor-live-update` 플러그인 설치 완료
+- [x] `npx cap sync android` 완료
+- [x] Worker `/api/app-update/check` 엔드포인트 배포 완료
+- [x] R2에 초기 번들 v1.0.0 업로드 완료
+- [ ] **스토어 제출 직전:** 최종 빌드 버전으로 OTA 번들 업로드
+  ```bash
+  APP_VERSION=1.0.0 node scripts/upload-bundle.mjs
+  ```
 
-### 푸시 알림
+### ④ 푸시 알림
 
-- [ ] FCM 서버 키 (`FIREBASE_SERVER_KEY`) Cloudflare Worker 환경변수 설정 확인
-- [ ] APN (iOS 푸시) 인증서 설정 완료
-- [ ] 테스트 디바이스에서 푸시 수신 확인
+- [ ] FCM 설정 확인
+  - `client/android/app/google-services.json` 최신 버전인지 확인
+  - Cloudflare Worker secrets에 `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY` 설정 여부 확인
+    ```bash
+    npx wrangler secret list  # 목록 확인
+    ```
+- [ ] APN (iOS 푸시) — iOS 빌드 시 설정 필요
+  - Apple Developer → Certificates → APNs Key 생성
+  - Firebase Console → 프로젝트 설정 → APNs 인증서 업로드
 
-### Supabase / 보안
+### ⑤ Android Release 빌드 (서명)
 
-- [ ] Supabase 프로젝트 plan 확인 (Free tier 제한 초과 여부)
-- [ ] RLS 정책 전체 점검
-- [ ] admin 페이지 접근 제한 확인 (`/#/admin`)
+> ⚠️ Debug APK는 스토어 제출 불가. Release APK에 keystore 서명 필요.
 
-### Android 빌드
-
-- [ ] keystore 파일 안전하게 보관 (분실 시 앱 업데이트 불가)
-- [ ] `google-services.json` 최신 버전 확인
-- [ ] minimum SDK 버전 확인 (현재 타겟 안드로이드 버전)
-- [ ] APK 서명 빌드 (release 빌드, debug 아님)
-
-### iOS 빌드
-
-- [ ] Apple Developer 계정 활성화 확인
-- [ ] Provisioning Profile + Certificate 유효 기간 확인
-- [ ] `GoogleService-Info.plist` 최신 버전 확인
-- [ ] TestFlight 내부 테스트 완료
-
-### 스토어 등록 정보
-
-- [ ] 앱 스크린샷 준비 (iOS: 6.7인치, 6.5인치 / Android: 폰, 태블릿)
-- [ ] 앱 설명(국문) 작성
-- [ ] 개인정보처리방침 URL 준비 (필수)
-- [ ] 지원 URL 준비
-
----
-
-## 배포 흐름 (출시 이후)
-
-### 웹 변경사항 (심사 없음)
+**Keystore 생성 (최초 1회, 분실 시 앱 업데이트 영구 불가)**
 ```bash
-npm run build:release
-# dist/ 빌드 → R2에 번들 업로드 → version.json 업데이트
-# 앱 사용자들이 다음 실행 시 자동으로 새 버전 수신
+keytool -genkey -v -keystore myamen-release.keystore \
+  -alias myamen -keyalg RSA -keysize 2048 -validity 10000
+```
+→ 생성된 `myamen-release.keystore` 파일을 **절대 분실/공개하지 말 것**
+→ 안전한 곳에 백업 (iCloud, 외장하드 등)
+
+**`client/android/app/build.gradle` 서명 설정 추가**
+```gradle
+android {
+    signingConfigs {
+        release {
+            storeFile file('/경로/myamen-release.keystore')
+            storePassword '설정한_비밀번호'
+            keyAlias 'myamen'
+            keyPassword '설정한_비밀번호'
+        }
+    }
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+}
 ```
 
-### 네이티브 변경사항 (심사 필요)
-- Capacitor 플러그인 추가/제거
-- Android/iOS 권한 변경
-- 네이티브 모듈 코드 변경
+**Release APK 빌드**
+```bash
+cd client
+npm run build
+ANDROID_HOME=~/Library/Android/sdk npx cap sync android
+cd android
+ANDROID_HOME=~/Library/Android/sdk ./gradlew assembleRelease
+# 결과: app/build/outputs/apk/release/app-release.apk
+```
+
+### ⑥ Google Play Store 등록
+
+- [ ] [Google Play Console](https://play.google.com/console) 접속
+- [ ] 앱 생성 → `com.myamen.app`
+- [ ] 앱 설명(국문) 작성 (최대 4000자)
+- [ ] 스크린샷 준비
+  - 폰: 최소 2장 (권장 16:9 또는 9:16, 최소 320px)
+  - 태블릿: 선택사항
+- [ ] 개인정보처리방침 URL 등록 (필수 — 없으면 심사 거부)
+- [ ] 앱 카테고리 선택: `종교/신앙` 또는 `라이프스타일`
+- [ ] 콘텐츠 등급 설문 완료
+- [ ] Release APK 업로드 → 검토 제출
+
+### ⑦ iOS 빌드 및 App Store 등록 (추후)
+
+- [ ] Apple Developer Program 등록 ($99/년)
+- [ ] Xcode에서 `client/ios` 프로젝트 열기
+- [ ] Bundle ID `com.myamen.app` 확인
+- [ ] Provisioning Profile 생성
+- [ ] `GoogleService-Info.plist` 추가 (iOS FCM용)
+- [ ] Archive → App Store Connect 업로드
+- [ ] TestFlight 내부 테스트 완료 후 심사 제출
 
 ---
 
-## 참고 사항
+## 출시 이후 JS 변경 배포 흐름
 
-- **절대 하지 말 것:** `capacitor.config.ts`에 `server.url` 추가 — Apple §4.2.2 리젝
-- **OTA 작동 조건:** 네이티브 앱에 `@capawesome/capacitor-live-update` 플러그인이 포함된 빌드가 스토어에 올라가 있어야 함
-- **웹 서비스 영향:** 기능 플래그, OTA 로직 모두 `isNativeApp()` 가드로 웹에는 영향 없음
+```
+코드 수정
+  → cd client && npm run build
+  → cd .. && APP_VERSION=x.x.x node scripts/upload-bundle.mjs
+  → 완료 (사용자 앱 재시작 시 자동 업데이트)
+```
+
+**버전 관리 규칙 (권장)**
+- 버그 수정: `1.0.0 → 1.0.1`
+- 기능 추가: `1.0.0 → 1.1.0`
+- 네이티브 변경 (APK 재빌드 필요): `1.0.0 → 2.0.0`
+
+---
+
+## 네이티브 변경이 필요한 경우 (APK 재빌드 + 스토어 재심사)
+
+| 변경 사항 | 재빌드 필요 |
+|-----------|------------|
+| JS/화면/기능 수정 | ❌ OTA로 처리 |
+| Capacitor 플러그인 추가 | ✅ |
+| AndroidManifest.xml 권한 추가 | ✅ |
+| 앱 아이콘 / 패키지명 변경 | ✅ |
+| 스토어 심사 통과 후 업데이트 | ✅ (versionCode +1) |
+
+---
+
+## 주의사항
+
+- **`capacitor.config.ts`에 `server.url` 절대 추가 금지** — Apple §4.2.2 리젝
+- **Keystore 분실 = 앱 업데이트 불가** — 반드시 백업
+- **OTA 버전은 항상 현재 설치된 버전보다 높아야 함** — 같거나 낮으면 무시됨
+- **`.env`, `.dev.vars` 파일은 git에 올라가지 않도록** — `.gitignore` 확인
