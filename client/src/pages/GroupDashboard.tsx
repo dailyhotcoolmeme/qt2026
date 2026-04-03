@@ -6921,7 +6921,7 @@ export default function GroupDashboard() {
                 );
               })}
             </div>
-            <div className="px-6 pt-4">
+            <div className="px-6 pt-4" style={{ paddingBottom: "calc(1.25rem + var(--safe-bottom-inset))" }}>
               <button
                 disabled={!selectedShareUserIds.size}
                 onClick={async () => {
