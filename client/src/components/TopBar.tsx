@@ -474,9 +474,9 @@ export function TopBar() {
       return;
     }
     void (async () => {
-      // auth.uid() 준비 보장: getUser() 먼저 호출해야 RLS 정책이 정상 동작
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      const uid = authUser?.id;
+      // auth.uid() 준비 보장: getSession()으로 JWT 로컬 로드 후 RLS 정책 동작
+      const { data: { session } } = await supabase.auth.getSession();
+      const uid = session?.user?.id;
       if (!uid) return;
       const [v, p, f] = await Promise.all([
         supabase.from("user_verse_cards").select("id").eq("user_id", uid).limit(1),
