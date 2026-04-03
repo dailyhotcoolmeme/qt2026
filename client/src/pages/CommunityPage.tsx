@@ -61,12 +61,6 @@ const saveCollapsed = (ids: Set<string>) => {
   localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...ids]));
 };
 
-const getFolderItemOrder = (userId: string, folderId: string): string[] => {
-  try { return JSON.parse(localStorage.getItem(`community-folder-order:${userId}:${folderId}`) || "[]"); } catch { return []; }
-};
-const saveFolderItemOrderLocal = (userId: string, folderId: string, ids: string[]) => {
-  localStorage.setItem(`community-folder-order:${userId}:${folderId}`, JSON.stringify(ids));
-};
 
 function sanitizeFileName(name: string) {
   return String(name || "file").replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -169,6 +163,8 @@ export default function CommunityPage() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showFolderOrderModal, setShowFolderOrderModal] = useState<string | null>(null);
   const [topLevelOrder, setTopLevelOrder] = useState<string[]>([]);
+  const [dbTopOrder, setDbTopOrder] = useState<string[]>([]);
+  const [dbTopOrderLoaded, setDbTopOrderLoaded] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -487,50 +483,50 @@ export default function CommunityPage() {
       const jg = joinedGroups.find((j) => j.group.id === item.group_id);
       if (jg && map.has(item.folder_id)) map.get(item.folder_id)!.push(jg);
     });
-    // localStorage에 저장된 순서 적용
-    if (user) {
-      folders.forEach((f) => {
-        const saved = getFolderItemOrder(user.id, f.id);
-        if (!saved.length) return;
-        const current = map.get(f.id) ?? [];
-        map.set(f.id, [
-          ...saved.map(id => current.find(jg => jg.group.id === id)).filter((x): x is JoinedGroup => !!x),
-          ...current.filter(jg => !saved.includes(jg.group.id)),
-        ]);
-      });
-    }
     return map;
   }, [folders, folderItems, joinedGroups, user?.id]);
 
-  const topLevelOrderKey = useMemo(() => user ? `community-top-order:${user.id}` : null, [user?.id]);
+  // DB에서 저장된 최상위 순서 로드 (앱 재설치 후에도 복원)
+  useEffect(() => {
+    if (!user?.id) { setDbTopOrder([]); setDbTopOrderLoaded(false); return; }
+    let alive = true;
+    (async () => {
+      let order: string[] = [];
+      try {
+        const { data } = await supabase
+          .from("user_community_top_order")
+          .select("ordered_ids")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (alive && Array.isArray(data?.ordered_ids)) order = data.ordered_ids as string[];
+      } catch {}
+      // localStorage 폴백
+      if (!order.length) {
+        try {
+          const raw = localStorage.getItem(`community-top-order:${user.id}`);
+          if (raw) order = JSON.parse(raw) as string[];
+        } catch {}
+      }
+      if (alive) { setDbTopOrder(order); setDbTopOrderLoaded(true); }
+    })();
+    return () => { alive = false; };
+  }, [user?.id]);
 
   useEffect(() => {
-    if (!user) { setTopLevelOrder([]); return; }
+    if (!user || !dbTopOrderLoaded) return;
     const allIds = [
       ...folders.map(f => `folder:${f.id}`),
       ...ungroupedGroups.map(g => `group:${g.group.id}`),
     ];
     if (!allIds.length) { setTopLevelOrder([]); return; }
-    let saved: string[] = [];
-    if (topLevelOrderKey) {
-      try {
-        const raw = localStorage.getItem(topLevelOrderKey);
-        saved = raw ? (JSON.parse(raw) as string[]) : [];
-      } catch { saved = []; }
-    }
     const next = [
-      ...saved.filter(id => allIds.includes(id)),
-      ...allIds.filter(id => !saved.includes(id)),
+      ...dbTopOrder.filter(id => allIds.includes(id)),
+      ...allIds.filter(id => !dbTopOrder.includes(id)),
     ];
     setTopLevelOrder(prev =>
       prev.length === next.length && prev.every((v, i) => v === next[i]) ? prev : next
     );
-  }, [folders, ungroupedGroups, topLevelOrderKey, user?.id]);
-
-  useEffect(() => {
-    if (!topLevelOrderKey || !topLevelOrder.length || loading) return;
-    localStorage.setItem(topLevelOrderKey, JSON.stringify(topLevelOrder));
-  }, [topLevelOrder, topLevelOrderKey, loading]);
+  }, [folders, ungroupedGroups, dbTopOrderLoaded, user?.id]);
 
   const orderedTopLevel = useMemo(() => {
     const folderMap = new Map(folders.map(f => [`folder:${f.id}`, f]));
@@ -613,6 +609,7 @@ export default function CommunityPage() {
   const saveTopLevelOrder = async (newOrder: string[]) => {
     setTopLevelOrder(newOrder);
     if (!user) return;
+    // 폴더 sort_order 업데이트
     const folderEntries = newOrder
       .filter(id => id.startsWith('folder:'))
       .map((id, idx) => ({ folderId: id.slice(7), order: idx }));
@@ -621,17 +618,31 @@ export default function CommunityPage() {
         supabase.from("user_group_folders").update({ sort_order: order }).eq("id", folderId).eq("user_id", user.id)
       )
     );
+    // 전체 순서(폴더+미분류 그룹 혼합) DB 저장
+    supabase.from("user_community_top_order").upsert(
+      { user_id: user.id, ordered_ids: newOrder, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" }
+    ).then();
   };
 
   const saveFolderItemOrder = async (folderId: string, newGroupIds: string[]) => {
     if (!user) return;
-    saveFolderItemOrderLocal(user.id, folderId, newGroupIds);
+    // 낙관적 로컬 업데이트
     setFolderItems(prev =>
       prev.map(item => {
         if (item.folder_id !== folderId) return item;
         const idx = newGroupIds.indexOf(item.group_id);
         return { ...item, sort_order: idx >= 0 ? idx : 999 };
       })
+    );
+    // DB 저장
+    await Promise.all(
+      newGroupIds.map((groupId, idx) =>
+        supabase.from("user_group_folder_items")
+          .update({ sort_order: idx })
+          .eq("folder_id", folderId)
+          .eq("group_id", groupId)
+      )
     );
   };
 

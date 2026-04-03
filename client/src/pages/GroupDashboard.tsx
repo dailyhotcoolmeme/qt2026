@@ -916,6 +916,7 @@ export default function GroupDashboard() {
   const [savingPrayerTopicId, setSavingPrayerTopicId] = useState<number | null>(null);
   const [prayerTopicAuthorOrder, setPrayerTopicAuthorOrder] = useState<string[]>([]);
   const [myPrayerTopicOrder, setMyPrayerTopicOrder] = useState<number[]>([]);
+  const [dbPrayerOrder, setDbPrayerOrder] = useState<{ topicIds: number[]; authorIds: string[] } | null>(null);
 
   const [recordTitle, setRecordTitle] = useState("");
   const [isRecording, setIsRecording] = useState(false);
@@ -3451,13 +3452,48 @@ export default function GroupDashboard() {
     }));
   }, [groupPrayerTopics, authorMap]);
 
-  const myPrayerTopicOrderStorageKey = useMemo(() => {
-    if (!group?.id || !user?.id) return null;
-    return `group-prayer-topic-item-order:${group.id}:${user.id}`;
+  // DB에서 기도제목 순서 로드 (앱 재설치 후에도 복원)
+  useEffect(() => {
+    if (!group?.id || !user?.id) { setDbPrayerOrder(null); return; }
+    let alive = true;
+    (async () => {
+      let topicIds: number[] = [];
+      let authorIds: string[] = [];
+      try {
+        const { data } = await supabase
+          .from("user_prayer_topic_order")
+          .select("ordered_topic_ids, ordered_author_ids")
+          .eq("user_id", user.id)
+          .eq("group_id", group.id)
+          .maybeSingle();
+        if (alive && data) {
+          if (Array.isArray(data.ordered_topic_ids)) topicIds = data.ordered_topic_ids as number[];
+          if (Array.isArray(data.ordered_author_ids)) authorIds = data.ordered_author_ids as string[];
+        }
+      } catch {}
+      // localStorage 폴백
+      if (!topicIds.length) {
+        try {
+          const raw = localStorage.getItem(`group-prayer-topic-item-order:${group.id}:${user.id}`);
+          const parsed = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(parsed)) topicIds = parsed.filter((v): v is number => typeof v === "number");
+        } catch {}
+      }
+      if (!authorIds.length) {
+        try {
+          const raw = localStorage.getItem(`group-prayer-topic-order:${group.id}:${user.id}`);
+          const parsed = raw ? JSON.parse(raw) : [];
+          if (Array.isArray(parsed)) authorIds = parsed.filter((v): v is string => typeof v === "string");
+        } catch {}
+      }
+      if (alive) setDbPrayerOrder({ topicIds, authorIds });
+    })();
+    return () => { alive = false; };
   }, [group?.id, user?.id]);
 
+
   useEffect(() => {
-    if (!user?.id) {
+    if (!user?.id || dbPrayerOrder === null) {
       setMyPrayerTopicOrder([]);
       return;
     }
@@ -3471,19 +3507,7 @@ export default function GroupDashboard() {
       return;
     }
 
-    let savedOrder: number[] = [];
-    if (myPrayerTopicOrderStorageKey) {
-      try {
-        const raw = localStorage.getItem(myPrayerTopicOrderStorageKey);
-        const parsed = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) {
-          savedOrder = parsed.filter((value): value is number => typeof value === "number");
-        }
-      } catch {
-        savedOrder = [];
-      }
-    }
-
+    const savedOrder = dbPrayerOrder.topicIds;
     const nextOrder = [
       ...savedOrder.filter((id) => topicIds.includes(id)),
       ...topicIds.filter((id) => !savedOrder.includes(id)),
@@ -3494,12 +3518,15 @@ export default function GroupDashboard() {
         ? prev
         : nextOrder
     ));
-  }, [groupPrayerTopics, myPrayerTopicOrderStorageKey, user?.id]);
+  }, [groupPrayerTopics, dbPrayerOrder, user?.id]);
 
   useEffect(() => {
-    if (!myPrayerTopicOrderStorageKey || !myPrayerTopicOrder.length) return;
-    localStorage.setItem(myPrayerTopicOrderStorageKey, JSON.stringify(myPrayerTopicOrder));
-  }, [myPrayerTopicOrder, myPrayerTopicOrderStorageKey]);
+    if (!myPrayerTopicOrder.length || !group?.id || !user?.id) return;
+    supabase.from("user_prayer_topic_order").upsert(
+      { user_id: user.id, group_id: group.id, ordered_topic_ids: myPrayerTopicOrder, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,group_id" }
+    ).then();
+  }, [myPrayerTopicOrder, group?.id, user?.id]);
 
   const orderedMyPrayerTopics = useMemo(() => {
     if (!user?.id) return [];
@@ -3528,31 +3555,14 @@ export default function GroupDashboard() {
     useSensor(PTRAwareTouchSensor, { activationConstraint: { delay: 220, tolerance: 10 } })
   );
 
-  const prayerTopicOrderStorageKey = useMemo(() => {
-    if (!group?.id) return null;
-    return `group-prayer-topic-order:${group.id}:${user?.id ?? "guest"}`;
-  }, [group?.id, user?.id]);
-
   useEffect(() => {
     const authorIds = topicsByAuthor.map((item) => item.userId);
-    if (!authorIds.length) {
+    if (!authorIds.length || dbPrayerOrder === null) {
       setPrayerTopicAuthorOrder([]);
       return;
     }
 
-    let savedOrder: string[] = [];
-    if (prayerTopicOrderStorageKey) {
-      try {
-        const raw = localStorage.getItem(prayerTopicOrderStorageKey);
-        const parsed = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(parsed)) {
-          savedOrder = parsed.filter((value): value is string => typeof value === "string");
-        }
-      } catch {
-        savedOrder = [];
-      }
-    }
-
+    const savedOrder = dbPrayerOrder.authorIds;
     const nextOrder = [
       ...savedOrder.filter((id) => authorIds.includes(id)),
       ...authorIds.filter((id) => !savedOrder.includes(id)),
@@ -3563,12 +3573,15 @@ export default function GroupDashboard() {
         ? prev
         : nextOrder
     ));
-  }, [topicsByAuthor, prayerTopicOrderStorageKey]);
+  }, [topicsByAuthor, dbPrayerOrder]);
 
   useEffect(() => {
-    if (!prayerTopicOrderStorageKey || !prayerTopicAuthorOrder.length) return;
-    localStorage.setItem(prayerTopicOrderStorageKey, JSON.stringify(prayerTopicAuthorOrder));
-  }, [prayerTopicAuthorOrder, prayerTopicOrderStorageKey]);
+    if (!prayerTopicAuthorOrder.length || !group?.id || !user?.id) return;
+    supabase.from("user_prayer_topic_order").upsert(
+      { user_id: user.id, group_id: group.id, ordered_author_ids: prayerTopicAuthorOrder, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,group_id" }
+    ).then();
+  }, [prayerTopicAuthorOrder, group?.id, user?.id]);
 
   const orderedTopicsByAuthor = useMemo(() => {
     const topicMap = new Map(topicsByAuthor.map((item) => [item.userId, item]));
