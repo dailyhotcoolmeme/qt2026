@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/use-auth";
 import { LoginModal } from "../components/LoginModal";
 import { useRefresh } from "../lib/refreshContext";
+import { isNativeApp } from "../lib/appUrl";
+import { saveImageDataUrl, shareImageDataUrl } from "../lib/nativeFileShare";
 
 type ActivityType = "qt" | "prayer" | "reading" | "bookmark";
 type MenuType = "all" | ActivityType | "group";
@@ -335,6 +337,11 @@ export default function ArchivePage() {
 
   const saveVerseCardToPhone = async (card: VerseCardRecord) => {
     try {
+      if (isNativeApp()) {
+        await saveImageDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);
+        alert("말씀 카드를 저장했습니다.");
+        return;
+      }
       await downloadDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);
     } catch (error) {
       console.error("download verse card failed:", error);
@@ -344,6 +351,10 @@ export default function ArchivePage() {
 
   const shareVerseCard = async (card: VerseCardRecord) => {
     try {
+      if (isNativeApp()) {
+        await shareImageDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`, card.title || "말씀 카드");
+        return;
+      }
       const shared = await shareDataUrl(card.imageDataUrl, card.title || "말씀 카드");
       if (!shared) {
         await downloadDataUrl(card.imageDataUrl, `verse-card-${card.id}.jpg`);

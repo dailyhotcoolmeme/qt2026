@@ -63,7 +63,7 @@ export async function shareImageDataUrl(dataUrl: string, fileName: string, title
 export async function saveImageDataUrl(dataUrl: string, fileName: string) {
   if (!isNativeApp()) return false;
 
-  await writeDataUrlToFile(dataUrl, fileName, Directory.Documents);
+  await writeDataUrlToFile(dataUrl, fileName, Directory.External);
   return true;
 }
 

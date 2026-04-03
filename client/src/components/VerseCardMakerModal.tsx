@@ -662,7 +662,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     try {
       const dataUrl = record.imageDataUrl.startsWith("data:")
         ? record.imageDataUrl
-        : await urlToDataUrl(record.imageDataUrl);
+        : await urlToDataUrl(toProxyUrl(record.imageDataUrl));
       if (isNativeApp()) {
         await saveImageDataUrl(dataUrl, `verse-card-${record.id}.jpg`);
         alert("말씀 카드를 저장했습니다.");
@@ -679,7 +679,7 @@ export function VerseCardMakerModal({ open, onClose, title, content, userId }: P
     try {
       const dataUrl = record.imageDataUrl.startsWith("data:")
         ? record.imageDataUrl
-        : await urlToDataUrl(record.imageDataUrl);
+        : await urlToDataUrl(toProxyUrl(record.imageDataUrl));
       const shared = await shareDataUrl(dataUrl, record.title);
       if (!shared) {
         await downloadDataUrl(dataUrl, `verse-card-${record.id}.jpg`);
