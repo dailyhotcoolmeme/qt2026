@@ -202,6 +202,7 @@ export function TopBar() {
   };
 
   const showSystemNotification = async (item: TopNotificationItem) => {
+    if (!notificationSettings.pushEnabled) return;
     if (!isNotificationTypeEnabled(notificationSettings, item.type)) return;
     if (isNativeApp()) return;
     if (!("Notification" in window) || Notification.permission !== "granted") return;

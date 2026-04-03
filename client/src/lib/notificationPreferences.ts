@@ -17,7 +17,6 @@ function storageKey(userId?: string | null) {
 }
 
 export function isNotificationTypeEnabled(settings: NotificationSettings, type: string) {
-  if (!settings.pushEnabled) return false;
   if (type === "system") return settings.systemEnabled;
   return settings.groupActivityEnabled;
 }
