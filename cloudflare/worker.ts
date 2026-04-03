@@ -1169,7 +1169,15 @@ async function handlePushSendGroup(request: Request, env: Env) {
       { headers }
     );
     const memberRows = await memberRes.json() as Array<{ user_id: string }>;
-    if (!memberRows.length) return json(403, { message: '그룹 멤버가 아닙니다' });
+    if (!memberRows.length) {
+      // 일반 멤버가 아닌 경우 상위 리더인지 확인
+      const scopeRes = await fetch(
+        `${supaUrl}/rest/v1/group_scope_leaders?root_group_id=eq.${body.groupId}&user_id=eq.${senderId}&select=id`,
+        { headers }
+      );
+      const scopeRows = await scopeRes.json() as Array<{ id: string }>;
+      if (!scopeRows.length) return json(403, { message: '그룹 멤버가 아닙니다' });
+    }
   }
 
   // 수신 대상 결정
