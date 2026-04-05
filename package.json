@@ -7,6 +7,7 @@
     "build": "cd client && npm install && npm run build && cd .. && node copy-dist.js",
     "build:client": "cd client && npm install && npm run build",
     "copy:dist": "node copy-dist.js",
+    "build:deploy": "export APP_VERSION=$(date +%Y%m%d.%H%M%S) && npm run build && node scripts/upload-bundle.mjs android",
     "bible:audio:genesis1": "node scripts/generate-bible-audio-genesis1.js",
     "bible:audio:ot": "node scripts/generate-bible-audio-batch.js"
   },

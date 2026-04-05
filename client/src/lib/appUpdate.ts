@@ -25,11 +25,10 @@ export async function checkAndApplyUpdate(): Promise<void> {
   if (!isNativeApp()) return;
 
   try {
-    // feature_flags 테이블에서 OTA 활성화 여부 확인
     const otaEnabled = await getFeatureFlag("ota_update", true);
     if (!otaEnabled) return;
 
-    const platform = Capacitor.getPlatform(); // 'android' | 'ios'
+    const platform = Capacitor.getPlatform();
     const res = await fetch(
       resolveApiUrl(`/api/app-update/check?platform=${platform}&currentVersion=${CURRENT_VERSION}`)
     );
@@ -42,9 +41,24 @@ export async function checkAndApplyUpdate(): Promise<void> {
     };
     if (!data.needsUpdate || !data.bundleUrl) return;
 
-    // 라이브 업데이트 플러그인 동적 로드
-    // 스토어 제출 전 `npm install @capawesome/capacitor-live-update && npx cap sync` 필요
     const { LiveUpdate } = await import("@capawesome/capacitor-live-update");
+
+    // 현재 활성 번들 확인 — 이미 최신이면 스킵
+    try {
+      const current = await LiveUpdate.getBundle();
+      if (current.bundleId === data.latestVersion) return;
+    } catch {}
+
+    // 이미 다운로드된 번들이 있으면 바로 적용
+    try {
+      const bundles = await LiveUpdate.getBundles();
+      if (bundles.bundleIds?.includes(data.latestVersion)) {
+        await LiveUpdate.setNextBundle({ bundleId: data.latestVersion });
+        await LiveUpdate.reload();
+        return;
+      }
+    } catch {}
+
     await LiveUpdate.downloadBundle({ url: data.bundleUrl, bundleId: data.latestVersion });
     await LiveUpdate.setNextBundle({ bundleId: data.latestVersion });
     await LiveUpdate.reload();

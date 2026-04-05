@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter";
 import { supabase } from "../lib/supabase";
 import { isNativeApp, resolveApiUrl } from "../lib/appUrl";
 import { Capacitor } from "@capacitor/core";
+import { App } from "@capacitor/app";
 import { defaultNotificationSettings, isNotificationTypeEnabled, loadNotificationSettings, saveNotificationSettings, type NotificationSettings } from "../lib/notificationPreferences";
 import { ensureNativePushListeners, getLatestNativePushToken, getNotificationPermissionState, registerForNativePush, requestNotificationPermission } from "../lib/pushNotifications";
 
@@ -107,6 +108,9 @@ export function TopBar() {
   const pushSyncInProgressRef = useRef(false);
   // handleNotificationSettingChange가 직접 sync를 처리할 때 useEffect 중복 호출 방지
   const skipNextPushSyncRef = useRef(false);
+  // 권한 동기화용 current user.id, isAuthenticated
+  const currentUserIdRef = useRef<string | null>(null);
+  const currentIsAuthenticatedRef = useRef(false);
   const vapidPublicKey = String(import.meta.env.VITE_VAPID_PUBLIC_KEY || "BIqWHcoeJPIYyxzR6AXBXoJwsxb90hfiQ1yVaqzYIxYINHxIeXVDuUvi502EdP1GGVYaAo7Xi0K-WZz1tS0LapI").trim();
 
   const syncPermissionState = async () => {
@@ -435,6 +439,20 @@ export function TopBar() {
     void syncPermissionState();
   }, []);
 
+  // NotificationPermissionModal에서 설정 변경 시 TopBar state 동기화
+  useEffect(() => {
+    const handler = () => {
+      if (user?.id) {
+        loadNotificationSettings(user.id).then(settings => {
+          setNotificationSettings(settings);
+          if (settings.pushEnabled) void syncPushSubscription(true);
+        });
+      }
+    };
+    window.addEventListener('notification-settings-changed', handler);
+    return () => window.removeEventListener('notification-settings-changed', handler);
+  }, [user?.id]);
+
   useEffect(() => {
     if (!user?.id) {
       setNotificationSettings(defaultNotificationSettings);
@@ -520,6 +538,65 @@ export function TopBar() {
     }
     void syncPushSubscription(false);
   }, [isAuthenticated, user?.id, vapidPublicKey, notificationSettings.pushEnabled]);
+
+  // user.id, isAuthenticated 업데이트 (ref로 유지)
+  useEffect(() => {
+    currentUserIdRef.current = user?.id || null;
+    currentIsAuthenticatedRef.current = isAuthenticated;
+  }, [user?.id, isAuthenticated]);
+
+  // 앱이 백그라운드에서 포그라운드로 올 때 기기 권한 상태 동기화 (한 번만 등록)
+  useEffect(() => {
+    const checkAndSyncPermission = async () => {
+      const userId = currentUserIdRef.current;
+      if (!userId || !currentIsAuthenticatedRef.current) return;
+
+      try {
+        const settings = await loadNotificationSettings(userId);
+
+        if (isNativeApp()) {
+          // Android: 기기 권한 확인 후 토글과 동기화
+          const permState = await getNotificationPermissionState();
+          if (settings.pushEnabled && permState !== "granted") {
+            const corrected = { ...settings, pushEnabled: false };
+            setNotificationSettings(corrected);
+            await saveNotificationSettings(userId, corrected);
+            console.log("[push-sync] Android permission revoked, toggle turned OFF");
+          }
+        } else {
+          // Web: 브라우저 알림 권한 확인 후 토글과 동기화
+          if (settings.pushEnabled && typeof Notification !== "undefined" && Notification.permission === "denied") {
+            const corrected = { ...settings, pushEnabled: false };
+            setNotificationSettings(corrected);
+            await saveNotificationSettings(userId, corrected);
+            console.log("[push-sync] Browser notification permission denied, toggle turned OFF");
+          }
+        }
+      } catch (error) {
+        console.error("[push-sync] error checking permission:", error);
+      }
+    };
+
+    let resumeUnsubscribe: (() => void) | null = null;
+
+    if (isNativeApp()) {
+      // Android: App이 resume될 때 권한 확인
+      App.addListener('resume', checkAndSyncPermission).then((unsub) => {
+        resumeUnsubscribe = unsub;
+      });
+    } else {
+      // Web: 포커스 받을 때 권한 확인
+      window.addEventListener('focus', checkAndSyncPermission);
+    }
+
+    return () => {
+      if (resumeUnsubscribe) {
+        resumeUnsubscribe();
+      } else {
+        window.removeEventListener('focus', checkAndSyncPermission);
+      }
+    };
+  }, []); // 빈 배열: 한 번만 등록
 
   useEffect(() => {
     void fetchNotifications();
@@ -814,6 +891,7 @@ export function TopBar() {
 	                onClick={() => {
 	                  setShowNotificationSettings(true);
 	                  setShowNotificationPanel(false);
+	                  void syncPermissionState();
 	                }}
 	                className="inline-flex items-center justify-center rounded-lg bg-zinc-50 px-2 py-1 text-xs font-semibold text-zinc-600 hover:bg-zinc-100"
 	                aria-label="알림 설정"
@@ -1086,7 +1164,7 @@ export function TopBar() {
 
             {isAuthenticated && (
               <button
-                onClick={() => { setShowNotificationSettings(true); setIsMenuOpen(false); }}
+                onClick={() => { setShowNotificationSettings(true); setIsMenuOpen(false); void syncPermissionState(); }}
                 className="group mt-2 flex w-full items-center gap-3 rounded-xl p-3.5 text-left text-zinc-700 transition-colors hover:bg-zinc-50"
               >
                 <div className={`transition-colors ${notificationSettings.pushEnabled ? "text-[#4A6741]" : "text-zinc-400 group-hover:text-zinc-600"}`}>
