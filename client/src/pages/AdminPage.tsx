@@ -15,6 +15,7 @@ interface UserItem {
   created_at: string; is_admin: boolean; totalEvents: number; dau: number; wau: number; lastEventAt: string | null; topMenu: string | null;
   groups: { id: string; name: string }[];
   prayerTopicCount: number;
+  push_enabled: boolean | null;
 }
 interface PrayerTopic {
   id: number; content: string; created_at: string;
@@ -474,6 +475,7 @@ function UsersTab({ token, onLogout }: { token: string; onLogout: () => void }) 
                 <th className="px-4 py-3 font-medium whitespace-nowrap">이메일</th>
                 <th className="px-4 py-3 font-medium whitespace-nowrap">가입루트</th>
                 <th className="px-4 py-3 font-medium whitespace-nowrap">브라우저</th>
+                <th className="px-4 py-3 font-medium whitespace-nowrap text-center">알림</th>
                 <th className="px-4 py-3 font-medium whitespace-nowrap">모임</th>
                 <th className="px-4 py-3 font-medium whitespace-nowrap">가입일</th>
                 <th className="px-4 py-3 font-medium whitespace-nowrap">마지막 활동</th>
@@ -504,6 +506,15 @@ function UsersTab({ token, onLogout }: { token: string; onLogout: () => void }) 
                   <td className="px-4 py-3 text-gray-400 text-xs">{u.email || "-"}</td>
                   <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{u.auth_provider || "-"}</td>
                   <td className="px-4 py-3 text-gray-400 text-xs whitespace-nowrap">{browserLabel(u.last_browser)}</td>
+                  <td className="px-4 py-3 text-center">
+                    {u.push_enabled === true ? (
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 border border-green-200" title="알림 ON">ON</span>
+                    ) : u.push_enabled === false ? (
+                      <span className="inline-block px-2 py-0.5 text-xs font-medium rounded-full bg-red-50 text-red-500 border border-red-200" title="알림 OFF">OFF</span>
+                    ) : (
+                      <span className="text-gray-300 text-xs" title="알림 설정 없음">-</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-xs">
                     {u.groups?.length ? u.groups.map((g) => (
                       <span key={g.id} className="inline-block bg-green-50 text-green-700 border border-green-100 rounded px-1.5 py-0.5 mr-1 mb-0.5 whitespace-nowrap">{g.name}</span>

@@ -1426,12 +1426,13 @@ async function handleAdminUsers(request: Request, env: Env) {
   const kstOffset = 9 * 60 * 60 * 1000;
   const monthAgo = new Date(Date.now() + kstOffset - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
-  const [profilesRes, eventsRes, groupMembersRes, authUsersRes, prayerTopicsRes] = await Promise.all([
+  const [profilesRes, eventsRes, groupMembersRes, authUsersRes, prayerTopicsRes, notifSettingsRes] = await Promise.all([
     fetch(`${supabaseUrl}/rest/v1/profiles?select=id,username,email,nickname,avatar_url,created_at,is_admin&order=created_at.desc`, { headers: h }),
     fetch(`${supabaseUrl}/rest/v1/user_event_logs?select=user_id,menu,created_at,platform&user_id=not.is.null&created_at=gte.${monthAgo}T00:00:00%2B09:00`, { headers: h }),
     fetch(`${supabaseUrl}/rest/v1/group_members?select=user_id,groups(id,name)`, { headers: h }),
     fetch(`${supabaseUrl}/auth/v1/admin/users?per_page=1000`, { headers: h }),
     fetch(`${supabaseUrl}/rest/v1/group_prayer_topics?select=author_id,id&is_active=eq.true`, { headers: h }),
+    fetch(`${supabaseUrl}/rest/v1/user_notification_settings?select=user_id,push_enabled`, { headers: h }),
   ]);
 
   const profilesData = await profilesRes.json() as any;
@@ -1439,6 +1440,7 @@ async function handleAdminUsers(request: Request, env: Env) {
   const groupMembersData = await groupMembersRes.json() as any;
   const authUsersData = await authUsersRes.json() as any;
   const prayerTopicsData = await prayerTopicsRes.json() as any;
+  const notifSettingsData = await notifSettingsRes.json() as any;
 
   // auth provider 매핑 (user_id → provider)
   const providerMap: Record<string, string> = {};
@@ -1455,6 +1457,14 @@ async function handleAdminUsers(request: Request, env: Env) {
   const profiles = profilesData as any[];
   const events = Array.isArray(eventsData) ? eventsData as any[] : [];
   const groupMembers = Array.isArray(groupMembersData) ? groupMembersData as any[] : [];
+
+  // 유저별 알림 설정 매핑 (user_id → push_enabled)
+  const pushEnabledMap: Record<string, boolean> = {};
+  if (Array.isArray(notifSettingsData)) {
+    for (const ns of notifSettingsData as any[]) {
+      if (ns.user_id != null) pushEnabledMap[ns.user_id] = ns.push_enabled;
+    }
+  }
 
   // 유저별 기도제목 수 집계
   const prayerTopicCountMap: Record<string, number> = {};
@@ -1506,6 +1516,7 @@ async function handleAdminUsers(request: Request, env: Env) {
       topMenu,
       groups: userGroups[p.id] || [],
       prayerTopicCount: prayerTopicCountMap[p.id] || 0,
+      push_enabled: pushEnabledMap[p.id] ?? null,
     };
   });
 
