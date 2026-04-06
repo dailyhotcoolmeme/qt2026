@@ -116,6 +116,24 @@ function toHttps(url?: string | null) {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
+const URL_REGEX = /(https?:\/\/[^\s<>"')\]]+)/g;
+function Linkify({ children }: { children: string }) {
+  const parts = children.split(URL_REGEX);
+  return (
+    <>
+      {parts.map((part, i) =>
+        URL_REGEX.test(part) ? (
+          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">
+            {part}
+          </a>
+        ) : (
+          <React.Fragment key={i}>{part}</React.Fragment>
+        )
+      )}
+    </>
+  );
+}
+
 function AvatarImg({ url, size }: { url: string | null; size: number }) {
   const [failed, setFailed] = useState(false);
   const cls = `rounded-full shrink-0`;
@@ -4766,7 +4784,7 @@ export default function GroupDashboard() {
 
                     {post.content && (
                       <div className="text-zinc-800 text-sm leading-relaxed whitespace-pre-wrap mb-2 px-5 pb-3 max-h-[300px] overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-                        {post.content}
+                        <Linkify>{post.content}</Linkify>
                       </div>
                     )}
 
@@ -4842,7 +4860,7 @@ export default function GroupDashboard() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="text-zinc-600 whitespace-pre-wrap leading-snug">{comment.content}</div>
+                                <div className="text-zinc-600 whitespace-pre-wrap leading-snug"><Linkify>{comment.content}</Linkify></div>
                               )}
                             </div>
                           );
