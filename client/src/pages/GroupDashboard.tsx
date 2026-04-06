@@ -6395,11 +6395,12 @@ export default function GroupDashboard() {
                 const g = imgGesture.current;
                 const el = modalImgRef.current;
                 g.isPinching = false;
-                if (g.scale < 1.15) {
+                // 핀치 후 거의 안 당겼으면 리셋하고 스와이프 처리로 넘어감
+                if (g.scale > 1 && g.scale < 1.15) {
                   g.scale = 1; g.panX = 0; g.panY = 0;
                   if (el) el.style.transform = '';
-                  return;
                 }
+                // 줌 상태에서는 스와이프 무시
                 if (g.scale > 1) return;
                 const startX = touchStartXRef.current;
                 const startY = touchStartYRef.current;
