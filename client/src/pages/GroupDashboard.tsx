@@ -994,6 +994,16 @@ export default function GroupDashboard() {
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
   const touchStartXRef = useRef<number | null>(null);
+
+  // 이미지 최대보기 모달 — 뒤로가기 시 닫기
+  useEffect(() => {
+    if (showImageModal) {
+      history.pushState({ imageModal: true }, "");
+      const onPop = () => setShowImageModal(false);
+      window.addEventListener("popstate", onPop);
+      return () => window.removeEventListener("popstate", onPop);
+    }
+  }, [showImageModal]);
   const touchStartYRef = useRef<number | null>(null);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
@@ -6321,7 +6331,7 @@ export default function GroupDashboard() {
         showImageModal && (
           <div className="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center pointer-events-auto">
             <div className="absolute top-4 right-4 z-[310]">
-              <button onClick={() => setShowImageModal(false)} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
+              <button onClick={() => history.back()} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
                 <X size={20} />
               </button>
             </div>
