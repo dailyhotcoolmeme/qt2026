@@ -993,7 +993,7 @@ export default function GroupDashboard() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
-  const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false });
+  const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false, tapStartX: 0, tapStartY: 0 });
   const modalImgRef = useRef<HTMLImageElement | null>(null);
   const lastTapRef = useRef<number>(0);
   const touchStartXRef = useRef<number | null>(null);
@@ -6368,6 +6368,8 @@ export default function GroupDashboard() {
                 }
                 imgGesture.current.isPinching = false;
                 const touch = event.touches[0];
+                imgGesture.current.tapStartX = touch.clientX;
+                imgGesture.current.tapStartY = touch.clientY;
                 if (imgGesture.current.scale > 1) {
                   imgGesture.current.lastX = touch.clientX - imgGesture.current.panX;
                   imgGesture.current.lastY = touch.clientY - imgGesture.current.panY;
@@ -6395,23 +6397,35 @@ export default function GroupDashboard() {
               onTouchEnd={(event) => {
                 const g = imgGesture.current;
                 const el = modalImgRef.current;
+                // 핀치 중 한 손가락만 뗐을 때: 남은 손가락 기준으로 lastX/Y 재설정 후 종료
+                if (event.touches.length === 1) {
+                  g.isPinching = false;
+                  const remaining = event.touches[0];
+                  g.lastX = remaining.clientX - g.panX;
+                  g.lastY = remaining.clientY - g.panY;
+                  return;
+                }
                 g.isPinching = false;
-                // 핀치 후 거의 안 당겼으면 리셋하고 스와이프 처리로 넘어감
+                // 핀치 후 거의 안 당겼으면 리셋
                 if (g.scale > 1 && g.scale < 1.15) {
                   g.scale = 1; g.panX = 0; g.panY = 0;
                   if (el) el.style.transform = '';
                 }
-                // 더블탭 감지 — 확대 상태에서 리셋
+                // 더블탭 감지 — 손가락이 거의 안 움직인 경우에만 탭으로 인식
                 if (event.changedTouches.length === 1) {
-                  const now = Date.now();
-                  if (now - lastTapRef.current < 300 && g.scale > 1) {
-                    g.scale = 1; g.panX = 0; g.panY = 0;
-                    if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = ''; }
-                    setTimeout(() => { if (el) el.style.transition = ''; }, 210);
-                    lastTapRef.current = 0;
-                    return;
+                  const touch = event.changedTouches[0];
+                  const moved = Math.hypot(touch.clientX - g.tapStartX, touch.clientY - g.tapStartY);
+                  if (moved < 15) {
+                    const now = Date.now();
+                    if (now - lastTapRef.current < 300 && g.scale > 1) {
+                      g.scale = 1; g.panX = 0; g.panY = 0;
+                      if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = ''; }
+                      setTimeout(() => { if (el) el.style.transition = ''; }, 210);
+                      lastTapRef.current = 0;
+                      return;
+                    }
+                    lastTapRef.current = now;
                   }
-                  lastTapRef.current = now;
                 }
                 // 줌 상태에서는 스와이프 무시
                 if (g.scale > 1) return;
