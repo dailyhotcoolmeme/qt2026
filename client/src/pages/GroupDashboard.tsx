@@ -3588,7 +3588,7 @@ export default function GroupDashboard() {
   useEffect(() => {
     if (!myPrayerTopicOrder.length || !group?.id || !user?.id) return;
     supabase.from("user_prayer_topic_order").upsert(
-      { user_id: user.id, group_id: group.id, ordered_topic_ids: myPrayerTopicOrder, updated_at: new Date().toISOString() },
+      { user_id: user.id, group_id: group.id, ordered_topic_ids: myPrayerTopicOrder, ordered_author_ids: prayerTopicAuthorOrder, updated_at: new Date().toISOString() },
       { onConflict: "user_id,group_id" }
     ).then();
   }, [myPrayerTopicOrder, group?.id, user?.id]);
@@ -3643,7 +3643,7 @@ export default function GroupDashboard() {
   useEffect(() => {
     if (!prayerTopicAuthorOrder.length || !group?.id || !user?.id) return;
     supabase.from("user_prayer_topic_order").upsert(
-      { user_id: user.id, group_id: group.id, ordered_author_ids: prayerTopicAuthorOrder, updated_at: new Date().toISOString() },
+      { user_id: user.id, group_id: group.id, ordered_author_ids: prayerTopicAuthorOrder, ordered_topic_ids: myPrayerTopicOrder, updated_at: new Date().toISOString() },
       { onConflict: "user_id,group_id" }
     ).then();
   }, [prayerTopicAuthorOrder, group?.id, user?.id]);
