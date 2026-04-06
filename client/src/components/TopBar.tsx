@@ -1191,8 +1191,8 @@ export function TopBar() {
                 className="flex items-center gap-2 rounded-lg px-2 py-2 text-left text-zinc-400 transition-colors hover:text-[#4A6741]"
                 style={{ fontSize: `${fontSize - 2}px` }}
               >
-                <HeadphonesIcon className="h-3.5 w-3.5" />
-                <span>고객센터</span>
+                <Phone className="h-3.5 w-3.5" />
+                <span>문의</span>
               </button>
               {isAuthenticated && (
                 <button
@@ -1251,8 +1251,8 @@ export function TopBar() {
               className="relative w-full max-w-[300px] rounded-[28px] bg-white p-7 shadow-2xl"
             >
               <div className="flex items-center gap-2 mb-5">
-                <HeadphonesIcon className="h-5 w-5 text-[#4A6741]" />
-                <h4 className="font-bold text-zinc-900 text-base">고객센터</h4>
+                <Phone className="h-5 w-5 text-[#4A6741]" />
+                <h4 className="font-bold text-zinc-900 text-base">문의</h4>
               </div>
               <div className="space-y-3">
                 <a
@@ -1273,6 +1273,7 @@ export function TopBar() {
                   <div>
                     <p className="text-[11px] text-zinc-400 mb-0.5">전화</p>
                     <p className="text-sm font-semibold text-zinc-800">070-4513-1894</p>
+                    <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">통화 가능시간 : (평일) 오전 9시~저녁 6시<br />(주일,주말,공휴일) 통화 불가</p>
                   </div>
                 </a>
               </div>
