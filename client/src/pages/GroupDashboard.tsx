@@ -33,7 +33,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, Handshake, Share2 } from "lucide-react";
+import { Loader2, CalendarX, CalendarPlus, User, Heart, Pencil, Search, MoreHorizontal, PenLine, Bookmark, BookmarkCheck, Handshake, Share2, Paperclip, FileText } from "lucide-react";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, parseISO, isBefore, isAfter, startOfDay, addMinutes, addWeeks, subWeeks } from "date-fns";
 import { ko } from "date-fns/locale";
 import { supabase } from "../lib/supabase";
@@ -178,6 +178,7 @@ type GroupPostRow = {
   content: string;
   created_at: string;
   image_urls?: string[];
+  file_attachments?: { url: string; name: string }[];
 };
 
 type GroupPostImageRow = {
@@ -185,6 +186,8 @@ type GroupPostImageRow = {
   post_id: number;
   image_url: string;
   sort_order: number;
+  file_name?: string | null;
+  content_type?: string | null;
 };
 
 type GroupPrayerTopic = {
@@ -979,6 +982,8 @@ export default function GroupDashboard() {
   const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
   const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
   const [postExistingImages, setPostExistingImages] = useState<string[]>([]);
+  const [postFileFiles, setPostFileFiles] = useState<File[]>([]);
+  const [postExistingFiles, setPostExistingFiles] = useState<{ url: string; name: string }[]>([]);
   const [postLikes, setPostLikes] = useState<Record<number, any[]>>({});
   const [postComments, setPostComments] = useState<Record<number, any[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
@@ -1883,22 +1888,31 @@ export default function GroupDashboard() {
     if (postIds.length > 0) {
       const { data: imageRows, error: imageErr } = await supabase
         .from("group_post_images")
-        .select("id, post_id, image_url, sort_order")
+        .select("id, post_id, image_url, sort_order, file_name, content_type")
         .in("post_id", postIds)
         .order("sort_order", { ascending: true })
         .order("id", { ascending: true });
 
       if (!imageErr) {
         const imageMap = new Map<number, string[]>();
+        const fileMap = new Map<number, { url: string; name: string }[]>();
         ((imageRows ?? []) as GroupPostImageRow[]).forEach((row) => {
-          const prev = imageMap.get(row.post_id) ?? [];
-          prev.push(row.image_url);
-          imageMap.set(row.post_id, prev);
+          const isFile = row.content_type && !row.content_type.startsWith("image/");
+          if (isFile) {
+            const prev = fileMap.get(row.post_id) ?? [];
+            prev.push({ url: row.image_url, name: row.file_name || "파일" });
+            fileMap.set(row.post_id, prev);
+          } else {
+            const prev = imageMap.get(row.post_id) ?? [];
+            prev.push(row.image_url);
+            imageMap.set(row.post_id, prev);
+          }
         });
 
         nextPosts = nextPosts.map((post) => ({
           ...post,
           image_urls: imageMap.get(post.id) ?? [],
+          file_attachments: fileMap.get(post.id) ?? [],
         }));
       }
 
@@ -2759,8 +2773,14 @@ export default function GroupDashboard() {
     setPostImageFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handlePostFileSelect = (files: FileList | null) => {
+    if (!files) return;
+    const selected = Array.from(files).slice(0, 5);
+    setPostFileFiles((prev) => [...prev, ...selected].slice(0, 5));
+  };
+
   const addPost = async () => {
-    if (!group || !user || (!postContent.trim() && postImageFiles.length === 0 && postExistingImages.length === 0)) return;
+    if (!group || !user || (!postContent.trim() && postImageFiles.length === 0 && postExistingImages.length === 0 && postFileFiles.length === 0 && postExistingFiles.length === 0)) return;
     if (postType === "notice" && !isManager) {
       alert("공지 작성은 리더/관리자만 가능합니다.");
       return;
@@ -2797,13 +2817,17 @@ export default function GroupDashboard() {
       for (const removedUrl of imagesToRemove) {
         void deleteAudioFromR2(removedUrl);
       }
+      const filesToRemove = (editingPost.file_attachments || []).filter(f => !postExistingFiles.some(ef => ef.url === f.url));
+      for (const f of filesToRemove) {
+        void deleteAudioFromR2(f.url);
+      }
 
       await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
 
       try {
-        let uploadedUrls: string[] = [];
+        let uploadedImageUrls: string[] = [];
         if (postImageFiles.length > 0) {
-          uploadedUrls = await Promise.all(
+          uploadedImageUrls = await Promise.all(
             postImageFiles.map(async (file, index) => {
               const resized = await resizeImageFile(file, 1080, 0.82);
               const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
@@ -2812,22 +2836,31 @@ export default function GroupDashboard() {
             })
           );
         }
-
-        const finalUrls = [...postExistingImages, ...uploadedUrls];
-        if (finalUrls.length > 0) {
-          const { error: imageInsertError } = await supabase.from("group_post_images").insert(
-            finalUrls.map((url, index) => ({
-              post_id: editingPost.id,
-              uploader_id: user.id,
-              image_url: url,
-              sort_order: index,
-            }))
+        let uploadedFileAttachments: { url: string; name: string }[] = [];
+        if (postFileFiles.length > 0) {
+          uploadedFileAttachments = await Promise.all(
+            postFileFiles.map(async (file, index) => {
+              const safeName = sanitizeFileName(file.name || `file_${index + 1}`);
+              const key = `files/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
+              const url = await uploadFileToR2(key, file, file.type || "application/octet-stream");
+              return { url, name: file.name };
+            })
           );
-          if (imageInsertError) throw imageInsertError;
+        }
+
+        const finalImageUrls = [...postExistingImages, ...uploadedImageUrls];
+        const finalFiles = [...postExistingFiles, ...uploadedFileAttachments];
+        const allRows = [
+          ...finalImageUrls.map((url, i) => ({ post_id: editingPost.id, uploader_id: user.id, image_url: url, sort_order: i, file_name: null as null, content_type: "image/jpeg" })),
+          ...finalFiles.map((f, i) => ({ post_id: editingPost.id, uploader_id: user.id, image_url: f.url, sort_order: finalImageUrls.length + i, file_name: f.name, content_type: "application/octet-stream" })),
+        ];
+        if (allRows.length > 0) {
+          const { error: insertError } = await supabase.from("group_post_images").insert(allRows);
+          if (insertError) throw insertError;
         }
       } catch (uploadError) {
-        console.error("post image upload error:", uploadError);
-        alert(`사진 업로드/저장에 실패했습니다.`);
+        console.error("post attachment upload error:", uploadError);
+        alert(`첨부파일 업로드/저장에 실패했습니다.`);
       }
 
       setPostTitle("");
@@ -2835,6 +2868,8 @@ export default function GroupDashboard() {
       setPostImageFiles([]);
       setPostImagePreviews([]);
       setPostExistingImages([]);
+      setPostFileFiles([]);
+      setPostExistingFiles([]);
       setShowPostComposerModal(false);
       setEditingPost(null);
       await loadPosts(group.id);
@@ -2877,31 +2912,37 @@ export default function GroupDashboard() {
       return;
     }
 
-    if (createdPostId && postImageFiles.length > 0) {
+    if (createdPostId && (postImageFiles.length > 0 || postFileFiles.length > 0)) {
       try {
-        const uploadedUrls = await Promise.all(
+        const uploadedImageUrls = postImageFiles.length > 0 ? await Promise.all(
           postImageFiles.map(async (file, index) => {
             const resized = await resizeImageFile(file, 1080, 0.82);
             const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
             const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
             return uploadFileToR2(key, resized, resized.type || "image/jpeg");
           })
-        );
+        ) : [];
+        const uploadedFileAttachments = postFileFiles.length > 0 ? await Promise.all(
+          postFileFiles.map(async (file, index) => {
+            const safeName = sanitizeFileName(file.name || `file_${index + 1}`);
+            const key = `files/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
+            const url = await uploadFileToR2(key, file, file.type || "application/octet-stream");
+            return { url, name: file.name };
+          })
+        ) : [];
 
-        const { error: imageInsertError } = await supabase.from("group_post_images").insert(
-          uploadedUrls.map((url, index) => ({
-            post_id: createdPostId,
-            uploader_id: user.id,
-            image_url: url,
-            sort_order: index,
-          }))
-        );
-
-        if (imageInsertError) throw imageInsertError;
+        const allRows = [
+          ...uploadedImageUrls.map((url, i) => ({ post_id: createdPostId, uploader_id: user.id, image_url: url, sort_order: i, file_name: null as null, content_type: "image/jpeg" })),
+          ...uploadedFileAttachments.map((f, i) => ({ post_id: createdPostId, uploader_id: user.id, image_url: f.url, sort_order: uploadedImageUrls.length + i, file_name: f.name, content_type: "application/octet-stream" })),
+        ];
+        if (allRows.length > 0) {
+          const { error: insertError } = await supabase.from("group_post_images").insert(allRows);
+          if (insertError) throw insertError;
+        }
       } catch (uploadError) {
-        console.error("post image upload error:", uploadError);
+        console.error("post attachment upload error:", uploadError);
         const message = uploadError instanceof Error ? uploadError.message : "알 수 없는 오류";
-        alert(`사진 업로드/저장에 실패했습니다: ${message}`);
+        alert(`첨부파일 업로드/저장에 실패했습니다: ${message}`);
       }
     }
 
@@ -2910,6 +2951,8 @@ export default function GroupDashboard() {
     setPostContent("");
     setPostImageFiles([]);
     setPostExistingImages([]);
+    setPostFileFiles([]);
+    setPostExistingFiles([]);
     setShowPostComposerModal(false);
     await loadPosts(group.id);
     setIsSubmittingPost(false);
@@ -3572,17 +3615,17 @@ export default function GroupDashboard() {
       return;
     }
 
-    const savedOrder = dbPrayerOrder.topicIds;
-    const nextOrder = [
-      ...savedOrder.filter((id) => topicIds.includes(id)),
-      ...topicIds.filter((id) => !savedOrder.includes(id)),
-    ];
-
-    setMyPrayerTopicOrder((prev) => (
-      prev.length === nextOrder.length && prev.every((value, index) => value === nextOrder[index])
+    setMyPrayerTopicOrder((prev) => {
+      // 현재 메모리 순서가 있으면 그걸 기준으로, 없으면 DB 순서를 초기값으로 사용
+      const baseOrder = prev.length > 0 ? prev : dbPrayerOrder!.topicIds;
+      const nextOrder = [
+        ...baseOrder.filter((id) => topicIds.includes(id)),
+        ...topicIds.filter((id) => !baseOrder.includes(id)),
+      ];
+      return prev.length === nextOrder.length && prev.every((value, index) => value === nextOrder[index])
         ? prev
-        : nextOrder
-    ));
+        : nextOrder;
+    });
   }, [groupPrayerTopics, dbPrayerOrder, user?.id]);
 
   useEffect(() => {
@@ -3627,17 +3670,16 @@ export default function GroupDashboard() {
       return;
     }
 
-    const savedOrder = dbPrayerOrder.authorIds;
-    const nextOrder = [
-      ...savedOrder.filter((id) => authorIds.includes(id)),
-      ...authorIds.filter((id) => !savedOrder.includes(id)),
-    ];
-
-    setPrayerTopicAuthorOrder((prev) => (
-      prev.length === nextOrder.length && prev.every((value, index) => value === nextOrder[index])
+    setPrayerTopicAuthorOrder((prev) => {
+      const baseOrder = prev.length > 0 ? prev : dbPrayerOrder!.authorIds;
+      const nextOrder = [
+        ...baseOrder.filter((id) => authorIds.includes(id)),
+        ...authorIds.filter((id) => !baseOrder.includes(id)),
+      ];
+      return prev.length === nextOrder.length && prev.every((value, index) => value === nextOrder[index])
         ? prev
-        : nextOrder
-    ));
+        : nextOrder;
+    });
   }, [topicsByAuthor, dbPrayerOrder]);
 
   useEffect(() => {
@@ -4775,7 +4817,7 @@ export default function GroupDashboard() {
                       {canDelete && (
                         <div className="flex gap-1 shrink-0 text-zinc-400">
                           {post.author_id === user.id && (
-                            <button onClick={() => { setEditingPost(post); setPostType(post.post_type); setPostTitle(post.title || ""); setPostContent(post.content || ""); setPostExistingImages(post.image_urls || []); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }} className="p-1.5 hover:text-[#4A6741] transition-colors"><Pencil size={15} /></button>
+                            <button onClick={() => { setEditingPost(post); setPostType(post.post_type); setPostTitle(post.title || ""); setPostContent(post.content || ""); setPostExistingImages(post.image_urls || []); setPostImageFiles([]); setPostImagePreviews([]); setPostExistingFiles(post.file_attachments || []); setPostFileFiles([]); setShowPostComposerModal(true); }} className="p-1.5 hover:text-[#4A6741] transition-colors"><Pencil size={15} /></button>
                           )}
                           <button onClick={() => removePost(post)} className="p-1.5 hover:text-rose-500 transition-colors"><Trash2 size={15} /></button>
                         </div>
@@ -4797,6 +4839,23 @@ export default function GroupDashboard() {
                           setShowImageModal(true);
                         }}
                       />
+                    )}
+
+                    {post.file_attachments && post.file_attachments.length > 0 && (
+                      <div className="mx-4 mb-3 space-y-1.5">
+                        {post.file_attachments.map((f, i) => (
+                          <a
+                            key={i}
+                            href={f.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors"
+                          >
+                            <FileText size={15} className="text-zinc-400 shrink-0" />
+                            <span className="text-sm text-zinc-700 truncate">{f.name}</span>
+                          </a>
+                        ))}
+                      </div>
                     )}
 
                     {/* 좋아요 & 댓글 액션 */}
@@ -6423,15 +6482,7 @@ export default function GroupDashboard() {
               animate={{ y: 0 }}
               exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              drag="y"
-              dragConstraints={{ top: 0 }}
-              dragElastic={{ top: 0, bottom: 0.15 }}
-              onDragEnd={(_, info) => {
-                if (info.velocity.y > 500 || info.offset.y > 80) {
-                  setShowPostComposerModal(false);
-                }
-              }}
-              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl pt-3 px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl flex flex-col space-y-4 max-h-[85vh]"
+              className="relative w-full max-w-xl mx-auto bg-white rounded-t-3xl pt-3 px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] shadow-2xl flex flex-col space-y-4 max-h-[92vh]"
             >
               <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-2" />
               <div className="flex flex-col flex-1 overflow-hidden">
@@ -6473,7 +6524,7 @@ export default function GroupDashboard() {
                   <textarea
                     value={postContent}
                     onChange={(e) => setPostContent(e.target.value)}
-                    className="w-full min-h-[140px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
+                    className="w-full min-h-[220px] px-4 py-3 rounded-sm bg-zinc-50 border border-zinc-100 text-base"
                     placeholder="모임 내부 공유 글을 작성하세요."
                   />
 
@@ -6514,6 +6565,45 @@ export default function GroupDashboard() {
                               className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
                             >
                               <X size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-base font-bold text-zinc-600">파일 첨부 (최대 5개)</span>
+                      <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
+                        <Paperclip size={13} />
+                        파일 선택
+                        <input
+                          type="file"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => handlePostFileSelect(e.target.files)}
+                        />
+                      </label>
+                    </div>
+
+                    {(postExistingFiles.length > 0 || postFileFiles.length > 0) && (
+                      <div className="space-y-1.5">
+                        {postExistingFiles.map((f, index) => (
+                          <div key={`ef-${index}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200">
+                            <FileText size={14} className="text-zinc-400 shrink-0" />
+                            <span className="text-sm text-zinc-700 truncate flex-1">{f.name}</span>
+                            <button onClick={() => setPostExistingFiles(prev => prev.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-rose-500">
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        {postFileFiles.map((f, index) => (
+                          <div key={`nf-${index}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200">
+                            <FileText size={14} className="text-zinc-400 shrink-0" />
+                            <span className="text-sm text-zinc-700 truncate flex-1">{f.name}</span>
+                            <button onClick={() => setPostFileFiles(prev => prev.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-rose-500">
+                              <X size={14} />
                             </button>
                           </div>
                         ))}

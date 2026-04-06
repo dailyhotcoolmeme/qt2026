@@ -33,6 +33,9 @@ import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
 import { checkAndApplyUpdate } from "./lib/appUpdate";
+import { NotificationPermissionModal, shouldShowNotificationModal, markNotificationModalDone } from "./components/NotificationPermissionModal";
+import { getNotificationPermissionState } from "./lib/pushNotifications";
+
 import InsightsDashboardPage from "./pages/InsightsDashboardPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import AdminPage from "./pages/AdminPage";
@@ -106,9 +109,51 @@ function OnboardingRedirect() {
   return null;
 }
 
+function NotificationPermissionGate() {
+  const [show, setShow] = React.useState(false);
+
+  React.useEffect(() => {
+    // 네이티브 앱 또는 웹(Notification API 지원) 모두 허용
+    const isWeb = !isNativeApp();
+    if (isWeb && typeof Notification === "undefined") return;
+    if (!shouldShowNotificationModal()) return;
+
+    let stopped = false;
+
+    const check = async () => {
+      if (stopped || !shouldShowNotificationModal()) return;
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return;
+        const permState = await getNotificationPermissionState();
+        if (permState === "granted" || permState === "denied") {
+          markNotificationModalDone();
+          stopped = true;
+          return;
+        }
+        stopped = true;
+        setShow(true);
+      } catch { /* 플러그인 오류 무시 */ }
+    };
+
+    // onAuthStateChange 대신 폴링 방식 사용 — 기존 Auth 구독자와 충돌 방지
+    void check();
+    const interval = setInterval(() => { void check(); }, 2000);
+
+    return () => { stopped = true; clearInterval(interval); };
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {show && <NotificationPermissionModal onClose={() => setShow(false)} />}
+    </AnimatePresence>
+  );
+}
+
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
+      <NotificationPermissionGate />
       <OnboardingRedirect />
       <AnimatePresence mode="wait">
         <Switch>

@@ -608,6 +608,7 @@ export default function CommunityPage() {
 
   const saveTopLevelOrder = async (newOrder: string[]) => {
     setTopLevelOrder(newOrder);
+    setDbTopOrder(newOrder);
     if (!user) return;
     // 폴더 sort_order 업데이트
     const folderEntries = newOrder
