@@ -995,6 +995,7 @@ export default function GroupDashboard() {
   const [modalIndex, setModalIndex] = useState(0);
   const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false });
   const modalImgRef = useRef<HTMLImageElement | null>(null);
+  const lastTapRef = useRef<number>(0);
   const touchStartXRef = useRef<number | null>(null);
 
   // 이미지 최대보기 모달 — 뒤로가기 시 닫기
@@ -6399,6 +6400,18 @@ export default function GroupDashboard() {
                 if (g.scale > 1 && g.scale < 1.15) {
                   g.scale = 1; g.panX = 0; g.panY = 0;
                   if (el) el.style.transform = '';
+                }
+                // 더블탭 감지 — 확대 상태에서 리셋
+                if (event.changedTouches.length === 1) {
+                  const now = Date.now();
+                  if (now - lastTapRef.current < 300 && g.scale > 1) {
+                    g.scale = 1; g.panX = 0; g.panY = 0;
+                    if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = ''; }
+                    setTimeout(() => { if (el) el.style.transition = ''; }, 210);
+                    lastTapRef.current = 0;
+                    return;
+                  }
+                  lastTapRef.current = now;
                 }
                 // 줌 상태에서는 스와이프 무시
                 if (g.scale > 1) return;
