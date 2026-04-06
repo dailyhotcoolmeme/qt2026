@@ -4778,10 +4778,10 @@ export default function GroupDashboard() {
                             href={f.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors overflow-hidden"
                           >
                             <FileText size={15} className="text-zinc-400 shrink-0" />
-                            <span className="text-sm text-zinc-700 truncate">{f.name}</span>
+                            <span className="text-sm text-zinc-700 truncate min-w-0">{f.name}</span>
                           </a>
                         ))}
                       </div>
@@ -6525,10 +6525,10 @@ export default function GroupDashboard() {
                                   <div
                                     ref={setNodeRef} style={style}
                                     {...(postFiles.length > 1 ? { ...attributes, ...listeners } : {})}
-                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-zinc-200 touch-none ${isDragging ? "scale-[1.02] opacity-80" : ""}`}
+                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-zinc-200 touch-none overflow-hidden ${isDragging ? "scale-[1.02] opacity-80" : ""}`}
                                   >
                                     <FileText size={14} className="text-zinc-400 shrink-0 pointer-events-none" />
-                                    <span className="text-sm text-zinc-700 truncate flex-1 pointer-events-none">{item.kind === "existing" ? item.name : item.file.name}</span>
+                                    <span className="text-sm text-zinc-700 truncate min-w-0 flex-1 pointer-events-none">{item.kind === "existing" ? item.name : item.file.name}</span>
                                     <button
                                       onPointerDown={(e) => e.stopPropagation()}
                                       onClick={() => setPostFiles(prev => prev.filter(i => i.id !== item.id))}
