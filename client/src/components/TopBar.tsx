@@ -654,6 +654,7 @@ export function TopBar() {
   };
 
   const handleNotificationClick = (item: TopNotificationItem) => {
+    if (!item.isRead) void markAsRead(item.id);
     setShowNotificationPanel(false);
     if (item.targetPath.includes("?")) {
       window.location.hash = "#" + item.targetPath;
