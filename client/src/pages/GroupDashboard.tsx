@@ -993,6 +993,10 @@ export default function GroupDashboard() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
+  const [imgZoom, setImgZoom] = useState(1);
+  const [imgPanX, setImgPanX] = useState(0);
+  const [imgPanY, setImgPanY] = useState(0);
+  const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false });
   const touchStartXRef = useRef<number | null>(null);
 
   // 이미지 최대보기 모달 — 뒤로가기 시 닫기
@@ -1004,6 +1008,12 @@ export default function GroupDashboard() {
       return () => window.removeEventListener("popstate", onPop);
     }
   }, [showImageModal]);
+
+  // 이미지 전환 or 모달 닫힐 때 줌 리셋
+  useEffect(() => {
+    imgGesture.current = { scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false };
+    setImgZoom(1); setImgPanX(0); setImgPanY(0);
+  }, [modalIndex, showImageModal]);
   const touchStartYRef = useRef<number | null>(null);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
 
@@ -4781,7 +4791,7 @@ export default function GroupDashboard() {
                             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors overflow-hidden"
                           >
                             <FileText size={15} className="text-zinc-400 shrink-0" />
-                            <span className="text-sm text-zinc-700 truncate min-w-0">{f.name}</span>
+                            <span className="text-sm text-zinc-700 truncate min-w-0 flex-1">{f.name}</span>
                           </a>
                         ))}
                       </div>
@@ -6345,26 +6355,65 @@ export default function GroupDashboard() {
 
             <div
               className="w-full flex-1 relative overflow-hidden"
+              style={{ touchAction: "none" }}
               onTouchStart={(event) => {
+                if (event.touches.length === 2) {
+                  const dx = event.touches[1].clientX - event.touches[0].clientX;
+                  const dy = event.touches[1].clientY - event.touches[0].clientY;
+                  imgGesture.current.startDist = Math.hypot(dx, dy);
+                  imgGesture.current.startScale = imgGesture.current.scale;
+                  imgGesture.current.isPinching = true;
+                  touchStartXRef.current = null;
+                  return;
+                }
+                imgGesture.current.isPinching = false;
                 const touch = event.touches[0];
-                touchStartXRef.current = touch?.clientX ?? null;
-                touchStartYRef.current = touch?.clientY ?? null;
+                if (imgGesture.current.scale > 1) {
+                  imgGesture.current.lastX = touch.clientX - imgGesture.current.panX;
+                  imgGesture.current.lastY = touch.clientY - imgGesture.current.panY;
+                  touchStartXRef.current = null;
+                } else {
+                  touchStartXRef.current = touch.clientX;
+                  touchStartYRef.current = touch.clientY;
+                }
+              }}
+              onTouchMove={(event) => {
+                if (event.touches.length === 2 && imgGesture.current.isPinching) {
+                  const dx = event.touches[1].clientX - event.touches[0].clientX;
+                  const dy = event.touches[1].clientY - event.touches[0].clientY;
+                  const dist = Math.hypot(dx, dy);
+                  const newScale = Math.max(1, Math.min(5, imgGesture.current.startScale * (dist / imgGesture.current.startDist)));
+                  imgGesture.current.scale = newScale;
+                  setImgZoom(newScale);
+                } else if (event.touches.length === 1 && imgGesture.current.scale > 1) {
+                  const newPanX = event.touches[0].clientX - imgGesture.current.lastX;
+                  const newPanY = event.touches[0].clientY - imgGesture.current.lastY;
+                  imgGesture.current.panX = newPanX;
+                  imgGesture.current.panY = newPanY;
+                  setImgPanX(newPanX);
+                  setImgPanY(newPanY);
+                }
               }}
               onTouchEnd={(event) => {
+                imgGesture.current.isPinching = false;
+                // 거의 안 당겼으면 zoom 리셋
+                if (imgGesture.current.scale < 1.15) {
+                  imgGesture.current.scale = 1; imgGesture.current.panX = 0; imgGesture.current.panY = 0;
+                  setImgZoom(1); setImgPanX(0); setImgPanY(0);
+                  return;
+                }
+                // 줌 중엔 좌우 스와이프 무시
+                if (imgGesture.current.scale > 1) return;
                 const startX = touchStartXRef.current;
                 const startY = touchStartYRef.current;
                 const touch = event.changedTouches[0];
-                touchStartXRef.current = null;
-                touchStartYRef.current = null;
+                touchStartXRef.current = null; touchStartYRef.current = null;
                 if (!touch || startX === null || startY === null) return;
                 const deltaX = touch.clientX - startX;
-                const deltaY = Math.abs(touch.clientY - startY);
+                const deltaY = Math.abs(touch.clientY - (startY ?? 0));
                 if (Math.abs(deltaX) < 48 || deltaY > 64) return;
-                if (deltaX < 0 && modalIndex < modalImages.length - 1) {
-                  setModalIndex(prev => prev + 1);
-                } else if (deltaX > 0 && modalIndex > 0) {
-                  setModalIndex(prev => prev - 1);
-                }
+                if (deltaX < 0 && modalIndex < modalImages.length - 1) setModalIndex(prev => prev + 1);
+                else if (deltaX > 0 && modalIndex > 0) setModalIndex(prev => prev - 1);
               }}
             >
               <div
@@ -6376,8 +6425,9 @@ export default function GroupDashboard() {
                     <img
                       src={src}
                       alt="full view"
-                      onClick={() => setShowImageModal(false)}
-                      className="max-w-full max-h-full object-contain cursor-pointer"
+                      onClick={() => { if (imgGesture.current.scale <= 1.05) history.back(); }}
+                      style={idx === modalIndex && imgZoom > 1 ? { transform: `translate(${imgPanX}px, ${imgPanY}px) scale(${imgZoom})`, transformOrigin: "center center" } : undefined}
+                      className="max-w-full max-h-full object-contain cursor-pointer select-none transition-transform duration-100"
                     />
                   </div>
                 ))}
