@@ -2775,8 +2775,22 @@ export default function GroupDashboard() {
 
   const handlePostFileSelect = (files: FileList | null) => {
     if (!files) return;
-    const selected = Array.from(files).slice(0, 5);
-    setPostFileFiles((prev) => [...prev, ...selected].slice(0, 5));
+    const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+    const valid: File[] = [];
+    const oversized: string[] = [];
+    Array.from(files).forEach((file) => {
+      if (file.size > MAX_FILE_SIZE) {
+        oversized.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      } else {
+        valid.push(file);
+      }
+    });
+    if (oversized.length > 0) {
+      alert(`파일당 최대 30MB까지 첨부 가능합니다.\n용량 초과:\n${oversized.join("\n")}`);
+    }
+    if (valid.length > 0) {
+      setPostFileFiles((prev) => [...prev, ...valid].slice(0, 5));
+    }
   };
 
   const addPost = async () => {
