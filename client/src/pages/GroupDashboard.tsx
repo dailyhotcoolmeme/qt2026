@@ -116,13 +116,13 @@ function toHttps(url?: string | null) {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
-const URL_REGEX = /(https?:\/\/[^\s<>"')\]]+)/g;
+const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"')\]]+)/g;
 function Linkify({ children }: { children: string }) {
-  const parts = children.split(URL_REGEX);
+  const parts = children.split(URL_SPLIT_REGEX);
   return (
     <>
       {parts.map((part, i) =>
-        URL_REGEX.test(part) ? (
+        /^https?:\/\//.test(part) ? (
           <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">
             {part}
           </a>
