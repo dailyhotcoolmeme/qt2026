@@ -6467,15 +6467,19 @@ export default function GroupDashboard() {
                             {postImages.map((item) => (
                               <SortableItem key={item.id} id={item.id}>
                                 {({ setNodeRef, style, attributes, listeners, isDragging }) => (
-                                  <div ref={setNodeRef} style={style} className={`relative rounded-sm overflow-hidden bg-zinc-100 ${isDragging ? "scale-105 z-10" : ""}`}>
-                                    <img src={item.kind === "existing" ? item.url : item.preview} alt="" className="w-full h-20 object-cover" />
-                                    {postImages.length > 1 && (
-                                      <button {...attributes} {...listeners} className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center touch-none" type="button">
-                                        <GripVertical size={11} />
-                                      </button>
-                                    )}
-                                    <button onClick={() => { if (item.kind === "new") URL.revokeObjectURL(item.preview); setPostImages(prev => prev.filter(i => i.id !== item.id)); }} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center" type="button">
-                                      <X size={12} />
+                                  <div
+                                    ref={setNodeRef} style={style}
+                                    {...(postImages.length > 1 ? { ...attributes, ...listeners } : {})}
+                                    className={`relative rounded-sm overflow-hidden bg-zinc-100 touch-none ${isDragging ? "scale-105 z-10 opacity-80" : ""}`}
+                                  >
+                                    <img src={item.kind === "existing" ? item.url : item.preview} alt="" className="w-full h-24 object-cover pointer-events-none" />
+                                    <button
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={() => { if (item.kind === "new") URL.revokeObjectURL(item.preview); setPostImages(prev => prev.filter(i => i.id !== item.id)); }}
+                                      className="absolute top-1 right-1 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center"
+                                      type="button"
+                                    >
+                                      <X size={13} />
                                     </button>
                                   </div>
                                 )}
@@ -6485,7 +6489,7 @@ export default function GroupDashboard() {
                         </SortableContext>
                       </DndContext>
                     )}
-                    {postImages.length > 1 && <p className="text-[11px] text-zinc-400 flex items-center gap-1"><GripVertical size={11} />길게 눌러서 순서 조정</p>}
+                    {postImages.length > 1 && <p className="text-[11px] text-zinc-400">길게 눌러서 순서 조정 가능</p>}
                   </div>
 
                   <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-2">
@@ -6508,15 +6512,19 @@ export default function GroupDashboard() {
                             {postFiles.map((item) => (
                               <SortableItem key={item.id} id={item.id}>
                                 {({ setNodeRef, style, attributes, listeners, isDragging }) => (
-                                  <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200 ${isDragging ? "scale-[1.02]" : ""}`}>
-                                    <FileText size={14} className="text-zinc-400 shrink-0" />
-                                    <span className="text-sm text-zinc-700 truncate flex-1">{item.kind === "existing" ? item.name : item.file.name}</span>
-                                    {postFiles.length > 1 && (
-                                      <button {...attributes} {...listeners} className="text-zinc-300 hover:text-zinc-500 touch-none p-1" type="button">
-                                        <GripVertical size={14} />
-                                      </button>
-                                    )}
-                                    <button onClick={() => setPostFiles(prev => prev.filter(i => i.id !== item.id))} className="text-zinc-400 hover:text-rose-500" type="button">
+                                  <div
+                                    ref={setNodeRef} style={style}
+                                    {...(postFiles.length > 1 ? { ...attributes, ...listeners } : {})}
+                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-zinc-200 touch-none ${isDragging ? "scale-[1.02] opacity-80" : ""}`}
+                                  >
+                                    <FileText size={14} className="text-zinc-400 shrink-0 pointer-events-none" />
+                                    <span className="text-sm text-zinc-700 truncate flex-1 pointer-events-none">{item.kind === "existing" ? item.name : item.file.name}</span>
+                                    <button
+                                      onPointerDown={(e) => e.stopPropagation()}
+                                      onClick={() => setPostFiles(prev => prev.filter(i => i.id !== item.id))}
+                                      className="text-zinc-400 hover:text-rose-500 p-1 shrink-0"
+                                      type="button"
+                                    >
                                       <X size={14} />
                                     </button>
                                   </div>
@@ -6527,7 +6535,7 @@ export default function GroupDashboard() {
                         </SortableContext>
                       </DndContext>
                     )}
-                    {postFiles.length > 1 && <p className="text-[11px] text-zinc-400 flex items-center gap-1"><GripVertical size={11} />드래그로 순서 조정</p>}
+                    {postFiles.length > 1 && <p className="text-[11px] text-zinc-400">길게 눌러서 순서 조정 가능</p>}
                   </div>
 
                   <button
