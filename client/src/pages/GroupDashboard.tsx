@@ -996,6 +996,7 @@ export default function GroupDashboard() {
   const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false, tapStartX: 0, tapStartY: 0 });
   const modalImgRef = useRef<HTMLImageElement | null>(null);
   const lastTapRef = useRef<number>(0);
+  const justDoubleTappedRef = useRef(false);
   const touchStartXRef = useRef<number | null>(null);
 
   // 이미지 최대보기 모달 — 뒤로가기 시 닫기
@@ -6389,8 +6390,13 @@ export default function GroupDashboard() {
                   g.scale = Math.max(1, Math.min(5, g.startScale * (dist / g.startDist)));
                   if (el) el.style.transform = `translate(${g.panX}px, ${g.panY}px) scale(${g.scale})`;
                 } else if (event.touches.length === 1 && g.scale > 1) {
-                  g.panX = event.touches[0].clientX - g.lastX;
-                  g.panY = event.touches[0].clientY - g.lastY;
+                  const rawX = event.touches[0].clientX - g.lastX;
+                  const rawY = event.touches[0].clientY - g.lastY;
+                  // 패닝 경계: 확대 비율에 따라 이미지가 화면 밖으로 너무 나가지 않도록 제한
+                  const maxPan = (g.scale - 1) * (el ? el.offsetWidth / 2 : 200);
+                  const maxPanY = (g.scale - 1) * (el ? el.offsetHeight / 2 : 300);
+                  g.panX = Math.max(-maxPan, Math.min(maxPan, rawX));
+                  g.panY = Math.max(-maxPanY, Math.min(maxPanY, rawY));
                   if (el) el.style.transform = `translate(${g.panX}px, ${g.panY}px) scale(${g.scale})`;
                 }
               }}
@@ -6422,6 +6428,9 @@ export default function GroupDashboard() {
                       if (el) { el.style.transition = 'transform 0.2s ease'; el.style.transform = ''; }
                       setTimeout(() => { if (el) el.style.transition = ''; }, 210);
                       lastTapRef.current = 0;
+                      // onClick이 바로 뒤에 발동해서 모달 닫히는 것 방지
+                      justDoubleTappedRef.current = true;
+                      setTimeout(() => { justDoubleTappedRef.current = false; }, 400);
                       return;
                     }
                     lastTapRef.current = now;
@@ -6451,7 +6460,7 @@ export default function GroupDashboard() {
                       ref={idx === modalIndex ? modalImgRef : undefined}
                       src={src}
                       alt="full view"
-                      onClick={() => { if (imgGesture.current.scale <= 1.05) history.back(); }}
+                      onClick={() => { if (!justDoubleTappedRef.current && imgGesture.current.scale <= 1.05) history.back(); }}
                       style={{ transformOrigin: "center center", willChange: "transform" }}
                       className="max-w-full max-h-full object-contain cursor-pointer select-none"
                     />
