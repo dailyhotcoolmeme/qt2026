@@ -158,6 +158,18 @@ async function handleCardBackgrounds(request: Request, url: URL) {
   return withCorsHeaders(next);
 }
 
+const PROXY_IMAGE_ALLOWED_HOSTS = new Set([
+  "audio.myamen.co.kr",
+  "pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev",
+]);
+
+function isAllowedProxyHost(hostname: string): boolean {
+  if (PROXY_IMAGE_ALLOWED_HOSTS.has(hostname)) return true;
+  // Supabase storage 도메인 허용 (*.supabase.co)
+  if (hostname.endsWith(".supabase.co")) return true;
+  return false;
+}
+
 async function handleProxyImage(request: Request, url: URL) {
   if (request.method === "OPTIONS") {
     return withCorsHeaders(new Response(null, { status: 204 }));
@@ -177,6 +189,10 @@ async function handleProxyImage(request: Request, url: URL) {
   }
   if (target.protocol !== "http:" && target.protocol !== "https:") {
     return json(400, { message: "unsupported protocol" });
+  }
+
+  if (!isAllowedProxyHost(target.hostname)) {
+    return json(403, { message: "domain not allowed" });
   }
 
   const response = await fetch(target.toString(), {
@@ -836,6 +852,7 @@ async function getSupabaseUserId(token: string, env: Env): Promise<string | null
 async function handleNaverTTS(request: Request, env: Env) {
   if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
   if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+  if (!await verifySupabaseToken(request, env)) return json(401, { error: '인증이 필요합니다' });
 
   const { text, cacheKey } = await request.json() as { text: string; cacheKey: string };
   if (!text || !cacheKey) return json(400, { message: 'text and cacheKey required' });
@@ -892,6 +909,7 @@ async function handleNaverTTS(request: Request, env: Env) {
 async function handleElevenLabsTTS(request: Request, env: Env) {
   if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
   if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
+  if (!await verifySupabaseToken(request, env)) return json(401, { error: '인증이 필요합니다' });
 
   const { text, cacheKey, verseOffsets } = await request.json() as {
     text: string;
@@ -1275,6 +1293,22 @@ async function handlePushSendGroup(request: Request, env: Env) {
   return json(200, { success: true, sent, total: targetIds.length });
 }
 
+const ADMIN_TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24시간
+
+async function hmacSign(payload: string, secret: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+  );
+  const sig = await crypto.subtle.sign('HMAC', key, enc.encode(payload));
+  return btoa(String.fromCharCode(...new Uint8Array(sig)));
+}
+
+async function hmacVerify(payload: string, signature: string, secret: string): Promise<boolean> {
+  const expected = await hmacSign(payload, secret);
+  return expected === signature;
+}
+
 async function handleAdminLogin(request: Request, env: Env) {
   if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
   if (request.method !== 'POST') return json(405, { message: 'method not allowed' });
@@ -1290,7 +1324,11 @@ async function handleAdminLogin(request: Request, env: Env) {
 
   const secret = env.ADMIN_SECRET;
   if (!secret) return json(503, { error: 'server config error' });
-  const token = btoa(`${username}:${Date.now()}:${secret}`);
+
+  const exp = Date.now() + ADMIN_TOKEN_EXPIRY_MS;
+  const payload = `${username}:${exp}`;
+  const signature = await hmacSign(payload, secret);
+  const token = btoa(JSON.stringify({ payload, signature }));
   return json(200, { token });
 }
 
@@ -1298,18 +1336,7 @@ async function handleAdminStats(request: Request, env: Env) {
   if (request.method === 'OPTIONS') return withCorsHeaders(new Response(null, { status: 204 }));
   if (request.method !== 'GET') return json(405, { message: 'method not allowed' });
 
-  // 토큰 검증
-  const authHeader = request.headers.get('Authorization') || '';
-  const token = authHeader.replace('Bearer ', '');
-  if (!token) return json(401, { error: 'unauthorized' });
-
-  try {
-    const decoded = atob(token);
-    const secret = env.ADMIN_SECRET;
-    if (!secret || !decoded.includes(secret)) return json(401, { error: 'unauthorized' });
-  } catch {
-    return json(401, { error: 'unauthorized' });
-  }
+  if (!await verifyAdminToken(request, env)) return json(401, { error: 'unauthorized' });
 
   const supabaseUrl = env.SUPABASE_URL || '';
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || '';
@@ -1408,10 +1435,17 @@ async function verifyAdminToken(request: Request, env: Env): Promise<boolean> {
   const authHeader = request.headers.get('Authorization') || '';
   const token = authHeader.replace('Bearer ', '');
   if (!token) return false;
+  const secret = env.ADMIN_SECRET;
+  if (!secret) return false;
   try {
-    const decoded = atob(token);
-    const secret = env.ADMIN_SECRET;
-    return !!secret && decoded.includes(secret);
+    const { payload, signature } = JSON.parse(atob(token)) as { payload: string; signature: string };
+    if (!payload || !signature) return false;
+    // 만료시간 확인
+    const parts = payload.split(':');
+    const exp = parseInt(parts[parts.length - 1], 10);
+    if (isNaN(exp) || Date.now() > exp) return false;
+    // HMAC 서명 검증
+    return await hmacVerify(payload, signature, secret);
   } catch { return false; }
 }
 

@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// local.properties에서 keystore 비밀번호 읽기
+def localProperties = new Properties()
+def localPropertiesFile = rootProject.file('local.properties')
+if (localPropertiesFile.exists()) {
+    localProperties.load(new FileInputStream(localPropertiesFile))
+}
+
 android {
     namespace = "com.myamen.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -19,9 +26,9 @@ android {
     signingConfigs {
         release {
             storeFile file("myamen-release.keystore")
-            storePassword "ourmine0401"
+            storePassword localProperties.getProperty('MYAMEN_STORE_PASSWORD', '')
             keyAlias "myamen"
-            keyPassword "ourmine0401"
+            keyPassword localProperties.getProperty('MYAMEN_KEY_PASSWORD', '')
         }
     }
     buildTypes {
