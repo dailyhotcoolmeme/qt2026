@@ -116,20 +116,20 @@ function toHttps(url?: string | null) {
   return url.startsWith("http://") ? `https://${url.slice(7)}` : url;
 }
 
-const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"')\]]+)/g;
+const URL_SPLIT_REGEX = /(https?:\/\/[^\s<>"')\]]+|www\.[^\s<>"')\]]+\.[^\s<>"')\]]+)/g;
 function Linkify({ children }: { children: string }) {
   const parts = children.split(URL_SPLIT_REGEX);
   return (
     <>
-      {parts.map((part, i) =>
-        /^https?:\/\//.test(part) ? (
-          <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">
-            {part}
-          </a>
-        ) : (
-          <React.Fragment key={i}>{part}</React.Fragment>
-        )
-      )}
+      {parts.map((part, i) => {
+        if (/^https?:\/\//.test(part)) {
+          return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">{part}</a>;
+        }
+        if (/^www\./.test(part)) {
+          return <a key={i} href={`https://${part}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline break-all">{part}</a>;
+        }
+        return <React.Fragment key={i}>{part}</React.Fragment>;
+      })}
     </>
   );
 }
