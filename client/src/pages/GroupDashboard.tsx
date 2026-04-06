@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { PTRAwareTouchSensor } from "../lib/ptrAwareTouchSensor";
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLocation, useRoute } from "wouter";
 import {
@@ -168,6 +168,9 @@ type GroupJoinRequest = {
   created_at: string;
   profile?: ProfileLite;
 };
+
+type ComposerImage = { id: string; kind: "existing"; url: string } | { id: string; kind: "new"; file: File; preview: string };
+type ComposerFile = { id: string; kind: "existing"; url: string; name: string } | { id: string; kind: "new"; file: File };
 
 type GroupPostRow = {
   id: number;
@@ -979,11 +982,8 @@ export default function GroupDashboard() {
   const [socialViewMode, setSocialViewMode] = useState<"board" | "blog">("board");
   const [showPostComposerModal, setShowPostComposerModal] = useState(false);
   const [editingPost, setEditingPost] = useState<GroupPostRow | null>(null);
-  const [postImageFiles, setPostImageFiles] = useState<File[]>([]);
-  const [postImagePreviews, setPostImagePreviews] = useState<string[]>([]);
-  const [postExistingImages, setPostExistingImages] = useState<string[]>([]);
-  const [postFileFiles, setPostFileFiles] = useState<File[]>([]);
-  const [postExistingFiles, setPostExistingFiles] = useState<{ url: string; name: string }[]>([]);
+  const [postImages, setPostImages] = useState<ComposerImage[]>([]);
+  const [postFiles, setPostFiles] = useState<ComposerFile[]>([]);
   const [postLikes, setPostLikes] = useState<Record<number, any[]>>({});
   const [postComments, setPostComments] = useState<Record<number, any[]>>({});
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
@@ -1165,13 +1165,6 @@ export default function GroupDashboard() {
     return () => URL.revokeObjectURL(url);
   }, [recordedBlob]);
 
-  useEffect(() => {
-    const urls = postImageFiles.map((file) => URL.createObjectURL(file));
-    setPostImagePreviews(urls);
-    return () => {
-      urls.forEach((url) => URL.revokeObjectURL(url));
-    };
-  }, [postImageFiles]);
 
   useEffect(() => {
     const urls = newPrayerAttachments.map((file) => URL.createObjectURL(file));
@@ -2762,212 +2755,124 @@ export default function GroupDashboard() {
 
   const handlePostImageSelect = (files: FileList | null) => {
     if (!files) return;
-    const selected = Array.from(files).slice(0, 10);
-    if (selected.length > 0) {
-      logEvent("group", "image_attach");
-    }
-    setPostImageFiles((prev) => [...prev, ...selected].slice(0, 10));
-  };
-
-  const removePostImage = (index: number) => {
-    setPostImageFiles((prev) => prev.filter((_, i) => i !== index));
+    if (Array.from(files).length > 0) logEvent("group", "image_attach");
+    const newItems: ComposerImage[] = Array.from(files).map(file => ({
+      id: `n-img-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      kind: "new" as const,
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setPostImages(prev => [...prev, ...newItems].slice(0, 10));
   };
 
   const handlePostFileSelect = (files: FileList | null) => {
     if (!files) return;
-    const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30MB
+    const MAX_FILE_SIZE = 30 * 1024 * 1024;
     const valid: File[] = [];
     const oversized: string[] = [];
-    Array.from(files).forEach((file) => {
-      if (file.size > MAX_FILE_SIZE) {
-        oversized.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-      } else {
-        valid.push(file);
-      }
+    Array.from(files).forEach(file => {
+      if (file.size > MAX_FILE_SIZE) oversized.push(`${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      else valid.push(file);
     });
-    if (oversized.length > 0) {
-      alert(`파일당 최대 30MB까지 첨부 가능합니다.\n용량 초과:\n${oversized.join("\n")}`);
-    }
+    if (oversized.length > 0) alert(`파일당 최대 30MB까지 첨부 가능합니다.\n용량 초과:\n${oversized.join("\n")}`);
     if (valid.length > 0) {
-      setPostFileFiles((prev) => [...prev, ...valid].slice(0, 5));
+      const newItems: ComposerFile[] = valid.map(file => ({
+        id: `n-file-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        kind: "new" as const,
+        file,
+      }));
+      setPostFiles(prev => [...prev, ...newItems].slice(0, 5));
     }
   };
 
   const addPost = async () => {
-    if (!group || !user || (!postContent.trim() && postImageFiles.length === 0 && postExistingImages.length === 0 && postFileFiles.length === 0 && postExistingFiles.length === 0)) return;
+    if (!group || !user || (!postContent.trim() && postImages.length === 0 && postFiles.length === 0)) return;
     if (postType === "notice" && !isManager) {
       alert("공지 작성은 리더/관리자만 가능합니다.");
       return;
     }
-
-    if (!editingPost) {
-      logEvent("group", "post_create");
-    }
+    if (!editingPost) logEvent("group", "post_create");
     // @ts-ignore
     setShowPostComposerModal('submitting');
     setIsSubmittingPost(true);
 
-    const payload = {
-      group_id: group.id,
-      author_id: user.id,
-      post_type: postType,
-      title: postTitle.trim() || null,
-      content: postContent.trim(),
+    const uploadAttachments = async (postId: number) => {
+      const rows: object[] = [];
+      let idx = 0;
+      for (const item of postImages) {
+        if (item.kind === "existing") {
+          rows.push({ post_id: postId, uploader_id: user.id, image_url: item.url, sort_order: idx++, file_name: null, content_type: "image/jpeg" });
+        } else {
+          const resized = await resizeImageFile(item.file, 1080, 0.82);
+          const safeName = sanitizeFileName(resized.name || `image_${idx}.jpg`);
+          const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${idx}_${safeName}`;
+          const url = await uploadFileToR2(key, resized, resized.type || "image/jpeg");
+          rows.push({ post_id: postId, uploader_id: user.id, image_url: url, sort_order: idx++, file_name: null, content_type: "image/jpeg" });
+        }
+      }
+      for (const item of postFiles) {
+        if (item.kind === "existing") {
+          rows.push({ post_id: postId, uploader_id: user.id, image_url: item.url, sort_order: idx++, file_name: item.name, content_type: "application/octet-stream" });
+        } else {
+          const safeName = sanitizeFileName(item.file.name || `file_${idx}`);
+          const key = `files/group-posts/${group.id}/${user.id}/${Date.now()}_${idx}_${safeName}`;
+          const url = await uploadFileToR2(key, item.file, item.file.type || "application/octet-stream");
+          rows.push({ post_id: postId, uploader_id: user.id, image_url: url, sort_order: idx++, file_name: item.file.name, content_type: "application/octet-stream" });
+        }
+      }
+      if (rows.length > 0) {
+        const { error } = await supabase.from("group_post_images").insert(rows);
+        if (error) throw error;
+      }
+    };
+
+    const resetComposer = () => {
+      setPostTitle(""); setPostContent(""); setPostImages([]); setPostFiles([]);
+      setShowPostComposerModal(false);
     };
 
     if (editingPost) {
       const { error } = await supabase
         .from("group_posts")
-        .update({ title: postTitle.trim() || null, content: postContent.trim() })
+        .update({ title: postTitle.trim() || null, content: postContent.trim(), post_type: postType })
         .eq("id", editingPost.id);
+      if (error) { alert("게시글 수정에 실패했습니다."); setIsSubmittingPost(false); return; }
 
-      if (error) {
-        alert("게시글 수정에 실패했습니다.");
-        setIsSubmittingPost(false);
-        return;
-      }
-
-      const imagesToRemove = (editingPost.image_urls || []).filter(url => !postExistingImages.includes(url));
-      for (const removedUrl of imagesToRemove) {
-        void deleteAudioFromR2(removedUrl);
-      }
-      const filesToRemove = (editingPost.file_attachments || []).filter(f => !postExistingFiles.some(ef => ef.url === f.url));
-      for (const f of filesToRemove) {
-        void deleteAudioFromR2(f.url);
-      }
+      // R2에서 제거된 첨부파일 삭제
+      const keptImageUrls = new Set(postImages.filter(i => i.kind === "existing").map(i => (i as any).url as string));
+      (editingPost.image_urls || []).filter(url => !keptImageUrls.has(url)).forEach(url => void deleteAudioFromR2(url));
+      const keptFileUrls = new Set(postFiles.filter(f => f.kind === "existing").map(f => (f as any).url as string));
+      (editingPost.file_attachments || []).filter(f => !keptFileUrls.has(f.url)).forEach(f => void deleteAudioFromR2(f.url));
 
       await supabase.from("group_post_images").delete().eq("post_id", editingPost.id);
+      try { await uploadAttachments(editingPost.id); }
+      catch (e) { console.error(e); alert("첨부파일 업로드/저장에 실패했습니다."); }
 
-      try {
-        let uploadedImageUrls: string[] = [];
-        if (postImageFiles.length > 0) {
-          uploadedImageUrls = await Promise.all(
-            postImageFiles.map(async (file, index) => {
-              const resized = await resizeImageFile(file, 1080, 0.82);
-              const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
-              const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-              return uploadFileToR2(key, resized, resized.type || "image/jpeg");
-            })
-          );
-        }
-        let uploadedFileAttachments: { url: string; name: string }[] = [];
-        if (postFileFiles.length > 0) {
-          uploadedFileAttachments = await Promise.all(
-            postFileFiles.map(async (file, index) => {
-              const safeName = sanitizeFileName(file.name || `file_${index + 1}`);
-              const key = `files/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-              const url = await uploadFileToR2(key, file, file.type || "application/octet-stream");
-              return { url, name: file.name };
-            })
-          );
-        }
-
-        const finalImageUrls = [...postExistingImages, ...uploadedImageUrls];
-        const finalFiles = [...postExistingFiles, ...uploadedFileAttachments];
-        const allRows = [
-          ...finalImageUrls.map((url, i) => ({ post_id: editingPost.id, uploader_id: user.id, image_url: url, sort_order: i, file_name: null as null, content_type: "image/jpeg" })),
-          ...finalFiles.map((f, i) => ({ post_id: editingPost.id, uploader_id: user.id, image_url: f.url, sort_order: finalImageUrls.length + i, file_name: f.name, content_type: "application/octet-stream" })),
-        ];
-        if (allRows.length > 0) {
-          const { error: insertError } = await supabase.from("group_post_images").insert(allRows);
-          if (insertError) throw insertError;
-        }
-      } catch (uploadError) {
-        console.error("post attachment upload error:", uploadError);
-        alert(`첨부파일 업로드/저장에 실패했습니다.`);
-      }
-
-      setPostTitle("");
-      setPostContent("");
-      setPostImageFiles([]);
-      setPostImagePreviews([]);
-      setPostExistingImages([]);
-      setPostFileFiles([]);
-      setPostExistingFiles([]);
-      setShowPostComposerModal(false);
-      setEditingPost(null);
+      resetComposer(); setEditingPost(null);
       await loadPosts(group.id);
       setIsSubmittingPost(false);
       return;
     }
 
+    const payload = { group_id: group.id, author_id: user.id, post_type: postType, title: postTitle.trim() || null, content: postContent.trim() };
     let createdPostId: number | null = null;
-    let { data: createdPost, error } = await supabase
-      .from("group_posts")
-      .insert(payload)
-      .select("id")
-      .single();
-
-    if (!error) {
-      createdPostId = createdPost?.id ?? null;
-    }
+    let { data: createdPost, error } = await supabase.from("group_posts").insert(payload).select("id").single();
+    if (!error) createdPostId = createdPost?.id ?? null;
 
     if (error && error.code === "42703") {
-      const merged = postTitle.trim()
-        ? `[${postTitle.trim()}]\n${postContent.trim()}`
-        : postContent.trim();
-      const fallback = await supabase
-        .from("group_posts")
-        .insert({
-          group_id: group.id,
-          author_id: user.id,
-          post_type: postType,
-          content: merged,
-        })
-        .select("id")
-        .single();
+      const merged = postTitle.trim() ? `[${postTitle.trim()}]\n${postContent.trim()}` : postContent.trim();
+      const fallback = await supabase.from("group_posts").insert({ group_id: group.id, author_id: user.id, post_type: postType, content: merged }).select("id").single();
       error = fallback.error;
       createdPostId = fallback.data?.id ?? null;
     }
+    if (error) { alert("게시글 등록에 실패했습니다."); setIsSubmittingPost(false); return; }
 
-    if (error) {
-      alert("게시글 등록에 실패했습니다.");
-      setIsSubmittingPost(false);
-      return;
+    if (createdPostId && (postImages.length > 0 || postFiles.length > 0)) {
+      try { await uploadAttachments(createdPostId); }
+      catch (e) { console.error(e); alert(`첨부파일 업로드/저장에 실패했습니다: ${e instanceof Error ? e.message : ""}`); }
     }
 
-    if (createdPostId && (postImageFiles.length > 0 || postFileFiles.length > 0)) {
-      try {
-        const uploadedImageUrls = postImageFiles.length > 0 ? await Promise.all(
-          postImageFiles.map(async (file, index) => {
-            const resized = await resizeImageFile(file, 1080, 0.82);
-            const safeName = sanitizeFileName(resized.name || `image_${index + 1}.jpg`);
-            const key = `images/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-            return uploadFileToR2(key, resized, resized.type || "image/jpeg");
-          })
-        ) : [];
-        const uploadedFileAttachments = postFileFiles.length > 0 ? await Promise.all(
-          postFileFiles.map(async (file, index) => {
-            const safeName = sanitizeFileName(file.name || `file_${index + 1}`);
-            const key = `files/group-posts/${group.id}/${user.id}/${Date.now()}_${index}_${safeName}`;
-            const url = await uploadFileToR2(key, file, file.type || "application/octet-stream");
-            return { url, name: file.name };
-          })
-        ) : [];
-
-        const allRows = [
-          ...uploadedImageUrls.map((url, i) => ({ post_id: createdPostId, uploader_id: user.id, image_url: url, sort_order: i, file_name: null as null, content_type: "image/jpeg" })),
-          ...uploadedFileAttachments.map((f, i) => ({ post_id: createdPostId, uploader_id: user.id, image_url: f.url, sort_order: uploadedImageUrls.length + i, file_name: f.name, content_type: "application/octet-stream" })),
-        ];
-        if (allRows.length > 0) {
-          const { error: insertError } = await supabase.from("group_post_images").insert(allRows);
-          if (insertError) throw insertError;
-        }
-      } catch (uploadError) {
-        console.error("post attachment upload error:", uploadError);
-        const message = uploadError instanceof Error ? uploadError.message : "알 수 없는 오류";
-        alert(`첨부파일 업로드/저장에 실패했습니다: ${message}`);
-      }
-    }
-
-    setPostType("post");
-    setPostTitle("");
-    setPostContent("");
-    setPostImageFiles([]);
-    setPostExistingImages([]);
-    setPostFileFiles([]);
-    setPostExistingFiles([]);
-    setShowPostComposerModal(false);
+    setPostType("post"); resetComposer();
     await loadPosts(group.id);
     setIsSubmittingPost(false);
 
@@ -4831,7 +4736,7 @@ export default function GroupDashboard() {
                       {canDelete && (
                         <div className="flex gap-1 shrink-0 text-zinc-400">
                           {post.author_id === user.id && (
-                            <button onClick={() => { setEditingPost(post); setPostType(post.post_type); setPostTitle(post.title || ""); setPostContent(post.content || ""); setPostExistingImages(post.image_urls || []); setPostImageFiles([]); setPostImagePreviews([]); setPostExistingFiles(post.file_attachments || []); setPostFileFiles([]); setShowPostComposerModal(true); }} className="p-1.5 hover:text-[#4A6741] transition-colors"><Pencil size={15} /></button>
+                            <button onClick={() => { setEditingPost(post); setPostType(post.post_type); setPostTitle(post.title || ""); setPostContent(post.content || ""); setPostImages((post.image_urls || []).map((url, i) => ({ id: `e-img-${i}`, kind: "existing" as const, url }))); setPostFiles((post.file_attachments || []).map((f, i) => ({ id: `e-file-${i}`, kind: "existing" as const, url: f.url, name: f.name }))); setShowPostComposerModal(true); }} className="p-1.5 hover:text-[#4A6741] transition-colors"><Pencil size={15} /></button>
                           )}
                           <button onClick={() => removePost(post)} className="p-1.5 hover:text-rose-500 transition-colors"><Trash2 size={15} /></button>
                         </div>
@@ -6548,42 +6453,39 @@ export default function GroupDashboard() {
                       <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
                         <ImagePlus size={13} />
                         사진 선택
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => handlePostImageSelect(e.target.files)}
-                        />
+                        <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handlePostImageSelect(e.target.files)} />
                       </label>
                     </div>
-
-                    {(postExistingImages.length > 0 || postImagePreviews.length > 0) && (
-                      <div className="grid grid-cols-3 gap-2">
-                        {postExistingImages.map((preview, index) => (
-                          <div key={`exist-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
-                            <img src={preview} alt={`exist-${index}`} className="w-full h-20 object-cover" />
-                            <button
-                              onClick={() => setPostExistingImages(prev => prev.filter((_, i) => i !== index))}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                            >
-                              <X size={12} />
-                            </button>
+                    {postImages.length > 0 && (
+                      <DndContext sensors={sortableSensors} collisionDetection={closestCenter} onDragEnd={(event) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id) return;
+                        setPostImages(prev => arrayMove(prev, prev.findIndex(i => i.id === active.id), prev.findIndex(i => i.id === over.id)));
+                      }}>
+                        <SortableContext items={postImages.map(i => i.id)} strategy={rectSortingStrategy}>
+                          <div className="grid grid-cols-3 gap-2">
+                            {postImages.map((item) => (
+                              <SortableItem key={item.id} id={item.id}>
+                                {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                                  <div ref={setNodeRef} style={style} className={`relative rounded-sm overflow-hidden bg-zinc-100 ${isDragging ? "scale-105 z-10" : ""}`}>
+                                    <img src={item.kind === "existing" ? item.url : item.preview} alt="" className="w-full h-20 object-cover" />
+                                    {postImages.length > 1 && (
+                                      <button {...attributes} {...listeners} className="absolute top-1 left-1 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center touch-none" type="button">
+                                        <GripVertical size={11} />
+                                      </button>
+                                    )}
+                                    <button onClick={() => { if (item.kind === "new") URL.revokeObjectURL(item.preview); setPostImages(prev => prev.filter(i => i.id !== item.id)); }} className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center" type="button">
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                )}
+                              </SortableItem>
+                            ))}
                           </div>
-                        ))}
-                        {postImagePreviews.map((preview, index) => (
-                          <div key={`preview-${index}`} className="relative rounded-sm overflow-hidden bg-zinc-100">
-                            <img src={preview} alt={`preview-${index}`} className="w-full h-20 object-cover" />
-                            <button
-                              onClick={() => removePostImage(index)}
-                              className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center"
-                            >
-                              <X size={12} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                        </SortableContext>
+                      </DndContext>
                     )}
+                    {postImages.length > 1 && <p className="text-[11px] text-zinc-400 flex items-center gap-1"><GripVertical size={11} />길게 눌러서 순서 조정</p>}
                   </div>
 
                   <div className="rounded-sm bg-zinc-50 border border-zinc-100 p-3 space-y-2">
@@ -6592,37 +6494,40 @@ export default function GroupDashboard() {
                       <label className="px-3 py-1.5 rounded-sm bg-zinc-900 text-white text-base font-bold cursor-pointer inline-flex items-center gap-1">
                         <Paperclip size={13} />
                         파일 선택
-                        <input
-                          type="file"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => handlePostFileSelect(e.target.files)}
-                        />
+                        <input type="file" multiple className="hidden" onChange={(e) => handlePostFileSelect(e.target.files)} />
                       </label>
                     </div>
-
-                    {(postExistingFiles.length > 0 || postFileFiles.length > 0) && (
-                      <div className="space-y-1.5">
-                        {postExistingFiles.map((f, index) => (
-                          <div key={`ef-${index}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200">
-                            <FileText size={14} className="text-zinc-400 shrink-0" />
-                            <span className="text-sm text-zinc-700 truncate flex-1">{f.name}</span>
-                            <button onClick={() => setPostExistingFiles(prev => prev.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-rose-500">
-                              <X size={14} />
-                            </button>
+                    {postFiles.length > 0 && (
+                      <DndContext sensors={sortableSensors} collisionDetection={closestCenter} onDragEnd={(event) => {
+                        const { active, over } = event;
+                        if (!over || active.id === over.id) return;
+                        setPostFiles(prev => arrayMove(prev, prev.findIndex(i => i.id === active.id), prev.findIndex(i => i.id === over.id)));
+                      }}>
+                        <SortableContext items={postFiles.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-1.5">
+                            {postFiles.map((item) => (
+                              <SortableItem key={item.id} id={item.id}>
+                                {({ setNodeRef, style, attributes, listeners, isDragging }) => (
+                                  <div ref={setNodeRef} style={style} className={`flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200 ${isDragging ? "scale-[1.02]" : ""}`}>
+                                    <FileText size={14} className="text-zinc-400 shrink-0" />
+                                    <span className="text-sm text-zinc-700 truncate flex-1">{item.kind === "existing" ? item.name : item.file.name}</span>
+                                    {postFiles.length > 1 && (
+                                      <button {...attributes} {...listeners} className="text-zinc-300 hover:text-zinc-500 touch-none p-1" type="button">
+                                        <GripVertical size={14} />
+                                      </button>
+                                    )}
+                                    <button onClick={() => setPostFiles(prev => prev.filter(i => i.id !== item.id))} className="text-zinc-400 hover:text-rose-500" type="button">
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                )}
+                              </SortableItem>
+                            ))}
                           </div>
-                        ))}
-                        {postFileFiles.map((f, index) => (
-                          <div key={`nf-${index}`} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-zinc-200">
-                            <FileText size={14} className="text-zinc-400 shrink-0" />
-                            <span className="text-sm text-zinc-700 truncate flex-1">{f.name}</span>
-                            <button onClick={() => setPostFileFiles(prev => prev.filter((_, i) => i !== index))} className="text-zinc-400 hover:text-rose-500">
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                        </SortableContext>
+                      </DndContext>
                     )}
+                    {postFiles.length > 1 && <p className="text-[11px] text-zinc-400 flex items-center gap-1"><GripVertical size={11} />드래그로 순서 조정</p>}
                   </div>
 
                   <button
