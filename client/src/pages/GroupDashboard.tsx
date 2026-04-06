@@ -993,10 +993,8 @@ export default function GroupDashboard() {
   const [showImageModal, setShowImageModal] = useState(false);
   const [modalImages, setModalImages] = useState<string[]>([]);
   const [modalIndex, setModalIndex] = useState(0);
-  const [imgZoom, setImgZoom] = useState(1);
-  const [imgPanX, setImgPanX] = useState(0);
-  const [imgPanY, setImgPanY] = useState(0);
   const imgGesture = useRef({ scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false });
+  const modalImgRef = useRef<HTMLImageElement | null>(null);
   const touchStartXRef = useRef<number | null>(null);
 
   // 이미지 최대보기 모달 — 뒤로가기 시 닫기
@@ -1012,7 +1010,7 @@ export default function GroupDashboard() {
   // 이미지 전환 or 모달 닫힐 때 줌 리셋
   useEffect(() => {
     imgGesture.current = { scale: 1, panX: 0, panY: 0, startDist: 0, startScale: 1, lastX: 0, lastY: 0, isPinching: false };
-    setImgZoom(1); setImgPanX(0); setImgPanY(0);
+    if (modalImgRef.current) modalImgRef.current.style.transform = '';
   }, [modalIndex, showImageModal]);
   const touchStartYRef = useRef<number | null>(null);
   const [isSubmittingPost, setIsSubmittingPost] = useState(false);
@@ -4788,10 +4786,11 @@ export default function GroupDashboard() {
                             href={f.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors overflow-hidden"
+                            className="grid px-3 py-2 rounded-xl bg-zinc-50 border border-zinc-200 hover:bg-zinc-100 transition-colors"
+                            style={{ gridTemplateColumns: "auto 1fr" }}
                           >
-                            <FileText size={15} className="text-zinc-400 shrink-0" />
-                            <span className="text-sm text-zinc-700 truncate min-w-0 flex-1">{f.name}</span>
+                            <FileText size={15} className="text-zinc-400 mr-2 self-center" />
+                            <span className="text-sm text-zinc-700 truncate">{f.name}</span>
                           </a>
                         ))}
                       </div>
@@ -6378,32 +6377,30 @@ export default function GroupDashboard() {
                 }
               }}
               onTouchMove={(event) => {
-                if (event.touches.length === 2 && imgGesture.current.isPinching) {
+                const g = imgGesture.current;
+                const el = modalImgRef.current;
+                if (event.touches.length === 2 && g.isPinching) {
                   const dx = event.touches[1].clientX - event.touches[0].clientX;
                   const dy = event.touches[1].clientY - event.touches[0].clientY;
                   const dist = Math.hypot(dx, dy);
-                  const newScale = Math.max(1, Math.min(5, imgGesture.current.startScale * (dist / imgGesture.current.startDist)));
-                  imgGesture.current.scale = newScale;
-                  setImgZoom(newScale);
-                } else if (event.touches.length === 1 && imgGesture.current.scale > 1) {
-                  const newPanX = event.touches[0].clientX - imgGesture.current.lastX;
-                  const newPanY = event.touches[0].clientY - imgGesture.current.lastY;
-                  imgGesture.current.panX = newPanX;
-                  imgGesture.current.panY = newPanY;
-                  setImgPanX(newPanX);
-                  setImgPanY(newPanY);
+                  g.scale = Math.max(1, Math.min(5, g.startScale * (dist / g.startDist)));
+                  if (el) el.style.transform = `translate(${g.panX}px, ${g.panY}px) scale(${g.scale})`;
+                } else if (event.touches.length === 1 && g.scale > 1) {
+                  g.panX = event.touches[0].clientX - g.lastX;
+                  g.panY = event.touches[0].clientY - g.lastY;
+                  if (el) el.style.transform = `translate(${g.panX}px, ${g.panY}px) scale(${g.scale})`;
                 }
               }}
               onTouchEnd={(event) => {
-                imgGesture.current.isPinching = false;
-                // 거의 안 당겼으면 zoom 리셋
-                if (imgGesture.current.scale < 1.15) {
-                  imgGesture.current.scale = 1; imgGesture.current.panX = 0; imgGesture.current.panY = 0;
-                  setImgZoom(1); setImgPanX(0); setImgPanY(0);
+                const g = imgGesture.current;
+                const el = modalImgRef.current;
+                g.isPinching = false;
+                if (g.scale < 1.15) {
+                  g.scale = 1; g.panX = 0; g.panY = 0;
+                  if (el) el.style.transform = '';
                   return;
                 }
-                // 줌 중엔 좌우 스와이프 무시
-                if (imgGesture.current.scale > 1) return;
+                if (g.scale > 1) return;
                 const startX = touchStartXRef.current;
                 const startY = touchStartYRef.current;
                 const touch = event.changedTouches[0];
@@ -6423,11 +6420,12 @@ export default function GroupDashboard() {
                 {modalImages.map((src, idx) => (
                   <div key={idx} className="w-full h-full shrink-0 flex items-center justify-center p-4">
                     <img
+                      ref={idx === modalIndex ? modalImgRef : undefined}
                       src={src}
                       alt="full view"
                       onClick={() => { if (imgGesture.current.scale <= 1.05) history.back(); }}
-                      style={idx === modalIndex && imgZoom > 1 ? { transform: `translate(${imgPanX}px, ${imgPanY}px) scale(${imgZoom})`, transformOrigin: "center center" } : undefined}
-                      className="max-w-full max-h-full object-contain cursor-pointer select-none transition-transform duration-100"
+                      style={{ transformOrigin: "center center", willChange: "transform" }}
+                      className="max-w-full max-h-full object-contain cursor-pointer select-none"
                     />
                   </div>
                 ))}
@@ -6575,10 +6573,11 @@ export default function GroupDashboard() {
                                   <div
                                     ref={setNodeRef} style={style}
                                     {...(postFiles.length > 1 ? { ...attributes, ...listeners } : {})}
-                                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-zinc-200 touch-none overflow-hidden ${isDragging ? "scale-[1.02] opacity-80" : ""}`}
+                                    className={`grid px-3 py-2.5 rounded-xl bg-white border border-zinc-200 touch-none ${isDragging ? "scale-[1.02] opacity-80" : ""}`}
+                                    style={{ gridTemplateColumns: "auto 1fr auto" }}
                                   >
-                                    <FileText size={14} className="text-zinc-400 shrink-0 pointer-events-none" />
-                                    <span className="text-sm text-zinc-700 truncate min-w-0 flex-1 pointer-events-none">{item.kind === "existing" ? item.name : item.file.name}</span>
+                                    <FileText size={14} className="text-zinc-400 mr-2 self-center pointer-events-none" />
+                                    <span className="text-sm text-zinc-700 truncate self-center pointer-events-none">{item.kind === "existing" ? item.name : item.file.name}</span>
                                     <button
                                       onPointerDown={(e) => e.stopPropagation()}
                                       onClick={() => setPostFiles(prev => prev.filter(i => i.id !== item.id))}
