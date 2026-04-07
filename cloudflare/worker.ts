@@ -1788,7 +1788,10 @@ export default {
           if (rows.length > 0) content = rows[0].content || "";
         }
       } catch {}
-      const escaped = content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      // 본문에서 조항 제목(제N조 또는 숫자. 형태) 패턴을 span으로 감싸기
+      const formatted = escaped
+        .replace(/^(제\d+조[^\n]*)/gm, '<span class="article-title">$1</span>')
+        .replace(/^(\d+\.\s)/gm, '<span class="num">$1</span>');
       const html = `<!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -1797,93 +1800,130 @@ export default {
 <title>${termTitle} - myAmen</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    background: #fafafa;
-    color: #222;
+    background: #F8F8F8;
+    color: #3a3a3a;
     min-height: 100vh;
   }
   .header {
-    background: #fff;
-    border-bottom: 1px solid #f0f0f0;
+    background: rgba(255,255,255,0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0,0,0,0.05);
     padding: 0 20px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     height: 56px;
     position: sticky;
     top: 0;
     z-index: 10;
   }
-  .logo-dot {
-    width: 8px; height: 8px;
-    background: #f97316;
-    border-radius: 50%;
+  .logo {
+    font-size: 17px;
+    font-weight: 800;
+    color: #1a1a1a;
+    letter-spacing: -0.5px;
+    line-height: 1;
+  }
+  .logo em { font-style: normal; color: #4A6741; }
+  .sep { width: 1px; height: 14px; background: #ddd; margin: 0 6px; }
+  .header-sub {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4A6741;
+    letter-spacing: -0.2px;
+  }
+  .wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 28px 16px 80px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+    padding: 28px 24px 32px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .card-title-bar {
+    width: 4px;
+    height: 22px;
+    background: #4A6741;
+    border-radius: 3px;
     flex-shrink: 0;
   }
-  .logo-text {
-    font-size: 18px;
+  .card-title h1 {
+    font-size: 19px;
     font-weight: 800;
-    color: #111;
+    color: #1a1a1a;
     letter-spacing: -0.5px;
-  }
-  .logo-text span { color: #f97316; }
-  .header-divider {
-    width: 1px; height: 16px;
-    background: #e5e5e5;
-    margin: 0 4px;
-  }
-  .header-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #555;
-  }
-  .content {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 32px 20px 80px;
-  }
-  .page-title {
-    font-size: 22px;
-    font-weight: 800;
-    color: #111;
-    letter-spacing: -0.5px;
-    margin-bottom: 8px;
-  }
-  .page-title-bar {
-    width: 36px; height: 3px;
-    background: #f97316;
-    border-radius: 2px;
-    margin-bottom: 28px;
   }
   .body-text {
     font-size: 14px;
-    line-height: 1.9;
-    color: #444;
+    line-height: 1.95;
+    color: #555;
     white-space: pre-wrap;
     word-break: break-word;
+    letter-spacing: -0.1px;
+  }
+  .body-text .article-title {
+    display: block;
+    font-weight: 700;
+    color: #4A6741;
+    margin-top: 20px;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .body-text .num {
+    font-weight: 600;
+    color: #4A6741;
+  }
+  .badge {
+    display: inline-block;
+    background: #4A6741/10;
+    background: rgba(74,103,65,0.08);
+    color: #4A6741;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.2px;
+    margin-bottom: 16px;
   }
   .footer {
-    margin-top: 48px;
-    padding-top: 24px;
-    border-top: 1px solid #eee;
-    font-size: 12px;
-    color: #aaa;
+    margin-top: 32px;
+    padding: 20px 0 0;
+    font-size: 11px;
+    color: #bbb;
     text-align: center;
+    letter-spacing: 0.2px;
   }
 </style>
 </head>
 <body>
   <header class="header">
-    <div class="logo-dot"></div>
-    <div class="logo-text">my<span>Amen</span></div>
-    <div class="header-divider"></div>
-    <div class="header-title">${termTitle}</div>
+    <div class="logo">my<em>Amen</em></div>
+    <div class="sep"></div>
+    <div class="header-sub">${termTitle}</div>
   </header>
-  <main class="content">
-    <h1 class="page-title">${termTitle}</h1>
-    <div class="page-title-bar"></div>
-    <p class="body-text">${escaped}</p>
+  <main class="wrap">
+    <div class="card">
+      <div class="card-title">
+        <div class="card-title-bar"></div>
+        <h1>${termTitle}</h1>
+      </div>
+      <div class="badge">아워마인 서비스</div>
+      <div class="body-text">${formatted}</div>
+    </div>
     <div class="footer">© 2026 아워마인. All rights reserved.</div>
   </main>
 </body>

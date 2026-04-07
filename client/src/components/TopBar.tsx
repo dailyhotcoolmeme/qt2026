@@ -72,15 +72,6 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-async function openTermsUrl(url: string) {
-  if (isNativeApp()) {
-    const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url, presentationStyle: "popover" });
-  } else {
-    window.open(url, "_blank");
-  }
-}
-
 export function TopBar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showFontSizeSlider, setShowFontSizeSlider] = useState(false);
@@ -1227,9 +1218,9 @@ export function TopBar() {
               )}
             </div>
             <div className="flex gap-3 mb-1">
-              <button onClick={async () => { setIsMenuOpen(false); await openTermsUrl("https://myamen.co.kr/terms/service"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
+              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/service"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
               <span className="text-[12px] text-zinc-300">|</span>
-              <button onClick={async () => { setIsMenuOpen(false); await openTermsUrl("https://myamen.co.kr/terms/privacy"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
+              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/privacy"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
             </div>
             <p className="text-[11px] text-zinc-300 mb-0.5">성경 본문: 개역한글</p>
             <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED</p>
