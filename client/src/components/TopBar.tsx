@@ -1218,7 +1218,15 @@ export function TopBar() {
               )}
             </div>
             <div className="flex gap-3 mb-1">
-              <button onClick={() => { setIsMenuOpen(false); setTimeout(() => { window.location.hash = '/terms/service'; }, 50); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
+              <button onClick={() => {
+                const before = window.location.href;
+                setIsMenuOpen(false);
+                setTimeout(() => {
+                  window.location.hash = '/terms/service';
+                  const after = window.location.href;
+                  alert(`[디버그] before: ${before}\nafter: ${after}\nhash: ${window.location.hash}`);
+                }, 50);
+              }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
               <span className="text-[12px] text-zinc-300">|</span>
               <button onClick={() => { setIsMenuOpen(false); setTimeout(() => { window.location.hash = '/terms/privacy'; }, 50); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
             </div>
