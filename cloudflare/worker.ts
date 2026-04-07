@@ -1653,12 +1653,12 @@ function compareVersions(a: string, b: string): number {
 async function handleTerms(url: URL, env: Env): Promise<Response> {
   const type = url.searchParams.get("type") || "service";
   if (type !== "service" && type !== "privacy") {
-    return new Response(JSON.stringify({ error: "invalid type" }), { status: 400, headers: corsHeaders });
+    return json(400, { error: "invalid type" });
   }
   const supabaseUrl = env.SUPABASE_URL || "";
   const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
   if (!supabaseUrl || !serviceKey) {
-    return new Response(JSON.stringify({ error: "server config error" }), { status: 500, headers: corsHeaders });
+    return json(500, { error: "server config error" });
   }
   try {
     const res = await fetch(
@@ -1667,11 +1667,11 @@ async function handleTerms(url: URL, env: Env): Promise<Response> {
     );
     const rows = await res.json() as { title: string; content: string }[];
     if (!Array.isArray(rows) || rows.length === 0) {
-      return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+      return json(404, { error: "not found" });
     }
-    return new Response(JSON.stringify(rows[0]), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=3600" } });
+    return json(200, rows[0]);
   } catch (e) {
-    return new Response(JSON.stringify({ error: "server error" }), { status: 500, headers: corsHeaders });
+    return json(500, { error: "server error" });
   }
 }
 
