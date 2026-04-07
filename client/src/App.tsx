@@ -32,7 +32,7 @@ import { AnimatePresence } from "framer-motion";
 import SearchPage from "./pages/SearchPage";
 import { supabase } from "./lib/supabase";
 import { getBrowserOrigin, isKnownAppOrigin, isNativeApp, resolveAppUrl } from "./lib/appUrl";
-import { checkAndApplyUpdate, otaDebugLog } from "./lib/appUpdate";
+import { checkAndApplyUpdate } from "./lib/appUpdate";
 import { NotificationPermissionModal, shouldShowNotificationModal, markNotificationModalDone } from "./components/NotificationPermissionModal";
 import { getNotificationPermissionState } from "./lib/pushNotifications";
 
@@ -215,17 +215,9 @@ if (typeof window !== 'undefined' && window.location.search.includes('code=')) {
 }
 
 export default function App() {
-  const [otaLogs, setOtaLogs] = useState<string[]>([]);
-  const [showOtaDebug, setShowOtaDebug] = useState(false);
-
   // OTA 업데이트 체크 — 네이티브 앱에서만 실행, 웹에서는 no-op
   useEffect(() => {
-    checkAndApplyUpdate().then(() => {
-      if (isNativeApp() && otaDebugLog.length > 0) {
-        setOtaLogs([...otaDebugLog]);
-        setShowOtaDebug(true);
-      }
-    });
+    checkAndApplyUpdate();
   }, []);
 
   useEffect(() => {
@@ -791,26 +783,6 @@ export default function App() {
           <AppContent />
         </RefreshProvider>
       </DisplaySettingsProvider>
-      {/* OTA 디버그 오버레이 — 진단 후 제거 예정 */}
-      {showOtaDebug && (
-        <div
-          style={{
-            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-            background: "rgba(0,0,0,0.85)", zIndex: 99999,
-            padding: "48px 16px 24px", overflowY: "auto",
-          }}
-          onClick={() => setShowOtaDebug(false)}
-        >
-          <p style={{ color: "#4ade80", fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
-            🔍 OTA 진단 로그 (탭하면 닫힘)
-          </p>
-          {otaLogs.map((line, i) => (
-            <p key={i} style={{ color: "#e4e4e7", fontSize: 11, fontFamily: "monospace", lineHeight: 1.6, margin: 0 }}>
-              {line}
-            </p>
-          ))}
-        </div>
-      )}
     </QueryClientProvider>
   );
 }
