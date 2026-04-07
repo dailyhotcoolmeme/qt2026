@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
 import { useRoute } from "wouter";
 import { ChevronLeft } from "lucide-react";
+import { resolveApiUrl } from "../lib/appUrl";
 
 export default function TermsPage() {
   const [, params] = useRoute("/terms/:type");
@@ -13,15 +13,11 @@ export default function TermsPage() {
     if (!params?.type) return;
     setLoading(true);
     setError(false);
-    supabase
-      .from("terms_metadata")
-      .select("title, content")
-      .eq("type", params.type)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single()
-      .then(({ data, error: err }) => {
-        if (err || !data) { setError(true); }
+    fetch(resolveApiUrl(`/api/terms?type=${params.type}`))
+      .then(async (res) => {
+        if (!res.ok) { setError(true); setLoading(false); return; }
+        const data = await res.json() as { title: string; content: string };
+        if (!data?.title) { setError(true); }
         else { setTerm(data); }
         setLoading(false);
       })

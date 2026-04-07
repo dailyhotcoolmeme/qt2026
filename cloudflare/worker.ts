@@ -1650,6 +1650,31 @@ function compareVersions(a: string, b: string): number {
   return 0;
 }
 
+async function handleTerms(url: URL, env: Env): Promise<Response> {
+  const type = url.searchParams.get("type") || "service";
+  if (type !== "service" && type !== "privacy") {
+    return new Response(JSON.stringify({ error: "invalid type" }), { status: 400, headers: corsHeaders });
+  }
+  const supabaseUrl = env.SUPABASE_URL || "";
+  const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
+  if (!supabaseUrl || !serviceKey) {
+    return new Response(JSON.stringify({ error: "server config error" }), { status: 500, headers: corsHeaders });
+  }
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/terms_metadata?select=title,content&type=eq.${type}&order=created_at.desc&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" } }
+    );
+    const rows = await res.json() as { title: string; content: string }[];
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return new Response(JSON.stringify({ error: "not found" }), { status: 404, headers: corsHeaders });
+    }
+    return new Response(JSON.stringify(rows[0]), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json", "Cache-Control": "public, max-age=3600" } });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "server error" }), { status: 500, headers: corsHeaders });
+  }
+}
+
 async function handleAppUpdateCheck(request: Request, url: URL, env: Env) {
   const platform = url.searchParams.get("platform") || "android";
   const currentVersion = url.searchParams.get("currentVersion") || "0.0.0";
@@ -1718,6 +1743,10 @@ async function handleApi(request: Request, url: URL, env: Env) {
   }
   if (url.pathname === '/api/tts/elevenlabs') {
     return handleElevenLabsTTS(request, env);
+  }
+
+  if (url.pathname === '/api/terms') {
+    return handleTerms(url, env);
   }
 
   if (url.pathname === '/api/app-update/check') {
