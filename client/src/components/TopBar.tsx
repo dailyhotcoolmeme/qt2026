@@ -1270,7 +1270,7 @@ export function TopBar() {
                   <div>
                     <p className="text-[11px] text-zinc-400 mb-0.5">전화</p>
                     <p className="text-sm font-semibold text-zinc-800">070-4513-1894</p>
-                    <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed whitespace-nowrap">통화 가능시간 : (평일) 오전 9시~저녁 6시<br />(주일,주말,공휴일) 통화 불가</p>
+                    <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">통화 가능시간 :<br />(평일) 오전 9시~저녁 6시<br />(주일,주말,공휴일) 통화 불가</p>
                   </div>
                 </a>
               </div>
