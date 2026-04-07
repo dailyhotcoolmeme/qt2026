@@ -4,7 +4,7 @@ import {
   Headphones, BookHeadphones, Share2, Copy, Bookmark,
   Play, Pause, X, Calendar as CalendarIcon, Heart, Mic, Square, Trash2, NotebookPen, SquarePen
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useDragControls } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { incrementVerseBookmark } from "../utils/verseBookmarks";
 import { useDisplaySettings } from "../components/DisplaySettingsProvider";
@@ -96,6 +96,7 @@ export default function QTPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deletingRecordId, setDeletingRecordId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const writeSheetDragControls = useDragControls();
 
 
   // Refs
@@ -1020,9 +1021,13 @@ export default function QTPage() {
         verseRange ? `v${verseRange.start}-${verseRange.end}` : "vall",
       ];
       const cacheKey = keyParts.join("_");
-      const ttsRes = await fetch("/api/tts/elevenlabs", {
+      const { data: { session: ttsSession } } = await supabase.auth.getSession();
+      const ttsRes = await fetch(resolveApiUrl("/api/tts/elevenlabs"), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(ttsSession?.access_token ? { Authorization: `Bearer ${ttsSession.access_token}` } : {}),
+        },
         body: JSON.stringify({
           text: plainText,
           cacheKey,
@@ -1553,7 +1558,9 @@ export default function QTPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%", transition: { duration: 0.12, ease: [0.32, 0.72, 0, 1] } }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              drag={(!meditationText && !audioBlob && !isRecording) ? "y" : false}
+              drag="y"
+              dragControls={writeSheetDragControls}
+              dragListener={false}
               dragConstraints={{ top: 0 }}
               dragElastic={{ top: 0, bottom: 0.15 }}
               onDragEnd={(_, info) => {
@@ -1563,7 +1570,10 @@ export default function QTPage() {
               }}
               className="fixed bottom-0 left-0 right-0 max-w-lg mx-auto bg-white rounded-t-3xl z-[401] px-6 pt-3 pb-[calc(2.5rem+env(safe-area-inset-bottom,0px))] max-h-[85vh] overflow-y-auto shadow-2xl"
             >
-              <div className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3" />
+              <div
+                className="w-10 h-1 bg-zinc-300 rounded-full mx-auto mb-3 touch-none cursor-grab active:cursor-grabbing"
+                onPointerDown={(e) => writeSheetDragControls.start(e)}
+              />
               <div className="flex justify-between items-center mt-3 mb-4">
                 <h2 className="text-xl font-black text-zinc-800">
                   {editingRecord ? '묵상 기록 수정' : '새 묵상 기록'}
@@ -1585,7 +1595,7 @@ export default function QTPage() {
               {/* 오늘의 묵상 질문 */}
               {bibleData?.qt_question && (
                 <div className="mb-4 bg-[#4A6741]/8 rounded-2xl p-4 border border-[#4A6741]/15">
-                  <p className="text-[10px] font-bold text-[#4A6741] uppercase tracking-wider mb-2">오늘의 묵상 질문</p>
+                  <p className="font-bold text-[#4A6741] mb-2" style={{ fontSize: `${fontSize * 0.82}px` }}>오늘의 묵상 질문</p>
                   <div className="space-y-2">
                     {bibleData.qt_question
                       .split(/\n?\d+\.\s/)
