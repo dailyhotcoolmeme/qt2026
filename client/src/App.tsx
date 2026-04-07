@@ -150,49 +150,77 @@ function NotificationPermissionGate() {
   );
 }
 
+// 약관 페이지 — hash 기반 오버레이 (AnimatePresence/Switch 우회)
+function TermsOverlay() {
+  const [termsType, setTermsType] = useState<string | null>(null);
+
+  useEffect(() => {
+    const check = () => {
+      const hash = window.location.hash.replace(/^#/, "");
+      if (hash.startsWith("/terms/")) {
+        setTermsType(hash.split("/")[2] || null);
+      } else {
+        setTermsType(null);
+      }
+    };
+    check();
+    window.addEventListener("hashchange", check);
+    return () => window.removeEventListener("hashchange", check);
+  }, []);
+
+  if (!termsType) return null;
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "#F8F8F8", overflowY: "auto" }}>
+      <TermsPage forcedType={termsType} onBack={() => {
+        window.location.hash = "/";
+        window.history.back();
+      }} />
+    </div>
+  );
+}
+
 function AppContent() {
   return (
     <WouterRouter hook={useHashLocation}>
       <NotificationPermissionGate />
       <OnboardingRedirect />
-      <AnimatePresence mode="wait">
-        <Switch>
-          <Route path="/onboarding" component={OnboardingPage} />
-          <Route path="/terms/:type" component={TermsPage} />
-          {/* Auth route */}
-          <Route path="/auth" component={AuthPage} />
-          <Route path="/register" component={RegisterPage} />
-          <Route path="/find-account" component={FindAccountPage} />
-          <Route path="/update-password" component={UpdatePasswordPage} />
-          <Route path="/insights" component={InsightsDashboardPage} />
-          <Route path="/admin" component={AdminPage} />
-          <Route>
-            <Layout>
-              <TopBar />
-              <main className="flex-1 overflow-y-auto no-scrollbar">
-                <Switch>
-                  <Route path="/" component={DailyWordPage} />
-                  <Route path="/qt" component={QTPage} />
-                  <Route path="/prayer" component={PrayerPage} />
-                  <Route path="/reading" component={ReadingPage} />
-                  <Route path="/community" component={CommunityPage} />
-                  <Route path="/group/:id" component={GroupDashboard} />
-                  <Route path="/leadership" component={LeadershipPage} />
-                  <Route path="/archive" component={ArchivePage} />
-                  <Route path="/verse-cards" component={VerseCardsPage} />
-                  <Route path="/favorites" component={FavoritesPage} />
-                  <Route path="/bible/:book/:chapter" component={BibleViewPage} />
-                  <Route path="/record/:id" component={RecordDetailPage} />
-                  <Route path="/search" component={SearchPage} />
-                  <Route path="/my-prayer-box" component={MyPrayerBoxPage} />
-                  <Route component={NotFound} />
-                </Switch>
-              </main>
-              <BottomNav />
-            </Layout>
-          </Route>
-        </Switch>
-      </AnimatePresence>
+      <TermsOverlay />
+      <Switch>
+        <Route path="/onboarding" component={OnboardingPage} />
+        {/* Auth route */}
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/register" component={RegisterPage} />
+        <Route path="/find-account" component={FindAccountPage} />
+        <Route path="/update-password" component={UpdatePasswordPage} />
+        <Route path="/insights" component={InsightsDashboardPage} />
+        <Route path="/admin" component={AdminPage} />
+        <Route>
+          <Layout>
+            <TopBar />
+            <main className="flex-1 overflow-y-auto no-scrollbar">
+              <Switch>
+                <Route path="/" component={DailyWordPage} />
+                <Route path="/qt" component={QTPage} />
+                <Route path="/prayer" component={PrayerPage} />
+                <Route path="/reading" component={ReadingPage} />
+                <Route path="/community" component={CommunityPage} />
+                <Route path="/group/:id" component={GroupDashboard} />
+                <Route path="/leadership" component={LeadershipPage} />
+                <Route path="/archive" component={ArchivePage} />
+                <Route path="/verse-cards" component={VerseCardsPage} />
+                <Route path="/favorites" component={FavoritesPage} />
+                <Route path="/bible/:book/:chapter" component={BibleViewPage} />
+                <Route path="/record/:id" component={RecordDetailPage} />
+                <Route path="/search" component={SearchPage} />
+                <Route path="/my-prayer-box" component={MyPrayerBoxPage} />
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+            <BottomNav />
+          </Layout>
+        </Route>
+      </Switch>
     </WouterRouter>
   );
 }
