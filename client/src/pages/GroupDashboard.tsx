@@ -6341,13 +6341,13 @@ export default function GroupDashboard() {
       {
         showImageModal && (
           <div className="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center pointer-events-auto">
-            <div className="absolute top-4 right-4 z-[310]">
+            <div className="absolute right-4 z-[310]" style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}>
               <button onClick={() => history.back()} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
                 <X size={20} />
               </button>
             </div>
             {modalImages.length > 1 && (
-              <div className="absolute top-6 flex w-full justify-center z-[310] pointer-events-none">
+              <div className="absolute flex w-full justify-center z-[310] pointer-events-none" style={{ top: "calc(env(safe-area-inset-top, 0px) + 24px)" }}>
                 <span className="bg-black/60 text-white font-bold text-sm px-4 py-1.5 rounded-full drop-shadow">
                   {modalIndex + 1} / {modalImages.length}
                 </span>
@@ -6388,11 +6388,19 @@ export default function GroupDashboard() {
                   const dy = event.touches[1].clientY - event.touches[0].clientY;
                   const dist = Math.hypot(dx, dy);
                   g.scale = Math.max(1, Math.min(5, g.startScale * (dist / g.startDist)));
+                  // 줌 아웃 시 패닝 범위도 같이 줄어들도록 재클램핑
+                  if (g.scale <= 1) {
+                    g.panX = 0; g.panY = 0;
+                  } else {
+                    const maxPan = (g.scale - 1) * (el ? el.offsetWidth / 2 : 200);
+                    const maxPanY = (g.scale - 1) * (el ? el.offsetHeight / 2 : 300);
+                    g.panX = Math.max(-maxPan, Math.min(maxPan, g.panX));
+                    g.panY = Math.max(-maxPanY, Math.min(maxPanY, g.panY));
+                  }
                   if (el) el.style.transform = `translate(${g.panX}px, ${g.panY}px) scale(${g.scale})`;
                 } else if (event.touches.length === 1 && g.scale > 1) {
                   const rawX = event.touches[0].clientX - g.lastX;
                   const rawY = event.touches[0].clientY - g.lastY;
-                  // 패닝 경계: 확대 비율에 따라 이미지가 화면 밖으로 너무 나가지 않도록 제한
                   const maxPan = (g.scale - 1) * (el ? el.offsetWidth / 2 : 200);
                   const maxPanY = (g.scale - 1) * (el ? el.offsetHeight / 2 : 300);
                   g.panX = Math.max(-maxPan, Math.min(maxPan, rawX));
