@@ -1789,7 +1789,105 @@ export default {
         }
       } catch {}
       const escaped = content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-      const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${termTitle} - myAmen</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#333;padding:24px 20px 48px;max-width:760px;margin:0 auto}h1{font-size:20px;font-weight:700;color:#111;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #eee}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.8;color:#444}</style></head><body><h1>${termTitle}</h1><pre>${escaped}</pre></body></html>`;
+      const html = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${termTitle} - myAmen</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #fafafa;
+    color: #222;
+    min-height: 100vh;
+  }
+  .header {
+    background: #fff;
+    border-bottom: 1px solid #f0f0f0;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .logo-dot {
+    width: 8px; height: 8px;
+    background: #f97316;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .logo-text {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.5px;
+  }
+  .logo-text span { color: #f97316; }
+  .header-divider {
+    width: 1px; height: 16px;
+    background: #e5e5e5;
+    margin: 0 4px;
+  }
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #555;
+  }
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  .page-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #111;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .page-title-bar {
+    width: 36px; height: 3px;
+    background: #f97316;
+    border-radius: 2px;
+    margin-bottom: 28px;
+  }
+  .body-text {
+    font-size: 14px;
+    line-height: 1.9;
+    color: #444;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid #eee;
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo-dot"></div>
+    <div class="logo-text">my<span>Amen</span></div>
+    <div class="header-divider"></div>
+    <div class="header-title">${termTitle}</div>
+  </header>
+  <main class="content">
+    <h1 class="page-title">${termTitle}</h1>
+    <div class="page-title-bar"></div>
+    <p class="body-text">${escaped}</p>
+    <div class="footer">© 2026 아워마인. All rights reserved.</div>
+  </main>
+</body>
+</html>`;
       return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
     }
 
