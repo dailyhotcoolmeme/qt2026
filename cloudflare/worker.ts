@@ -1771,6 +1771,28 @@ export default {
       return patched;
     }
 
+    // 약관/개인정보처리방침 정적 페이지
+    if (url.pathname === "/terms/service" || url.pathname === "/terms/privacy") {
+      const termType = url.pathname === "/terms/service" ? "service" : "privacy";
+      const termTitle = termType === "service" ? "이용약관" : "개인정보처리방침";
+      let content = "";
+      try {
+        const supabaseUrl = env.SUPABASE_URL || "";
+        const serviceKey = env.SUPABASE_SERVICE_ROLE_KEY || "";
+        if (supabaseUrl && serviceKey) {
+          const resp = await fetch(
+            `${supabaseUrl}/rest/v1/terms_metadata?type=eq.${termType}&order=created_at.desc&limit=1&select=title,content`,
+            { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+          );
+          const rows = await resp.json() as Array<{ title: string; content: string }>;
+          if (rows.length > 0) content = rows[0].content || "";
+        }
+      } catch {}
+      const escaped = content.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const html = `<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${termTitle} - myAmen</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#fff;color:#333;padding:24px 20px 48px;max-width:760px;margin:0 auto}h1{font-size:20px;font-weight:700;color:#111;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #eee}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;line-height:1.8;color:#444}</style></head><body><h1>${termTitle}</h1><pre>${escaped}</pre></body></html>`;
+      return new Response(html, { headers: { "Content-Type": "text/html; charset=UTF-8", "Cache-Control": "no-store" } });
+    }
+
     const assetResponse = await env.ASSETS.fetch(request);
     if (assetResponse.status !== 404) {
       // HTML(index.html)에 대해서는 캐시 완전 차단 — 브라우저가 항상 최신 JS를 로드하게 함
