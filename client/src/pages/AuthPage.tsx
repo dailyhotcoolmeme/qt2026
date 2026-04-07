@@ -159,14 +159,14 @@ function AuthPage() {
         <p className="text-sm leading-relaxed text-zinc-500" style={{ fontSize: `${fontSize * 0.85}px` }}>
           <span
             className="cursor-pointer font-semibold text-zinc-700 underline underline-offset-2"
-            onClick={() => setLocation("/terms/service")}
+            onClick={() => { window.location.hash = '/terms/service'; }}
           >
             이용약관
           </span>
           {" "}및{" "}
           <span
             className="cursor-pointer font-semibold text-zinc-700 underline underline-offset-2"
-            onClick={() => setLocation("/terms/privacy")}
+            onClick={() => { window.location.hash = '/terms/privacy'; }}
           >
             개인정보처리방침
           </span>
