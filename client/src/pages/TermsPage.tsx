@@ -1,79 +1,97 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-import { useRoute, useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { ChevronLeft } from "lucide-react"; // 아이콘 라이브러리 (없으면 제거 가능)
-import { useDisplaySettings } from "../components/DisplaySettingsProvider";
+import { useRoute } from "wouter";
+import { ChevronLeft } from "lucide-react";
 
 export default function TermsPage() {
   const [, params] = useRoute("/terms/:type");
-  const [, setLocation] = useLocation();
-  const { fontSize = 16 } = useDisplaySettings();
   const [term, setTerm] = useState<{ title: string; content: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    async function fetchTerm() {
-      setLoading(true);
-      const { data } = await supabase
-        .from('terms_metadata')
-        .select('title, content')
-        .eq('type', params?.type)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      
-      if (data) setTerm(data);
-      setLoading(false);
-    }
-    if (params?.type) fetchTerm();
+    if (!params?.type) return;
+    setLoading(true);
+    setError(false);
+    supabase
+      .from("terms_metadata")
+      .select("title, content")
+      .eq("type", params.type)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data, error: err }) => {
+        if (err || !data) { setError(true); }
+        else { setTerm(data); }
+        setLoading(false);
+      })
+      .catch(() => { setError(true); setLoading(false); });
   }, [params?.type]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F8F8]">
-        <div className="animate-pulse text-zinc-400 font-medium">내용을 불러오고 있습니다...</div>
-      </div>
-    );
-  }
-
-  if (!term) return <div className="p-10 text-center">약관을 찾을 수 없습니다.</div>;
-
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      {/* 상단 헤더: 앱 스타일의 뒤로가기 바 */}
-      <header className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-zinc-50 flex items-center px-4 z-10" style={{ paddingTop: 'env(safe-area-inset-top)', height: 'calc(env(safe-area-inset-top) + 4rem)' }}>
-        <button 
+    <div style={{ minHeight: "100vh", background: "#F8F8F8", display: "flex", flexDirection: "column" }}>
+      {/* 헤더 */}
+      <div style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 10,
+        background: "rgba(255,255,255,0.92)",
+        borderBottom: "1px solid rgba(0,0,0,0.06)",
+        display: "flex",
+        alignItems: "center",
+        padding: "0 8px",
+        height: "56px",
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        boxSizing: "border-box",
+      }}>
+        <button
           onClick={() => window.history.back()}
-          className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
+          style={{
+            width: 40, height: 40,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer",
+          }}
         >
-          <ChevronLeft className="w-6 h-6 text-zinc-600" />
+          <ChevronLeft style={{ width: 24, height: 24, color: "#555" }} />
         </button>
-        <span 
-          className="ml-2 font-bold text-zinc-900"
-          style={{ fontSize: `${fontSize * 1.1}px` }}
-        >
-          {term.title}
+        <span style={{ marginLeft: 4, fontWeight: 700, fontSize: 16, color: "#111", letterSpacing: "-0.3px" }}>
+          {term?.title ?? (params?.type === "service" ? "이용약관" : "개인정보처리방침")}
         </span>
-      </header>
+      </div>
 
-      {/* 본문 영역 */}
-      <motion.main 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex-1 px-6 pb-12 max-w-2xl mx-auto w-full" style={{ paddingTop: 'calc(env(safe-area-inset-top) + 5.5rem)' }}
-      >
-        <div 
-          className="text-zinc-600 leading-[1.8] tracking-tight whitespace-pre-wrap break-keep"
-          style={{ fontSize: `${fontSize * 0.95}px` }}
-        >
-          {term.content}
+      {/* 본문 */}
+      <div style={{ flex: 1, padding: "24px 20px 80px", maxWidth: 720, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>
+        {loading && (
+          <div style={{ textAlign: "center", color: "#aaa", fontSize: 14, paddingTop: 60 }}>
+            불러오는 중...
+          </div>
+        )}
+        {!loading && error && (
+          <div style={{ textAlign: "center", color: "#aaa", fontSize: 14, paddingTop: 60 }}>
+            내용을 불러올 수 없습니다.
+          </div>
+        )}
+        {!loading && !error && term && (
+          <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 4px 24px rgba(0,0,0,0.05)", padding: "28px 24px 32px" }}>
+            {/* 타이틀 바 */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 4, height: 22, background: "#4A6741", borderRadius: 3, flexShrink: 0 }} />
+              <h1 style={{ fontSize: 19, fontWeight: 800, color: "#1a1a1a", letterSpacing: "-0.5px", margin: 0 }}>
+                {term.title}
+              </h1>
+            </div>
+            <div style={{ display: "inline-block", background: "rgba(74,103,65,0.08)", color: "#4A6741", fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 100, marginBottom: 20 }}>
+              아워마인 서비스
+            </div>
+            <p style={{ fontSize: 14, lineHeight: 1.95, color: "#555", whiteSpace: "pre-wrap", wordBreak: "break-word", letterSpacing: "-0.1px", margin: 0 }}>
+              {term.content}
+            </p>
+          </div>
+        )}
+        <div style={{ marginTop: 32, textAlign: "center", fontSize: 11, color: "#bbb" }}>
+          © 2026 아워마인. All rights reserved.
         </div>
-
-        {/* 개역한글 안내 */}
-        <p className="mt-10 text-[12px] text-zinc-400 text-center">본 앱에서 사용하는 성경 본문은 개역한글 버전입니다.</p>
-
-      </motion.main>
+      </div>
     </div>
   );
 }
