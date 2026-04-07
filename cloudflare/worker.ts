@@ -1653,6 +1653,7 @@ function compareVersions(a: string, b: string): number {
 async function handleAppUpdateCheck(request: Request, url: URL, env: Env) {
   const platform = url.searchParams.get("platform") || "android";
   const currentVersion = url.searchParams.get("currentVersion") || "0.0.0";
+  console.log(`[OTA-CHECK] platform=${platform} currentVersion=${currentVersion} ua=${request.headers.get("user-agent")?.slice(0,80)}`);
 
   try {
     const { bucketName } = requireR2Env(env);
