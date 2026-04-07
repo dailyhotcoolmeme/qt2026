@@ -905,6 +905,9 @@ export default function GroupDashboard() {
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<any | null>(null);
   const [ownProfile, setOwnProfile] = useState<{ nickname?: string; username?: string } | null>(null);
+  const [prayerBlessings, setPrayerBlessings] = useState<Set<number>>(new Set());
+  const [blessingConfirm, setBlessingConfirm] = useState<{ recordId: number; toUserId: string; toUserName: string } | null>(null);
+  const [highlightPrayerUserId, setHighlightPrayerUserId] = useState<string | null>(null);
   const [group, setGroup] = useState<GroupRow | null>(null);
   const [role, setRole] = useState<GroupRole>("guest");
   const [activeTab, setActiveTab] = useState<TabKey>(() => {
@@ -1152,7 +1155,16 @@ export default function GroupDashboard() {
 
     if (queryTab && validTabs.includes(queryTab as TabKey)) {
       setActiveTab(queryTab as TabKey);
-    } else {
+    }
+    const blessUser = searchParams.get("blessUser");
+    if (blessUser) {
+      setHighlightPrayerUserId(blessUser);
+      setTimeout(() => {
+        document.getElementById(`prayer-card-${blessUser}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 600);
+      setTimeout(() => setHighlightPrayerUserId(null), 5000);
+    }
+    if (!queryTab || !validTabs.includes(queryTab as TabKey)) {
       // url param이 없을 때는 sessionStorage를 우선하고 (새로고침 대응), 없으면 faith로 설정 (진입 시 대응)
       // 단, CommunityPage에서 진입할 때 sessionStorage를 명시적으로 비워줌으로써 '진입 시 신앙생활' 요구사항 충족
       const sessionTab = sessionStorage.getItem("groupDashboardTab") as TabKey | null;
@@ -1237,6 +1249,35 @@ export default function GroupDashboard() {
     const { data } = await supabase.from("profiles").select("nickname, username").eq("id", user.id).maybeSingle();
     return data?.nickname || data?.username || "모임원";
   }, [user, members, ownProfile]);
+
+  const handleBlessRecord = (recordId: number, toUserId: string, toUserName: string) => {
+    if (!user || prayerBlessings.has(recordId)) return;
+    setBlessingConfirm({ recordId, toUserId, toUserName });
+  };
+
+  const confirmBlessing = async () => {
+    if (!blessingConfirm || !user || !group) return;
+    const { recordId, toUserId } = blessingConfirm;
+    setBlessingConfirm(null);
+    const { error } = await supabase.from("group_prayer_blessings").insert({
+      group_id: group.id,
+      record_id: recordId,
+      from_user_id: user.id,
+      to_user_id: toUserId,
+    });
+    if (error) { alert("전송에 실패했습니다."); return; }
+    setPrayerBlessings(prev => new Set([...prev, recordId]));
+    const fromName = await getSenderName();
+    sendPushToGroupUsers({
+      groupId: group.id,
+      targetUserIds: [toUserId],
+      title: group.name,
+      body: `내 기도에 ${fromName}님이 God Bless You를 남기셨어요.`,
+      targetPath: `/#/group/${group.id}?tab=prayer&blessUser=${user.id}`,
+      notificationType: "groupActivity",
+    });
+  };
+
   const faithMemberMap = useMemo(
     () =>
       new Map(
@@ -1430,6 +1471,15 @@ export default function GroupDashboard() {
 
     const records = (data ?? []) as GroupPrayerRecord[];
     setGroupPrayers(records);
+
+    if (user?.id) {
+      const { data: blessData } = await supabase
+        .from("group_prayer_blessings")
+        .select("record_id")
+        .eq("group_id", targetGroupId)
+        .eq("from_user_id", user.id);
+      setPrayerBlessings(new Set((blessData ?? []).map((b: any) => b.record_id as number)));
+    }
 
     const authorIds = Array.from(new Set(records.map((record) => record.user_id).filter(Boolean)));
     if (authorIds.length > 0) {
@@ -4111,7 +4161,7 @@ export default function GroupDashboard() {
     const imageAttachments = topics.flatMap((topic) => getTopicAttachments(topic).filter((attachment) => isImageAttachment(attachment)));
 
     return (
-      <div className="bg-white rounded-2xl shadow-sm border border-zinc-100/50 pt-4 overflow-hidden">
+      <div id={`prayer-card-${userId}`} className={`bg-white rounded-2xl shadow-sm border pt-4 overflow-hidden transition-all duration-700 ${highlightPrayerUserId === userId ? "border-amber-400 ring-2 ring-amber-300 shadow-amber-100 shadow-lg" : "border-zinc-100/50"}`}>
         <div className="flex items-center justify-between gap-2 mb-2 px-5 py-2 bg-[#F6F7F8] rounded-xl mx-3">
           <AvatarImg url={author.avatar_url} size={40} />
           {(() => {
@@ -4236,6 +4286,14 @@ export default function GroupDashboard() {
                         <span className="text-[10px] text-zinc-500 font-bold ml-1">{formatDateTime(tp.created_at)}</span>
                       </div>
                       <div className="flex items-center gap-1">
+                        {userId === user.id && tp.user_id !== user.id && (
+                          <button
+                            onClick={() => handleBlessRecord(tp.id, tp.user_id, pname)}
+                            disabled={prayerBlessings.has(tp.id)}
+                            className={`p-0.5 rounded-full text-[15px] leading-none transition-transform ${prayerBlessings.has(tp.id) ? "opacity-40 cursor-default" : "hover:scale-125 active:scale-95"}`}
+                            title="God Bless You"
+                          >🙏</button>
+                        )}
                         {canEdit && (
                           <button onClick={() => openTextPrayerModal(userId, tp)} className="text-blue-400 p-1 hover:text-blue-600 rounded-full">
                             <Pencil size={12} />
@@ -4269,11 +4327,21 @@ export default function GroupDashboard() {
                         <Mic size={12} /> {pname}
                         <span className="text-[10px] text-zinc-500 font-bold ml-1">{formatDateTime(vp.created_at)}</span>
                       </div>
-                      {canDelete && (
-                        <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
-                          <Trash2 size={12} />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {userId === user.id && vp.user_id !== user.id && (
+                          <button
+                            onClick={() => handleBlessRecord(vp.id, vp.user_id, pname)}
+                            disabled={prayerBlessings.has(vp.id)}
+                            className={`p-0.5 rounded-full text-[15px] leading-none transition-transform ${prayerBlessings.has(vp.id) ? "opacity-40 cursor-default" : "hover:scale-125 active:scale-95"}`}
+                            title="God Bless You"
+                          >🙏</button>
+                        )}
+                        {canDelete && (
+                          <button onClick={() => removeGroupPrayer(vp)} className="text-rose-400 p-1 hover:text-rose-500 rounded-full">
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <audio controls className="w-full h-8" src={vp.audio_url} preload="metadata" />
                   </div>
@@ -5772,9 +5840,19 @@ export default function GroupDashboard() {
                               <div className="truncate text-sm font-bold text-zinc-800">{name}</div>
                               <div className="mt-1 text-xs text-zinc-400">{formatDateTime(record.created_at)}</div>
                             </div>
-                            <div className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-500 shrink-0">
-                              <Heart size={10} fill="currentColor" />
-                              마음기도
+                            <div className="flex items-center gap-2 shrink-0">
+                              {heartPrayerHistoryTargetUserId === user.id && record.user_id !== user.id && (
+                                <button
+                                  onClick={() => handleBlessRecord(record.id, record.user_id, name)}
+                                  disabled={prayerBlessings.has(record.id)}
+                                  className={`text-[16px] leading-none transition-transform ${prayerBlessings.has(record.id) ? "opacity-40 cursor-default" : "hover:scale-125 active:scale-95"}`}
+                                  title="God Bless You"
+                                >🙏</button>
+                              )}
+                              <div className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-500">
+                                <Heart size={10} fill="currentColor" />
+                                마음기도
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -5787,6 +5865,32 @@ export default function GroupDashboard() {
           </div>
         )
       }
+
+      {blessingConfirm && (
+        <div className="fixed inset-0 z-[400] flex items-center justify-center px-6">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setBlessingConfirm(null)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm">
+            <div className="text-center mb-5">
+              <div className="text-4xl mb-3">🙏</div>
+              <h3 className="font-black text-zinc-900 text-lg mb-1.5">God Bless You</h3>
+              <p className="text-sm text-zinc-500 leading-relaxed">
+                <span className="font-bold text-zinc-700">{blessingConfirm.toUserName}</span>님에게<br />
+                God Bless You를 전송할까요?
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBlessingConfirm(null)}
+                className="flex-1 py-3 rounded-2xl bg-zinc-100 text-zinc-600 font-bold text-sm active:scale-95 transition-transform"
+              >취소</button>
+              <button
+                onClick={() => void confirmBlessing()}
+                className="flex-1 py-3 rounded-2xl bg-amber-500 text-white font-bold text-sm active:scale-95 transition-transform"
+              >전송</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {
         showPrayerTopicOrderModal && (
