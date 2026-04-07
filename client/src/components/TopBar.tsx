@@ -1218,13 +1218,9 @@ export function TopBar() {
               )}
             </div>
             <div className="flex gap-3 mb-1">
-              <Link href="/terms/service" onClick={() => setIsMenuOpen(false)}>
-                <span className="text-[12px] text-zinc-400 hover:text-zinc-600 cursor-pointer">이용약관</span>
-              </Link>
+              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/service"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
               <span className="text-[12px] text-zinc-300">|</span>
-              <Link href="/terms/privacy" onClick={() => setIsMenuOpen(false)}>
-                <span className="text-[12px] text-zinc-400 hover:text-zinc-600 cursor-pointer">개인정보처리방침</span>
-              </Link>
+              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/privacy"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
             </div>
             <p className="text-[11px] text-zinc-300 mb-0.5">성경 본문: 개역한글</p>
             <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED</p>

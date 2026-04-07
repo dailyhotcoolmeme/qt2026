@@ -6342,7 +6342,7 @@ export default function GroupDashboard() {
         showImageModal && (
           <div className="fixed inset-0 z-[300] bg-black flex flex-col items-center justify-center pointer-events-auto">
             <div className="absolute right-4 z-[310]" style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}>
-              <button onClick={() => history.back()} className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center text-white hover:bg-white/30 backdrop-blur transition-colors">
+              <button onClick={() => history.back()} className="w-10 h-10 rounded-full flex items-center justify-center transition-colors" style={{ background: 'rgba(0,0,0,0.45)', boxShadow: '0 0 0 1.5px rgba(255,255,255,0.5)', backdropFilter: 'blur(4px)' }}>
                 <X size={20} />
               </button>
             </div>
