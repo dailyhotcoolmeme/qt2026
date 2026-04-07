@@ -41,19 +41,19 @@ export default function TermsPage({ forcedType, onBack }: Props) {
         position: "sticky", top: 0, zIndex: 10,
         background: "rgba(255,255,255,0.92)",
         borderBottom: "1px solid rgba(0,0,0,0.06)",
-        display: "flex", alignItems: "center",
-        padding: "0 8px", height: "56px",
-        paddingTop: "env(safe-area-inset-top, 0px)", boxSizing: "border-box",
+        display: "flex", alignItems: "flex-end",
+        padding: "0 8px 8px",
+        paddingTop: "calc(env(safe-area-inset-top, 0px) + 12px)",
+        boxSizing: "border-box",
+        minHeight: "60px",
       }}>
         <button onClick={handleBack} style={{
-          width: 40, height: 40, display: "flex", alignItems: "center", justifyContent: "center",
+          width: 44, height: 44, display: "flex", alignItems: "center", justifyContent: "center",
           borderRadius: "50%", border: "none", background: "transparent", cursor: "pointer",
+          flexShrink: 0,
         }}>
-          <ChevronLeft style={{ width: 24, height: 24, color: "#555" }} />
+          <ChevronLeft style={{ width: 26, height: 26, color: "#333" }} />
         </button>
-        <span style={{ marginLeft: 4, fontWeight: 700, fontSize: 16, color: "#111", letterSpacing: "-0.3px" }}>
-          {term?.title ?? (termType === "service" ? "이용약관" : "개인정보처리방침")}
-        </span>
       </div>
 
       <div style={{ flex: 1, padding: "24px 20px 80px", maxWidth: 720, margin: "0 auto", width: "100%", boxSizing: "border-box" }}>

@@ -173,7 +173,6 @@ function TermsOverlay() {
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9000, background: "#F8F8F8", overflowY: "auto" }}>
       <TermsPage forcedType={termsType} onBack={() => {
-        window.location.hash = "/";
         window.history.back();
       }} />
     </div>
