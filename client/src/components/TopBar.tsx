@@ -87,6 +87,7 @@ export function TopBar() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showDeleteToast, setShowDeleteToast] = useState(false);
   const [showSupportModal, setShowSupportModal] = useState(false);
+  const [termsOverlay, setTermsOverlay] = useState<{ title: string; content: string } | null>(null);
   const [logoTextIndex, setLogoTextIndex] = useState(0);
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>(defaultNotificationSettings);
   const [notificationPermission, setNotificationPermission] = useState<string>("prompt");
@@ -1218,9 +1219,9 @@ export function TopBar() {
               )}
             </div>
             <div className="flex gap-3 mb-1">
-              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/service"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
+              <button onClick={async () => { setIsMenuOpen(false); const { data } = await supabase.from('terms_metadata').select('title,content').eq('type','service').order('created_at',{ascending:false}).limit(1).single(); if (data) setTermsOverlay(data); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">이용약관</button>
               <span className="text-[12px] text-zinc-300">|</span>
-              <button onClick={() => { setIsMenuOpen(false); setLocation("/terms/privacy"); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
+              <button onClick={async () => { setIsMenuOpen(false); const { data } = await supabase.from('terms_metadata').select('title,content').eq('type','privacy').order('created_at',{ascending:false}).limit(1).single(); if (data) setTermsOverlay(data); }} className="text-[12px] text-zinc-400 hover:text-zinc-600">개인정보처리방침</button>
             </div>
             <p className="text-[11px] text-zinc-300 mb-0.5">성경 본문: 개역한글</p>
             <p className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] tracking-tight text-zinc-300">© 2026 아워마인. ALL RIGHTS RESERVED</p>
@@ -1229,6 +1230,21 @@ export function TopBar() {
       </div>
 
       <ProfileEditModal isOpen={isProfileModalOpen} onClose={() => setIsProfileModalOpen(false)} />
+
+      {/* 약관/개인정보 오버레이 */}
+      {termsOverlay && (
+        <div className="fixed inset-0 z-[400] bg-white flex flex-col" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center px-4 h-14 border-b border-zinc-100 shrink-0">
+            <button onClick={() => setTermsOverlay(null)} className="p-2 -ml-2 rounded-full hover:bg-zinc-100">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-zinc-600"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span className="ml-1 font-bold text-zinc-900 text-base">{termsOverlay.title}</span>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 py-5">
+            <p className="text-zinc-600 leading-[1.8] text-sm whitespace-pre-wrap break-keep">{termsOverlay.content}</p>
+          </div>
+        </div>
+      )}
 
       {/* 고객센터 팝업 */}
       <AnimatePresence>
