@@ -1910,7 +1910,9 @@ export default function GroupDashboard() {
         const imageMap = new Map<number, string[]>();
         const fileMap = new Map<number, { url: string; name: string }[]>();
         ((imageRows ?? []) as GroupPostImageRow[]).forEach((row) => {
-          const isFile = row.content_type && !row.content_type.startsWith("image/");
+          const isFile = row.content_type
+            ? !row.content_type.startsWith("image/")
+            : !/\.(jpg|jpeg|png|gif|webp|bmp|svg|heic|heif)$/i.test(row.image_url);
           if (isFile) {
             const prev = fileMap.get(row.post_id) ?? [];
             prev.push({ url: row.image_url, name: row.file_name || "파일" });
@@ -4890,7 +4892,7 @@ export default function GroupDashboard() {
               )}
             </div>
             <button
-              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setPostExistingImages([]); setPostImageFiles([]); setPostImagePreviews([]); setShowPostComposerModal(true); }}
+              onClick={() => { setPostType("post"); setEditingPost(null); setPostTitle(""); setPostContent(""); setPostImages([]); setPostFiles([]); setShowPostComposerModal(true); }}
               className="fixed right-6 bottom-28 z-[90] w-12 h-12 rounded-full bg-[#4A6741]/90 text-white shadow-2xl flex items-center justify-center hover:bg-[#3d5535] transition-colors"
               aria-label="글 작성"
             >
