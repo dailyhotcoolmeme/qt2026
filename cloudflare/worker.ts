@@ -1318,7 +1318,19 @@ async function handleAdminLogin(request: Request, env: Env) {
   const expectedPass = env.ADMIN_PASSWORD;
   if (!expectedUser || !expectedPass) return json(503, { error: 'server config error' });
 
-  if (username !== expectedUser || password !== expectedPass) {
+  // 타이밍 어택 방지: HMAC 기반 상수 시간 비교
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.generateKey({ name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const [sigInput, sigExpected] = await Promise.all([
+    crypto.subtle.sign('HMAC', key, enc.encode(password)),
+    crypto.subtle.sign('HMAC', key, enc.encode(expectedPass)),
+  ]);
+  const a = new Uint8Array(sigInput), b = new Uint8Array(sigExpected);
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  const passwordMatch = diff === 0;
+
+  if (username !== expectedUser || !passwordMatch) {
     return json(401, { error: 'unauthorized' });
   }
 

@@ -5,19 +5,27 @@ import { supabase, supabaseAdmin } from "./supabase";
 
 import { uploadAudioToR2, uploadFileToR2, checkAudioExistsInR2, getR2PublicUrl, deleteAudioFromR2 } from "./r2";
 
-// Replit 인증 대신 Supabase 사용자를 판별하도록 수정
 function getUserId(req: any): string | null {
-  // 클라이언트에서 보낸 헤더나 세션 정보를 우선 확인합니다.
-  return req.headers['x-user-id'] as string || req.user?.id || null;
+  return (req.verifiedUserId as string) || null;
 }
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Replit 전용 인증 로직 주석 처리 (Vercel 에러 방지)
-  // await setupAuth(app);
-  // registerAuthRoutes(app);
+  // JWT 검증 미들웨어 — Authorization Bearer 토큰을 Supabase로 검증 후 req.verifiedUserId 설정
+  // x-user-id 헤더는 더 이상 신뢰하지 않음 (IDOR 방지)
+  app.use(async (req: any, _res, next) => {
+    const authHeader = (req.headers['authorization'] as string) || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      try {
+        const { data: { user } } = await supabase.auth.getUser(token);
+        if (user) req.verifiedUserId = user.id;
+      } catch {}
+    }
+    next();
+  });
 
   app.get("/api/bible/audio-metadata", async (req, res) => {
     const bookId = Number(req.query.book_id);
@@ -85,6 +93,15 @@ export async function registerRoutes(
     }
     if (!/^https?:$/.test(target.protocol)) {
       return res.status(400).json({ message: "unsupported protocol" });
+    }
+
+    const PROXY_ALLOWED_HOSTS = new Set([
+      "audio.myamen.co.kr",
+      "pub-240da6bd4a6140de8f7f6bfca3372b13.r2.dev",
+    ]);
+    const isAllowedHost = PROXY_ALLOWED_HOSTS.has(target.hostname) || target.hostname.endsWith(".supabase.co");
+    if (!isAllowedHost) {
+      return res.status(403).json({ message: "domain not allowed" });
     }
 
     try {
@@ -321,6 +338,9 @@ export async function registerRoutes(
 
   // R2 오디오 업로드
   app.post("/api/audio/upload", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ success: false, error: "인증이 필요합니다" });
+    }
     try {
       const { fileName, audioBase64 } = req.body;
 
@@ -349,6 +369,9 @@ export async function registerRoutes(
 
   // R2 일반 파일 업로드 (이미지 포함)
   app.post("/api/file/upload", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ success: false, error: "인증이 필요합니다" });
+    }
     try {
       const { fileName, fileBase64, contentType } = req.body;
 
@@ -376,6 +399,9 @@ export async function registerRoutes(
 
   // R2 오디오 URL 가져오기
   app.delete("/api/file/delete", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ success: false, error: "인증이 필요합니다" });
+    }
     try {
       const { fileUrl } = req.body;
 
@@ -444,6 +470,9 @@ export async function registerRoutes(
 
   // R2 오디오 파일 삭제
   app.delete("/api/audio/delete", async (req, res) => {
+    if (!getUserId(req)) {
+      return res.status(401).json({ success: false, error: "인증이 필요합니다" });
+    }
     try {
       const { fileUrl } = req.body;
 
